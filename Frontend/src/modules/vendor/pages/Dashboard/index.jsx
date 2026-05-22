@@ -15,6 +15,7 @@ import { isWithinInterval, parseISO } from 'date-fns';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import StatsCards from './components/StatsCards';
+import { useVendorDashboard } from '../../../../context/VendorDashboardContext';
 // PendingBookings import removed
 
 
@@ -31,30 +32,15 @@ const Dashboard = memo(() => {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
-  const [stats, setStats] = useState({
-    todayEarnings: 0,
-    activeJobs: 0,
-    pendingAlerts: 0,
-    totalEarnings: 0,
-    completedJobs: 0,
-    rating: 0,
-    complianceAlerts: [],
-    machinesInMaintenance: 0,
-    ecommerceEarnings: 0
-  });
-  const [vendorProfile, setVendorProfile] = useState({
-    name: 'Vendor Name',
-    businessName: 'Business Name',
-    photo: null,
-    service: []
-  });
-  const [recentJobs, setRecentJobs] = useState([]);
-  const [pendingBookings, setPendingBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [activeAlertBookings, setActiveAlertBookings] = useState([]);
-
-  const ignoredBookingIds = useRef(new Set());
+  const {
+    stats,
+    vendorProfile,
+    recentJobs,
+    pendingBookings,
+    loading,
+    error,
+    loadDashboardData
+  } = useVendorDashboard();
 
   // Set background gradient
   useLayoutEffect(() => {
@@ -71,229 +57,8 @@ const Dashboard = memo(() => {
       if (html) html.style.background = '';
       if (body) body.style.background = '';
       if (root) root.style.background = '';
-
     };
   }, []);
-
-
-
-  // Process API response - extracted to avoid duplication
-  const processApiResponse = useCallback((response) => {
-    if (!response.success) return;
-
-    const { stats: apiStats, recentBookings } = response.data;
-
-    // Include all bookings in the recent list, but keep the separate filter for stats if needed
-    const requestedBookings = (recentBookings || []).filter(booking => {
-      const status = booking.status?.toLowerCase();
-      return status === 'requested' || status === 'searching';
-    });
-    
-    // We will show ALL bookings in the recent jobs section now
-    const allBookings = recentBookings || [];
-
-    // Build pending bookings map
-    const mergedMap = new Map();
-    const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
-    const vendorId = vendorData._id || vendorData.id;
-
-    requestedBookings.forEach(b => {
-      const id = String(b._id || b.id);
-
-      // Find distance for this vendor if available
-      let distance = 'N/A';
-      if (b.potentialVendors && vendorId) {
-        const potentialVendor = b.potentialVendors.find(pv =>
-          String(pv.vendorId?._id || pv.vendorId) === String(vendorId)
-        );
-        if (potentialVendor && potentialVendor.distance) {
-          distance = `${potentialVendor.distance.toFixed(1)} km`;
-        }
-      }
-
-      mergedMap.set(id, {
-        ...b, // Spread first!
-        id,
-        serviceType: b.serviceId?.title || 'Service Request',
-        customerName: b.userId?.name || 'Farmer',
-        location: {
-          address: b.address?.addressLine1 || 'Address not available',
-          distance: distance
-        },
-        // Prioritize vendorEarnings, fallback to 90% of finalAmount if it's not a free plan (finalAmount > 0)
-        price: (b.vendorEarnings > 0 ? b.vendorEarnings : (b.finalAmount > 0 ? b.finalAmount * 0.9 : 0)).toFixed(2),
-        vendorEarnings: b.vendorEarnings, // Ensure it's explicitly passed
-        timeSlot: {
-          date: new Date(b.scheduledDate).toLocaleDateString(),
-          time: b.scheduledTime || 'Time not set'
-        },
-        status: b.status
-      });
-    });
-
-    // Filter out locally ignored bookings
-    const finalMap = new Map();
-    mergedMap.forEach((value, key) => {
-      if (!ignoredBookingIds.current.has(key)) {
-        finalMap.set(key, value);
-      }
-    });
-
-    // Merge with local storage to avoid losing real-time updates that haven't hit API yet
-    const localPending = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-    const apiPending = Array.from(finalMap.values());
-    const mergedPending = [...apiPending];
-
-    localPending.forEach(localJob => {
-      const id = String(localJob.id || localJob._id);
-      if (!mergedPending.find(job => String(job.id || job._id) === id) && !ignoredBookingIds.current.has(id)) {
-        // ... (existing logic) result of filter
-        const createdAt = localJob.createdAt ? new Date(localJob.createdAt).getTime() : Date.now();
-        const age = Date.now() - createdAt;
-        const lowerStatus = String(localJob.status || '').toLowerCase();
-        if (age < 120000 && (lowerStatus === 'requested' || lowerStatus === 'searching')) {
-          mergedPending.push(localJob);
-        }
-      }
-    });
-
-    setPendingBookings(mergedPending);
-    localStorage.setItem('vendorPendingJobs', JSON.stringify(mergedPending));
-
-    // Update stats
-    setStats({
-      todayEarnings: apiStats.vendorEarnings || 0,
-      activeJobs: apiStats.inProgressBookings || 0,
-      pendingAlerts: mergedPending.length,
-      totalEarnings: apiStats.vendorEarnings || 0,
-      completedJobs: apiStats.completedBookings || 0,
-      rating: apiStats.rating || 0,
-      complianceAlerts: apiStats.complianceAlerts || [],
-      machinesInMaintenance: stats.machinesInMaintenance || 0, // Keep previous or wait for fetch
-      ecommerceEarnings: apiStats.ecommerceEarnings || 0
-    });
-
-    // Recent jobs (including requested ones now)
-    const recentJobsData = allBookings.slice(0, 5).map(booking => ({
-      id: booking._id,
-      serviceType: booking.serviceId?.title || 'Service',
-      customerName: booking.userId?.name || 'Farmer',
-      location: booking.address?.addressLine1 || 'Address not available',
-      price: (booking.vendorEarnings > 0 ? booking.vendorEarnings : (booking.finalAmount ? booking.finalAmount * 0.9 : 0)).toFixed(2),
-      vendorEarnings: booking.vendorEarnings,
-      timeSlot: {
-        date: new Date(booking.scheduledDate).toLocaleDateString(),
-        time: booking.scheduledTime || 'Time not set'
-      },
-      status: booking.status,
-      assignedTo: booking.workerId ? { name: booking.workerId.name } : null,
-    }));
-    setRecentJobs(recentJobsData);
-
-    // Load vendor profile from localStorage (once)
-    const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
-    setVendorProfile({
-      name: profile.name || 'Vendor Name',
-      businessName: profile.businessName || 'Business Name',
-      photo: profile.profilePhoto || null,
-      service: profile.service || []
-    });
-  }, []);
-
-  // Main data loader - useCallback to prevent recreation
-  const loadDashboardData = useCallback(async (showSpinner = true) => {
-    try {
-      if (showSpinner) setLoading(true);
-      setError(null);
-
-      // Run both API calls in PARALLEL to cut load time by ~50%
-      const [response, maintRes] = await Promise.all([
-        vendorDashboardService.getDashboardStats(),
-        maintenanceService.getSchedules()
-      ]);
-
-      const activeMaintenanceCount = (maintRes.data || []).filter(m =>
-        isWithinInterval(new Date(), {
-          start: parseISO(m.startDate),
-          end: parseISO(m.endDate)
-        })
-      ).length;
-
-      processApiResponse(response);
-
-      setStats(prev => ({
-        ...prev,
-        machinesInMaintenance: activeMaintenanceCount
-      }));
-    } catch (err) {
-      console.error('Error loading dashboard data:', err);
-      setError(String(err.message || 'Failed to load dashboard data'));
-    } finally {
-      setLoading(false);
-    }
-  }, [processApiResponse]);
-
-  // Initial load
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
-
-  // Listen for real-time updates via window events (dispatched by useAppNotifications)
-  useEffect(() => {
-    const handleUpdate = () => {
-      console.log('🔄 Dashboard: Refreshing data due to real-time update');
-      loadDashboardData(false); // false = don't show spinner for background refresh
-    };
-
-    // Ask for notification permission and register FCM
-    registerFCMToken('vendor', true).catch(err => console.error('FCM registration failed:', err));
-
-    // Listen for custom dashboard events from SocketContext
-    const handleShowAlert = (e) => {
-      // e.detail contains the new booking job
-      if (e.detail) {
-        setActiveAlertBookings(prev => {
-          if (prev.find(b => String(b.id || b._id) === String(e.detail.id || e.detail._id))) return prev;
-          return [e.detail, ...prev];
-        });
-        // Also add to pending if not present
-        setPendingBookings(prev => {
-          if (prev.find(b => b.id === e.detail.id)) return prev;
-          return [e.detail, ...prev];
-        });
-      }
-    };
-
-    const handleRemoveBooking = (e) => {
-      if (e.detail?.id) {
-        const idToRemove = String(e.detail.id);
-
-        // Add to ignored list so it doesn't come back on next fetch
-        ignoredBookingIds.current.add(idToRemove);
-
-        // Remove from pending bookings state immediately
-        setPendingBookings(prev => prev.filter(b => String(b.id || b._id) !== idToRemove));
-
-        // Remove from active alert if it's the one showing
-        setActiveAlertBookings(prev => prev.filter(b => String(b.id || b._id) !== idToRemove));
-
-        // Remove from recent jobs state
-        setRecentJobs(prev => prev.filter(b => String(b.id || b._id) !== idToRemove));
-      }
-    };
-
-    window.addEventListener('vendorJobsUpdated', handleUpdate);
-    window.addEventListener('vendorStatsUpdated', handleUpdate);
-    window.addEventListener('showDashboardBookingAlert', handleShowAlert);
-    window.addEventListener('removeVendorBooking', handleRemoveBooking);
-
-    return () => {
-      window.removeEventListener('vendorJobsUpdated', handleUpdate);
-      window.removeEventListener('vendorStatsUpdated', handleUpdate);
-      window.removeEventListener('showDashboardBookingAlert', handleShowAlert);
-      window.removeEventListener('removeVendorBooking', handleRemoveBooking);
-    };
-  }, [loadDashboardData]);
 
   // Memoize quickActions to prevent recreation on every render
   const quickActions = useMemo(() => [
@@ -423,26 +188,7 @@ const Dashboard = memo(() => {
           <h2 className="text-white text-xl font-semibold mb-2">Failed to Load Dashboard</h2>
           <p className="text-gray-300 mb-6">{error}</p>
           <button
-            onClick={() => window.location.reload()}
-            className="bg-white text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state
-  if (error && error.length > 0 && !loading) {
-    return (
-      <div className="min-h-screen pb-20 flex items-center justify-center" style={{ background: themeColors.backgroundGradient }}>
-        <div className="text-center px-6">
-          <div className="text-red-400 text-6xl mb-4">⚠️</div>
-          <h2 className="text-white text-xl font-semibold mb-2">Failed to Load Dashboard</h2>
-          <p className="text-gray-300 mb-6">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
+            onClick={() => loadDashboardData(true, true)}
             className="bg-white text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors"
           >
             Try Again

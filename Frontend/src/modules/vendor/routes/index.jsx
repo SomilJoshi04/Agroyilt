@@ -7,6 +7,7 @@ import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
 import CashLimitModal from '../components/common/CashLimitModal'; // Import
 // import useAppNotifications from '../../../hooks/useAppNotifications.jsx'; // Handled globally
+import { VendorDashboardProvider } from '../../../context/VendorDashboardContext';
 
 // Lazy load wrapper with error handling
 // NOTE: Do NOT use infinite Promise here — it freezes iOS Safari Suspense forever.
@@ -126,63 +127,65 @@ const VendorRoutes = () => {
 
   return (
     <ErrorBoundary>
-      {/* Main content area - leaves space for bottom nav when needed */}
-      <div className={shouldShowBottomNav ? "pb-24" : ""}>
-        <Suspense fallback={<LoadingFallback />}>
-          <PageTransition>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<PublicRoute userType="vendor"><Login /></PublicRoute>} />
-              <Route path="/signup" element={<PublicRoute userType="vendor"><Signup /></PublicRoute>} />
+      <VendorDashboardProvider>
+        {/* Main content area - leaves space for bottom nav when needed */}
+        <div className={shouldShowBottomNav ? "pb-24" : ""}>
+          <Suspense fallback={<LoadingFallback />}>
+            <PageTransition>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<PublicRoute userType="vendor"><Login /></PublicRoute>} />
+                <Route path="/signup" element={<PublicRoute userType="vendor"><Signup /></PublicRoute>} />
 
-              {/* Protected routes (auth required) */}
-              <Route path="/" element={<ProtectedRoute userType="vendor"><Navigate to="dashboard" replace /></ProtectedRoute>} />
-              <Route path="/dashboard" element={<ProtectedRoute userType="vendor"><Dashboard /></ProtectedRoute>} />
-              <Route path="/booking-alerts" element={<ProtectedRoute userType="vendor"><BookingAlerts /></ProtectedRoute>} />
-              <Route path="/booking-alert/:id" element={<ProtectedRoute userType="vendor"><BookingAlert /></ProtectedRoute>} />
-              <Route path="/booking/:id" element={<ProtectedRoute userType="vendor"><BookingDetails /></ProtectedRoute>} />
-              <Route path="/booking/:id/map" element={<ProtectedRoute userType="vendor"><BookingMap /></ProtectedRoute>} />
-              <Route path="/booking/:id/billing" element={<ProtectedRoute userType="vendor"><BillingPage /></ProtectedRoute>} />
-              <Route path="/booking/:id/timeline" element={<ProtectedRoute userType="vendor"><BookingTimeline /></ProtectedRoute>} />
-              <Route path="/jobs" element={<ProtectedRoute userType="vendor"><ActiveJobs /></ProtectedRoute>} />
-              <Route path="/workers" element={<ProtectedRoute userType="vendor"><WorkersList /></ProtectedRoute>} />
-              <Route path="/workers/add" element={<ProtectedRoute userType="vendor"><AddEditWorker /></ProtectedRoute>} />
-              <Route path="/workers/:id/edit" element={<ProtectedRoute userType="vendor"><AddEditWorker /></ProtectedRoute>} />
-              <Route path="/booking/:id/assign-worker" element={<ProtectedRoute userType="vendor"><AssignWorker /></ProtectedRoute>} />
-              <Route path="/earnings" element={<ProtectedRoute userType="vendor"><Earnings /></ProtectedRoute>} />
-              <Route path="/wallet" element={<ProtectedRoute userType="vendor"><Wallet /></ProtectedRoute>} />
-              <Route path="/wallet/withdraw" element={<ProtectedRoute userType="vendor"><WithdrawalRequest /></ProtectedRoute>} />
-              <Route path="/wallet/settle" element={<ProtectedRoute userType="vendor"><SettlementRequest /></ProtectedRoute>} />
-              <Route path="/wallet/settlements" element={<ProtectedRoute userType="vendor"><SettlementHistory /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute userType="vendor"><Profile /></ProtectedRoute>} />
-              <Route path="/profile/details" element={<ProtectedRoute userType="vendor"><ProfileDetails /></ProtectedRoute>} />
-              <Route path="/profile/edit" element={<ProtectedRoute userType="vendor"><EditProfile /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute userType="vendor"><Settings /></ProtectedRoute>} />
-              <Route path="/address-management" element={<ProtectedRoute userType="vendor"><AddressManagement /></ProtectedRoute>} />
-              <Route path="/notifications" element={<ProtectedRoute userType="vendor"><Notifications /></ProtectedRoute>} />
-              <Route path="/my-ratings" element={<ProtectedRoute userType="vendor"><MyRatings /></ProtectedRoute>} />
-              <Route path="/about-groo" element={<ProtectedRoute userType="vendor"><AboutGroo /></ProtectedRoute>} />
-              <Route path="/maintenance" element={<ProtectedRoute userType="vendor"><Maintenance /></ProtectedRoute>} />
-              <Route path="/compliance" element={<ProtectedRoute userType="vendor"><Compliance /></ProtectedRoute>} />
-              <Route path="/analytics" element={<ProtectedRoute userType="vendor"><Analytics /></ProtectedRoute>} />
-              <Route path="/store" element={<ProtectedRoute userType="vendor"><MyStore /></ProtectedRoute>} />
-              <Route path="/store/registration" element={<ProtectedRoute userType="vendor"><StoreRegistration /></ProtectedRoute>} />
-              <Route path="/store/orders" element={<ProtectedRoute userType="vendor"><StoreOrders /></ProtectedRoute>} />
-              <Route path="/soil-tests" element={<ProtectedRoute userType="vendor"><SoilTesting /></ProtectedRoute>} />
-              <Route path="/business-details" element={<ProtectedRoute userType="vendor"><BusinessDetails /></ProtectedRoute>} />
-              <Route path="/equipment" element={<ProtectedRoute userType="vendor"><EquipmentInventory /></ProtectedRoute>} />
-              <Route path="/equipment/add" element={<ProtectedRoute userType="vendor"><AddEquipment /></ProtectedRoute>} />
-              <Route path="/equipment/edit/:id" element={<ProtectedRoute userType="vendor"><AddEquipment /></ProtectedRoute>} />
-            </Routes>
-          </PageTransition>
-        </Suspense>
-      </div>
+                {/* Protected routes (auth required) */}
+                <Route path="/" element={<ProtectedRoute userType="vendor"><Navigate to="dashboard" replace /></ProtectedRoute>} />
+                <Route path="/dashboard" element={<ProtectedRoute userType="vendor"><Dashboard /></ProtectedRoute>} />
+                <Route path="/booking-alerts" element={<ProtectedRoute userType="vendor"><BookingAlerts /></ProtectedRoute>} />
+                <Route path="/booking-alert/:id" element={<ProtectedRoute userType="vendor"><BookingAlert /></ProtectedRoute>} />
+                <Route path="/booking/:id" element={<ProtectedRoute userType="vendor"><BookingDetails /></ProtectedRoute>} />
+                <Route path="/booking/:id/map" element={<ProtectedRoute userType="vendor"><BookingMap /></ProtectedRoute>} />
+                <Route path="/booking/:id/billing" element={<ProtectedRoute userType="vendor"><BillingPage /></ProtectedRoute>} />
+                <Route path="/booking/:id/timeline" element={<ProtectedRoute userType="vendor"><BookingTimeline /></ProtectedRoute>} />
+                <Route path="/jobs" element={<ProtectedRoute userType="vendor"><ActiveJobs /></ProtectedRoute>} />
+                <Route path="/workers" element={<ProtectedRoute userType="vendor"><WorkersList /></ProtectedRoute>} />
+                <Route path="/workers/add" element={<ProtectedRoute userType="vendor"><AddEditWorker /></ProtectedRoute>} />
+                <Route path="/workers/:id/edit" element={<ProtectedRoute userType="vendor"><AddEditWorker /></ProtectedRoute>} />
+                <Route path="/booking/:id/assign-worker" element={<ProtectedRoute userType="vendor"><AssignWorker /></ProtectedRoute>} />
+                <Route path="/earnings" element={<ProtectedRoute userType="vendor"><Earnings /></ProtectedRoute>} />
+                <Route path="/wallet" element={<ProtectedRoute userType="vendor"><Wallet /></ProtectedRoute>} />
+                <Route path="/wallet/withdraw" element={<ProtectedRoute userType="vendor"><WithdrawalRequest /></ProtectedRoute>} />
+                <Route path="/wallet/settle" element={<ProtectedRoute userType="vendor"><SettlementRequest /></ProtectedRoute>} />
+                <Route path="/wallet/settlements" element={<ProtectedRoute userType="vendor"><SettlementHistory /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute userType="vendor"><Profile /></ProtectedRoute>} />
+                <Route path="/profile/details" element={<ProtectedRoute userType="vendor"><ProfileDetails /></ProtectedRoute>} />
+                <Route path="/profile/edit" element={<ProtectedRoute userType="vendor"><EditProfile /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute userType="vendor"><Settings /></ProtectedRoute>} />
+                <Route path="/address-management" element={<ProtectedRoute userType="vendor"><AddressManagement /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute userType="vendor"><Notifications /></ProtectedRoute>} />
+                <Route path="/my-ratings" element={<ProtectedRoute userType="vendor"><MyRatings /></ProtectedRoute>} />
+                <Route path="/about-groo" element={<ProtectedRoute userType="vendor"><AboutGroo /></ProtectedRoute>} />
+                <Route path="/maintenance" element={<ProtectedRoute userType="vendor"><Maintenance /></ProtectedRoute>} />
+                <Route path="/compliance" element={<ProtectedRoute userType="vendor"><Compliance /></ProtectedRoute>} />
+                <Route path="/analytics" element={<ProtectedRoute userType="vendor"><Analytics /></ProtectedRoute>} />
+                <Route path="/store" element={<ProtectedRoute userType="vendor"><MyStore /></ProtectedRoute>} />
+                <Route path="/store/registration" element={<ProtectedRoute userType="vendor"><StoreRegistration /></ProtectedRoute>} />
+                <Route path="/store/orders" element={<ProtectedRoute userType="vendor"><StoreOrders /></ProtectedRoute>} />
+                <Route path="/soil-tests" element={<ProtectedRoute userType="vendor"><SoilTesting /></ProtectedRoute>} />
+                <Route path="/business-details" element={<ProtectedRoute userType="vendor"><BusinessDetails /></ProtectedRoute>} />
+                <Route path="/equipment" element={<ProtectedRoute userType="vendor"><EquipmentInventory /></ProtectedRoute>} />
+                <Route path="/equipment/add" element={<ProtectedRoute userType="vendor"><AddEquipment /></ProtectedRoute>} />
+                <Route path="/equipment/edit/:id" element={<ProtectedRoute userType="vendor"><AddEquipment /></ProtectedRoute>} />
+              </Routes>
+            </PageTransition>
+          </Suspense>
+        </div>
 
-      {/* BottomNav is OUTSIDE Suspense so it persists during page loads */}
-      {shouldShowBottomNav && <BottomNav />}
+        {/* BottomNav is OUTSIDE Suspense so it persists during page loads */}
+        {shouldShowBottomNav && <BottomNav />}
 
-      {/* Global Alert for Cash Limit */}
-      {!shouldHideBottomNav && <CashLimitModal />}
+        {/* Global Alert for Cash Limit */}
+        {!shouldHideBottomNav && <CashLimitModal />}
+      </VendorDashboardProvider>
     </ErrorBoundary>
   );
 };
