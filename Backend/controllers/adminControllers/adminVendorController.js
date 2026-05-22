@@ -652,6 +652,50 @@ module.exports = {
       res.status(500).json({ success: false, message: error.message });
     }
   },
+  addVendorShop: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { shopName, shopAddress, shopLicense, shopLocation } = req.body;
+      let licenseDocument = req.body.licenseDocument || null;
+
+      const vendor = await Vendor.findById(id);
+      if (!vendor) {
+        return res.status(404).json({ success: false, message: 'Vendor not found' });
+      }
+
+      // Upload to cloudinary if base64
+      if (licenseDocument && licenseDocument.startsWith('data:')) {
+        const cloudinaryService = require('../../services/cloudinaryService');
+        const uploadRes = await cloudinaryService.uploadFile(licenseDocument, { folder: 'vendors/documents/shop' });
+        if (uploadRes.success) licenseDocument = uploadRes.url;
+      }
+
+      const shopDetails = {
+        shopName,
+        shopAddress,
+        shopLocation: shopLocation || { lat: 0, lng: 0 },
+        shopLicense,
+        licenseDocument,
+        isStoreApproved: true,
+        storeApprovalStatus: 'approved'
+      };
+
+      const updatedVendor = await Vendor.findByIdAndUpdate(
+        id,
+        { $set: { shopDetails } },
+        { new: true }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Shop successfully created and approved for this vendor.',
+        data: updatedVendor.shopDetails
+      });
+    } catch (error) {
+      console.error('Admin add vendor shop error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
   addVendor: async (req, res) => {
     try {
       const { name, email, phone, businessName, service, aadhar, pan } = req.body;

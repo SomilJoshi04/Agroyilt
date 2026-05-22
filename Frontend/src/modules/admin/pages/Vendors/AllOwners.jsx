@@ -6,6 +6,7 @@ import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
 import adminVendorService from '../../../../services/adminVendorService';
 import { publicCatalogService } from '../../../../services/catalogService';
+import GoogleMapPicker from '../../../../vendor/pages/AddressManagement/components/GoogleMapPicker';
 
 const AllOwners = () => {
   const [owners, setOwners] = useState([]);
@@ -43,6 +44,17 @@ const AllOwners = () => {
     aadharBack: false,
     pan: false
   });
+  
+  // Add Shop states
+  const [isAddingShop, setIsAddingShop] = useState(false);
+  const [shopFormData, setShopFormData] = useState({
+    shopName: '',
+    shopAddress: '',
+    shopLocation: null,
+    shopLicense: '',
+    licenseDocument: ''
+  });
+  const [shopDocPreview, setShopDocPreview] = useState('');
 
   // Load owners and categories from backend
   useEffect(() => {
@@ -90,6 +102,7 @@ const AllOwners = () => {
           businessName: owner.businessName,
           service: owner.service,
           labDetails: owner.labDetails,
+          shopDetails: owner.shopDetails,
           approvalStatus: owner.approvalStatus,
           aadhar: owner.aadhar?.number,
           pan: owner.pan?.number,
@@ -294,6 +307,62 @@ const AllOwners = () => {
       ...prev,
       [type]: ''
     }));
+  };
+
+  const handleShopDocumentUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error('File size should be less than 15MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setShopFormData(prev => ({ ...prev, licenseDocument: reader.result }));
+      setShopDocPreview(reader.result);
+      toast.success("Document attached");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAddShopSubmit = async (e, ownerId) => {
+    e.preventDefault();
+    if (!shopFormData.shopName.trim()) return toast.error('Enter shop name');
+    if (!shopFormData.shopAddress.trim()) return toast.error('Enter shop address');
+
+    if (shopFormData.shopName && !/^[A-Za-z0-9\s.,&'-]+$/.test(shopFormData.shopName)) {
+      return toast.error('Shop Name contains invalid characters.');
+    }
+    if (shopFormData.shopLicense && !/^[A-Za-z0-9-]+$/.test(shopFormData.shopLicense)) {
+      return toast.error('License Number contains invalid characters.');
+    }
+    if (shopFormData.shopAddress && !/^[A-Za-z0-9\s.,&'-/#]+$/.test(shopFormData.shopAddress)) {
+      return toast.error('Shop Address contains invalid characters.');
+    }
+
+    try {
+      setIsAddingShop(true);
+      const response = await adminVendorService.addVendorShop(ownerId, shopFormData);
+      if (response.success) {
+        toast.success('Shop registered successfully!');
+        setShopFormData({ shopName: '', shopAddress: '', shopLocation: null, shopLicense: '', licenseDocument: '' });
+        setShopDocPreview('');
+        loadOwners();
+        // Update selected owner locally
+        setSelectedOwner(prev => ({
+          ...prev,
+          shopDetails: response.data
+        }));
+      } else {
+        toast.error(response.message || 'Failed to add shop');
+      }
+    } catch (error) {
+      toast.error('Failed to register shop');
+    } finally {
+      setIsAddingShop(false);
+    }
   };
 
   const handleAddOwnerSubmit = async (e) => {
@@ -635,6 +704,77 @@ const AllOwners = () => {
                       </div>
                     )}
                   </div>
+                )}
+              </div>
+              
+              {/* Add / View Shop Details */}
+              <div className="col-span-2 mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-800">Agri-Store Verification</h4>
+                    <p className="text-xs text-gray-500">Manage ecommerce store for this vendor</p>
+                  </div>
+                </div>
+                
+                {selectedOwner.shopDetails?.storeApprovalStatus === 'approved' || selectedOwner.shopDetails?.storeApprovalStatus === 'pending' ? (
+                  <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-blue-200">
+                    <div>
+                      <span className="block text-xs text-gray-500">Shop Name</span>
+                      <span className="text-sm font-semibold text-gray-800">{selectedOwner.shopDetails.shopName || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-xs text-gray-500">Status</span>
+                      <span className="text-sm font-semibold text-gray-800 uppercase">{selectedOwner.shopDetails.storeApprovalStatus}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="block text-xs text-gray-500">Address</span>
+                      <span className="text-sm font-semibold text-gray-800">{selectedOwner.shopDetails.shopAddress || 'N/A'}</span>
+                    </div>
+                    {selectedOwner.shopDetails.licenseDocument && (
+                      <div className="col-span-2">
+                         <a href={selectedOwner.shopDetails.licenseDocument} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                           <FiEye className="w-3 h-3" /> View License Document
+                         </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <form onSubmit={(e) => handleAddShopSubmit(e, selectedOwner.id)} className="mt-3 pt-3 border-t border-blue-200 space-y-3">
+                    <p className="text-xs text-gray-600 mb-2 font-semibold">Vendor hasn't registered a shop yet. Add it for them:</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <input type="text" placeholder="Shop Name *" required maxLength="50" className={`w-full text-xs p-2 rounded border outline-none transition-colors ${shopFormData.shopName.length > 0 && !/^[A-Za-z0-9\s.,&'-]{3,50}$/.test(shopFormData.shopName) ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'}`} value={shopFormData.shopName} onChange={e => setShopFormData({...shopFormData, shopName: e.target.value})} />
+                      </div>
+                      <div>
+                        <input type="text" placeholder="License No. (e.g. GSTIN / 07AABCD1234E1Z5)" maxLength="15" className={`w-full text-xs p-2 rounded border outline-none transition-colors ${shopFormData.shopLicense.length > 0 && !/^[A-Za-z0-9-]{5,15}$/.test(shopFormData.shopLicense) ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'}`} value={shopFormData.shopLicense} onChange={e => setShopFormData({...shopFormData, shopLicense: e.target.value.toUpperCase()})} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Pin Shop Location on Map</label>
+                        <div className="border border-gray-300 rounded overflow-hidden mb-2">
+                          <GoogleMapPicker onLocationSelect={(loc) => {
+                            setShopFormData(prev => ({
+                              ...prev,
+                              shopLocation: { lat: loc.lat, lng: loc.lng },
+                              shopAddress: prev.shopAddress || loc.address
+                            }));
+                          }} />
+                        </div>
+                        <textarea placeholder="Shop Address *" required maxLength="200" className={`w-full text-xs p-2 rounded border outline-none transition-colors ${shopFormData.shopAddress.length > 0 && !/^[A-Za-z0-9\s.,&'-/#]{5,200}$/.test(shopFormData.shopAddress) ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'}`} rows="2" value={shopFormData.shopAddress} onChange={e => setShopFormData({...shopFormData, shopAddress: e.target.value})}></textarea>
+                      </div>
+                      <div className="col-span-2 flex items-center gap-2">
+                         <label className="cursor-pointer text-xs bg-white border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50">
+                           <input type="file" className="hidden" accept="image/*,.pdf" onChange={handleShopDocumentUpload} />
+                           Attach License Doc
+                         </label>
+                         {shopDocPreview && <span className="text-xs text-green-600 flex items-center gap-1"><FiCheck /> Attached</span>}
+                      </div>
+                      <div className="col-span-2 mt-2">
+                        <button type="submit" disabled={isAddingShop} className="px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 disabled:opacity-50">
+                          {isAddingShop ? 'Registering Shop...' : 'Register Shop'}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
                 )}
               </div>
             </div>

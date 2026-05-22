@@ -19,7 +19,8 @@ const {
   getPendingShopApprovals,
   updateShopStatus,
   getApprovedShops,
-  addVendor
+  addVendor,
+  addVendorShop
 } = require('../../controllers/adminControllers/adminVendorController');
 
 // Validation rules
@@ -30,6 +31,7 @@ const rejectVendorValidation = [
 // Routes
 router.get('/vendors/shop-approvals', authenticate, isAdmin, getPendingShopApprovals);
 router.post('/vendors/shop-approvals/:id', authenticate, isAdmin, updateShopStatus);
+router.post('/vendors/:id/shop', authenticate, isAdmin, addVendorShop);
 router.get('/vendors/approved-shops', authenticate, isAdmin, getApprovedShops);
 router.get('/vendors', authenticate, isAdmin, getAllVendors);
 router.post('/vendors', authenticate, isAdmin, addVendor);
