@@ -9,89 +9,45 @@ import CashLimitModal from '../components/common/CashLimitModal'; // Import
 // import useAppNotifications from '../../../hooks/useAppNotifications.jsx'; // Handled globally
 import { VendorDashboardProvider } from '../../../context/VendorDashboardContext';
 
-// Lazy load wrapper with error handling
-// NOTE: Do NOT use infinite Promise here — it freezes iOS Safari Suspense forever.
-const lazyLoad = (importFunc) => {
-  return lazy(() => {
-    return Promise.resolve(importFunc()).catch((error) => {
-      console.error('Failed to load vendor page chunk:', error);
+// Static imports for instant page loading (0ms delay)
+import Login from '../pages/login';
+import Signup from '../pages/signup';
+import Dashboard from '../pages/Dashboard';
+import BookingAlert from '../pages/BookingAlert';
+import BookingAlerts from '../pages/BookingAlerts';
+import BookingDetails from '../pages/BookingDetails';
+import BookingTimeline from '../pages/BookingTimeline';
+import ActiveJobs from '../pages/ActiveJobs';
+import WorkersList from '../pages/WorkersList';
+import AddEditWorker from '../pages/AddEditWorker';
+import AssignWorker from '../pages/AssignWorker';
+import Earnings from '../pages/Earnings';
+import Wallet from '../pages/Wallet';
+import WithdrawalRequest from '../pages/WithdrawalRequest';
+import Profile from '../pages/Profile';
+import ProfileDetails from '../pages/Profile/ProfileDetails';
+import EditProfile from '../pages/Profile/EditProfile';
+import BookingMap from '../pages/BookingMap';
+import Settings from '../pages/Settings';
+import AddressManagement from '../pages/AddressManagement';
+import Notifications from '../pages/Notifications';
+import SettlementRequest from '../pages/Wallet/SettlementRequest';
+import SettlementHistory from '../pages/Wallet/SettlementHistory';
+import MyRatings from '../pages/MyRatings';
+import AboutGroo from '../pages/AboutHomster';
+import BillingPage from '../pages/BillingPage';
+import Maintenance from '../pages/Maintenance';
+import Compliance from '../pages/Compliance';
+import Analytics from '../pages/Analytics';
+import MyStore from '../pages/MyStore';
+import StoreRegistration from '../pages/MyStore/StoreRegistration';
+import StoreOrders from '../pages/MyStore/Orders';
+import SoilTesting from '../pages/SoilTesting';
+import BusinessDetails from '../pages/BusinessDetails';
+import EquipmentInventory from '../pages/Equipment/EquipmentInventory';
+import AddEquipment from '../pages/Equipment/AddEquipment';
 
-      // On first failure: schedule a reload and immediately return error UI
-      // Do NOT use `return new Promise(() => {})` — that hangs Suspense on iOS forever
-      const hasReloaded = sessionStorage.getItem('chunk_error_reload');
-      if (!hasReloaded) {
-        sessionStorage.setItem('chunk_error_reload', 'true');
-        // Reload after a short delay (UI will show briefly, then page reloads)
-        setTimeout(() => window.location.reload(), 300);
-      }
-
-      // Always return a resolved module with a fallback UI
-      return Promise.resolve({
-        default: () => (
-          <div className="flex items-center justify-center min-h-screen bg-white">
-            <div className="text-center p-6">
-              <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-4xl">📡</span>
-              </div>
-              <h2 className="text-xl font-bold text-gray-800 mb-2">Connection Issues</h2>
-              <p className="text-gray-600 mb-6">We couldn't load this part of the app. This often happens on slow networks or after an update.</p>
-              <button
-                onClick={() => {
-                  sessionStorage.removeItem('chunk_error_reload');
-                  window.location.reload();
-                }}
-                className="w-full py-4 rounded-2xl text-white font-bold transition-all active:scale-95"
-                style={{ backgroundColor: '#347989', boxShadow: '0 8px 16px rgba(52, 121, 137, 0.2)' }}
-              >
-                Retry Loading
-              </button>
-            </div>
-          </div>
-        ),
-      });
-    });
-  });
-};
-
-// Lazy load vendor pages for code splitting
-const Login = lazyLoad(() => import('../pages/login'));
-const Signup = lazyLoad(() => import('../pages/signup'));
-const Dashboard = lazyLoad(() => import('../pages/Dashboard'));
-const BookingAlert = lazyLoad(() => import('../pages/BookingAlert'));
-const BookingAlerts = lazyLoad(() => import('../pages/BookingAlerts'));
-const BookingDetails = lazyLoad(() => import('../pages/BookingDetails'));
-const BookingTimeline = lazyLoad(() => import('../pages/BookingTimeline'));
-const ActiveJobs = lazyLoad(() => import('../pages/ActiveJobs'));
-const WorkersList = lazyLoad(() => import('../pages/WorkersList'));
-const AddEditWorker = lazyLoad(() => import('../pages/AddEditWorker'));
-const AssignWorker = lazyLoad(() => import('../pages/AssignWorker'));
-const Earnings = lazyLoad(() => import('../pages/Earnings'));
-const Wallet = lazyLoad(() => import('../pages/Wallet'));
-const WithdrawalRequest = lazyLoad(() => import('../pages/WithdrawalRequest'));
-const Profile = lazyLoad(() => import('../pages/Profile'));
-const ProfileDetails = lazyLoad(() => import('../pages/Profile/ProfileDetails'));
-const EditProfile = lazyLoad(() => import('../pages/Profile/EditProfile'));
-const BookingMap = lazyLoad(() => import('../pages/BookingMap'));
-const Settings = lazyLoad(() => import('../pages/Settings'));
-const AddressManagement = lazyLoad(() => import('../pages/AddressManagement'));
-const Notifications = lazyLoad(() => import('../pages/Notifications'));
-const SettlementRequest = lazyLoad(() => import('../pages/Wallet/SettlementRequest'));
-const SettlementHistory = lazyLoad(() => import('../pages/Wallet/SettlementHistory'));
-const MyRatings = lazyLoad(() => import('../pages/MyRatings'));
-const AboutGroo = lazyLoad(() => import('../pages/AboutHomster'));
-const BillingPage = lazyLoad(() => import('../pages/BillingPage'));
-const Maintenance = lazyLoad(() => import('../pages/Maintenance'));
-const Compliance = lazyLoad(() => import('../pages/Compliance'));
-const Analytics = lazyLoad(() => import('../pages/Analytics'));
-const MyStore = lazyLoad(() => import('../pages/MyStore'));
-const StoreRegistration = lazyLoad(() => import('../pages/MyStore/StoreRegistration'));
-const StoreOrders = lazyLoad(() => import('../pages/MyStore/Orders'));
-const SoilTesting = lazyLoad(() => import('../pages/SoilTesting'));
-const BusinessDetails = lazyLoad(() => import('../pages/BusinessDetails'));
-const EquipmentInventory = lazyLoad(() => import('../pages/Equipment/EquipmentInventory'));
-const AddEquipment = lazyLoad(() => import('../pages/Equipment/AddEquipment'));
-
-// Lightweight loading fallback - no logo to avoid iOS rejection
+// Lightweight loading fallback
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-[50vh]">
     <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />

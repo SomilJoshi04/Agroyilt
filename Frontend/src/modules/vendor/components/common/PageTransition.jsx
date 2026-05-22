@@ -1,40 +1,32 @@
-import React, { useEffect, useState, cloneElement } from 'react';
+import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 /**
- * PageTransition - Provides smooth page transitions without blocking navigation
- * Uses simple opacity fade for fast, non-intrusive page changes
+ * PageTransition - Mounts components immediately with a smooth CSS fade-in.
+ * No setTimeout delays to keep page navigation instantaneous (0ms delay).
  */
 const PageTransition = ({ children }) => {
   const location = useLocation();
-  const [displayLocation, setDisplayLocation] = useState(location);
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
-    if (location.pathname !== displayLocation.pathname) {
-      // Start transition immediately
-      setIsTransitioning(true);
-
-      // Quick fade out then swap content
-      const timeout = setTimeout(() => {
-        setDisplayLocation(location);
-        setIsTransitioning(false);
-        window.scrollTo(0, 0);
-      }, 100); // Very quick transition (100ms)
-
-      return () => clearTimeout(timeout);
-    }
-  }, [location.pathname, displayLocation.pathname]);
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   return (
     <div
+      key={location.pathname}
       style={{
-        opacity: isTransitioning ? 0.7 : 1,
-        transition: 'opacity 100ms ease-out',
+        animation: 'vendorPageFadeIn 150ms ease-out forwards',
         willChange: 'opacity',
       }}
     >
-      {cloneElement(children, { location: displayLocation })}
+      <style>{`
+        @keyframes vendorPageFadeIn {
+          from { opacity: 0.85; transform: translateY(2px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+      {children}
     </div>
   );
 };
