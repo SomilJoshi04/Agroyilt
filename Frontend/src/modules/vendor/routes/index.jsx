@@ -137,7 +137,7 @@ const VendorRoutes = () => {
         </div>
 
         {/* BottomNav is OUTSIDE Suspense so it persists during page loads */}
-        {shouldShowBottomNav && <BottomNav />}
+        {shouldShowBottomNav && <BottomNav isGlobal={true} />}
 
         {/* Global Alert for Cash Limit */}
         {!shouldHideBottomNav && <CashLimitModal />}

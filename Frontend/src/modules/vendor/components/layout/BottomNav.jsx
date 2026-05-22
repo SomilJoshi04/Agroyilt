@@ -5,10 +5,18 @@ import { HiHome, HiBriefcase, HiUsers, HiUser, HiChartBar } from 'react-icons/hi
 import { FaWallet } from 'react-icons/fa';
 import { vendorTheme as themeColors } from '../../../../theme';
 
-const BottomNav = memo(() => {
+const BottomNav = memo(({ isGlobal = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingJobsCount, setPendingJobsCount] = useState(0);
+
+  if (isGlobal) {
+    window.__hasGlobalBottomNav = true;
+  }
+
+  if (!isGlobal && window.__hasGlobalBottomNav) {
+    return null;
+  }
 
   // Load pending jobs count from localStorage
   useEffect(() => {
