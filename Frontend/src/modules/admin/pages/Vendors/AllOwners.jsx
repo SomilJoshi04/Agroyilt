@@ -6,7 +6,7 @@ import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
 import adminVendorService from '../../../../services/adminVendorService';
 import { publicCatalogService } from '../../../../services/catalogService';
-import GoogleMapPicker from '../../../../vendor/pages/AddressManagement/components/GoogleMapPicker';
+import GoogleMapPicker from '../../../vendor/pages/AddressManagement/components/GoogleMapPicker';
 
 const AllOwners = () => {
   const [owners, setOwners] = useState([]);

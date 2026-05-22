@@ -9,43 +9,43 @@ import CashLimitModal from '../components/common/CashLimitModal'; // Import
 // import useAppNotifications from '../../../hooks/useAppNotifications.jsx'; // Handled globally
 import { VendorDashboardProvider } from '../../../context/VendorDashboardContext';
 
-// Static imports for instant page loading (0ms delay)
-import Login from '../pages/login';
-import Signup from '../pages/signup';
-import Dashboard from '../pages/Dashboard';
-import BookingAlert from '../pages/BookingAlert';
-import BookingAlerts from '../pages/BookingAlerts';
-import BookingDetails from '../pages/BookingDetails';
-import BookingTimeline from '../pages/BookingTimeline';
-import ActiveJobs from '../pages/ActiveJobs';
-import WorkersList from '../pages/WorkersList';
-import AddEditWorker from '../pages/AddEditWorker';
-import AssignWorker from '../pages/AssignWorker';
-import Earnings from '../pages/Earnings';
-import Wallet from '../pages/Wallet';
-import WithdrawalRequest from '../pages/WithdrawalRequest';
-import Profile from '../pages/Profile';
-import ProfileDetails from '../pages/Profile/ProfileDetails';
-import EditProfile from '../pages/Profile/EditProfile';
-import BookingMap from '../pages/BookingMap';
-import Settings from '../pages/Settings';
-import AddressManagement from '../pages/AddressManagement';
-import Notifications from '../pages/Notifications';
-import SettlementRequest from '../pages/Wallet/SettlementRequest';
-import SettlementHistory from '../pages/Wallet/SettlementHistory';
-import MyRatings from '../pages/MyRatings';
-import AboutGroo from '../pages/AboutHomster';
-import BillingPage from '../pages/BillingPage';
-import Maintenance from '../pages/Maintenance';
-import Compliance from '../pages/Compliance';
-import Analytics from '../pages/Analytics';
-import MyStore from '../pages/MyStore';
-import StoreRegistration from '../pages/MyStore/StoreRegistration';
-import StoreOrders from '../pages/MyStore/Orders';
-import SoilTesting from '../pages/SoilTesting';
-import BusinessDetails from '../pages/BusinessDetails';
-import EquipmentInventory from '../pages/Equipment/EquipmentInventory';
-import AddEquipment from '../pages/Equipment/AddEquipment';
+// Dynamic imports for code splitting (reduces initial bundle size and fixes massive load delay)
+const Login = lazy(() => import('../pages/login'));
+const Signup = lazy(() => import('../pages/signup'));
+const Dashboard = lazy(() => import('../pages/Dashboard'));
+const BookingAlert = lazy(() => import('../pages/BookingAlert'));
+const BookingAlerts = lazy(() => import('../pages/BookingAlerts'));
+const BookingDetails = lazy(() => import('../pages/BookingDetails'));
+const BookingTimeline = lazy(() => import('../pages/BookingTimeline'));
+const ActiveJobs = lazy(() => import('../pages/ActiveJobs'));
+const WorkersList = lazy(() => import('../pages/WorkersList'));
+const AddEditWorker = lazy(() => import('../pages/AddEditWorker'));
+const AssignWorker = lazy(() => import('../pages/AssignWorker'));
+const Earnings = lazy(() => import('../pages/Earnings'));
+const Wallet = lazy(() => import('../pages/Wallet'));
+const WithdrawalRequest = lazy(() => import('../pages/WithdrawalRequest'));
+const Profile = lazy(() => import('../pages/Profile'));
+const ProfileDetails = lazy(() => import('../pages/Profile/ProfileDetails'));
+const EditProfile = lazy(() => import('../pages/Profile/EditProfile'));
+const BookingMap = lazy(() => import('../pages/BookingMap'));
+const Settings = lazy(() => import('../pages/Settings'));
+const AddressManagement = lazy(() => import('../pages/AddressManagement'));
+const Notifications = lazy(() => import('../pages/Notifications'));
+const SettlementRequest = lazy(() => import('../pages/Wallet/SettlementRequest'));
+const SettlementHistory = lazy(() => import('../pages/Wallet/SettlementHistory'));
+const MyRatings = lazy(() => import('../pages/MyRatings'));
+const AboutGroo = lazy(() => import('../pages/AboutHomster'));
+const BillingPage = lazy(() => import('../pages/BillingPage'));
+const Maintenance = lazy(() => import('../pages/Maintenance'));
+const Compliance = lazy(() => import('../pages/Compliance'));
+const Analytics = lazy(() => import('../pages/Analytics'));
+const MyStore = lazy(() => import('../pages/MyStore'));
+const StoreRegistration = lazy(() => import('../pages/MyStore/StoreRegistration'));
+const StoreOrders = lazy(() => import('../pages/MyStore/Orders'));
+const SoilTesting = lazy(() => import('../pages/SoilTesting'));
+const BusinessDetails = lazy(() => import('../pages/BusinessDetails'));
+const EquipmentInventory = lazy(() => import('../pages/Equipment/EquipmentInventory'));
+const AddEquipment = lazy(() => import('../pages/Equipment/AddEquipment'));
 
 // Lightweight loading fallback
 const LoadingFallback = () => (

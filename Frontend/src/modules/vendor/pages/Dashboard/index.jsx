@@ -149,29 +149,29 @@ const Dashboard = memo(() => {
   // Show loading state - Using Skeletons to avoid iOS rejection
   if (loading) {
     return (
-      <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
+      <div className="min-h-screen pb-20 bg-gray-50">
         {/* Header shows immediately */}
         <Header title="Dashboard" showBack={false} />
         
         <main className="pt-0">
           {/* Animated Profile Placeholder */}
           <div className="px-4 pt-4 pb-2">
-            <div className="rounded-2xl p-4 bg-white/10 animate-pulse h-24 border border-white/5 shadow-lg"></div>
+            <div className="rounded-2xl p-4 bg-gray-200 animate-pulse h-24 border border-gray-100 shadow-sm"></div>
           </div>
 
           {/* Animated Quick Actions Grid */}
           <div className="px-4 py-4 grid grid-cols-2 gap-3">
              {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-white/10 h-16 rounded-2xl animate-pulse border border-white/5" />
+                <div key={i} className="bg-gray-200 h-16 rounded-2xl animate-pulse border border-gray-100" />
              ))}
           </div>
 
           {/* Animated Stats Section */}
           <div className="px-4 py-2 space-y-3">
-            <div className="h-32 bg-white/10 rounded-2xl animate-pulse border border-white/5"></div>
+            <div className="h-32 bg-gray-200 rounded-2xl animate-pulse border border-gray-100"></div>
             <div className="grid grid-cols-2 gap-4">
-               <div className="h-32 bg-white/10 rounded-2xl animate-pulse border border-white/5"></div>
-               <div className="h-32 bg-white/10 rounded-2xl animate-pulse border border-white/5"></div>
+               <div className="h-32 bg-gray-200 rounded-2xl animate-pulse border border-gray-100"></div>
+               <div className="h-32 bg-gray-200 rounded-2xl animate-pulse border border-gray-100"></div>
             </div>
           </div>
         </main>
