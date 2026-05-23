@@ -7,32 +7,66 @@ import { registerFCMToken } from '../services/pushNotificationService';
 const VendorDashboardContext = createContext(null);
 
 export const VendorDashboardProvider = ({ children }) => {
-  const [stats, setStats] = useState({
-    todayEarnings: 0,
-    activeJobs: 0,
-    pendingAlerts: 0,
-    totalEarnings: 0,
-    completedJobs: 0,
-    rating: 0,
-    complianceAlerts: [],
-    machinesInMaintenance: 0,
-    ecommerceEarnings: 0
-  });
+  // Helper to load initial cached stats for instant rendering
+  const getInitialStats = () => {
+    try {
+      const cached = localStorage.getItem('vendorDashboardStats');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {
+      console.error('Failed to parse cached stats', e);
+    }
+    return {
+      todayEarnings: 0,
+      activeJobs: 0,
+      pendingAlerts: 0,
+      totalEarnings: 0,
+      completedJobs: 0,
+      rating: 0,
+      complianceAlerts: [],
+      machinesInMaintenance: 0,
+      ecommerceEarnings: 0
+    };
+  };
 
-  const [vendorProfile, setVendorProfile] = useState({
-    name: 'Vendor Name',
-    businessName: 'Business Name',
-    photo: null,
-    service: []
-  });
+  const getInitialRecentJobs = () => {
+    try {
+      const cached = localStorage.getItem('vendorDashboardRecentJobs');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {
+      console.error('Failed to parse cached recent jobs', e);
+    }
+    return [];
+  };
 
-  const [recentJobs, setRecentJobs] = useState([]);
+  const getInitialProfile = () => {
+    try {
+      const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
+      return {
+        name: profile.name || 'Vendor Name',
+        businessName: profile.businessName || 'Business Name',
+        photo: profile.profilePhoto || null,
+        service: profile.service || []
+      };
+    } catch (e) {
+      return { name: 'Vendor Name', businessName: 'Business Name', photo: null, service: [] };
+    }
+  };
+
+  // Check if we have enough cached data to skip the initial full-screen loading spinner
+  const hasCachedData = !!localStorage.getItem('vendorDashboardStats');
+
+  const [stats, setStats] = useState(getInitialStats);
+  const [vendorProfile, setVendorProfile] = useState(getInitialProfile);
+  const [recentJobs, setRecentJobs] = useState(getInitialRecentJobs);
   const [pendingBookings, setPendingBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Start with loading = false if we have cached data for instant UI
+  const [loading, setLoading] = useState(!hasCachedData);
   const [error, setError] = useState(null);
   const [activeAlertBookings, setActiveAlertBookings] = useState([]);
+  
   const hasLoadedOnceRef = useRef(false);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(hasCachedData);
 
   const ignoredBookingIds = useRef(new Set());
   const lastFetchedVendorId = useRef(null);
@@ -128,20 +162,24 @@ export const VendorDashboardProvider = ({ children }) => {
     setPendingBookings(mergedPending);
     localStorage.setItem('vendorPendingJobs', JSON.stringify(mergedPending));
 
-    // Update stats
-    setStats(prev => ({
-      todayEarnings: apiStats.vendorEarnings || 0,
-      activeJobs: apiStats.inProgressBookings || 0,
-      pendingAlerts: mergedPending.length,
-      totalEarnings: apiStats.vendorEarnings || 0,
-      completedJobs: apiStats.completedBookings || 0,
-      rating: apiStats.rating || 0,
-      complianceAlerts: apiStats.complianceAlerts || [],
-      machinesInMaintenance: prev.machinesInMaintenance || 0,
-      ecommerceEarnings: apiStats.ecommerceEarnings || 0
-    }));
+    // Update stats with cache persist
+    setStats(prev => {
+      const updatedStats = {
+        todayEarnings: apiStats.vendorEarnings || 0,
+        activeJobs: apiStats.inProgressBookings || 0,
+        pendingAlerts: mergedPending.length,
+        totalEarnings: apiStats.vendorEarnings || 0,
+        completedJobs: apiStats.completedBookings || 0,
+        rating: apiStats.rating || 0,
+        complianceAlerts: apiStats.complianceAlerts || [],
+        machinesInMaintenance: prev.machinesInMaintenance || 0,
+        ecommerceEarnings: apiStats.ecommerceEarnings || 0
+      };
+      localStorage.setItem('vendorDashboardStats', JSON.stringify(updatedStats));
+      return updatedStats;
+    });
 
-    // Recent jobs
+    // Recent jobs with cache persist
     const recentJobsData = allBookings.slice(0, 5).map(booking => ({
       id: booking._id,
       serviceType: booking.serviceId?.title || 'Service',
@@ -157,6 +195,7 @@ export const VendorDashboardProvider = ({ children }) => {
       assignedTo: booking.workerId ? { name: booking.workerId.name } : null,
     }));
     setRecentJobs(recentJobsData);
+    localStorage.setItem('vendorDashboardRecentJobs', JSON.stringify(recentJobsData));
 
     // Load vendor profile from localStorage
     const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
@@ -202,10 +241,15 @@ export const VendorDashboardProvider = ({ children }) => {
 
       processApiResponse(response);
 
-      setStats(prev => ({
-        ...prev,
-        machinesInMaintenance: activeMaintenanceCount
-      }));
+      setStats(prev => {
+        const updatedStats = {
+          ...prev,
+          machinesInMaintenance: activeMaintenanceCount
+        };
+        localStorage.setItem('vendorDashboardStats', JSON.stringify(updatedStats));
+        return updatedStats;
+      });
+      
       hasLoadedOnceRef.current = true;
       setHasLoadedOnce(true);
     } catch (err) {
@@ -226,14 +270,20 @@ export const VendorDashboardProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('vendorAccessToken');
     if (token) {
-      loadDashboardData(true, false);
+      // If we have cached data, do a silent background fetch without showing spinner
+      const hasCache = !!localStorage.getItem('vendorDashboardStats');
+      loadDashboardData(!hasCache, false);
     }
   }, [loadDashboardData]);
 
-  // Handle event listeners for real-time updates
+  // Handle event listeners for real-time updates and push notifications
   useEffect(() => {
-    // Ask for notification permission and register FCM
-    registerFCMToken('vendor', true).catch(err => console.error('FCM registration failed:', err));
+    // DELAY NOTIFICATION PERMISSION REQUEST BY 5 SECONDS
+    // This prevents iOS WebView from blocking/hanging the initial dashboard render 
+    // and avoids App Store rejection for immediate permission requests.
+    const fcmTimer = setTimeout(() => {
+      registerFCMToken('vendor', true).catch(err => console.error('FCM registration failed:', err));
+    }, 5000);
 
     const handleShowAlert = (e) => {
       if (e.detail) {
@@ -266,6 +316,7 @@ export const VendorDashboardProvider = ({ children }) => {
     window.addEventListener('removeVendorBooking', handleRemoveBooking);
 
     return () => {
+      clearTimeout(fcmTimer); // Clear timer on unmount
       window.removeEventListener('vendorJobsUpdated', handleUpdate);
       window.removeEventListener('vendorStatsUpdated', handleUpdate);
       window.removeEventListener('showDashboardBookingAlert', handleShowAlert);
@@ -300,3 +351,4 @@ export const useVendorDashboard = () => {
   }
   return context;
 };
+
