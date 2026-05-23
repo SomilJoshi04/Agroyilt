@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
     FiChevronLeft, 
     FiPackage, 
@@ -21,6 +22,12 @@ const StoreOrders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('all'); // all, ordered, packed, shipped, delivered
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab]);
 
     useEffect(() => {
         fetchOrders();
@@ -57,6 +64,8 @@ const StoreOrders = () => {
     };
 
     const filteredOrders = activeTab === 'all' ? orders : orders.filter(o => o.deliveryStatus === activeTab);
+    const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+    const paginatedOrders = filteredOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -112,7 +121,7 @@ const StoreOrders = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredOrders.map(order => (
+                                {paginatedOrders.map(order => (
                                     <tr key={order._id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-5">
                                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">#{order._id.slice(-6)}</p>
@@ -160,7 +169,7 @@ const StoreOrders = () => {
                                             {order.deliveryStatus === 'ordered' && (
                                                 <button 
                                                     onClick={() => handleUpdateStatus(order._id, 'packed')}
-                                                    className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
+                                                    className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20 active:scale-95 transition-all whitespace-nowrap min-w-[120px]"
                                                 >
                                                     Pack Order
                                                 </button>
@@ -183,6 +192,29 @@ const StoreOrders = () => {
                         </table>
                     </div>
                 )}
+                
+                {/* Pagination Controls */}
+                {!loading && totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-4 mt-6">
+                        <button 
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold disabled:opacity-50 text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-sm"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button 
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold disabled:opacity-50 text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-sm"
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -193,42 +225,59 @@ const ShippingModal = ({ onConfirm }) => {
     const [show, setShow] = useState(false);
     const [data, setData] = useState({ courierName: '', trackingNumber: '' });
 
+    useEffect(() => {
+        if (show) document.body.style.overflow = 'hidden';
+        else document.body.style.overflow = 'unset';
+        return () => { document.body.style.overflow = 'unset'; }
+    }, [show]);
+
     return (
         <>
             <button 
                 onClick={() => setShow(true)}
-                className="w-full py-4 bg-teal-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-teal-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="w-full min-w-[160px] whitespace-nowrap px-4 py-3 bg-teal-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-teal-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
             >
-                <FiTruck /> Mark as Shipped
+                <FiTruck className="flex-shrink-0 w-4 h-4" /> Mark as Shipped
             </button>
-            <AnimatePresence>
-                {show && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShow(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl">
-                            <h2 className="text-xl font-black text-slate-800">Shipping Details</h2>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Enter tracking info for user</p>
-                            
-                            <div className="space-y-4">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Courier Service</label>
-                                    <input type="text" className="w-full bg-slate-50 border-none rounded-xl py-4 px-5 font-bold outline-none" placeholder="e.g. BlueDart, DTDC, Self" value={data.courierName} onChange={e => setData({...data, courierName: e.target.value})} />
+            {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {show && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" style={{ position: 'fixed' }}>
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShow(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+                            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl">
+                                <h2 className="text-xl font-black text-slate-800">Shipping Details</h2>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Enter tracking info for user</p>
+                                
+                                <div className="space-y-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Courier Service</label>
+                                        <input type="text" className="w-full bg-slate-50 border-none rounded-xl py-4 px-5 font-bold outline-none" placeholder="e.g. BlueDart, DTDC, Self" value={data.courierName} onChange={e => setData({...data, courierName: e.target.value})} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Tracking Number</label>
+                                        <input type="text" className="w-full bg-slate-50 border-none rounded-xl py-4 px-5 font-bold outline-none" placeholder="e.g. TRK123456" value={data.trackingNumber} onChange={e => setData({...data, trackingNumber: e.target.value})} />
+                                    </div>
+                                    <div className="flex gap-2 mt-6">
+                                        <button 
+                                            onClick={() => setShow(false)}
+                                            className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-[24px] font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button 
+                                            onClick={() => { onConfirm(data); setShow(false); }}
+                                            className="flex-1 py-4 bg-[#2E7D32] text-white rounded-[24px] font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                                        >
+                                            Confirm
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Tracking Number</label>
-                                    <input type="text" className="w-full bg-slate-50 border-none rounded-xl py-4 px-5 font-bold outline-none" placeholder="e.g. TRK123456" value={data.trackingNumber} onChange={e => setData({...data, trackingNumber: e.target.value})} />
-                                </div>
-                                <button 
-                                    onClick={() => { onConfirm(data); setShow(false); }}
-                                    className="w-full py-5 bg-[#2E7D32] text-white rounded-[28px] font-black text-xs uppercase tracking-widest active:scale-95 transition-all mt-4"
-                                >
-                                    Confirm Shipment
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </>
     );
 }
@@ -238,6 +287,12 @@ const DeliveryOtpModal = ({ onConfirm }) => {
     const [show, setShow] = useState(false);
     const [otp, setOtp] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
+
+    useEffect(() => {
+        if (show) document.body.style.overflow = 'hidden';
+        else document.body.style.overflow = 'unset';
+        return () => { document.body.style.overflow = 'unset'; }
+    }, [show]);
 
     const handleVerify = async () => {
         if (otp.length !== 4) {
@@ -263,67 +318,71 @@ const DeliveryOtpModal = ({ onConfirm }) => {
         <>
             <button 
                 onClick={() => setShow(true)}
-                className="px-6 py-2.5 bg-green-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-green-600/20 active:scale-95 transition-all w-full mt-2"
+                className="px-4 py-3 bg-green-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-green-600/20 active:scale-95 transition-all w-full min-w-[160px] whitespace-nowrap mt-2"
             >
                 Confirm Delivery
             </button>
-            <AnimatePresence>
-                {show && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-                        <motion.div 
-                            initial={{ opacity: 0 }} 
-                            animate={{ opacity: 1 }} 
-                            exit={{ opacity: 0 }} 
-                            onClick={() => !isVerifying && setShow(false)} 
-                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" 
-                        />
-                        <motion.div 
-                            initial={{ scale: 0.9, opacity: 0 }} 
-                            animate={{ scale: 1, opacity: 1 }} 
-                            exit={{ scale: 0.9, opacity: 0 }} 
-                            className="relative bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl"
-                        >
-                            <h2 className="text-xl font-black text-slate-800">Delivery verification</h2>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Ask buyer for OTP</p>
-                            
-                            <div className="space-y-4">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase ml-1">4-Digit Code</label>
-                                    <input 
-                                        type="text" 
-                                        maxLength={4} 
-                                        disabled={isVerifying}
-                                        className="w-full bg-slate-50 border-none rounded-xl py-4 px-5 font-bold outline-none text-center tracking-[1em] text-lg" 
-                                        placeholder="1234" 
-                                        value={otp} 
-                                        onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} 
-                                    />
-                                </div>
-                                <button 
-                                    onClick={handleVerify}
-                                    disabled={isVerifying}
-                                    className="w-full py-5 bg-green-600 text-white rounded-[28px] font-black text-xs uppercase tracking-widest active:scale-95 transition-all mt-4 disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {isVerifying ? (
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    ) : (
-                                        "Verify & Mark Delivered"
-                                    )}
-                                </button>
+            {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {show && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" style={{ position: 'fixed' }}>
+                            <motion.div 
+                                initial={{ opacity: 0 }} 
+                                animate={{ opacity: 1 }} 
+                                exit={{ opacity: 0 }} 
+                                onClick={() => !isVerifying && setShow(false)} 
+                                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+                            />
+                            <motion.div 
+                                initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+                                animate={{ scale: 1, opacity: 1, y: 0 }} 
+                                exit={{ scale: 0.9, opacity: 0, y: 20 }} 
+                                className="relative bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl"
+                            >
+                                <h2 className="text-xl font-black text-slate-800">Delivery verification</h2>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Ask buyer for OTP</p>
                                 
-                                {!isVerifying && (
-                                    <button 
-                                        onClick={() => setShow(false)}
-                                        className="w-full py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                )}
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                                <div className="space-y-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">4-Digit Code</label>
+                                        <input 
+                                            type="text" 
+                                            maxLength={4} 
+                                            disabled={isVerifying}
+                                            className="w-full bg-slate-50 border-none rounded-xl py-4 px-5 font-bold outline-none text-center tracking-[1em] text-lg" 
+                                            placeholder="1234" 
+                                            value={otp} 
+                                            onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} 
+                                        />
+                                    </div>
+                                    <div className="flex gap-2 mt-6">
+                                        {!isVerifying && (
+                                            <button 
+                                                onClick={() => setShow(false)}
+                                                className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-[24px] font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={handleVerify}
+                                            disabled={isVerifying}
+                                            className="flex-1 py-4 bg-green-600 text-white rounded-[24px] font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {isVerifying ? (
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                "Verify"
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </>
     );
 }
