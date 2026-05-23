@@ -5,8 +5,8 @@ import BottomNav from '../components/layout/BottomNav';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
-import CashLimitModal from '../components/common/CashLimitModal'; // Import
-// import useAppNotifications from '../../../hooks/useAppNotifications.jsx'; // Handled globally
+import CashLimitModal from '../components/common/CashLimitModal';
+import { SkeletonProfileHeader, SkeletonDashboardStats } from '../../../components/common/SkeletonLoaders';
 import { VendorDashboardProvider } from '../../../context/VendorDashboardContext';
 
 // Dynamic imports for code splitting (reduces initial bundle size and fixes massive load delay)
@@ -47,10 +47,17 @@ const BusinessDetails = lazy(() => import('../pages/BusinessDetails'));
 const EquipmentInventory = lazy(() => import('../pages/Equipment/EquipmentInventory'));
 const AddEquipment = lazy(() => import('../pages/Equipment/AddEquipment'));
 
-// Lightweight loading fallback
+// Dashboard skeleton for initial page load instead of a spinner
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-[50vh]">
-    <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+  <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="h-16 bg-white flex items-center px-4 justify-between shadow-sm">
+      <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse"></div>
+      <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
+    </div>
+    <div className="pt-2">
+      <SkeletonProfileHeader />
+      <SkeletonDashboardStats />
+    </div>
   </div>
 );
 
