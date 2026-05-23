@@ -104,11 +104,10 @@ const getDashboardStats = async (req, res) => {
         .sort({ createdAt: -1 })
         .limit(20)
         .lean(),
-      // E-commerce Earnings
       EcommerceOrder.aggregate([
         {
           $match: {
-            vendorId: vendor._id,
+            vendorId: vendorObjectId,
             deliveryStatus: 'delivered'
           }
         },
@@ -122,7 +121,7 @@ const getDashboardStats = async (req, res) => {
     ]);
 
     // Rating (Average from Bookings)
-    let rating = vendor.rating || 0;
+    let rating = vendor?.rating || 0;
     if (rating === 0) {
       const ratingResult = await Booking.aggregate([
         {
@@ -147,7 +146,7 @@ const getDashboardStats = async (req, res) => {
 
     // Compliance Alerts (New Agriculture Feature)
     const complianceAlerts = [];
-    if (vendor.complianceDocuments) {
+    if (vendor?.complianceDocuments) {
       const docs = vendor.complianceDocuments;
       const today = new Date();
       const checkDoc = (name, doc) => {
