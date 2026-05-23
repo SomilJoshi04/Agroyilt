@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { vendorDashboardService } from '../modules/vendor/services/dashboardService';
 import maintenanceService from '../modules/vendor/services/maintenanceService';
 import { isWithinInterval, parseISO } from 'date-fns';
@@ -6,32 +6,42 @@ import { registerFCMToken } from '../services/pushNotificationService';
 
 const VendorDashboardContext = createContext(null);
 
+const DEFAULT_STATS = {
+  todayEarnings: 0,
+  activeJobs: 0,
+  pendingAlerts: 0,
+  totalEarnings: 0,
+  completedJobs: 0,
+  rating: 0,
+  complianceAlerts: [],
+  machinesInMaintenance: 0,
+  ecommerceEarnings: 0
+};
+
 export const VendorDashboardProvider = ({ children }) => {
-  // Helper to load initial cached stats for instant rendering
+  // Helper to safely load initial cached stats
   const getInitialStats = () => {
     try {
       const cached = localStorage.getItem('vendorDashboardStats');
-      if (cached) return JSON.parse(cached);
+      if (cached && cached !== 'undefined' && cached !== 'null') {
+        const parsed = JSON.parse(cached);
+        // Basic validation to ensure it's an object with keys
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          return parsed;
+        }
+      }
     } catch (e) {
       console.error('Failed to parse cached stats', e);
     }
-    return {
-      todayEarnings: 0,
-      activeJobs: 0,
-      pendingAlerts: 0,
-      totalEarnings: 0,
-      completedJobs: 0,
-      rating: 0,
-      complianceAlerts: [],
-      machinesInMaintenance: 0,
-      ecommerceEarnings: 0
-    };
+    return null;
   };
 
   const getInitialRecentJobs = () => {
     try {
       const cached = localStorage.getItem('vendorDashboardRecentJobs');
-      if (cached) return JSON.parse(cached);
+      if (cached && cached !== 'undefined' && cached !== 'null') {
+        return JSON.parse(cached);
+      }
     } catch (e) {
       console.error('Failed to parse cached recent jobs', e);
     }
@@ -52,21 +62,22 @@ export const VendorDashboardProvider = ({ children }) => {
     }
   };
 
-  // Check if we have enough cached data to skip the initial full-screen loading spinner
-  const hasCachedData = !!localStorage.getItem('vendorDashboardStats');
+  // Safely determine initial cache state
+  const cachedStats = getInitialStats();
+  const hasValidCache = cachedStats !== null;
 
-  const [stats, setStats] = useState(getInitialStats);
+  const [stats, setStats] = useState(cachedStats || DEFAULT_STATS);
   const [vendorProfile, setVendorProfile] = useState(getInitialProfile);
   const [recentJobs, setRecentJobs] = useState(getInitialRecentJobs);
   const [pendingBookings, setPendingBookings] = useState([]);
   
-  // Start with loading = false if we have cached data for instant UI
-  const [loading, setLoading] = useState(!hasCachedData);
+  // Start with loading = false ONLY if we have a valid cache object
+  const [loading, setLoading] = useState(!hasValidCache);
   const [error, setError] = useState(null);
   const [activeAlertBookings, setActiveAlertBookings] = useState([]);
   
   const hasLoadedOnceRef = useRef(false);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(hasCachedData);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(hasValidCache);
 
   const ignoredBookingIds = useRef(new Set());
   const lastFetchedVendorId = useRef(null);
@@ -83,7 +94,10 @@ export const VendorDashboardProvider = ({ children }) => {
 
   // Process API response - extracted to avoid duplication
   const processApiResponse = useCallback((response) => {
-    if (!response.success) return;
+    if (!response || !response.success || !response.data) {
+      console.warn('Dashboard API returned unsuccessful response:', response);
+      return;
+    }
 
     const { stats: apiStats, recentBookings } = response.data;
 
@@ -165,15 +179,15 @@ export const VendorDashboardProvider = ({ children }) => {
     // Update stats with cache persist
     setStats(prev => {
       const updatedStats = {
-        todayEarnings: apiStats.vendorEarnings || 0,
-        activeJobs: apiStats.inProgressBookings || 0,
+        todayEarnings: apiStats?.vendorEarnings || 0,
+        activeJobs: apiStats?.inProgressBookings || 0,
         pendingAlerts: mergedPending.length,
-        totalEarnings: apiStats.vendorEarnings || 0,
-        completedJobs: apiStats.completedBookings || 0,
-        rating: apiStats.rating || 0,
-        complianceAlerts: apiStats.complianceAlerts || [],
+        totalEarnings: apiStats?.vendorEarnings || 0,
+        completedJobs: apiStats?.completedBookings || 0,
+        rating: apiStats?.rating || 0,
+        complianceAlerts: apiStats?.complianceAlerts || [],
         machinesInMaintenance: prev.machinesInMaintenance || 0,
-        ecommerceEarnings: apiStats.ecommerceEarnings || 0
+        ecommerceEarnings: apiStats?.ecommerceEarnings || 0
       };
       localStorage.setItem('vendorDashboardStats', JSON.stringify(updatedStats));
       return updatedStats;
@@ -197,14 +211,18 @@ export const VendorDashboardProvider = ({ children }) => {
     setRecentJobs(recentJobsData);
     localStorage.setItem('vendorDashboardRecentJobs', JSON.stringify(recentJobsData));
 
-    // Load vendor profile from localStorage
-    const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
-    setVendorProfile({
-      name: profile.name || 'Vendor Name',
-      businessName: profile.businessName || 'Business Name',
-      photo: profile.profilePhoto || null,
-      service: profile.service || []
-    });
+    // Load vendor profile from localStorage safely
+    try {
+      const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
+      setVendorProfile({
+        name: profile.name || 'Vendor Name',
+        businessName: profile.businessName || 'Business Name',
+        photo: profile.profilePhoto || null,
+        service: profile.service || []
+      });
+    } catch (e) {
+      console.error('Failed to parse vendor profile', e);
+    }
   }, []);
 
   // Main data loader
@@ -226,35 +244,45 @@ export const VendorDashboardProvider = ({ children }) => {
       if (showSpinner) setLoading(true);
       setError(null);
 
-      // Run both API calls in PARALLEL
-      const [response, maintRes] = await Promise.all([
+      // Run both API calls in PARALLEL safely
+      const [response, maintRes] = await Promise.allSettled([
         vendorDashboardService.getDashboardStats(),
         maintenanceService.getSchedules()
       ]);
 
-      const activeMaintenanceCount = (maintRes.data || []).filter(m =>
-        isWithinInterval(new Date(), {
-          start: parseISO(m.startDate),
-          end: parseISO(m.endDate)
-        })
-      ).length;
+      if (response.status === 'fulfilled') {
+        processApiResponse(response.value);
+      } else {
+        throw new Error(response.reason || 'Failed to fetch stats');
+      }
 
-      processApiResponse(response);
+      let activeMaintenanceCount = 0;
+      if (maintRes.status === 'fulfilled') {
+        activeMaintenanceCount = (maintRes.value.data || []).filter(m =>
+          isWithinInterval(new Date(), {
+            start: parseISO(m.startDate),
+            end: parseISO(m.endDate)
+          })
+        ).length;
 
-      setStats(prev => {
-        const updatedStats = {
-          ...prev,
-          machinesInMaintenance: activeMaintenanceCount
-        };
-        localStorage.setItem('vendorDashboardStats', JSON.stringify(updatedStats));
-        return updatedStats;
-      });
+        setStats(prev => {
+          const updatedStats = {
+            ...prev,
+            machinesInMaintenance: activeMaintenanceCount
+          };
+          localStorage.setItem('vendorDashboardStats', JSON.stringify(updatedStats));
+          return updatedStats;
+        });
+      }
       
       hasLoadedOnceRef.current = true;
       setHasLoadedOnce(true);
     } catch (err) {
       console.error('Error loading dashboard data in context:', err);
-      setError(String(err.message || 'Failed to load dashboard data'));
+      // Only set error if we don't have valid cached data
+      if (!hasLoadedOnceRef.current) {
+        setError(String(err.message || 'Failed to load dashboard data'));
+      }
     } finally {
       setLoading(false);
     }
@@ -270,9 +298,12 @@ export const VendorDashboardProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('vendorAccessToken');
     if (token) {
-      // If we have cached data, do a silent background fetch without showing spinner
-      const hasCache = !!localStorage.getItem('vendorDashboardStats');
-      loadDashboardData(!hasCache, false);
+      // Check cache again defensively to prevent missing data
+      const cachedStr = localStorage.getItem('vendorDashboardStats');
+      const hasValidCacheData = cachedStr && cachedStr !== 'undefined' && cachedStr !== 'null';
+      
+      // If we don't have cache, show spinner. Otherwise, silent background fetch.
+      loadDashboardData(!hasValidCacheData, false);
     }
   }, [loadDashboardData]);
 
@@ -324,21 +355,34 @@ export const VendorDashboardProvider = ({ children }) => {
     };
   }, [handleUpdate]);
 
+  // USEMEMO OPTIMIZATION: Prevent unnecessary re-renders of child components
+  const contextValue = useMemo(() => ({
+    stats,
+    vendorProfile,
+    recentJobs,
+    pendingBookings,
+    loading,
+    error,
+    activeAlertBookings,
+    setActiveAlertBookings,
+    setPendingBookings,
+    setRecentJobs,
+    loadDashboardData,
+    hasLoadedOnce
+  }), [
+    stats, 
+    vendorProfile, 
+    recentJobs, 
+    pendingBookings, 
+    loading, 
+    error, 
+    activeAlertBookings, 
+    hasLoadedOnce, 
+    loadDashboardData
+  ]);
+
   return (
-    <VendorDashboardContext.Provider value={{
-      stats,
-      vendorProfile,
-      recentJobs,
-      pendingBookings,
-      loading,
-      error,
-      activeAlertBookings,
-      setActiveAlertBookings,
-      setPendingBookings,
-      setRecentJobs,
-      loadDashboardData,
-      hasLoadedOnce
-    }}>
+    <VendorDashboardContext.Provider value={contextValue}>
       {children}
     </VendorDashboardContext.Provider>
   );
@@ -351,4 +395,5 @@ export const useVendorDashboard = () => {
   }
   return context;
 };
+
 

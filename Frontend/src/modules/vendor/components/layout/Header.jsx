@@ -39,7 +39,11 @@ const Header = memo(({
 
     if (showNotifications) {
       fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 60000); // Poll every minute
+      const interval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchUnreadCount();
+        }
+      }, 60000); // Poll every minute only if app is visible
       return () => clearInterval(interval);
     }
   }, [showNotifications]);
