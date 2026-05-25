@@ -878,7 +878,7 @@ export default function BookingDetails() {
                   <div>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Request</p>
                     <p className="text-sm font-bold text-orange-700 capitalize">
-                      {booking.rental_type?.replace('_', ' ') || 'Usage'} : {booking.rental_type === 'land_based' ? `${booking.landSize || 0} Acres` : `${booking.estimatedDuration || 0} Hrs`}
+                      {booking.rental_type?.replace('_', ' ') || 'Usage'} : {booking.rental_type === 'land_based' ? `${booking.landSize || 0}${typeof booking.landSize === 'string' && booking.landSize.match(/[a-zA-Z]/) ? '' : ' Acres'}` : `${booking.estimatedDuration || 0} Hrs`}
                     </p>
                   </div>
                 </div>

@@ -44,7 +44,7 @@ const RENTAL_OPTIONS = [
     }
 ];
 
-const RentalTypeCard = ({ serviceId, selectedDate, selectedTime, onRentalChange, initialRentalType, initialQuantity }) => {
+const RentalTypeCard = ({ serviceId, selectedDate, selectedTime, onRentalChange, initialRentalType, initialQuantity, landUnit = 'acre' }) => {
     const [selectedRental, setSelectedRental] = useState(initialRentalType || 'hourly');
     const [quantity, setQuantity] = useState(initialQuantity || 1);
     const [checking, setChecking] = useState(false);
@@ -151,7 +151,7 @@ const RentalTypeCard = ({ serviceId, selectedDate, selectedTime, onRentalChange,
                     <div className="flex-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">
                             {selectedRental === 'hourly' && 'Estimated Hours'}
-                            {selectedRental === 'land_based' && 'Total Area (Acres)'}
+                            {selectedRental === 'land_based' && `Total Area (${landUnit})`}
                             {selectedRental === 'monthly' && 'Duration (Months)'}
                             {selectedRental === 'daily' && 'Number of Days'}
                         </label>
@@ -167,7 +167,7 @@ const RentalTypeCard = ({ serviceId, selectedDate, selectedTime, onRentalChange,
                             />
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase">
                                 {selectedRental === 'hourly' && 'Hrs'}
-                                {selectedRental === 'land_based' && 'Acres'}
+                                {selectedRental === 'land_based' && landUnit}
                                 {selectedRental === 'monthly' && 'Mo'}
                                 {selectedRental === 'daily' && 'Days'}
                             </span>
@@ -175,7 +175,7 @@ const RentalTypeCard = ({ serviceId, selectedDate, selectedTime, onRentalChange,
                     </div>
                 </div>
                 <p className="text-[9px] text-gray-400 mt-2 italic">
-                    * Final amount will be calculated by vendor based on actual {selectedRental === 'land_based' ? 'acres' : 'usage'}.
+                    * Final amount will be calculated by vendor based on actual {selectedRental === 'land_based' ? landUnit : 'usage'}.
                 </p>
             </div>
 

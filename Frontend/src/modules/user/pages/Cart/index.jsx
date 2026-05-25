@@ -336,7 +336,7 @@ const Cart = () => {
                                   </span>
                                   {isAgri && (
                                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                                      {currentType === 'hourly' ? 'per hour' : currentType === 'land' ? 'per acre' : 'per day'}
+                                      {currentType === 'hourly' ? 'per hour' : currentType === 'land' ? `per ${item.land_unit || 'acre'}` : 'per day'}
                                     </span>
                                   )}
                                 </div>

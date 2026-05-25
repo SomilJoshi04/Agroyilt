@@ -1302,7 +1302,7 @@ const BookingDetails = () => {
                             </span>
                             
                             {booking.rental_type === 'land_based' && booking.landSize && (
-                              <p className="text-xs text-gray-500 font-medium">Area: <span className="text-gray-900 font-bold">{booking.landSize} Acres</span></p>
+                              <p className="text-xs text-gray-500 font-medium">Area: <span className="text-gray-900 font-bold">{booking.landSize}{typeof booking.landSize === 'string' && booking.landSize.match(/[a-zA-Z]/) ? '' : ' Acres'}</span></p>
                             )}
                             
                             {booking.rental_type === 'hourly' && booking.estimatedDuration && (

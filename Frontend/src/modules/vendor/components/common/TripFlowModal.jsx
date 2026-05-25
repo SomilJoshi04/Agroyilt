@@ -152,7 +152,7 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
     const handleSubmitSkippingOTP = async () => {
         if (!photoFile) return toast.error('KM Photo not uploaded');
         if (!isStart && !evidenceFile) return toast.error('Work Evidence photo not uploaded');
-        if (!isStart && rentalType === 'land_based' && !workUnits) return toast.error('Please enter total acres covered');
+        if (!isStart && rentalType === 'land_based' && !workUnits) return toast.error('Please enter total area covered');
 
         try {
             setSubmitting(true);
@@ -171,7 +171,7 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
         if (otpStr.length !== 4) return toast.error('Enter 4-digit OTP from farmer');
         if (!photoFile) return toast.error('KM Photo not uploaded');
         if (!isStart && !evidenceFile) return toast.error('Work Evidence photo not uploaded');
-        if (!isStart && rentalType === 'land_based' && !workUnits) return toast.error('Please enter total acres covered');
+        if (!isStart && rentalType === 'land_based' && !workUnits) return toast.error('Please enter total area covered');
 
         try {
             setSubmitting(true);
@@ -364,12 +364,12 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
                                                     type="number"
                                                     value={workUnits}
                                                     onChange={(e) => setWorkUnits(e.target.value)}
-                                                    placeholder="Enter total acres covered..."
+                                                    placeholder="Enter total area covered..."
                                                     className="w-full py-4 px-4 bg-white border-2 border-yellow-300 rounded-xl focus:outline-none text-lg font-bold text-yellow-900"
                                                 />
-                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-yellow-600">Acres</span>
+                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-yellow-600">Area</span>
                                             </div>
-                                            <p className="text-[10px] text-yellow-700 italic">Bill will be calculated based on {workUnits || '0'} acres.</p>
+                                            <p className="text-[10px] text-yellow-700 italic">Bill will be calculated based on {workUnits || '0'} area.</p>
                                         </div>
                                     )}
 

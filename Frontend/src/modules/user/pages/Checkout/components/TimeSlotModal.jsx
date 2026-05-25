@@ -16,7 +16,8 @@ const TimeSlotModal = ({
   formatDate,
   isDateSelected,
   isTimeSelected,
-  rentalType
+  rentalType,
+  landUnit = 'acre',
 }) => {
   const [isClosing, setIsClosing] = useState(false);
   const [localEndDate, setLocalEndDate] = useState(null);
@@ -221,8 +222,8 @@ const TimeSlotModal = ({
                        <span className="text-xl">🗺️</span>
                      </div>
                      <div>
-                       <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Area in Acres</p>
-                       <p className="text-sm font-extrabold text-gray-900">{localAcres || 0} Acres</p>
+                       <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Area in {landUnit}s</p>
+                       <p className="text-sm font-extrabold text-gray-900">{localAcres || 0} {landUnit}s</p>
                      </div>
                    </div>
                    
@@ -313,7 +314,7 @@ const TimeSlotModal = ({
               onClick={() => {
                 let extraArgs = {
                   estimatedDuration: localHours,
-                  landSize: localAcres ? `${localAcres} Acres` : undefined,
+                  landSize: localAcres ? `${localAcres} ${landUnit}s` : undefined,
                   localDays: localDays
                 };
 

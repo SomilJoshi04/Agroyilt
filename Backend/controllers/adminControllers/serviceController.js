@@ -91,6 +91,7 @@ const createService = async (req, res) => {
       iconUrl,
       hourly_price,
       land_price,
+      land_unit,
       daily_price,
       pricing_context,
       parentSourceId
@@ -120,6 +121,7 @@ const createService = async (req, res) => {
       iconUrl,
       hourly_price: hourly_price || 0,
       land_price: land_price || 0,
+      land_unit: land_unit || 'acre',
       daily_price: daily_price || 0,
       pricing_context: pricing_context || 'any',
       parentSourceId: parentSourceId || null
@@ -188,6 +190,7 @@ const updateService = async (req, res) => {
     // Rental Pricing Fields
     if (updates.hourly_price !== undefined) service.hourly_price = updates.hourly_price;
     if (updates.land_price !== undefined) service.land_price = updates.land_price;
+    if (updates.land_unit !== undefined) service.land_unit = updates.land_unit;
     if (updates.daily_price !== undefined) service.daily_price = updates.daily_price;
     if (updates.pricing_context !== undefined) service.pricing_context = updates.pricing_context;
     if (updates.parentSourceId !== undefined) service.parentSourceId = updates.parentSourceId || null;

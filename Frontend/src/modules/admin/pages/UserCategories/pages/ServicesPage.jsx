@@ -15,6 +15,7 @@ const serviceSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
   hourly_price: z.number().optional(),
   land_price: z.number().optional(),
+  land_unit: z.enum(['acre', 'hectare', 'bigha', 'katha']).default('acre'),
   daily_price: z.number().optional(),
   pricing_context: z.enum(['standalone', 'sub-category', 'any']).default('any'),
   parentSourceId: z.string().nullable().optional()
@@ -122,6 +123,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     categoryId: "",
     hourly_price: "",
     land_price: "",
+    land_unit: "acre",
     daily_price: "",
     pricing_context: "any",
     parentSourceId: ""
@@ -138,6 +140,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       categoryId: activeCategoryId || "",
       hourly_price: "",
       land_price: "",
+      land_unit: "acre",
       daily_price: "",
       pricing_context: "any",
       parentSourceId: ""
@@ -154,6 +157,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       categoryId: String(s.categoryId?._id || s.categoryId),
       hourly_price: s.hourly_price || "",
       land_price: s.land_price || "",
+      land_unit: s.land_unit || "acre",
       daily_price: s.daily_price || "",
       pricing_context: s.pricing_context || "any",
       parentSourceId: s.parentSourceId || ""
@@ -172,6 +176,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       categoryId: form.categoryId,
       hourly_price: parseFloat(form.hourly_price) || 0,
       land_price: parseFloat(form.land_price) || 0,
+      land_unit: form.land_unit,
       daily_price: parseFloat(form.daily_price) || 0,
       pricing_context: form.pricing_context,
       parentSourceId: form.parentSourceId || null
@@ -365,7 +370,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                             <div className="text-sm font-black text-gray-900">₹{service.hourly_price || 0}</div>
                           </div>
                           <div className="text-center px-1 border-x border-gray-100">
-                            <div className="text-[9px] text-gray-400 font-bold uppercase mb-1">Land</div>
+                            <div className="text-[9px] text-gray-400 font-bold uppercase mb-1">Land <span className="lowercase">({service.land_unit || 'acre'})</span></div>
                             <div className="text-sm font-black text-gray-900">₹{service.land_price || 0}</div>
                           </div>
                           <div className="text-center px-1">
@@ -520,7 +525,19 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Land (₹/Acre)</label>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 flex items-center justify-between">
+                  <span>Land (₹/{form.land_unit || 'acre'})</span>
+                  <select 
+                    value={form.land_unit}
+                    onChange={e => setForm({ ...form, land_unit: e.target.value })}
+                    className="bg-transparent border-none text-[9px] font-bold text-primary-600 outline-none p-0 cursor-pointer lowercase"
+                  >
+                    <option value="acre">Acre</option>
+                    <option value="hectare">Hectare</option>
+                    <option value="bigha">Bigha</option>
+                    <option value="katha">Katha</option>
+                  </select>
+                </label>
                 <input
                   type="number"
                   value={form.land_price}

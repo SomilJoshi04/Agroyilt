@@ -163,6 +163,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
           price: service.hourly_price || service.price || service.discountPrice || service.basePrice || 0,
           hourly_price: service.hourly_price,
           land_price: service.land_price,
+          land_unit: service.land_unit,
           daily_price: service.daily_price,
           categoryId: category?._id || category?.id,
           categoryTitle: category?.title || 'Agriculture',
@@ -184,6 +185,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
             price: impl.hourly_price || impl.price || 0,
             hourly_price: impl.hourly_price,
             land_price: impl.land_price,
+            land_unit: impl.land_unit,
             daily_price: impl.daily_price,
             pricing_context: 'sub-category',
             parentSourceId: service?._id || service?.id,
@@ -368,7 +370,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
                                     )}
                                     {impl.land_price > 0 && (
                                       <div className="flex flex-col bg-white p-2 rounded-xl border border-gray-100 items-center">
-                                        <span className="text-[7px] font-black text-gray-400 uppercase">Land (/Ac)</span>
+                                        <span className="text-[7px] font-black text-gray-400 uppercase">Land (/{impl.land_unit || 'Ac'})</span>
                                         <span className="text-[11px] font-black text-teal-700">+₹{impl.land_price}</span>
                                       </div>
                                     )}
@@ -445,7 +447,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
                                       <span className="text-[13px] font-extrabold text-gray-900">₹{svc.hourly_price || svc.basePrice || 0}</span>
                                     </div>
                                     <div className="flex flex-col items-center border-x border-gray-100">
-                                      <span className="text-[8.5px] font-black text-gray-400 uppercase tracking-wider">Land (Acre)</span>
+                                      <span className="text-[8.5px] font-black text-gray-400 uppercase tracking-wider">Land ({svc.land_unit || 'Acre'})</span>
                                       <span className="text-[13px] font-extrabold text-gray-900">₹{svc.land_price || 0}</span>
                                     </div>
                                     <div className="flex flex-col items-center">

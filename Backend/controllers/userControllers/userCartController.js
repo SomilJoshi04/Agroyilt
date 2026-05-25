@@ -9,7 +9,7 @@ const getUserCart = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    let cart = await Cart.findOne({ userId }).populate('items.serviceId', 'title iconUrl slug hourly_price land_price daily_price').populate('items.categoryId', 'title slug');
+    let cart = await Cart.findOne({ userId }).populate('items.serviceId', 'title iconUrl slug hourly_price land_price land_unit daily_price').populate('items.categoryId', 'title slug');
 
     if (!cart) {
       // Create empty cart if doesn't exist
@@ -63,6 +63,7 @@ const addToCart = async (req, res) => {
       card,
       hourly_price,
       land_price,
+      land_unit,
       daily_price
     } = req.body;
 
@@ -123,6 +124,7 @@ const addToCart = async (req, res) => {
         // Agriculture rental guideline prices
         hourly_price: hourly_price || 0,
         land_price:   land_price || 0,
+        land_unit:    land_unit || 'acre',
         daily_price:  daily_price || 0,
       };
 

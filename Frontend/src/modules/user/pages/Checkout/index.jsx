@@ -1383,7 +1383,7 @@ const Checkout = () => {
                          unitLabel = "Hourly Rate";
                        } else if (rentalType === 'land_based') {
                          unitPrice = svc.land_price || unitPrice;
-                         unitLabel = "Per Acre";
+                         unitLabel = "Per " + (svc.land_unit || item.land_unit || 'acre');
                        } else if (rentalType === 'daily' || rentalType === 'monthly') {
                          unitPrice = svc.daily_price || unitPrice;
                          unitLabel = "Daily Rate";
@@ -1415,6 +1415,13 @@ const Checkout = () => {
                 : null
             }
             initialRentalType={rentalType}
+            landUnit={
+              cartItems[0]?.serviceId
+                ? (typeof cartItems[0].serviceId === 'object'
+                  ? cartItems[0].serviceId.land_unit
+                  : cartItems[0].land_unit)
+                : cartItems[0]?.land_unit || 'acre'
+            }
             initialQuantity={
               rentalType === 'hourly' ? (estimatedDuration || 1)
               : rentalType === 'land_based' ? (landSize || 1)
@@ -1853,6 +1860,13 @@ const Checkout = () => {
         isDateSelected={isDateSelected}
         isTimeSelected={isTimeSelected}
         rentalType={rentalType}
+        landUnit={
+          cartItems[0]?.serviceId
+            ? (typeof cartItems[0].serviceId === 'object'
+              ? cartItems[0].serviceId.land_unit
+              : cartItems[0].land_unit)
+            : cartItems[0]?.land_unit || 'acre'
+        }
       />
     </div>
   );
