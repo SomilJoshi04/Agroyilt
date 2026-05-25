@@ -182,19 +182,19 @@ const Login = () => {
 
   return (
     <div
-      className="min-h-[100dvh] flex flex-col relative overflow-x-hidden bg-white sm:justify-center"
+      className="min-h-[100dvh] flex flex-col relative overflow-x-hidden bg-white justify-center items-center"
     >
       {/* Top Background with Wave */}
       <div
-        className="absolute top-0 left-0 w-full h-[40vh] bg-cover bg-center z-0 sm:hidden"
+        className="absolute top-0 left-0 w-full h-[25vh] bg-cover bg-center z-0 sm:hidden"
         style={{ backgroundImage: "url('/auth-bg.jpg')", filter: 'brightness(0.95)' }}
       >
-        <svg className="absolute bottom-0 w-full text-white" viewBox="0 0 1440 320" preserveAspectRatio="none" style={{ height: '70px', transform: 'translateY(1px)' }}>
+        <svg className="absolute bottom-0 w-full text-white" viewBox="0 0 1440 320" preserveAspectRatio="none" style={{ height: '50px', transform: 'translateY(1px)' }}>
           <path fill="currentColor" fillOpacity="1" d="M0,224L80,197.3C160,171,320,117,480,122.7C640,128,800,192,960,208C1120,224,1280,192,1360,176L1440,160L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"></path>
         </svg>
       </div>
 
-      <div className="bg-transparent flex-1 px-8 py-4 w-full z-20 sm:max-w-md sm:mx-auto relative pt-[32vh] sm:pt-10 flex flex-col justify-end pb-10">
+      <div className="bg-transparent px-8 py-4 w-full z-20 sm:max-w-md sm:mx-auto relative flex flex-col justify-center pb-10 sm:pb-0">
         <div className="mb-8 text-center relative z-10 flex flex-col items-center">
 
 
@@ -250,11 +250,11 @@ const Login = () => {
               </label>
             </div>
 
-            <div className="pt-4">
+            <div>
               <button
                 type="submit"
                 disabled={isLoading || phoneNumber.length < 10}
-                className="w-full flex justify-center py-4 px-4 rounded-3xl text-sm font-bold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 shadow-lg relative overflow-hidden mt-4"
+                className="w-full flex justify-center py-4 px-4 rounded-3xl text-sm font-bold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 shadow-lg relative overflow-hidden"
                 style={{ backgroundColor: brandColor, boxShadow: '0 4px 14px 0 rgba(66, 107, 79, 0.39)' }}
               >
                 {isLoading ? (
@@ -336,7 +336,7 @@ const Login = () => {
               </button>
             </div>
 
-            <div className="pt-4">
+            <div>
               <button
                 type="submit"
                 disabled={isLoading || otp.join('').length !== 6}
