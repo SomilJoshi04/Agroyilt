@@ -15,7 +15,7 @@ const serviceSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
   hourly_price: z.number().optional(),
   land_price: z.number().optional(),
-  land_unit: z.enum(['acre', 'hectare', 'bigha', 'katha']).default('acre'),
+  land_unit: z.string().min(1, 'Unit required').default('acre'),
   daily_price: z.number().optional(),
   pricing_context: z.enum(['standalone', 'sub-category', 'any']).default('any'),
   parentSourceId: z.string().nullable().optional()
@@ -527,16 +527,19 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
               <div>
                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 flex items-center justify-between">
                   <span>Land (₹/{form.land_unit || 'acre'})</span>
-                  <select 
+                  <input
+                    list="land-units"
                     value={form.land_unit}
-                    onChange={e => setForm({ ...form, land_unit: e.target.value })}
-                    className="bg-transparent border-none text-[9px] font-bold text-primary-600 outline-none p-0 cursor-pointer lowercase"
-                  >
-                    <option value="acre">Acre</option>
-                    <option value="hectare">Hectare</option>
-                    <option value="bigha">Bigha</option>
-                    <option value="katha">Katha</option>
-                  </select>
+                    onChange={e => setForm({ ...form, land_unit: e.target.value.toLowerCase() })}
+                    className="bg-transparent border-b border-dashed border-primary-300 text-[10px] font-bold text-primary-600 outline-none p-0 max-w-[60px] lowercase focus:border-solid text-right"
+                    placeholder="unit"
+                  />
+                  <datalist id="land-units">
+                    <option value="acre" />
+                    <option value="hectare" />
+                    <option value="bigha" />
+                    <option value="katha" />
+                  </datalist>
                 </label>
                 <input
                   type="number"

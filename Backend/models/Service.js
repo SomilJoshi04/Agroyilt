@@ -73,7 +73,6 @@ const serviceSchema = new mongoose.Schema({
   },
   land_unit: {
     type: String,
-    enum: ['acre', 'hectare', 'bigha', 'katha'],
     default: 'acre'
   },
   daily_price: {

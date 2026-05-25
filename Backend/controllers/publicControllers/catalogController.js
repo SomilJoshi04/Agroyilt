@@ -210,6 +210,7 @@ const getPublicBrandBySlug = async (req, res) => {
         price: svc.basePrice,
         hourly_price: svc.hourly_price || svc.basePrice || 0,
         land_price: svc.land_price || 0,
+        land_unit: svc.land_unit || 'acre',
         daily_price: svc.daily_price || 0,
         rating: "4.8", // Default rating
         reviews: "1k+", // Default reviews
@@ -304,6 +305,7 @@ const getPublicServices = async (req, res) => {
         basePrice: svc.basePrice,
         hourly_price: svc.hourly_price || svc.basePrice || 0,
         land_price: svc.land_price || 0,
+        land_unit: svc.land_unit || 'acre',
         daily_price: svc.daily_price || 0,
         pricing_context: svc.pricing_context || 'any',
         parentSourceId: svc.parentSourceId ? svc.parentSourceId.toString() : null,
