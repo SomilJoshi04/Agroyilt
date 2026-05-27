@@ -65,14 +65,23 @@ const PromoCarousel = memo(({ promos, onPromoClick }) => {
     }
   };
 
-  // Entrance animation
+  // Entrance animation — store tween ref and kill on unmount to prevent removeChild crash
   useEffect(() => {
-    if (carouselRef.current) {
-      gsap.fromTo(carouselRef.current,
+    if (!carouselRef.current) return;
+    let tween;
+    try {
+      tween = gsap.fromTo(
+        carouselRef.current,
         { opacity: 0, y: 10 },
         { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out' }
       );
+    } catch (e) {
+      // Fallback: show immediately if GSAP fails
+      if (carouselRef.current) carouselRef.current.style.opacity = '1';
     }
+    return () => {
+      try { tween?.kill(); } catch (_) {}
+    };
   }, []);
 
   if (!promos || promos.length === 0) {

@@ -39,20 +39,27 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
 
       {/* Professional Grid Layout */}
       <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-y-7 gap-x-3">
-        {serviceCategories.map((category, index) => {
+      {serviceCategories.map((category, index) => {
           const iconSrc = toAssetUrl(category.icon || category.image);
           return (
             <div key={category.id} className="flex justify-center h-full">
               <CategoryCard
                 title={category.title}
                 icon={
-                  <img
-                    src={iconSrc}
-                    alt={category.title}
-                    className="w-full h-full object-cover transition-transform duration-500"
-                    loading="lazy"
-                    decoding="async"
-                  />
+                  iconSrc ? (
+                    <img
+                      src={iconSrc}
+                      alt={category.title}
+                      className="w-full h-full object-cover transition-transform duration-500"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-100 to-emerald-50 text-green-600 text-lg font-black">
+                      {category.title?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                  )
                 }
                 onClick={() => onCategoryClick?.(category)}
                 hasSaleBadge={category.hasSaleBadge}

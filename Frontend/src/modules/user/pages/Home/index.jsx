@@ -521,33 +521,44 @@ const Home = () => {
         </motion.div>
 
         <main className="pt-6 space-y-8 pb-24 max-w-screen-xl mx-auto w-full">
-          {!isLocationSupported ? (
-            <div className="flex flex-col items-center justify-center pt-20 pb-10 px-6 text-center min-h-[60vh]">
-              <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-6">
-                <svg className="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3l18 18" />
-                </svg>
+          {!isLocationSupported && (
+            <div
+              className="flex items-center justify-between gap-3 py-2.5 px-4 mx-4 rounded-2xl"
+              style={{
+                background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.07)'
+              }}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(251,146,60,0.18)', border: '1px solid rgba(251,146,60,0.35)' }}>
+                  <span className="text-sm">📍</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11.5px] font-black text-white leading-tight" style={{ letterSpacing: '0.01em' }}>
+                    Service not available in your city
+                  </p>
+                  <p className="text-[9.5px] font-semibold leading-tight" style={{ color: 'rgba(251,146,60,0.75)' }}>
+                    Showing All-India default catalog
+                  </p>
+                </div>
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
-                Not service available in your city
-              </h2>
-              <p className="text-gray-500 max-w-xs mx-auto mb-8 font-medium">
-                Please fast! We are coming soon.
-              </p>
               <button
                 onClick={() => setIsAddressModalOpen(true)}
-                className="px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold shadow-md hover:bg-primary-700 transition-all font-bold"
-                style={{ backgroundColor: themeColors.button }}
+                className="flex-shrink-0 px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                style={{
+                  background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                  color: '#fff',
+                  boxShadow: '0 2px 8px rgba(249,115,22,0.45)'
+                }}
               >
-                Change Location
+                Change
               </button>
             </div>
-          ) : (
-            <>
-              {/* Hero Section - Promo Carousel (Includes Banners and Promos) */}
-              {(homeContent?.isPromosVisible !== false || homeContent?.isBannersVisible !== false) && (
+          )}
+
+          <>
+            {/* Hero Section - Promo Carousel (Includes Banners and Promos) */}
+            {(homeContent?.isPromosVisible !== false || homeContent?.isBannersVisible !== false) && (
                 <motion.section variants={itemVariants} className="relative z-0">
                   <PromoCarousel
                     promos={[
@@ -778,7 +789,6 @@ const Home = () => {
                 </Suspense>
               </motion.div>
             </>
-          )}
         </main>
       </motion.div>
 

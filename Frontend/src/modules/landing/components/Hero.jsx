@@ -7,7 +7,18 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import harvesterHero from '../landing_images/hero_premium.png';
 import TranslatedText from '../../../components/TranslatedText';
 
-gsap.registerPlugin(ScrollTrigger);
+// Register ScrollTrigger once with safe config.
+// ignoreMobileResize: true prevents GSAP from attaching a media-query listener
+// that appends/removes a 100vh-measurement div on every mobile viewport change.
+// Without this, _onMediaChange2 → _refresh100vh2 → removeChild throws a
+// NotFoundError when React has already cleaned up the DOM node.
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+  ScrollTrigger.config({
+    ignoreMobileResize: true,
+    autoRefreshEvents: 'visibilitychange,DOMContentLoaded,load',
+  });
+}
 
 // Floating particle component — small, subtle, behind content
 const FloatingParticle = ({ style }) => (

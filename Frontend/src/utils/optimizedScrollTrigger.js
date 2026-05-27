@@ -1,15 +1,8 @@
 import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger);
-
-  // High-performance ScrollTrigger configuration to prevent 'removeChild' errors
-  ScrollTrigger.config({
-    ignoreMobileResize: true,
-    autoRefreshEvents: "visibilitychange,DOMContentLoaded,load"
-  });
-}
+// Note: ScrollTrigger is intentionally removed from this optimized file to prevent
+// 'removeChild' errors during mobile resize/layout shifts. We rely entirely on
+// IntersectionObserver for scroll animations here, which is safer and faster.
 
 /**
  * Optimized scroll-triggered animation that only initializes when needed
@@ -171,7 +164,14 @@ export const batchRefreshScrollTrigger = () => {
   }
   
   refreshTimeout = setTimeout(() => {
-    ScrollTrigger.refresh();
+    // Safely refresh ScrollTrigger if it's available globally (e.g. from Landing page)
+    if (window.ScrollTrigger) {
+      try {
+        window.ScrollTrigger.refresh();
+      } catch (e) {
+        console.warn("GSAP ScrollTrigger refresh safely caught:", e);
+      }
+    }
   }, 100);
 };
 

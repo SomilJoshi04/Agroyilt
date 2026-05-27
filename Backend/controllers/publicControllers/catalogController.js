@@ -21,14 +21,23 @@ const getPublicCategories = async (req, res) => {
     if (cityId) {
       query.cityIds = cityId;
     }
-    // Note: We are NOT restricting by 'type' here to ensure equipment categories show up
 
-
-    const categories = await Category.find(query)
+    let categories = await Category.find(query)
       .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver')
       .populate('parentCategories', 'title slug')
       .sort({ homeOrder: 1, createdAt: -1 })
       .lean();
+
+    // FALLBACK: If a city was requested but has no categories assigned,
+    // return all global categories (those with no cityIds or any city)
+    // This mirrors the HomeContent fallback behaviour.
+    if (cityId && categories.length === 0) {
+      categories = await Category.find({ status: 'active' })
+        .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver')
+        .populate('parentCategories', 'title slug')
+        .sort({ homeOrder: 1, createdAt: -1 })
+        .lean();
+    }
 
     const initialCategories = categories.map(cat => ({
       id: cat._id?.toString() || '',
@@ -328,7 +337,22 @@ const getPublicServices = async (req, res) => {
 const getPublicHomeContent = async (req, res) => {
   try {
     const { cityId } = req.query;
-    const homeContent = await HomeContent.getHomeContent(cityId);
+    let homeContent = await HomeContent.getHomeContent(cityId);
+
+    // FALLBACK LOGIC: Check if the city-specific content is essentially empty
+    if (cityId && homeContent) {
+      const isEmpty = (!homeContent.banners || homeContent.banners.length === 0) &&
+                      (!homeContent.promos || homeContent.promos.length === 0) &&
+                      (!homeContent.curated || homeContent.curated.length === 0) &&
+                      (!homeContent.noteworthy || homeContent.noteworthy.length === 0) &&
+                      (!homeContent.booked || homeContent.booked.length === 0) &&
+                      (!homeContent.categorySections || homeContent.categorySections.length === 0);
+      
+      // If empty, fallback to the default content (where cityId is null)
+      if (isEmpty) {
+        homeContent = await HomeContent.getHomeContent(null);
+      }
+    }
 
     if (!homeContent) {
       return res.status(200).json({

@@ -3,20 +3,24 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 // Register ScrollTrigger plugin
 if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger);
-  
-  // High-performance ScrollTrigger configuration to prevent 'removeChild' errors
-  // on mobile browsers and during rapid component re-mounting.
-  ScrollTrigger.config({
-    ignoreMobileResize: true, // Stops problematic vh-refresh loops on mobile
-    autoRefreshEvents: "visibilitychange,DOMContentLoaded,load" // Avoid frequent resize refreshes
-  });
+  try {
+    gsap.registerPlugin(ScrollTrigger);
 
-  // Optimize GSAP for better performance
-  gsap.config({
-    nullTargetWarn: false,
-    trialWarn: false,
-  });
+    // ignoreMobileResize prevents GSAP from appending/removing a 100vh-measurement
+    // div on every mobile viewport resize, which caused the 'removeChild' crash.
+    ScrollTrigger.config({
+      ignoreMobileResize: true,
+      autoRefreshEvents: 'visibilitychange,DOMContentLoaded,load',
+    });
+
+    // Optimize GSAP for better performance
+    gsap.config({
+      nullTargetWarn: false,
+      trialWarn: false,
+    });
+  } catch (e) {
+    console.warn('GSAP ScrollTrigger init error (safe):', e);
+  }
 }
 
 /**
@@ -190,26 +194,38 @@ export const pulse = (element, repeat = -1) => {
  * Scroll-triggered fade in
  */
 export const scrollFadeIn = (element, offset = 100) => {
-  if (!element) return;
-  
-  gsap.fromTo(
-    element,
-    {
-      y: offset,
-      opacity: 0,
-    },
-    {
-      y: 0,
-      opacity: 1,
-      duration: 0.8,
-      ease: 'power2.out',
-      scrollTrigger: {
-        trigger: element,
-        start: 'top 85%',
-        toggleActions: 'play none none none',
+  if (!element) return null;
+
+  let tween = null;
+  try {
+    // Use simple IntersectionObserver instead of ScrollTrigger to avoid removeChild crashes
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            tween = gsap.fromTo(
+              element,
+              { y: offset, opacity: 0 },
+              { y: 0, opacity: 1, duration: 0.8, ease: 'power2.out' }
+            );
+            observer.unobserve(element);
+          }
+        });
       },
-    }
-  );
+      { rootMargin: '80px', threshold: 0.1 }
+    );
+    observer.observe(element);
+
+    // Return cleanup so callers can kill on unmount
+    return () => {
+      observer.disconnect();
+      tween?.kill();
+    };
+  } catch (e) {
+    // Fallback: show element immediately
+    gsap.set(element, { y: 0, opacity: 1 });
+    return null;
+  }
 };
 
 /**
@@ -310,9 +326,15 @@ export const animateLogo = (element) => {
 };
 
 /**
- * Cleanup function for ScrollTrigger
+ * Cleanup function for ScrollTrigger — safe to call even if ST is not initialized.
  */
 export const cleanupScrollTriggers = () => {
-  ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+  try {
+    ScrollTrigger.getAll().forEach(trigger => {
+      try { trigger.kill(); } catch (_) {}
+    });
+  } catch (e) {
+    // ScrollTrigger may not be initialized in some contexts; safe to ignore.
+  }
 };
 
