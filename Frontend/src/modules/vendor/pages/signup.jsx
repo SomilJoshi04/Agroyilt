@@ -223,7 +223,13 @@ const VendorSignup = () => {
     });
 
     if (!validationResult.success) {
-      validationResult.error.errors.forEach(err => toast.error(err.message));
+      // Zod v4 uses .issues instead of .errors
+      const issues = validationResult.error?.issues || [];
+      if (issues.length > 0) {
+        issues.forEach(err => toast.error(err.message));
+      } else {
+        toast.error('Please check your form inputs and try again.');
+      }
       return;
     }
 
@@ -375,14 +381,14 @@ const VendorSignup = () => {
   const brandColor = themeColors.brand?.teal || '#347989';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-start items-center py-10 px-4 sm:px-6 lg:px-8 relative">
       {/* Decorative Background Elements - Fixed Container to prevent scroll issues */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#347989] opacity-[0.03] rounded-full blur-3xl animate-floating" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#D68F35] opacity-[0.03] rounded-full blur-3xl animate-floating" style={{ animationDelay: '2s' }} />
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-2xl text-center mb-8 relative z-10 animate-fade-in">
+      <div className="w-full max-w-2xl text-center mb-8 relative z-10 animate-fade-in">
         <Logo className="h-16 w-auto mx-auto transform hover:scale-110 transition-transform duration-500" />
         <h2 className="mt-4 text-3xl font-extrabold text-gray-900 tracking-tight">
           {step === 'details' ? 'Partner Registration' : 'Verify Identity'}
@@ -392,7 +398,7 @@ const VendorSignup = () => {
         </p>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-2xl relative z-10">
+      <div className="w-full max-w-2xl relative z-10">
         <div className="bg-white py-8 px-4 shadow-2xl shadow-gray-200/50 sm:rounded-2xl sm:px-10 border border-gray-100 relative overflow-hidden animate-slide-in-bottom">
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#347989] via-[#D68F35] to-[#BB5F36]" />
 
@@ -759,7 +765,7 @@ const VendorSignup = () => {
           )}
         </div>
 
-        <p className="mt-8 text-center text-sm text-gray-600 animate-fade-in animate-stagger-4">
+        <p className="mt-8 mb-6 text-center text-sm text-gray-600 animate-fade-in animate-stagger-4">
           Already a partner?{' '}
           <Link to="/vendor/login" className="font-bold hover:text-[#D68F35] transition-colors" style={{ color: brandColor }}>
             Login here

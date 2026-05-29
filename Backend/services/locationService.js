@@ -98,9 +98,10 @@ const findNearbyVendors = async (centerLocation, radiusKm = 10, filters = {}) =>
     };
 
     // Filter by vendor's selected categories (what they set in their profile)
+    // Use case-insensitive regex to handle mismatches like "Tractor" vs "tractor"
     if (serviceCategory) {
-      baseQuery.categories = { $in: [serviceCategory] };
-      console.log(`[LocationService] Filtering vendors by category: "${serviceCategory}"`);
+      baseQuery.categories = { $in: [new RegExp(`^${serviceCategory.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')] };
+      console.log(`[LocationService] Filtering vendors by category (case-insensitive): "${serviceCategory}"`);
     }
 
     // Apply Cash Limit Check if requested

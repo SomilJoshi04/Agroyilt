@@ -103,7 +103,8 @@ const Signup = () => {
     const validationResult = signupSchema.safeParse(formData);
 
     if (!validationResult.success) {
-      validationResult.error.errors.forEach(err => toast.error(err.message));
+      const issues = validationResult.error?.issues || [];
+      issues.forEach(err => toast.error(err.message));
       return;
     }
 

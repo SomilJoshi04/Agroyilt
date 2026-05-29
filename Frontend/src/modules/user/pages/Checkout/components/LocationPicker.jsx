@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Autocomplete } from '@react-google-maps/api';
 import { FiCrosshair } from 'react-icons/fi';
 
-const libraries = ['places', 'geometry'];
+export const GOOGLE_MAPS_LIBRARIES = ['places', 'geometry'];
 
 const mapContainerStyle = {
   width: '100%',
@@ -23,7 +23,7 @@ const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   // Update marker when initialPosition changes (from external selection)

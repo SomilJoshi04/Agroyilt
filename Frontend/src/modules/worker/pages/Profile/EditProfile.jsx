@@ -224,7 +224,7 @@ const EditProfile = () => {
     });
 
     if (!validationResult.success) {
-      toast.error(validationResult.error.errors[0].message);
+      toast.error(validationResult.error?.issues?.[0]?.message || 'Please check your inputs');
       return;
     }
 
@@ -431,7 +431,11 @@ const EditProfile = () => {
             </div>
 
             <button
-              onClick={() => setIsAddressModalOpen(true)}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsAddressModalOpen(true);
+              }}
               className="w-full py-3 bg-blue-50 text-blue-600 rounded-xl font-bold text-sm border border-blue-100 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
             >
               <FiMapPin className="w-4 h-4" />

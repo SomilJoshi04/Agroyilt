@@ -91,12 +91,12 @@ const BrandsPage = ({ catalog, setCatalog, selectedCity }) => {
 
       if (servicesRes.success) {
         mappedBrands = servicesRes.brands.map((svc, sIdx) => {
-          const catIds = (svc.categoryIds || []).map(id => getStrId(id)).filter(Boolean);
-
-          // if (sIdx < 3) {
-          //   console.log(`[BrandDebug] ${svc.title}:`, { raw: svc.categoryIds, processed: catIds });
-          // }
+          let catIds = (svc.categoryIds || []).map(id => getStrId(id)).filter(Boolean);
           const primaryCatId = getStrId(svc.categoryId);
+
+          if (catIds.length === 0 && primaryCatId) {
+            catIds = [primaryCatId];
+          }
 
           return {
             id: getStrId(svc.id || svc._id),
@@ -220,7 +220,7 @@ const BrandsPage = ({ catalog, setCatalog, selectedCity }) => {
     });
 
     if (!validationResult.success) {
-      toast.error(validationResult.error.errors[0].message);
+      toast.error(validationResult.error?.issues?.[0]?.message || 'Please check the form inputs');
       isSubmitting.current = false;
       return;
     }

@@ -22,6 +22,10 @@ const getVendorBookings = async (req, res) => {
     const vendor = await require('../../models/Vendor').findById(vendorId);
     const vendorCategories = vendor?.service || [];
 
+    // Build case-insensitive regex patterns from vendor categories
+    // This fixes mismatches like vendor having "tractor" but booking having "Tractor"
+    const categoryRegexPatterns = vendorCategories.map(cat => new RegExp(`^${cat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'));
+
     // Build query
     const query = {
       $or: [
@@ -29,7 +33,10 @@ const getVendorBookings = async (req, res) => {
         {
           vendorId: null,
           status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] },
-          serviceCategory: { $in: vendorCategories } // Only show relevant ones
+          $or: [
+            { serviceCategory: { $in: categoryRegexPatterns } }, // Case-insensitive category match
+            { notifiedVendors: vendorId } // Also show bookings where this vendor was explicitly notified
+          ]
         }
       ]
     };
