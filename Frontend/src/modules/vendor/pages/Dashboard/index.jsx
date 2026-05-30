@@ -37,10 +37,40 @@ const Dashboard = memo(() => {
     vendorProfile,
     recentJobs,
     pendingBookings,
+    activeAlertBookings,
+    setActiveAlertBookings,
     loading,
     error,
     loadDashboardData
   } = useVendorDashboard();
+
+  const handleAcceptAlert = async (bookingId) => {
+    try {
+      await acceptBooking(bookingId);
+      toast.success('Booking accepted successfully');
+      setActiveAlertBookings(prev => prev.filter(b => String(b.id || b._id) !== String(bookingId)));
+      window.dispatchEvent(new Event('vendorStatsUpdated'));
+      window.dispatchEvent(new Event('vendorJobsUpdated'));
+    } catch (error) {
+      toast.error('Failed to accept booking');
+    }
+  };
+
+  const handleRejectAlert = async (bookingId) => {
+    try {
+      await rejectBooking(bookingId);
+      toast.success('Booking rejected');
+      setActiveAlertBookings(prev => prev.filter(b => String(b.id || b._id) !== String(bookingId)));
+      window.dispatchEvent(new Event('vendorStatsUpdated'));
+      window.dispatchEvent(new Event('vendorJobsUpdated'));
+    } catch (error) {
+      toast.error('Failed to reject booking');
+    }
+  };
+  
+  const handleAssignAlert = (bookingId) => {
+    navigate(`/vendor/booking/${bookingId}`);
+  };
 
   // Set background gradient
   useLayoutEffect(() => {
@@ -552,7 +582,14 @@ const Dashboard = memo(() => {
         </div>
       </main>
 
-      {/* BookingAlertModal removed to keep dashboard clean as per user request */}
+      <BookingAlertModal 
+        isOpen={activeAlertBookings && activeAlertBookings.length > 0}
+        bookings={activeAlertBookings}
+        onAccept={handleAcceptAlert}
+        onReject={handleRejectAlert}
+        onAssign={handleAssignAlert}
+        onMinimize={() => setActiveAlertBookings([])}
+      />
     </div>
   );
 });
