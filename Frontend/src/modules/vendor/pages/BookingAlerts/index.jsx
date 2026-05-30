@@ -217,9 +217,11 @@ const BookingAlerts = () => {
             </button>
           </div>
         ) : (
-          alerts.map(alert => (
+          alerts.map(alert => {
+            const bookingId = alert._id || alert.id;
+            return (
             <div
-              key={alert._id}
+              key={bookingId}
               className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 animate-slide-up"
             >
               {/* Header with Timer */}
@@ -237,10 +239,10 @@ const BookingAlerts = () => {
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="text-lg font-bold text-gray-900 leading-tight mb-1">
-                      {alert.serviceId?.title || 'Service Request'}
+                      {alert.serviceId?.title || alert.serviceName || alert.serviceType || 'Service Request'}
                     </h3>
                     <p className="text-sm text-gray-500 font-medium">
-                      {alert.userId?.name || 'Farmer'}
+                      {alert.userId?.name || alert.customerName || 'Farmer'}
                     </p>
                   </div>
                 </div>
@@ -263,7 +265,7 @@ const BookingAlerts = () => {
                       <FiMapPin /> Location
                     </div>
                     <p className="text-sm font-semibold text-gray-700 line-clamp-2">
-                      {alert.address?.addressLine1 || 'View Map'}
+                      {alert.address?.addressLine1 || alert.location?.address || 'View Map'}
                     </p>
                   </div>
                 </div>
@@ -271,13 +273,13 @@ const BookingAlerts = () => {
                 {/* Actions */}
                 <div className="flex gap-3">
                   <button
-                    onClick={() => handleReject(alert._id)}
+                    onClick={() => handleReject(bookingId)}
                     className="flex-1 py-3.5 rounded-xl border border-red-100 text-red-500 font-bold text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
                   >
                     <FiXCircle /> Decline
                   </button>
                   <button
-                    onClick={() => handleAccept(alert._id)}
+                    onClick={() => handleAccept(bookingId)}
                     className="flex-1 py-3.5 rounded-xl text-white font-bold text-sm shadow-lg shadow-green-200 hover:shadow-green-300 transition-all flex items-center justify-center gap-2 transform active:scale-95"
                     style={{
                       background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
@@ -288,7 +290,8 @@ const BookingAlerts = () => {
                 </div>
               </div>
             </div>
-          ))
+          )}
+          )
         )}
       </main>
     </div>
