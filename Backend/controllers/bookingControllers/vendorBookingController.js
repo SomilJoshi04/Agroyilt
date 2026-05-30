@@ -368,9 +368,13 @@ const rejectBooking = async (req, res) => {
     );
 
     // Remove from potentialVendors too
-    booking.potentialVendors = booking.potentialVendors.filter(
-      v => v.vendorId?.toString() !== vendorId.toString()
-    );
+    if (booking.potentialVendors && Array.isArray(booking.potentialVendors)) {
+      booking.potentialVendors = booking.potentialVendors.filter(
+        v => v.vendorId?.toString() !== vendorId.toString()
+      );
+    } else {
+      booking.potentialVendors = [];
+    }
 
     // Check if ALL vendors have rejected
     const pendingRequests = await BookingRequest.countDocuments({
