@@ -11,6 +11,23 @@ const initAudio = () => {
   }
 };
 
+// Unlock AudioContext on first user interaction
+const unlockAudioContext = () => {
+  if (audioContext && audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+  // We only need this to happen once
+  document.removeEventListener('click', unlockAudioContext);
+  document.removeEventListener('touchstart', unlockAudioContext);
+  document.removeEventListener('keydown', unlockAudioContext);
+};
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', unlockAudioContext);
+  document.addEventListener('touchstart', unlockAudioContext);
+  document.addEventListener('keydown', unlockAudioContext);
+}
+
 // Create a premium notification sound (Major Chord / Chime)
 const createNotificationSound = (type = 'chime') => {
   if (!audioContext) initAudio();
@@ -133,7 +150,18 @@ export const playAlertRing = (loop = false) => {
     if (loop) audio.loop = true;
     currentAudio = audio; // Track the new audio instance
 
-    audio.play().catch(e => console.error('Error playing alert file:', e));
+    audio.play().catch(e => {
+      // Suppress the NotAllowedError from cluttering the console as it's an expected browser behavior before interaction
+      if (e.name === 'NotAllowedError') {
+        console.warn('Audio play blocked by browser. User interaction required first.');
+        // Optionally dispatch an event so UI can show an "Enable Sound" button
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('audio-play-blocked'));
+        }
+      } else {
+        console.error('Error playing alert file:', e);
+      }
+    });
 
     // Cleanup when audio finishes (if not looping)
     audio.onended = () => {
