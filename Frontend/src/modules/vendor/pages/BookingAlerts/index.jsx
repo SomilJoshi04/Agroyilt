@@ -90,7 +90,7 @@ const BookingAlerts = () => {
 
           localStorage.setItem('vendorPendingJobs', JSON.stringify(mergedPending));
 
-          setAlerts(bookings);
+          setAlerts(mergedPending);
         }
       } catch (error) {
         console.error('Error fetching alerts:', error);
