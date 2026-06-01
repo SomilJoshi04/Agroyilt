@@ -254,7 +254,7 @@ const BookingAlerts = () => {
                       <FiClock /> Scheduled For
                     </div>
                     <p className="text-sm font-semibold text-gray-700">
-                      {new Date(alert.scheduledDate).toLocaleDateString()}
+                      {alert.scheduledDate ? new Date(alert.scheduledDate).toLocaleDateString() : 'Instant/ASAP'}
                     </p>
                     <p className="text-xs text-gray-500">
                       {alert.scheduledTimeSlot || 'ASAP'}

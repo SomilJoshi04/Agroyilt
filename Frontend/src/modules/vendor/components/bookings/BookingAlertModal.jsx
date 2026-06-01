@@ -163,20 +163,20 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
                 {booking.serviceName || booking.serviceType || 'Service Request'}
               </h4>
 
-              {(booking.brandName || booking.brandIcon) && (
+              {(typeof booking.brandName === 'string' || typeof booking.brandIcon === 'string') && (
                 <div className="flex items-center gap-2.5 bg-gray-50/80 rounded-xl p-2.5 border border-gray-100 shadow-sm w-fit mt-1">
-                  {booking.brandIcon ? (
+                  {typeof booking.brandIcon === 'string' && booking.brandIcon ? (
                     <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm p-1 border border-gray-50">
-                      <img src={booking.brandIcon} alt={booking.brandName} className="max-w-full max-h-full object-contain" />
+                      <img src={booking.brandIcon} alt={typeof booking.brandName === 'string' ? booking.brandName : 'Brand'} className="max-w-full max-h-full object-contain" />
                     </div>
                   ) : (
                     <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-50 text-xs font-black text-gray-500">
-                      {booking.brandName ? booking.brandName.substring(0, 2).toUpperCase() : 'BR'}
+                      {typeof booking.brandName === 'string' && booking.brandName ? booking.brandName.substring(0, 2).toUpperCase() : 'BR'}
                     </div>
                   )}
                   <div className="flex flex-col pr-2">
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] leading-none mb-0.5">Brand</span>
-                    <span className="text-xs font-black text-gray-800 uppercase tracking-wide">{booking.brandName}</span>
+                    <span className="text-xs font-black text-gray-800 uppercase tracking-wide">{typeof booking.brandName === 'string' ? booking.brandName : 'N/A'}</span>
                   </div>
                 </div>
               )}
