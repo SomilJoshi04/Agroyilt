@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FiX, FiMapPin, FiClock, FiDollarSign, FiArrowRight, FiBell, FiAlertCircle, FiMinimize2, FiUsers } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { vendorTheme as themeColors } from '../../../../theme';
@@ -247,9 +248,9 @@ const BookingAlertModal = ({ isOpen, booking, bookings, onAccept, onReject, onAs
 
   if (!isOpen || alertsArray.length === 0) return null;
 
-  return (
+  const modalContent = (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
         {onMinimize && (
           <button onClick={() => { stopAlertRing(); onMinimize(); }} className="absolute top-4 right-4 z-50 p-2 bg-black/20 hover:bg-black/30 backdrop-blur-md rounded-full text-white transition-all active:scale-95" title="Minimize Alert">
             <FiMinimize2 className="w-5 h-5" />
@@ -279,6 +280,8 @@ const BookingAlertModal = ({ isOpen, booking, bookings, onAccept, onReject, onAs
       </div>
     </AnimatePresence>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };
 
 export default BookingAlertModal;
