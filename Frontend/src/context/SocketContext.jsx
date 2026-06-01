@@ -254,7 +254,7 @@ export const SocketProvider = ({ children }) => {
           customerPhone: data.customerPhone,
           location: {
             address: data.address?.addressLine1 || 'Location shared',
-            distance: data.distance ? `${data.distance.toFixed(1)} km` : 'Near you'
+            distance: data.distance ? `${Number(data.distance).toFixed(1)} km` : 'Near you'
           },
           price: data.price,
           vendorEarnings: data.vendorEarnings, // Add this

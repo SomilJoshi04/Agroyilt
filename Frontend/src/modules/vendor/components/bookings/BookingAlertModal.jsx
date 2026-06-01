@@ -11,7 +11,7 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
   const handleAction = async (actionFn, actionType) => {
     if (loadingAction) return;
     setLoadingAction(actionType);
-    const bookingId = booking.id || booking._id;
+    const bookingId = booking?.id || booking?._id;
     localStorage.removeItem(`alert_start_${bookingId}`);
     try {
       if (actionFn) await actionFn(bookingId);
@@ -258,9 +258,9 @@ const BookingAlertModal = ({ isOpen, booking, bookings, onAccept, onReject, onAs
 
         <div className="w-full overflow-x-auto snap-x snap-mandatory scrollbar-hide flex gap-4 px-8 items-center h-full">
           <div className="flex gap-4 m-auto">
-            {alertsArray.map(b => (
+            {alertsArray.filter(b => b).map(b => (
               <BookingAlertCard
-                key={b.id || b._id}
+                key={b?.id || b?._id || Math.random().toString()}
                 booking={b}
                 onAccept={onAccept}
                 onReject={onReject}
