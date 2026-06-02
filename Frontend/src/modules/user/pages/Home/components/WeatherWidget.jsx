@@ -49,7 +49,7 @@ export default function WeatherWidget() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={() => navigate('/user/weather')}
-            className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+            className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
         >
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             

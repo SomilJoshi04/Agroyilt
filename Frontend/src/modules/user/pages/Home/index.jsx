@@ -603,76 +603,13 @@ const Home = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-3 pt-1 px-5 -mx-5 snap-x snap-mandatory">
-                  {/* Weather Button */}
-                  <WeatherWidget />
-
-                  {/* Soil Testing */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    onClick={() => navigate('/user/soil-testing')}
-                    className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
-                  >
-                     <div className="absolute inset-0 bg-gradient-to-br from-[#1A73E8]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#1A73E8]/10 text-[#1A73E8] group-hover:bg-[#1A73E8] group-hover:text-white transition-all duration-300 shadow-sm border border-[#1A73E8]/20 group-hover:border-[#1A73E8] z-10">
-                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.673.337a4 4 0 01-2.506.326l-1.623-.27a2 2 0 00-1.182.15l-1.615.807a2 2 0 01-2.342-.308l-.337-.337a2 2 0 00-2.828 0l-.337.337a2 2 0 01-2.342.308l-1.615-.807a2 2 0 00-1.182-.15l-1.623.27a4 4 0 01-2.506-.326l-.673-.337a6 6 0 00-3.86-.517l-2.387.477a2 2 0 00-1.022.547l-.955 3.185a1 1 0 00.957 1.287h15.756a1 1 0 00.957-1.287l-.955-3.185z" />
-                       </svg>
-                     </div>
-                     <div className="flex-1 min-w-0 z-10">
-                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Soil Test</p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Lab Reports</p>
-                     </div>
-                  </motion.div>
-
-                  {/* Agri Marketplace */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 }}
-                    onClick={() => navigate('/user/agri-marketplace')}
-                    className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
-                  >
-                     <div className="absolute inset-0 bg-gradient-to-br from-[#FCA311]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#FCA311]/10 text-[#FCA311] group-hover:bg-[#FCA311] group-hover:text-white transition-all duration-300 shadow-sm border border-[#FCA311]/20 group-hover:border-[#FCA311] z-10">
-                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                       </svg>
-                     </div>
-                     <div className="flex-1 min-w-0 z-10">
-                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Market</p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Buy Needs</p>
-                     </div>
-                  </motion.div>
-
-                  {/* Driver Based Equipment */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    onClick={() => setActiveSectionTab('Driver Based')}
-                    className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
-                  >
-                     <div className="absolute inset-0 bg-gradient-to-br from-[#22c55e]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#22c55e]/10 text-[#22c55e] group-hover:bg-[#22c55e] group-hover:text-white transition-all duration-300 shadow-sm border border-[#22c55e]/20 group-hover:border-[#22c55e] z-10">
-                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-                       </svg>
-                     </div>
-                     <div className="flex-1 min-w-0 z-10">
-                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Driver</p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Equipment</p>
-                     </div>
-                  </motion.div>
-
+                <div className="grid grid-cols-2 gap-3">
                   {/* Farming Equipment */}
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
                     onClick={() => setActiveSectionTab('Farming Equipment')}
-                    className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                    className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
                   >
                      <div className="absolute inset-0 bg-gradient-to-br from-[#3b82f6]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                      <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#3b82f6]/10 text-[#3b82f6] group-hover:bg-[#3b82f6] group-hover:text-white transition-all duration-300 shadow-sm border border-[#3b82f6]/20 group-hover:border-[#3b82f6] z-10">
@@ -686,13 +623,33 @@ const Home = () => {
                      </div>
                   </motion.div>
 
+                  {/* Driver Based Equipment */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
+                    onClick={() => setActiveSectionTab('Driver Based')}
+                    className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                  >
+                     <div className="absolute inset-0 bg-gradient-to-br from-[#22c55e]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#22c55e]/10 text-[#22c55e] group-hover:bg-[#22c55e] group-hover:text-white transition-all duration-300 shadow-sm border border-[#22c55e]/20 group-hover:border-[#22c55e] z-10">
+                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                       </svg>
+                     </div>
+                     <div className="flex-1 min-w-0 z-10">
+                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Driver</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Equipment</p>
+                     </div>
+                  </motion.div>
+
                   {/* Advance Service */}
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ delay: 0.1 }}
                     onClick={() => setActiveSectionTab('Advance Service')}
-                    className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                    className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
                   >
                      <div className="absolute inset-0 bg-gradient-to-br from-[#a855f7]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                      <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#a855f7]/10 text-[#a855f7] group-hover:bg-[#a855f7] group-hover:text-white transition-all duration-300 shadow-sm border border-[#a855f7]/20 group-hover:border-[#a855f7] z-10">
@@ -705,6 +662,50 @@ const Home = () => {
                         <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Services</p>
                      </div>
                   </motion.div>
+
+                  {/* Agri Marketplace */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    onClick={() => navigate('/user/agri-marketplace')}
+                    className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                  >
+                     <div className="absolute inset-0 bg-gradient-to-br from-[#FCA311]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#FCA311]/10 text-[#FCA311] group-hover:bg-[#FCA311] group-hover:text-white transition-all duration-300 shadow-sm border border-[#FCA311]/20 group-hover:border-[#FCA311] z-10">
+                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                       </svg>
+                     </div>
+                     <div className="flex-1 min-w-0 z-10">
+                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Market</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Buy Needs</p>
+                     </div>
+                  </motion.div>
+
+                  {/* Weather Button */}
+                  <WeatherWidget />
+
+                  {/* Soil Testing */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    onClick={() => navigate('/user/soil-testing')}
+                    className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                  >
+                     <div className="absolute inset-0 bg-gradient-to-br from-[#1A73E8]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#1A73E8]/10 text-[#1A73E8] group-hover:bg-[#1A73E8] group-hover:text-white transition-all duration-300 shadow-sm border border-[#1A73E8]/20 group-hover:border-[#1A73E8] z-10">
+                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.673.337a4 4 0 01-2.506.326l-1.623-.27a2 2 0 00-1.182.15l-1.615.807a2 2 0 01-2.342-.308l-.337-.337a2 2 0 00-2.828 0l-.337.337a2 2 0 01-2.342.308l-1.615-.807a2 2 0 00-1.182-.15l-1.623.27a4 4 0 01-2.506-.326l-.673-.337a6 6 0 00-3.86-.517l-2.387.477a2 2 0 00-1.022.547l-.955 3.185a1 1 0 00.957 1.287h15.756a1 1 0 00.957-1.287l-.955-3.185z" />
+                       </svg>
+                     </div>
+                     <div className="flex-1 min-w-0 z-10">
+                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Soil Test</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Lab Reports</p>
+                     </div>
+                  </motion.div>
+
                 </div>
               </motion.section>
 
