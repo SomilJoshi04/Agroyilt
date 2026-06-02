@@ -53,9 +53,10 @@ export default function WeatherWidget() {
         >
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             
-            <div className={`relative w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-sm border border-indigo-100 group-hover:border-indigo-600 z-10 ${loading ? 'animate-pulse' : ''}`}>
+            <div className={`relative w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-sm border border-indigo-100 group-hover:border-indigo-600 z-10 overflow-hidden ${loading ? 'animate-pulse' : ''}`}>
+                <img src="/landing_images/crop_advasory3.jpg" alt="Weather" className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-multiply group-hover:opacity-40 transition-opacity" />
                 {/* Adjust icon size slightly for the smaller wrapper */}
-                <div className="scale-75 origin-center flex items-center justify-center">
+                <div className="scale-75 origin-center flex items-center justify-center z-10 drop-shadow-md">
                     {iconToRender}
                 </div>
                 
