@@ -352,16 +352,16 @@ const Cart = () => {
                             {isAgri && (
                               <div className="flex flex-col gap-2 bg-gray-50/50 p-2 rounded-xl border border-gray-100">
                                 <p className="text-[9px] font-black text-gray-400 uppercase ml-1">Select Rental Type</p>
-                                <div className="grid grid-cols-3 gap-1.5">
+                                <div className="flex gap-1.5 overflow-x-auto">
                                   {[
                                     { id: 'hourly', label: 'Hourly', price: item.hourly_price || item.unitPrice },
                                     { id: 'land', label: 'Land', price: item.land_price },
                                     { id: 'day', label: 'Daily', price: item.daily_price }
-                                  ].map((opt) => (
+                                  ].filter(opt => opt.price > 0).map((opt) => (
                                     <button
                                       key={opt.id}
                                       onClick={() => handleRentalTypeChange(item, opt.id)}
-                                      className={`flex flex-col items-center py-1.5 rounded-lg border transition-all ${
+                                      className={`flex-1 min-w-[70px] flex flex-col items-center py-1.5 rounded-lg border transition-all ${
                                         currentType === opt.id 
                                           ? 'bg-emerald-600 border-emerald-600 shadow-sm shadow-emerald-200' 
                                           : 'bg-white border-gray-200 hover:border-emerald-300'

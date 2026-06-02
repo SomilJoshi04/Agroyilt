@@ -440,6 +440,30 @@ const JobDetails = () => {
                 <p className="text-sm font-bold text-blue-600 mt-0.5">{job.scheduledTime}</p>
               </div>
             </div>
+
+            {/* Agriculture / Drone Specific Details */}
+            {(job.landSize || job.cropType || job.chemicalUsed) && (
+              <div className="mt-2 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                {job.landSize && (
+                  <div className="bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100 flex items-center gap-1.5">
+                    <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Area:</span>
+                    <span className="text-xs font-black text-emerald-800">{job.landSize}</span>
+                  </div>
+                )}
+                {job.cropType && (
+                  <div className="bg-amber-50 px-2.5 py-1 rounded-md border border-amber-100 flex items-center gap-1.5">
+                    <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">Crop:</span>
+                    <span className="text-xs font-black text-amber-800">{job.cropType}</span>
+                  </div>
+                )}
+                {job.chemicalUsed && (
+                  <div className="bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100 flex items-center gap-1.5">
+                    <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Chem:</span>
+                    <span className="text-xs font-black text-blue-800">{job.chemicalUsed}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

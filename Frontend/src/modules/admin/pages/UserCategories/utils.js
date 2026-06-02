@@ -169,6 +169,7 @@ export const ensureIds = (catalog) => {
       // Machinery Classification
       trackingType: c.trackingType || "none",
       requiresDriver: Boolean(c.requiresDriver),
+      sectionType: c.sectionType || "General",
     })),
     services: (catalog.services || []).map((s) => ({
       id: s.id || `usvc-${Date.now()}-${Math.random().toString(16).slice(2)}`,

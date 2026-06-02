@@ -361,21 +361,21 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
                                   </div>
                                   
                                   {/* Pricing Row */}
-                                  <div className="grid grid-cols-3 gap-2 mt-1">
+                                  <div className="flex flex-wrap gap-2 mt-1">
                                     {impl.hourly_price > 0 && (
-                                      <div className="flex flex-col bg-white p-2 rounded-xl border border-gray-100 items-center">
+                                      <div className="flex-1 min-w-[70px] flex flex-col bg-white p-2 rounded-xl border border-gray-100 items-center">
                                         <span className="text-[7px] font-black text-gray-400 uppercase">Hourly</span>
                                         <span className="text-[11px] font-black text-emerald-700">+₹{impl.hourly_price}</span>
                                       </div>
                                     )}
                                     {impl.land_price > 0 && (
-                                      <div className="flex flex-col bg-white p-2 rounded-xl border border-gray-100 items-center">
+                                      <div className="flex-1 min-w-[70px] flex flex-col bg-white p-2 rounded-xl border border-gray-100 items-center">
                                         <span className="text-[7px] font-black text-gray-400 uppercase">Land (/{impl.land_unit || 'Ac'})</span>
                                         <span className="text-[11px] font-black text-teal-700">+₹{impl.land_price}</span>
                                       </div>
                                     )}
                                     {impl.daily_price > 0 && (
-                                      <div className="flex flex-col bg-white p-2 rounded-xl border border-gray-100 items-center">
+                                      <div className="flex-1 min-w-[70px] flex flex-col bg-white p-2 rounded-xl border border-gray-100 items-center">
                                         <span className="text-[7px] font-black text-gray-400 uppercase">Daily</span>
                                         <span className="text-[11px] font-black text-blue-700">+₹{impl.daily_price}</span>
                                       </div>
@@ -441,19 +441,29 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
                                     </button>
                                   </div>
 
-                                  <div className="grid grid-cols-3 gap-2 py-3 px-2 bg-gray-50/50 rounded-xl border border-gray-50">
-                                    <div className="flex flex-col items-center">
-                                      <span className="text-[8.5px] font-black text-gray-400 uppercase tracking-wider">Hourly</span>
-                                      <span className="text-[13px] font-extrabold text-gray-900">₹{svc.hourly_price || svc.basePrice || 0}</span>
-                                    </div>
-                                    <div className="flex flex-col items-center border-x border-gray-100">
-                                      <span className="text-[8.5px] font-black text-gray-400 uppercase tracking-wider">Land ({svc.land_unit || 'Acre'})</span>
-                                      <span className="text-[13px] font-extrabold text-gray-900">₹{svc.land_price || 0}</span>
-                                    </div>
-                                    <div className="flex flex-col items-center">
-                                      <span className="text-[8.5px] font-black text-gray-400 uppercase tracking-wider">Daily</span>
-                                      <span className="text-[13px] font-extrabold text-gray-900">₹{svc.daily_price || 0}</span>
-                                    </div>
+                                  <div className="flex gap-2 py-3 px-2 bg-gray-50/50 rounded-xl border border-gray-50 overflow-x-auto">
+                                    {(svc.hourly_price > 0 || svc.basePrice > 0) && (
+                                      <div className="flex-1 min-w-[70px] flex flex-col items-center">
+                                        <span className="text-[8.5px] font-black text-gray-400 uppercase tracking-wider">Hourly</span>
+                                        <span className="text-[13px] font-extrabold text-gray-900">₹{svc.hourly_price || svc.basePrice}</span>
+                                      </div>
+                                    )}
+                                    {svc.land_price > 0 && (
+                                      <div className={`flex-1 min-w-[70px] flex flex-col items-center ${
+                                        (svc.hourly_price > 0 || svc.basePrice > 0) ? 'border-l border-gray-100 pl-2' : ''
+                                      }`}>
+                                        <span className="text-[8.5px] font-black text-gray-400 uppercase tracking-wider">Land ({svc.land_unit || 'Acre'})</span>
+                                        <span className="text-[13px] font-extrabold text-gray-900">₹{svc.land_price}</span>
+                                      </div>
+                                    )}
+                                    {svc.daily_price > 0 && (
+                                      <div className={`flex-1 min-w-[70px] flex flex-col items-center ${
+                                        (svc.hourly_price > 0 || svc.basePrice > 0 || svc.land_price > 0) ? 'border-l border-gray-100 pl-2' : ''
+                                      }`}>
+                                        <span className="text-[8.5px] font-black text-gray-400 uppercase tracking-wider">Daily</span>
+                                        <span className="text-[13px] font-extrabold text-gray-900">₹{svc.daily_price}</span>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               );

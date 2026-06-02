@@ -18,8 +18,8 @@ const categorySchema = z.object({
   parentCategory: z.string().nullable().optional(),
   parentCategories: z.array(z.string()).optional(),
   isAlwaysMain: z.boolean().default(false),
-  trackingType: z.string().default('none'),
   requiresDriver: z.boolean().default(false),
+  sectionType: z.string().default('General'),
 });
 
 const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
@@ -44,6 +44,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
     isAlwaysMain: false,
     trackingType: "none",
     requiresDriver: false,
+    sectionType: "General",
   });
 
   const categoriesBase = useMemo(() => {
@@ -105,6 +106,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           isAlwaysMain: !!cat.isAlwaysMain,
           trackingType: cat.trackingType || 'none',
           requiresDriver: cat.requiresDriver || false,
+          sectionType: cat.sectionType || 'General',
         }));
 
         setCatalog({ ...catalog, categories: mapped });
@@ -146,6 +148,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       isAlwaysMain: !!editing.isAlwaysMain,
       trackingType: editing.trackingType || "none",
       requiresDriver: Boolean(editing.requiresDriver),
+      sectionType: editing.sectionType || "General",
     });
   }, [editingId, editing]);
 
@@ -156,6 +159,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       hasSaleBadge: false, showOnHome: true, parentCategory: "",
       parentCategories: [], isAlwaysMain: false,
       trackingType: "none", requiresDriver: false,
+      sectionType: "General",
     });
     setIsModalOpen(false);
   };
@@ -181,6 +185,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
     isAlwaysMain: !!cat.isAlwaysMain,
     trackingType: cat.trackingType || 'none',
     requiresDriver: cat.requiresDriver || false,
+    sectionType: cat.sectionType || 'General',
   });
 
   const upsert = async () => {
@@ -313,6 +318,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest w-20">Icon</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Category Name</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Parent Categories</th>
+                <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Section Tab</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Hierarchy</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Tracking</th>
                 <th className="text-center py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest w-20">Sort</th>
@@ -371,6 +377,11 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
                           <span className="text-[10px] text-gray-400 font-bold uppercase italic">No Parent</span>
                         )}
                       </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className="inline-block whitespace-nowrap px-2 py-1 bg-purple-50 text-purple-700 rounded text-[10px] font-black border border-purple-200">
+                        {c.sectionType || 'General'}
+                      </span>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex flex-col gap-1.5">
@@ -477,6 +488,20 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
               <label htmlFor="alwaysMain" className="text-base font-bold text-gray-900">Always show in Main List</label>
             </div>
             <p className="text-[11px] text-gray-400 leading-tight pl-7">Useful for tools like "Rotavator" that should be visible even when they are sub-categories.</p>
+          </div>
+
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Home Page Tab Section</label>
+            <select
+              value={form.sectionType}
+              onChange={e => setForm({ ...form, sectionType: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
+            >
+              <option value="General">General (Default scrolling list)</option>
+              <option value="Driver Based">Driver Based Equipment</option>
+              <option value="Farming Equipment">Farming Equipment</option>
+              <option value="Advance Service">Advance Service</option>
+            </select>
           </div>
 
           <div>

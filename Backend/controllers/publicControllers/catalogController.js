@@ -23,7 +23,7 @@ const getPublicCategories = async (req, res) => {
     }
 
     let categories = await Category.find(query)
-      .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver')
+      .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver sectionType')
       .populate('parentCategories', 'title slug')
       .sort({ homeOrder: 1, createdAt: -1 })
       .lean();
@@ -33,7 +33,7 @@ const getPublicCategories = async (req, res) => {
     // This mirrors the HomeContent fallback behaviour.
     if (cityId && categories.length === 0) {
       categories = await Category.find({ status: 'active' })
-        .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver')
+        .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver sectionType')
         .populate('parentCategories', 'title slug')
         .sort({ homeOrder: 1, createdAt: -1 })
         .lean();
@@ -59,6 +59,7 @@ const getPublicCategories = async (req, res) => {
       isAlwaysMain: !!cat.isAlwaysMain,
       trackingType: cat.trackingType || 'none',
       requiresDriver: cat.requiresDriver || false,
+      sectionType: cat.sectionType || 'General',
     }));
 
     // Fetch brands for these categories

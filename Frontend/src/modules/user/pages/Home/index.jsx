@@ -10,7 +10,7 @@ import { useCart } from '../../../../context/CartContext';
 import { useCity } from '../../../../context/CityContext';
 import { toast } from 'react-hot-toast';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import { userAuthService } from '../../../../services/authService';
 // Lazy load heavy components for better initial load performance
@@ -276,6 +276,7 @@ const Home = () => {
 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [activeSectionTab, setActiveSectionTab] = useState(null); // 'Driver Based', 'Farming Equipment', 'Advance Service'
 
   // Fetch categories and home content on mount (and when city changes)
   useEffect(() => {
@@ -299,7 +300,8 @@ const Home = () => {
             icon: toAssetUrl(cat.icon),
             hasSaleBadge: cat.hasSaleBadge,
             badge: cat.badge,
-            requiresDriver: cat.requiresDriver
+            requiresDriver: cat.requiresDriver,
+            sectionType: cat.sectionType || 'General'
           }));
           setCategories(mappedCategories);
           if (mappedCategories.length > 0) hasData = true;
@@ -592,82 +594,131 @@ const Home = () => {
                 </motion.section>
               )}
 
-              {/* Quick Agri Actions (PhonePe Style) */}
-              <motion.section variants={itemVariants} className="px-6 py-2">
-                <div className="flex justify-between items-start">
-                  
+              {/* Quick Agri Actions (Modern Premium Grid) */}
+              <motion.section variants={itemVariants} className="px-5 py-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col">
+                    <h2 className="text-[18px] sm:text-[20px] font-black text-slate-900 tracking-tight">Explore Services</h2>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Premium Offerings</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-3 pt-1 px-5 -mx-5 snap-x snap-mandatory">
                   {/* Weather Button */}
                   <WeatherWidget />
 
-                  {/* Soil Testing Button */}
-                  <div
+                  {/* Soil Testing */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     onClick={() => navigate('/user/soil-testing')}
-                    className="flex flex-col items-center cursor-pointer active:scale-95 transition-all group w-[70px]"
+                    className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
                   >
-                    <div className="relative">
-                      <div className="w-[60px] h-[60px] rounded-full flex items-center justify-center bg-gradient-to-tr from-[#1A73E8] to-[#4285F4] shadow-md group-hover:shadow-lg group-hover:shadow-[#1A73E8]/30 transition-all border border-white/20">
-                         <div className="absolute inset-0 bg-white/10 rounded-full" />
-                         <svg className="w-7 h-7 text-white drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.673.337a4 4 0 01-2.506.326l-1.623-.27a2 2 0 00-1.182.15l-1.615.807a2 2 0 01-2.342-.308l-.337-.337a2 2 0 00-2.828 0l-.337.337a2 2 0 01-2.342.308l-1.615-.807a2 2 0 00-1.182-.15l-1.623.27a4 4 0 01-2.506-.326l-.673-.337a6 6 0 00-3.86-.517l-2.387.477a2 2 0 00-1.022.547l-.955 3.185a1 1 0 00.957 1.287h15.756a1 1 0 00.957-1.287l-.955-3.185z" />
-                         </svg>
-                      </div>
-                    </div>
-                    <div className="text-center mt-2 w-full">
-                      <p className="text-[10px] font-black text-slate-800 leading-tight uppercase tracking-tight truncate">Soil Test</p>
-                      <p className="text-[8px] font-bold text-slate-400 truncate">Lab Reports</p>
-                    </div>
-                  </div>
+                     <div className="absolute inset-0 bg-gradient-to-br from-[#1A73E8]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#1A73E8]/10 text-[#1A73E8] group-hover:bg-[#1A73E8] group-hover:text-white transition-all duration-300 shadow-sm border border-[#1A73E8]/20 group-hover:border-[#1A73E8] z-10">
+                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.673.337a4 4 0 01-2.506.326l-1.623-.27a2 2 0 00-1.182.15l-1.615.807a2 2 0 01-2.342-.308l-.337-.337a2 2 0 00-2.828 0l-.337.337a2 2 0 01-2.342.308l-1.615-.807a2 2 0 00-1.182-.15l-1.623.27a4 4 0 01-2.506-.326l-.673-.337a6 6 0 00-3.86-.517l-2.387.477a2 2 0 00-1.022.547l-.955 3.185a1 1 0 00.957 1.287h15.756a1 1 0 00.957-1.287l-.955-3.185z" />
+                       </svg>
+                     </div>
+                     <div className="flex-1 min-w-0 z-10">
+                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Soil Test</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Lab Reports</p>
+                     </div>
+                  </motion.div>
 
-                  {/* Agri Marketplace Shortcut */}
-                  <div
+                  {/* Agri Marketplace */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
                     onClick={() => navigate('/user/agri-marketplace')}
-                    className="flex flex-col items-center cursor-pointer active:scale-95 transition-all group w-[70px]"
+                    className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
                   >
-                    <div className="relative">
-                      <div className="w-[60px] h-[60px] rounded-full flex items-center justify-center bg-gradient-to-tr from-[#D68F35] to-[#FCA311] shadow-md group-hover:shadow-lg group-hover:shadow-[#D68F35]/30 transition-all border border-white/20">
-                         <div className="absolute inset-0 bg-white/10 rounded-full" />
-                         <svg className="w-7 h-7 text-white drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                         </svg>
-                      </div>
-                    </div>
-                    <div className="text-center mt-2 w-full">
-                      <p className="text-[10px] font-black text-slate-800 leading-tight uppercase tracking-tight truncate">Market</p>
-                      <p className="text-[8px] font-bold text-slate-400 truncate">Buy Needs</p>
-                    </div>
-                  </div>
+                     <div className="absolute inset-0 bg-gradient-to-br from-[#FCA311]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#FCA311]/10 text-[#FCA311] group-hover:bg-[#FCA311] group-hover:text-white transition-all duration-300 shadow-sm border border-[#FCA311]/20 group-hover:border-[#FCA311] z-10">
+                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                       </svg>
+                     </div>
+                     <div className="flex-1 min-w-0 z-10">
+                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Market</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Buy Needs</p>
+                     </div>
+                  </motion.div>
 
+                  {/* Driver Based Equipment */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    onClick={() => setActiveSectionTab('Driver Based')}
+                    className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                  >
+                     <div className="absolute inset-0 bg-gradient-to-br from-[#22c55e]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#22c55e]/10 text-[#22c55e] group-hover:bg-[#22c55e] group-hover:text-white transition-all duration-300 shadow-sm border border-[#22c55e]/20 group-hover:border-[#22c55e] z-10">
+                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                       </svg>
+                     </div>
+                     <div className="flex-1 min-w-0 z-10">
+                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Driver</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Equipment</p>
+                     </div>
+                  </motion.div>
 
+                  {/* Farming Equipment */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    onClick={() => setActiveSectionTab('Farming Equipment')}
+                    className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                  >
+                     <div className="absolute inset-0 bg-gradient-to-br from-[#3b82f6]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#3b82f6]/10 text-[#3b82f6] group-hover:bg-[#3b82f6] group-hover:text-white transition-all duration-300 shadow-sm border border-[#3b82f6]/20 group-hover:border-[#3b82f6] z-10">
+                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                       </svg>
+                     </div>
+                     <div className="flex-1 min-w-0 z-10">
+                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Farming</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Tools</p>
+                     </div>
+                  </motion.div>
 
+                  {/* Advance Service */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    onClick={() => setActiveSectionTab('Advance Service')}
+                    className="w-[155px] flex-shrink-0 snap-start relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                  >
+                     <div className="absolute inset-0 bg-gradient-to-br from-[#a855f7]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#a855f7]/10 text-[#a855f7] group-hover:bg-[#a855f7] group-hover:text-white transition-all duration-300 shadow-sm border border-[#a855f7]/20 group-hover:border-[#a855f7] z-10">
+                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                       </svg>
+                     </div>
+                     <div className="flex-1 min-w-0 z-10">
+                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Advance</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Services</p>
+                     </div>
+                  </motion.div>
                 </div>
               </motion.section>
 
 
-              {/* Categories Section - Split into Driver Based and Farming Equipment */}
+              {/* Categories Section - General (Uncategorized) */}
               {homeContent?.isCategoriesVisible !== false && (
                 <>
-                  {/* Section 1: Driver Based Equipment */}
-                  {categories.some(c => c.requiresDriver) && (
+                  {categories.some(c => c.sectionType === 'General' || !c.sectionType) && (
                     <motion.section variants={itemVariants} className="relative overflow-hidden pt-2 mb-4">
-                      <div className="absolute inset-0 bg-gradient-to-b from-blue-50/30 to-transparent pointer-events-none -z-10" />
+                      <div className="absolute inset-0 bg-gradient-to-b from-gray-50/30 to-transparent pointer-events-none -z-10" />
                       <ServiceCategories
-                        title="Driver Based Equipment"
-                        subtitle="MACHINERY WITH PROFESSIONAL OPERATORS"
-                        categories={categories.filter(c => c.requiresDriver)}
-                        onCategoryClick={handleCategoryClick}
-                        onSeeAllClick={() => { }}
-                      />
-                    </motion.section>
-                  )}
-
-                  {/* Section 2: Farming Equipment (Without Driver) */}
-                  {categories.some(c => !c.requiresDriver) && (
-                    <motion.section variants={itemVariants} className="relative overflow-hidden pt-2">
-                      <div className="absolute inset-0 bg-gradient-to-b from-green-50/30 to-transparent pointer-events-none -z-10" />
-                      <ServiceCategories
-                        title="Farming Equipment"
-                        subtitle="SELF-OPERATED TOOLS & IMPLEMENTS"
-                        categories={categories.filter(c => !c.requiresDriver)}
+                        title="General Services"
+                        subtitle="ALL OTHER SERVICES"
+                        categories={categories.filter(c => c.sectionType === 'General' || !c.sectionType)}
                         onCategoryClick={handleCategoryClick}
                         onSeeAllClick={() => { }}
                       />
@@ -798,15 +849,62 @@ const Home = () => {
       {/* Category Modal */}
       <CategoryModal
         isOpen={isCategoryModalOpen}
-        onClose={() => {
-          setIsCategoryModalOpen(false);
-          setSelectedCategory(null);
-        }}
+        onClose={() => setIsCategoryModalOpen(false)}
         category={selectedCategory}
-        location={address}
-        cartCount={cartCount}
         currentCity={currentCity}
       />
+
+      {/* Section Tab Bottom Sheet Modal */}
+      <AnimatePresence>
+        {activeSectionTab && (
+          <div className="fixed inset-0 z-[9990] flex items-end justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActiveSectionTab(null)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative bg-white w-full rounded-t-[32px] p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-10 max-h-[80vh] overflow-y-auto"
+            >
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+              
+              <div className="flex justify-between items-center mb-6">
+                <h4 className="font-bold text-gray-900 text-lg">{activeSectionTab}</h4>
+                <button
+                  onClick={() => setActiveSectionTab(null)}
+                  className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {categories.filter(c => c.sectionType === activeSectionTab).length > 0 ? (
+                <ServiceCategories
+                  title={activeSectionTab}
+                  subtitle={`EXPLORE ALL ${activeSectionTab.toUpperCase()}`}
+                  categories={categories.filter(c => c.sectionType === activeSectionTab)}
+                  onCategoryClick={(cat) => {
+                    setActiveSectionTab(null);
+                    handleCategoryClick(cat);
+                  }}
+                  onSeeAllClick={() => {}}
+                />
+              ) : (
+                <div className="py-12 text-center text-gray-500 text-sm">
+                  No services available in this section yet.
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
 
       {/* Search Overlay */}
       <SearchOverlay

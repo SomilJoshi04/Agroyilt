@@ -181,6 +181,30 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
                   </div>
                 </div>
               )}
+
+              {/* Agriculture/Drone Specific Details */}
+              {(booking.landSize || booking.cropType || booking.chemicalUsed) && (
+                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-teal-50">
+                  {booking.landSize && (
+                    <div className="bg-emerald-50 px-2 py-1 rounded border border-emerald-100 flex items-center gap-1.5">
+                      <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Area:</span>
+                      <span className="text-xs font-black text-emerald-800">{booking.landSize}</span>
+                    </div>
+                  )}
+                  {booking.cropType && (
+                    <div className="bg-amber-50 px-2 py-1 rounded border border-amber-100 flex items-center gap-1.5">
+                      <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">Crop:</span>
+                      <span className="text-xs font-black text-amber-800">{booking.cropType}</span>
+                    </div>
+                  )}
+                  {booking.chemicalUsed && (
+                    <div className="bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-center gap-1.5">
+                      <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Chem:</span>
+                      <span className="text-xs font-black text-blue-800">{booking.chemicalUsed}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -214,13 +238,6 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
             {loadingAction === 'accept' ? 'Accepting...' : 'Accept (Myself)'} {loadingAction !== 'accept' && <FiArrowRight className="w-5 h-5" />}
           </button>
 
-          <button
-            disabled={!!loadingAction}
-            onClick={() => handleAction(onAssign, 'assign')}
-            className="w-full py-4 rounded-2xl text-white font-black text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:active:scale-100"
-            style={{ background: themeColors.button }}>
-            {loadingAction === 'assign' ? 'Assigning...' : 'Assign to Operator'} {loadingAction !== 'assign' && <FiUsers className="w-5 h-5" />}
-          </button>
 
           <button
             disabled={!!loadingAction}

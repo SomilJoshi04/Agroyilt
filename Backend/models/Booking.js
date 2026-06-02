@@ -287,6 +287,18 @@ const bookingSchema = new mongoose.Schema({
     type: String, // e.g. "5 Acres"
     default: null
   },
+  chemicalUsed: {
+    type: String,
+    default: null
+  },
+  waterRequirement: {
+    type: String, // e.g. "50 Liters"
+    default: null
+  },
+  actualAreaSprayed: {
+    type: Number, // In acres, for final billing if needed
+    default: null
+  },
 
   // ==========================================
   // 7. STATUS & TRACKING

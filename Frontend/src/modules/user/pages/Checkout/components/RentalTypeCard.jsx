@@ -44,7 +44,7 @@ const RENTAL_OPTIONS = [
     }
 ];
 
-const RentalTypeCard = ({ serviceId, selectedDate, selectedTime, onRentalChange, initialRentalType, initialQuantity, landUnit = 'acre' }) => {
+const RentalTypeCard = ({ serviceId, selectedDate, selectedTime, onRentalChange, initialRentalType, initialQuantity, landUnit = 'acre', pricing }) => {
     const [selectedRental, setSelectedRental] = useState(initialRentalType || 'hourly');
     const [quantity, setQuantity] = useState(initialQuantity || 1);
     const [checking, setChecking] = useState(false);
@@ -102,6 +102,24 @@ const RentalTypeCard = ({ serviceId, selectedDate, selectedTime, onRentalChange,
         onRentalChange?.({ type: selectedRental, quantity: num });
     };
 
+    // Filter available options based on pricing prop
+    const availableOptions = RENTAL_OPTIONS.filter(opt => {
+        if (!pricing) return true; // If no pricing provided, show all
+        // Return true if price is greater than 0
+        return pricing[opt.value] > 0;
+    });
+
+    // If no valid options based on pricing, fallback to showing all
+    const displayOptions = availableOptions.length > 0 ? availableOptions : RENTAL_OPTIONS;
+
+    // Ensure selectedRental is valid
+    useEffect(() => {
+        if (!displayOptions.find(opt => opt.value === selectedRental) && displayOptions.length > 0) {
+            handleSelect(displayOptions[0].value);
+        }
+    }, [pricing, selectedRental]);
+
+
     return (
         <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-4 shadow-sm">
             {/* Header */}
@@ -116,8 +134,8 @@ const RentalTypeCard = ({ serviceId, selectedDate, selectedTime, onRentalChange,
             </div>
 
             {/* Rental Type Pills */}
-            <div className="grid grid-cols-2 xs:grid-cols-4 gap-2 mb-4">
-                {RENTAL_OPTIONS.map((opt) => {
+            <div className={`grid gap-2 mb-4`} style={{ gridTemplateColumns: `repeat(${displayOptions.length}, minmax(0, 1fr))` }}>
+                {displayOptions.map((opt) => {
                     const Icon = opt.icon;
                     const isSelected = selectedRental === opt.value;
                     return (

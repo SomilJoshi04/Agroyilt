@@ -43,6 +43,11 @@ const categorySchema = new mongoose.Schema({
     default: true,
     index: true
   },
+  sectionType: {
+    type: String,
+    enum: ['Driver Based', 'Farming Equipment', 'Advance Service', 'General'],
+    default: 'General'
+  },
   homeOrder: {
     type: Number,
     default: 0,

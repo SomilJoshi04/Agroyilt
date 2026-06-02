@@ -24,6 +24,8 @@ const TimeSlotModal = ({
   const [localHours, setLocalHours] = useState('');
   const [localAcres, setLocalAcres] = useState('');
   const [localDays, setLocalDays] = useState('');
+  const [localCropType, setLocalCropType] = useState('');
+  const [localChemicalUsed, setLocalChemicalUsed] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -214,33 +216,62 @@ const TimeSlotModal = ({
             )}
 
             {rentalType === 'land_based' && (
-               <div className="mb-6">
-                 <h3 className="text-base font-semibold text-black mb-3">Specify Land Area</h3>
-                 <div className="flex items-center justify-between bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-                   <div className="flex items-center gap-3">
-                     <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center shrink-0">
-                       <span className="text-xl">🗺️</span>
+               <div className="mb-6 space-y-4">
+                 <div>
+                   <h3 className="text-base font-semibold text-black mb-3">Specify Land Area</h3>
+                   <div className="flex items-center justify-between bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                     <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center shrink-0">
+                         <span className="text-xl">🗺️</span>
+                       </div>
+                       <div>
+                         <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Area in {landUnit}s</p>
+                         <p className="text-sm font-extrabold text-gray-900">{localAcres || 0} {landUnit}s</p>
+                       </div>
                      </div>
-                     <div>
-                       <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Area in {landUnit}s</p>
-                       <p className="text-sm font-extrabold text-gray-900">{localAcres || 0} {landUnit}s</p>
+                     
+                     <div className="flex items-center gap-4 bg-gray-50 rounded-xl p-1.5 border border-gray-100">
+                       <button 
+                         onClick={() => { const n = Math.max(1, (Number(localAcres)||0)-1); setLocalAcres(n); onQuantityChange?.({ landSize: n }); }}
+                         className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-gray-600 active:scale-90 transition-transform"
+                       >
+                         <FiMinus className="w-4 h-4" />
+                       </button>
+                       <span className="text-base font-black text-gray-900 min-w-[20px] text-center">{localAcres || 0}</span>
+                       <button 
+                         onClick={() => { const n = (Number(localAcres)||0)+1; setLocalAcres(n); onQuantityChange?.({ landSize: n }); }}
+                         className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-gray-600 active:scale-90 transition-transform"
+                       >
+                         <FiPlus className="w-4 h-4" />
+                       </button>
                      </div>
                    </div>
-                   
-                   <div className="flex items-center gap-4 bg-gray-50 rounded-xl p-1.5 border border-gray-100">
-                     <button 
-                       onClick={() => { const n = Math.max(1, (Number(localAcres)||0)-1); setLocalAcres(n); onQuantityChange?.({ landSize: n }); }}
-                       className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-gray-600 active:scale-90 transition-transform"
-                     >
-                       <FiMinus className="w-4 h-4" />
-                     </button>
-                     <span className="text-base font-black text-gray-900 min-w-[20px] text-center">{localAcres || 0}</span>
-                     <button 
-                       onClick={() => { const n = (Number(localAcres)||0)+1; setLocalAcres(n); onQuantityChange?.({ landSize: n }); }}
-                       className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-gray-600 active:scale-90 transition-transform"
-                     >
-                       <FiPlus className="w-4 h-4" />
-                     </button>
+                 </div>
+
+                 {/* Agriculture Specific Inputs */}
+                 <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                   <h3 className="text-sm font-bold text-black mb-3 uppercase tracking-wider">Crop & Chemical Details</h3>
+                   <div className="space-y-3">
+                     <div>
+                       <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Crop Type</label>
+                       <input
+                         type="text"
+                         placeholder="E.g. Wheat, Rice, Sugarcane"
+                         value={localCropType}
+                         onChange={(e) => { setLocalCropType(e.target.value); onQuantityChange?.({ cropType: e.target.value }); }}
+                         className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-semibold text-gray-900"
+                       />
+                     </div>
+                     <div>
+                       <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Chemical to Spray</label>
+                       <input
+                         type="text"
+                         placeholder="E.g. Urea, Pesticide (Optional)"
+                         value={localChemicalUsed}
+                         onChange={(e) => { setLocalChemicalUsed(e.target.value); onQuantityChange?.({ chemicalUsed: e.target.value }); }}
+                         className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-semibold text-gray-900"
+                       />
+                     </div>
                    </div>
                  </div>
                </div>
@@ -315,7 +346,9 @@ const TimeSlotModal = ({
                 let extraArgs = {
                   estimatedDuration: localHours,
                   landSize: localAcres ? `${localAcres} ${landUnit}s` : undefined,
-                  localDays: localDays
+                  localDays: localDays,
+                  cropType: localCropType || undefined,
+                  chemicalUsed: localChemicalUsed || undefined
                 };
 
                 // Auto-calculate endDate for Daily if needed

@@ -65,6 +65,7 @@ const Checkout = () => {
   // ── Agriculture: Rental Type State (pre-filled from Cart navigation state) ──
   const [rentalType, setRentalType] = useState(location.state?.rentalType || 'hourly'); // 'hourly' | 'land_based' | 'daily'
   const [cropType, setCropType] = useState('');           // Agriculture: crop type
+  const [chemicalUsed, setChemicalUsed] = useState('');   // Agriculture: chemical for drone spraying
   const [landSize, setLandSize] = useState(1);           // Agriculture: area in acres
   const [endDate, setEndDate] = useState(null);           // Agriculture: end date for ranges
   const [estimatedDuration, setEstimatedDuration] = useState(1); // Agriculture: hours for hourly
@@ -380,6 +381,7 @@ const Checkout = () => {
         // --- AGRICULTURE SPECIFIC ---
         landSize: landSize || 1,
         cropType: cropType || '',
+        chemicalUsed: chemicalUsed || '',
         estimatedDuration: estimatedDuration || 1,
         selectedImplements: selectedImplements.map(impl => ({
           subCategoryId: impl._id,
@@ -595,6 +597,7 @@ const Checkout = () => {
         paymentMethod: amountToPay === 0 ? 'plan_benefit' : (paymentMethod === 'online' ? 'online' : 'pay_at_home'),
         rental_type: rentalType,
         cropType,
+        chemicalUsed,
         landSize,
         endDate: (rentalType === 'monthly' || rentalType === 'daily') && endDate ? endDate.toISOString() : undefined,
         estimatedDuration: rentalType === 'hourly' ? (Number(estimatedDuration) || undefined) : (['daily', 'monthly'].includes(rentalType) ? (Number(localDays) || undefined) : undefined),
@@ -1436,6 +1439,11 @@ const Checkout = () => {
               else if (type === 'daily') setLocalDays(quantity);
               else if (type === 'monthly') setLocalDays(quantity);
             }}
+            pricing={{
+              hourly: cartItems[0]?.serviceId?.hourly_price || cartItems[0]?.hourly_price || 0,
+              land_based: cartItems[0]?.serviceId?.land_price || cartItems[0]?.land_price || 0,
+              daily: cartItems[0]?.serviceId?.daily_price || cartItems[0]?.daily_price || 0
+            }}
           />
         )}
 
@@ -1849,10 +1857,12 @@ const Checkout = () => {
         onDateSelect={setSelectedDate}
         onTimeSelect={setSelectedTime}
         onSave={handleTimeSlotSave}
-        onQuantityChange={({ estimatedDuration: h, landSize: a, localDays: d }) => {
+        onQuantityChange={({ estimatedDuration: h, landSize: a, localDays: d, cropType: c, chemicalUsed: ch }) => {
           if (h !== undefined) setEstimatedDuration(h);
           if (a !== undefined) setLandSize(a);
           if (d !== undefined) setLocalDays(d);
+          if (c !== undefined) setCropType(c);
+          if (ch !== undefined) setChemicalUsed(ch);
         }}
         getDates={getDates}
         getTimeSlots={getTimeSlots}

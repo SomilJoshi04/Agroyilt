@@ -53,6 +53,7 @@ const createBooking = async (req, res) => {
       bookingType, // Extract bookingType
       rental_type,  // Agriculture: extract rental_type
       cropType,     // Agriculture: extract cropType
+      chemicalUsed, // Agriculture: chemical to spray
       landSize,      // Agriculture: extract landSize
       endDate,      // Agriculture: extract range end
       estimatedDuration, // Agriculture: extract hours
@@ -460,6 +461,7 @@ const createBooking = async (req, res) => {
       bookingType: bookingType || 'scheduled',
       rental_type: rental_type || null,
       cropType: cropType || null,
+      chemicalUsed: chemicalUsed || null,
       landSize: landSize || null,
       endDate: (endDate && !isNaN(new Date(endDate).getTime())) ? new Date(endDate) : null,
       estimatedDuration: (estimatedDuration !== undefined && estimatedDuration !== null && !isNaN(Number(estimatedDuration))) ? Number(estimatedDuration) : null,

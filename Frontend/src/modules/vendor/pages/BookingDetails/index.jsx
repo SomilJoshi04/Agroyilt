@@ -709,6 +709,30 @@ export default function BookingDetails() {
               )}
             </div>
           </div>
+
+          {/* Agriculture Specific / Drone Details */}
+          {(booking.landSize || booking.cropType || booking.chemicalUsed) && (
+            <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-3">
+              {booking.landSize && (
+                <div className="bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-2">
+                  <span className="text-[11px] text-emerald-600 font-bold uppercase tracking-wider">Area:</span>
+                  <span className="text-sm font-black text-emerald-800">{booking.landSize}</span>
+                </div>
+              )}
+              {booking.cropType && (
+                <div className="bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100 flex items-center gap-2">
+                  <span className="text-[11px] text-amber-600 font-bold uppercase tracking-wider">Crop:</span>
+                  <span className="text-sm font-black text-amber-800">{booking.cropType}</span>
+                </div>
+              )}
+              {booking.chemicalUsed && (
+                <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 flex items-center gap-2">
+                  <span className="text-[11px] text-blue-600 font-bold uppercase tracking-wider">Chemical:</span>
+                  <span className="text-sm font-black text-blue-800">{booking.chemicalUsed}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* User Info Card */}

@@ -33,6 +33,7 @@ const formatCategory = (cat) => ({
   cityIds: cat.cityIds || [],
   trackingType: cat.trackingType || 'none',
   requiresDriver: cat.requiresDriver || false,
+  sectionType: cat.sectionType || 'General',
   metaTitle: cat.metaTitle,
   metaDescription: cat.metaDescription,
   createdAt: cat.createdAt,
@@ -144,7 +145,8 @@ const createCategory = async (req, res) => {
       parentCategories,
       isAlwaysMain,
       trackingType,
-      requiresDriver
+      requiresDriver,
+      sectionType
     } = req.body;
 
     console.log('Creating category with payload:', req.body);
@@ -197,6 +199,7 @@ const createCategory = async (req, res) => {
       cityIds: cityIds || [],
       trackingType: trackingType || 'none',
       requiresDriver: Boolean(requiresDriver),
+      sectionType: sectionType || 'General',
       createdBy: req.user?._id || req.userId || null
     });
 
@@ -260,11 +263,14 @@ const updateCategory = async (req, res) => {
       parentCategories,
       isAlwaysMain,
       trackingType,
-      requiresDriver
+      requiresDriver,
+      sectionType
     } = req.body;
 
     const category = await Category.findById(id);
     console.log('[updateCategory] Request body parentCategories:', parentCategories, '| id:', id);
+    console.log('[updateCategory] Full req.body:', req.body);
+    console.log('[updateCategory] sectionType received:', sectionType);
 
     if (!category) {
       return res.status(404).json({
@@ -336,6 +342,7 @@ const updateCategory = async (req, res) => {
     if (isAlwaysMain !== undefined) category.isAlwaysMain = Boolean(isAlwaysMain);
     if (trackingType !== undefined) category.trackingType = trackingType;
     if (requiresDriver !== undefined) category.requiresDriver = Boolean(requiresDriver);
+    if (sectionType !== undefined) category.sectionType = sectionType;
 
     if (updateCityIds !== undefined) {
       category.cityIds = updateCityIds;
@@ -386,9 +393,13 @@ const deleteCategory = async (req, res) => {
       });
     }
 
+    // Also delete all associated services (equipment models) for this category
+    const Service = require('../../models/Service');
+    await Service.deleteMany({ categoryId: id });
+
     res.status(200).json({
       success: true,
-      message: 'Category deleted successfully'
+      message: 'Category and associated equipment deleted successfully'
     });
   } catch (error) {
     console.error('Delete category error:', error);
