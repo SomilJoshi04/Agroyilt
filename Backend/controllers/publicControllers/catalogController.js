@@ -364,6 +364,7 @@ const getPublicHomeContent = async (req, res) => {
           curated: [],
           noteworthy: [],
           booked: [],
+          premiumOfferings: [],
           categorySections: []
         }
       });
@@ -405,6 +406,10 @@ const getPublicHomeContent = async (req, res) => {
         targetCategoryId: item.targetCategoryId?.toString() || null,
         targetServiceId: item.targetServiceId?.toString() || null,
       })),
+      premiumOfferings: (contentObj.premiumOfferings || []).map(item => ({
+        ...item,
+        id: item._id ? item._id.toString() : item.id,
+      })),
       categorySections: (contentObj.categorySections || []).map(section => ({
         ...section,
         id: section._id ? section._id.toString() : section.id,
@@ -422,6 +427,7 @@ const getPublicHomeContent = async (req, res) => {
       isCuratedVisible: contentObj.isCuratedVisible ?? true,
       isNoteworthyVisible: contentObj.isNoteworthyVisible ?? true,
       isBookedVisible: contentObj.isBookedVisible ?? true,
+      isPremiumOfferingsVisible: contentObj.isPremiumOfferingsVisible ?? true,
       isCategorySectionsVisible: contentObj.isCategorySectionsVisible ?? true,
       isCategoriesVisible: contentObj.isCategoriesVisible ?? true
     };

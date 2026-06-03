@@ -595,109 +595,93 @@ const Home = () => {
               )}
 
               {/* Quick Agri Actions (Modern Premium Grid) */}
-              <motion.section variants={itemVariants} className="px-5 py-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex flex-col">
-                    <h2 className="text-[18px] sm:text-[20px] font-black text-slate-900 tracking-tight">Explore Services</h2>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Premium Offerings</p>
+              {homeContent?.isPremiumOfferingsVisible !== false && (
+                <motion.section variants={itemVariants} className="px-5 py-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-col">
+                      <h2 className="text-[18px] sm:text-[20px] font-black text-slate-900 tracking-tight">Explore Services</h2>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Tab Create</p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Farming Equipment */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    onClick={() => setActiveSectionTab('Farming Equipment')}
-                    className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
-                  >
-                     <div className="absolute inset-0 bg-gradient-to-br from-[#3b82f6]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#3b82f6]/10 text-[#3b82f6] group-hover:bg-[#3b82f6] group-hover:text-white transition-all duration-300 shadow-sm border border-[#3b82f6]/20 group-hover:border-[#3b82f6] z-10 overflow-hidden">
-                       <img src="/landing_images/tracter.jpg" alt="Farming" className="w-full h-full object-cover" />
-                     </div>
-                     <div className="flex-1 min-w-0 z-10">
-                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Farming</p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Tools</p>
-                     </div>
-                  </motion.div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(homeContent?.premiumOfferings || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map((item, idx) => (
+                      <motion.div
+                        key={item.id || item._id || idx}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        onClick={() => {
+                          if (item.actionType === 'navigate' && item.route && item.route.trim() !== '') {
+                            navigate(item.route.trim());
+                          } else {
+                            // setActiveSectionTab: use title as primary (admin sets category sectionType = tab title)
+                            // Fall back to actionPayload if title is missing
+                            const tabKey = (item.title || item.actionPayload || '').trim();
+                            if (tabKey) setActiveSectionTab(tabKey);
+                          }
+                        }}
+                        className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                      >
+                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: `linear-gradient(to bottom right, ${item.colorCode}1a, transparent)` }} />
+                         <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 transition-all duration-300 shadow-sm border z-10 overflow-hidden" style={{ backgroundColor: `${item.colorCode}1a`, color: item.colorCode, borderColor: `${item.colorCode}33` }}>
+                           {item.imageUrl ? (
+                             <img src={toAssetUrl(item.imageUrl)} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                           ) : (
+                             <span className="text-xl font-bold">{item.title?.charAt(0)}</span>
+                           )}
+                         </div>
+                         <div className="flex-1 min-w-0 z-10">
+                            <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">{item.title}</p>
+                            <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">{item.subtitle}</p>
+                         </div>
+                      </motion.div>
+                    ))}
 
-                  {/* Driver Based Equipment */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 }}
-                    onClick={() => setActiveSectionTab('Driver Based')}
-                    className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
-                  >
-                     <div className="absolute inset-0 bg-gradient-to-br from-[#22c55e]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#22c55e]/10 text-[#22c55e] group-hover:bg-[#22c55e] group-hover:text-white transition-all duration-300 shadow-sm border border-[#22c55e]/20 group-hover:border-[#22c55e] z-10 overflow-hidden">
-                       <img src="/landing_images/labour1.jpg" alt="Driver" className="w-full h-full object-cover" />
-                     </div>
-                     <div className="flex-1 min-w-0 z-10">
-                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Driver</p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Equipment</p>
-                     </div>
-                  </motion.div>
+                    {/* Agri Marketplace (Static) */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15 }}
+                      onClick={() => navigate('/user/agri-marketplace')}
+                      className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                    >
+                       <div className="absolute inset-0 bg-gradient-to-br from-[#FCA311]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                       <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#FCA311]/10 text-[#FCA311] group-hover:bg-[#FCA311] group-hover:text-white transition-all duration-300 shadow-sm border border-[#FCA311]/20 group-hover:border-[#FCA311] z-10 overflow-hidden">
+                         <img src="/landing_images/fertilizer_seeds.jpg" alt="Market" className="w-full h-full object-cover" />
+                       </div>
+                       <div className="flex-1 min-w-0 z-10">
+                          <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Market</p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Buy Needs</p>
+                       </div>
+                    </motion.div>
 
-                  {/* Advance Service */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    onClick={() => setActiveSectionTab('Advance Service')}
-                    className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
-                  >
-                     <div className="absolute inset-0 bg-gradient-to-br from-[#a855f7]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#a855f7]/10 text-[#a855f7] group-hover:bg-[#a855f7] group-hover:text-white transition-all duration-300 shadow-sm border border-[#a855f7]/20 group-hover:border-[#a855f7] z-10 overflow-hidden">
-                       <img src="/landing_images/dron_spraying.jpg" alt="Advance" className="w-full h-full object-cover" />
-                     </div>
-                     <div className="flex-1 min-w-0 z-10">
-                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Advance</p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Services</p>
-                     </div>
-                  </motion.div>
-
-                  {/* Agri Marketplace */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    onClick={() => navigate('/user/agri-marketplace')}
-                    className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
-                  >
-                     <div className="absolute inset-0 bg-gradient-to-br from-[#FCA311]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#FCA311]/10 text-[#FCA311] group-hover:bg-[#FCA311] group-hover:text-white transition-all duration-300 shadow-sm border border-[#FCA311]/20 group-hover:border-[#FCA311] z-10 overflow-hidden">
-                       <img src="/landing_images/fertilizer_seeds.jpg" alt="Market" className="w-full h-full object-cover" />
-                     </div>
-                     <div className="flex-1 min-w-0 z-10">
-                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Market</p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Buy Needs</p>
-                     </div>
-                  </motion.div>
 
                   {/* Weather Button */}
                   <WeatherWidget />
 
-                  {/* Soil Testing */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    onClick={() => navigate('/user/soil-testing')}
-                    className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
-                  >
-                     <div className="absolute inset-0 bg-gradient-to-br from-[#1A73E8]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                     <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#1A73E8]/10 text-[#1A73E8] group-hover:bg-[#1A73E8] group-hover:text-white transition-all duration-300 shadow-sm border border-[#1A73E8]/20 group-hover:border-[#1A73E8] z-10 overflow-hidden">
-                       <img src="/landing_images/soil_testing2.jpg" alt="Soil Test" className="w-full h-full object-cover" />
-                     </div>
-                     <div className="flex-1 min-w-0 z-10">
-                        <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Soil Test</p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Lab Reports</p>
-                     </div>
-                  </motion.div>
+                    {/* Soil Testing (Static) */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      onClick={() => navigate('/user/soil-testing')}
+                      className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
+                    >
+                       <div className="absolute inset-0 bg-gradient-to-br from-[#1A73E8]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                       <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#1A73E8]/10 text-[#1A73E8] group-hover:bg-[#1A73E8] group-hover:text-white transition-all duration-300 shadow-sm border border-[#1A73E8]/20 group-hover:border-[#1A73E8] z-10 overflow-hidden">
+                         <img src="/landing_images/soil_testing2.jpg" alt="Soil Test" className="w-full h-full object-cover" />
+                       </div>
+                       <div className="flex-1 min-w-0 z-10">
+                          <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Soil Test</p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Lab Reports</p>
+                       </div>
+                    </motion.div>
 
-                </div>
-              </motion.section>
+
+                  </div>
+                </motion.section>
+              )}
 
 
               {/* Categories Section - General (Uncategorized) */}
@@ -875,11 +859,11 @@ const Home = () => {
                 </button>
               </div>
 
-              {categories.filter(c => c.sectionType === activeSectionTab).length > 0 ? (
+              {categories.filter(c => (c.sectionType || '').trim().toLowerCase() === (activeSectionTab || '').trim().toLowerCase()).length > 0 ? (
                 <ServiceCategories
                   title={activeSectionTab}
                   subtitle={`EXPLORE ALL ${activeSectionTab.toUpperCase()}`}
-                  categories={categories.filter(c => c.sectionType === activeSectionTab)}
+                  categories={categories.filter(c => (c.sectionType || '').trim().toLowerCase() === (activeSectionTab || '').trim().toLowerCase())}
                   onCategoryClick={(cat) => {
                     setActiveSectionTab(null);
                     handleCategoryClick(cat);

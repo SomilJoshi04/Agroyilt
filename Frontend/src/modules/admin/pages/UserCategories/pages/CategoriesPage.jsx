@@ -5,7 +5,7 @@ import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
 import { saveCatalog, slugify, toAssetUrl } from "../utils";
 
-import { categoryService, serviceService } from "../../../../../services/catalogService";
+import { categoryService, serviceService, homeContentService } from "../../../../../services/catalogService";
 import { z } from "zod";
 
 const categorySchema = z.object({
@@ -20,6 +20,7 @@ const categorySchema = z.object({
   isAlwaysMain: z.boolean().default(false),
   requiresDriver: z.boolean().default(false),
   sectionType: z.string().default('General'),
+  trackingType: z.string().default('none'),
 });
 
 const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
@@ -31,6 +32,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
   const [draggedItem, setDraggedItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [uploadingIcon, setUploadingIcon] = useState(false);
+  const [premiumOfferings, setPremiumOfferings] = useState([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -122,6 +124,16 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
 
   useEffect(() => {
     fetchCategories();
+
+    const fetchHomeData = async () => {
+      try {
+        const response = await homeContentService.get({ cityId: selectedCity });
+        if (response.success && response.homeContent) {
+           setPremiumOfferings(response.homeContent.premiumOfferings || []);
+        }
+      } catch (e) {}
+    };
+    fetchHomeData();
   }, [selectedCity]);
 
   useEffect(() => {
@@ -498,9 +510,10 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
             >
               <option value="General">General (Default scrolling list)</option>
-              <option value="Driver Based">Driver Based Equipment</option>
-              <option value="Farming Equipment">Farming Equipment</option>
-              <option value="Advance Service">Advance Service</option>
+              {premiumOfferings.filter(o => o.actionPayload || o.title).map(o => {
+                const sectionName = o.actionPayload || o.title;
+                return <option key={o._id || o.id} value={sectionName}>{o.title} - ({sectionName})</option>
+              })}
             </select>
           </div>
 

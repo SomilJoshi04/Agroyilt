@@ -247,6 +247,43 @@ const homeContentSchema = new mongoose.Schema({
     }
   }],
 
+  // Premium Offerings (Quick Agri Actions)
+  premiumOfferings: [{
+    title: {
+      type: String,
+      required: false,
+      default: ''
+    },
+    subtitle: {
+      type: String,
+      default: ''
+    },
+    imageUrl: {
+      type: String,
+      default: ''
+    },
+    colorCode: {
+      type: String,
+      default: '#3b82f6'
+    },
+    route: {
+      type: String,
+      default: ''
+    },
+    actionType: {
+      type: String,
+      default: 'navigate'
+    },
+    actionPayload: {
+      type: String,
+      default: ''
+    },
+    order: {
+      type: Number,
+      default: 0
+    }
+  }],
+
   // Status
   isActive: {
     type: Boolean,
@@ -260,7 +297,8 @@ const homeContentSchema = new mongoose.Schema({
   isNoteworthyVisible: { type: Boolean, default: true },
   isBookedVisible: { type: Boolean, default: true },
   isCategorySectionsVisible: { type: Boolean, default: true },
-  isCategoriesVisible: { type: Boolean, default: true }
+  isCategoriesVisible: { type: Boolean, default: true },
+  isPremiumOfferingsVisible: { type: Boolean, default: true }
 }, {
   timestamps: true
 });

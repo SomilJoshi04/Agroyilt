@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { FiGrid, FiPlus, FiTrash2, FiSave, FiEdit2 } from "react-icons/fi";
+import { FiGrid, FiPlus, FiTrash2, FiSave, FiEdit2, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
@@ -162,6 +162,10 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
   const [categorySectionForm, setCategorySectionForm] = useState({ title: "", seeAllTargetCategoryId: "", seeAllSlug: "", seeAllTargetServiceId: "", cards: [] });
   const [editingCategorySectionId, setEditingCategorySectionId] = useState(null);
 
+  const [isPremiumOfferingsModalOpen, setIsPremiumOfferingsModalOpen] = useState(false);
+  const [premiumOfferingsForm, setPremiumOfferingsForm] = useState({ title: "", subtitle: "", imageUrl: "", colorCode: "#3b82f6", route: "", actionType: "navigate", actionPayload: "" });
+  const [editingPremiumOfferingsId, setEditingPremiumOfferingsId] = useState(null);
+
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [cardForm, setCardForm] = useState({
     title: "",
@@ -232,6 +236,7 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
             curatedServices: addIds(hc.curated || []), // API returns 'curated', component expects 'curatedServices'
             newAndNoteworthy: addIds(hc.noteworthy || []), // API returns 'noteworthy', component expects 'newAndNoteworthy'
             mostBooked: addIds(hc.booked || []), // API returns 'booked', component expects 'mostBooked'
+            premiumOfferings: addIds(hc.premiumOfferings || []),
             categorySections: addIds(hc.categorySections || []),
             isBannersVisible: hc.isBannersVisible ?? true,
             isPromosVisible: hc.isPromosVisible ?? true,
@@ -239,7 +244,8 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
             isNoteworthyVisible: hc.isNoteworthyVisible ?? true,
             isBookedVisible: hc.isBookedVisible ?? true,
             isCategorySectionsVisible: hc.isCategorySectionsVisible ?? true,
-            isCategoriesVisible: hc.isCategoriesVisible ?? true
+            isCategoriesVisible: hc.isCategoriesVisible ?? true,
+            isPremiumOfferingsVisible: hc.isPremiumOfferingsVisible ?? true
           };
           setCatalog(next);
           saveCatalog(next);
@@ -315,6 +321,7 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
         curated: homeData.curatedServices,
         noteworthy: homeData.newAndNoteworthy,
         booked: homeData.mostBooked,
+        premiumOfferings: homeData.premiumOfferings,
         categorySections: homeData.categorySections,
         isBannersVisible: homeData.isBannersVisible,
         isPromosVisible: homeData.isPromosVisible,
@@ -322,7 +329,8 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
         isNoteworthyVisible: homeData.isNoteworthyVisible,
         isBookedVisible: homeData.isBookedVisible,
         isCategorySectionsVisible: homeData.isCategorySectionsVisible,
-        isCategoriesVisible: homeData.isCategoriesVisible
+        isCategoriesVisible: homeData.isCategoriesVisible,
+        isPremiumOfferingsVisible: homeData.isPremiumOfferingsVisible
       };
       await homeContentService.update(payload, { cityId: selectedCity });
       toast.success('Home page updated successfully!');
@@ -446,6 +454,25 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
         await patchHome({ mostBooked: [...booked, { id: `hmb-${Date.now()}`, ...bookedForm }] });
       }
       resetBookedForm();
+    } catch (error) { }
+  };
+
+  // Premium Offerings handlers
+  const resetPremiumOfferingsForm = () => {
+    setEditingPremiumOfferingsId(null);
+    setPremiumOfferingsForm({ title: "", subtitle: "", imageUrl: "", colorCode: "#3b82f6", route: "", actionType: "navigate", actionPayload: "" });
+    setIsPremiumOfferingsModalOpen(false);
+  };
+
+  const savePremiumOfferings = async () => {
+    try {
+      const offerings = home?.premiumOfferings || [];
+      if (editingPremiumOfferingsId) {
+        await patchHome({ premiumOfferings: offerings.map((o) => (o.id === editingPremiumOfferingsId ? { ...o, ...premiumOfferingsForm } : o)) });
+      } else {
+        await patchHome({ premiumOfferings: [...offerings, { id: `hpre-${Date.now()}`, ...premiumOfferingsForm }] });
+      }
+      resetPremiumOfferingsForm();
     } catch (error) { }
   };
 
@@ -1073,6 +1100,105 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
                           <button
                             type="button"
                             onClick={() => patchHome({ mostBooked: (home.mostBooked || []).filter((x) => x.id !== s.id) })}
+                            className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                            title="Delete"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Tab Create */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm mt-5 mb-4">
+            <div className="flex items-start justify-between gap-3 pb-3 mb-4 border-b border-gray-200">
+              <div>
+                <div className="text-xl font-bold text-gray-900">Tab Create</div>
+                <div className="text-sm text-gray-500 mt-1">Manage the quick actions shown on home screen</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <ToggleSwitch
+                label="Show Tabs"
+                checked={home?.isPremiumOfferingsVisible !== false}
+                onChange={() => patchHome({ isPremiumOfferingsVisible: !home?.isPremiumOfferingsVisible })}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  resetPremiumOfferingsForm();
+                  setIsPremiumOfferingsModalOpen(true);
+                }}
+                className="px-5 py-3 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <FiPlus className="w-4 h-4" style={{ display: 'block', color: '#ffffff' }} />
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+          {(home.premiumOfferings || []).length === 0 ? (
+            <div className="text-base text-gray-500 mb-6">No tabs added</div>
+          ) : (
+            <div className="overflow-x-auto mb-6">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-12">#</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-24">Image</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Title</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Subtitle</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Action Type</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Payload/Route</th>
+                    <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 w-32">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(home.premiumOfferings || []).map((p, idx) => (
+                    <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-4 px-4 text-sm font-semibold text-gray-600">{idx + 1}</td>
+                      <td className="py-4 px-4">
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt="Preview" className="h-12 w-12 object-cover rounded-lg border border-gray-200" />
+                        ) : (
+                          <div className="h-12 w-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                            <span className="text-xs text-gray-400">No img</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-4 px-4"><div className="text-sm font-semibold text-gray-900">{p.title || "—"}</div></td>
+                      <td className="py-4 px-4"><div className="text-sm text-gray-600">{p.subtitle || "—"}</div></td>
+                      <td className="py-4 px-4"><div className="text-sm text-gray-600">{p.actionType || "—"}</div></td>
+                      <td className="py-4 px-4"><div className="text-sm text-gray-600">{p.actionType === 'navigate' ? p.route : p.actionPayload}</div></td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingPremiumOfferingsId(p.id);
+                              setPremiumOfferingsForm({ ...p });
+                              setIsPremiumOfferingsModalOpen(true);
+                            }}
+                            className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                            title="Edit"
+                          >
+                            <FiEdit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => patchHome({ premiumOfferings: (home.premiumOfferings || []).filter((x) => x.id !== p.id) })}
                             className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                             title="Delete"
                           >
@@ -2127,6 +2253,174 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
             </button>
             <button
               onClick={resetCategorySectionForm}
+              disabled={isSyncing}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Tab Create Modal */}
+      <Modal
+        isOpen={isPremiumOfferingsModalOpen}
+        onClose={resetPremiumOfferingsForm}
+        title={editingPremiumOfferingsId ? "Edit Tab" : "Add Tab"}
+      >
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
+              <input
+                type="text"
+                value={premiumOfferingsForm.title || ''}
+                onChange={(e) => setPremiumOfferingsForm({ ...premiumOfferingsForm, title: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                placeholder="e.g. Farming"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Subtitle</label>
+              <input
+                type="text"
+                value={premiumOfferingsForm.subtitle || ''}
+                onChange={(e) => setPremiumOfferingsForm({ ...premiumOfferingsForm, subtitle: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                placeholder="e.g. Tools"
+              />
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Image URL / Upload</label>
+              <div className="space-y-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={uploading}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setUploading(true);
+                      setUploadProgress(0);
+                      try {
+                        const response = await serviceService.uploadImage(file, 'premium', (progress) => {
+                          setUploadProgress(progress);
+                        });
+                        if (response.success) {
+                          setPremiumOfferingsForm((p) => ({ ...p, imageUrl: response.imageUrl }));
+                          toast.success("Image uploaded!");
+                        }
+                      } catch (error) {
+                        console.error('Upload error:', error);
+                        const msg = error.response?.data?.message || error.message || "Failed to upload image";
+                        toast.error(msg);
+                      } finally {
+                        setUploading(false);
+                        setUploadProgress(0);
+                      }
+                    }
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                {uploading && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-blue-600 text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        Uploading...
+                      </div>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={premiumOfferingsForm.imageUrl || ''}
+                    onChange={(e) => setPremiumOfferingsForm({ ...premiumOfferingsForm, imageUrl: e.target.value })}
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none text-sm"
+                    placeholder="Or enter URL here (e.g. /landing_images/tracter.jpg)"
+                  />
+                </div>
+                {premiumOfferingsForm.imageUrl && !uploading && (
+                  <div className="relative inline-block group mt-2">
+                    <img src={premiumOfferingsForm.imageUrl} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                    <button
+                      type="button"
+                      onClick={() => setPremiumOfferingsForm({ ...premiumOfferingsForm, imageUrl: '' })}
+                      className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                    >
+                      <FiX className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Color Code</label>
+              <input
+                type="text"
+                value={premiumOfferingsForm.colorCode}
+                onChange={(e) => setPremiumOfferingsForm({ ...premiumOfferingsForm, colorCode: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                placeholder="e.g. #3b82f6"
+              />
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Action Type</label>
+              <select
+                value={premiumOfferingsForm.actionType}
+                onChange={(e) => setPremiumOfferingsForm({ ...premiumOfferingsForm, actionType: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+              >
+                <option value="navigate">Navigate to Route</option>
+                <option value="setActiveSectionTab">Set Active Section Tab</option>
+              </select>
+            </div>
+            {premiumOfferingsForm.actionType === 'navigate' ? (
+              <div className="col-span-2 sm:col-span-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Route</label>
+                <input
+                  type="text"
+                  value={premiumOfferingsForm.route || ''}
+                  onChange={(e) => setPremiumOfferingsForm({ ...premiumOfferingsForm, route: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  placeholder="e.g. /user/agri-marketplace"
+                />
+              </div>
+            ) : (
+              <div className="col-span-2 sm:col-span-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Section Tab Name</label>
+                <input
+                  type="text"
+                  value={premiumOfferingsForm.actionPayload || ''}
+                  onChange={(e) => setPremiumOfferingsForm({ ...premiumOfferingsForm, actionPayload: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  placeholder="e.g. Farming Equipment"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+            <button
+              onClick={savePremiumOfferings}
+              disabled={isSyncing}
+              className="px-6 py-3.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all shadow-md shadow-blue-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSyncing ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : <FiSave className="w-5 h-5" />}
+              {isSyncing ? "Saving..." : (editingPremiumOfferingsId ? "Update" : "Add")}
+            </button>
+            <button
+              onClick={resetPremiumOfferingsForm}
               disabled={isSyncing}
               className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >

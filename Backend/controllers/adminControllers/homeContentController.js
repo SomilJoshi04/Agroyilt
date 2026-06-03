@@ -21,7 +21,7 @@ const getHomeContent = async (req, res) => {
         curated: homeContent.curated || [],
         noteworthy: homeContent.noteworthy || [],
         booked: homeContent.booked || [],
-        categorySections: homeContent.categorySections || [],
+        premiumOfferings: homeContent.premiumOfferings || [],
         categorySections: homeContent.categorySections || [],
         isActive: homeContent.isActive,
         isBannersVisible: homeContent.isBannersVisible ?? true,
@@ -31,6 +31,7 @@ const getHomeContent = async (req, res) => {
         isBookedVisible: homeContent.isBookedVisible ?? true,
         isCategorySectionsVisible: homeContent.isCategorySectionsVisible ?? true,
         isCategoriesVisible: homeContent.isCategoriesVisible ?? true,
+        isPremiumOfferingsVisible: homeContent.isPremiumOfferingsVisible ?? true,
         createdAt: homeContent.createdAt,
         updatedAt: homeContent.updatedAt
       }
@@ -70,14 +71,15 @@ const updateHomeContent = async (req, res) => {
       return items.map(item => {
         const newItem = { ...item };
         // Remove frontend-only 'id' fields that are strings
-        // Added 'hsec-' for category sections
+        // Added 'hsec-' for category sections, 'hpre-' for premium offerings
         if (typeof newItem.id === 'string' && (
           newItem.id.startsWith('hbnr-') ||
           newItem.id.startsWith('hprm-') ||
           newItem.id.startsWith('hcur-') ||
           newItem.id.startsWith('hnot-') ||
           newItem.id.startsWith('hbkd-') ||
-          newItem.id.startsWith('hsec-')
+          newItem.id.startsWith('hsec-') ||
+          newItem.id.startsWith('hpre-')
         )) {
           delete newItem.id;
         }
@@ -109,11 +111,30 @@ const updateHomeContent = async (req, res) => {
     };
 
     // Update fields with sanitization
-    if (req.body.banners !== undefined) homeContent.banners = sanitizeItems(req.body.banners);
-    if (req.body.promos !== undefined) homeContent.promos = sanitizeItems(req.body.promos);
-    if (req.body.curated !== undefined) homeContent.curated = sanitizeItems(req.body.curated);
-    if (req.body.noteworthy !== undefined) homeContent.noteworthy = sanitizeItems(req.body.noteworthy);
-    if (req.body.booked !== undefined) homeContent.booked = sanitizeItems(req.body.booked);
+    if (req.body.banners !== undefined) {
+      homeContent.banners = sanitizeItems(req.body.banners);
+      homeContent.markModified('banners');
+    }
+    if (req.body.promos !== undefined) {
+      homeContent.promos = sanitizeItems(req.body.promos);
+      homeContent.markModified('promos');
+    }
+    if (req.body.curated !== undefined) {
+      homeContent.curated = sanitizeItems(req.body.curated);
+      homeContent.markModified('curated');
+    }
+    if (req.body.noteworthy !== undefined) {
+      homeContent.noteworthy = sanitizeItems(req.body.noteworthy);
+      homeContent.markModified('noteworthy');
+    }
+    if (req.body.booked !== undefined) {
+      homeContent.booked = sanitizeItems(req.body.booked);
+      homeContent.markModified('booked');
+    }
+    if (req.body.premiumOfferings !== undefined) {
+      homeContent.premiumOfferings = sanitizeItems(req.body.premiumOfferings);
+      homeContent.markModified('premiumOfferings');
+    }
     if (req.body.categorySections !== undefined) {
       homeContent.categorySections = sanitizeItems(req.body.categorySections);
       homeContent.markModified('categorySections');
@@ -126,6 +147,7 @@ const updateHomeContent = async (req, res) => {
     if (req.body.isBookedVisible !== undefined) homeContent.isBookedVisible = req.body.isBookedVisible;
     if (req.body.isCategorySectionsVisible !== undefined) homeContent.isCategorySectionsVisible = req.body.isCategorySectionsVisible;
     if (req.body.isCategoriesVisible !== undefined) homeContent.isCategoriesVisible = req.body.isCategoriesVisible;
+    if (req.body.isPremiumOfferingsVisible !== undefined) homeContent.isPremiumOfferingsVisible = req.body.isPremiumOfferingsVisible;
 
     await homeContent.save();
 
@@ -140,7 +162,7 @@ const updateHomeContent = async (req, res) => {
         curated: homeContent.curated,
         noteworthy: homeContent.noteworthy,
         booked: homeContent.booked,
-        categorySections: homeContent.categorySections,
+        premiumOfferings: homeContent.premiumOfferings,
         categorySections: homeContent.categorySections,
         isActive: homeContent.isActive,
         isBannersVisible: homeContent.isBannersVisible,
@@ -149,7 +171,8 @@ const updateHomeContent = async (req, res) => {
         isNoteworthyVisible: homeContent.isNoteworthyVisible,
         isBookedVisible: homeContent.isBookedVisible,
         isCategorySectionsVisible: homeContent.isCategorySectionsVisible,
-        isCategoriesVisible: homeContent.isCategoriesVisible
+        isCategoriesVisible: homeContent.isCategoriesVisible,
+        isPremiumOfferingsVisible: homeContent.isPremiumOfferingsVisible
       }
     });
   } catch (error) {
