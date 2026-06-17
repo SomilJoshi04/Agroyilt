@@ -63,6 +63,31 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
     }
   };
 
+  // Geocode address when user presses Enter (without selecting from dropdown)
+  const handleSearchKeyDown = async (e) => {
+    if (e.key === 'Enter' && searchQuery.trim() && window.google) {
+      e.preventDefault();
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode(
+        { address: searchQuery, componentRestrictions: { country: 'in' } },
+        (results, status) => {
+          if (status === 'OK' && results[0]) {
+            const place = results[0];
+            const location = {
+              lat: place.geometry.location.lat(),
+              lng: place.geometry.location.lng(),
+              address: place.formatted_address,
+              components: place.address_components,
+            };
+            setSelectedLocation(location);
+            setMapAddress(place.formatted_address);
+            setSearchQuery(place.formatted_address);
+          }
+        }
+      );
+    }
+  };
+
   const onAutocompleteLoad = (autocompleteInstance) => {
     setAutocomplete(autocompleteInstance);
   };
@@ -194,7 +219,7 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
             Search Address
           </label>
           {isLoaded ? (
-            <Autocomplete
+          <Autocomplete
               onLoad={onAutocompleteLoad}
               onPlaceChanged={onPlaceChanged}
               options={{
@@ -209,6 +234,7 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
                   placeholder="Search for area, street, city..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
                   style={{
                     width: '100%', padding: '12px 36px 12px 36px',
                     background: '#f9fafb', border: '1px solid #e5e7eb',

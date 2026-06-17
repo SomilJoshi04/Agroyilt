@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, Autocomplete } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { FiCrosshair } from 'react-icons/fi';
 
 export const GOOGLE_MAPS_LIBRARIES = ['places', 'geometry'];
@@ -17,7 +17,6 @@ const defaultCenter = {
 const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
   const [map, setMap] = useState(null);
   const [marker, setMarker] = useState(initialPosition || defaultCenter);
-  const [autocomplete, setAutocomplete] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const { isLoaded, loadError } = useJsApiLoader({
@@ -90,33 +89,7 @@ const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
     reverseGeocode(newPos);
   }, []);
 
-  // Handle autocomplete place selection
-  const onPlaceChanged = () => {
-    if (autocomplete !== null) {
-      const place = autocomplete.getPlace();
-      if (place.geometry) {
-        const newPos = {
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng()
-        };
-        setMarker(newPos);
-        if (map) {
-          map.panTo(newPos);
-          map.setZoom(15);
-        }
-        if (onLocationSelect) {
-          onLocationSelect({
-            lat: newPos.lat,
-            lng: newPos.lng,
-            address: place.formatted_address,
-            components: place.address_components
-          });
-        }
-      }
-    }
-  };
 
-  // Handle current location button
   const handleCurrentLocation = () => {
     if (navigator.geolocation) {
       setLoading(true); // Show loading state on button click
@@ -189,20 +162,6 @@ const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
         >
           {marker && <Marker position={marker} />}
         </GoogleMap>
-
-        {/* Search Autocomplete */}
-        <div className="absolute top-4 left-4 right-4 z-10 drop-shadow-md">
-          <Autocomplete
-            onLoad={setAutocomplete}
-            onPlaceChanged={onPlaceChanged}
-          >
-            <input
-              type="text"
-              placeholder="Search area, street, or city..."
-              className="w-full px-4 py-3 bg-white rounded-2xl shadow-sm text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all border-none"
-            />
-          </Autocomplete>
-        </div>
 
         {/* Pin Instruction Overlay */}
         <div className="absolute bottom-4 left-4 bg-slate-900/90 text-white px-3 py-1.5 rounded-xl text-[9px] uppercase font-black tracking-widest z-10 shadow-lg backdrop-blur-sm">
