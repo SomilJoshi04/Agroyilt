@@ -216,7 +216,7 @@ self.addEventListener('notificationclick', (event) => {
         if (data.notificationType === 'job_assigned') {
           urlToOpen = `/worker/job/${data.bookingId}`;
         } else {
-          urlToOpen = `/vendor/bookings/${data.bookingId}`;
+          urlToOpen = `/vendor/booking-alert/${data.bookingId}`; // Opens the Accept/Reject alert modal
         }
       }
       break;
@@ -242,8 +242,12 @@ self.addEventListener('notificationclick', (event) => {
       break;
 
     default:
-      // Default click - open the link
-      urlToOpen = data.link || data.url || '/';
+      // Default click - for vendor booking alerts, open the alert page
+      if (data.bookingId && (data.notificationType === 'new_booking' || data.notificationType === 'new_booking_request')) {
+        urlToOpen = `/vendor/booking-alert/${data.bookingId}`;
+      } else {
+        urlToOpen = data.link || data.url || '/';
+      }
   }
 
   // Ensure URL is absolute

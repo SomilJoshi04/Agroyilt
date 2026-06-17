@@ -3,6 +3,7 @@ import { vendorDashboardService } from '../modules/vendor/services/dashboardServ
 import maintenanceService from '../modules/vendor/services/maintenanceService';
 import { isWithinInterval, parseISO } from 'date-fns';
 import { registerFCMToken } from '../services/pushNotificationService';
+import { playAlertRing } from '../utils/notificationSound';
 
 const VendorDashboardContext = createContext(null);
 
@@ -175,6 +176,23 @@ export const VendorDashboardProvider = ({ children }) => {
 
     setPendingBookings(mergedPending);
     localStorage.setItem('vendorPendingJobs', JSON.stringify(mergedPending));
+
+    // Auto-trigger modal for fresh pending bookings (app reopen scenario - missed socket event)
+    const freshPending = mergedPending.filter(b => {
+      const createdAt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      const age = Date.now() - createdAt;
+      return age < 120000; // Less than 2 minutes old — still actionable
+    });
+    if (freshPending.length > 0) {
+      setActiveAlertBookings(prev => {
+        const existingIds = new Set(prev.map(b => String(b.id || b._id)));
+        const newOnes = freshPending.filter(b => !existingIds.has(String(b.id || b._id)));
+        if (newOnes.length === 0) return prev;
+        // Play alarm ring for missed bookings on app reopen
+        try { playAlertRing(); } catch (e) { /* Browser may block audio before user interaction */ }
+        return [...newOnes, ...prev];
+      });
+    }
 
     // Update stats with cache persist
     setStats(prev => {
