@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { FiCamera, FiX, FiCheck, FiUpload, FiLoader, FiRefreshCw } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
+import { flutterBridge } from '../../../../utils/flutterBridge';
 
 /**
  * TripFlowModal - Handles Start Trip / End Trip flow
@@ -32,6 +33,33 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
     const [submitting, setSubmitting] = useState(false);
     const fileInputRef = useRef(null);
     const otpRefs = [useRef(), useRef(), useRef(), useRef()];
+
+    // Native Camera handler — Flutter mein native camera, web mein file input
+    const handleOpenCamera = async (target = 'km') => {
+        if (flutterBridge.isFlutter) {
+            // Flutter app ke andar → native camera khulega
+            try {
+                const file = await flutterBridge.openCamera();
+                if (!file) return;
+                const reader = new FileReader();
+                if (target === 'km') {
+                    setPhotoFile(file);
+                    reader.onloadend = () => setPhotoPreview(reader.result);
+                } else {
+                    setEvidenceFile(file);
+                    reader.onloadend = () => setEvidencePreview(reader.result);
+                }
+                reader.readAsDataURL(file);
+                flutterBridge.hapticFeedback('success');
+            } catch (err) {
+                console.error('[TripFlowModal] Native camera failed:', err);
+                toast.error('Camera khulne mein dikkat hui, dobara try karein');
+            }
+        } else {
+            // Normal web browser → HTML file input (capture="environment")
+            fileInputRef.current?.click();
+        }
+    };
 
     const isStart = mode === 'start';
     // Machinery auto-generates End OTP, so vendor doesn't need to enter one on end trip
@@ -249,7 +277,7 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
                                         </div>
                                     ) : (
                                         <button
-                                            onClick={() => fileInputRef.current?.click()}
+                                            onClick={() => handleOpenCamera('km')}
                                             className="w-full h-52 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all active:scale-95"
                                             style={{ borderColor: themeColor, background: `${themeColor}08` }}>
                                             <FiCamera className="w-10 h-10" style={{ color: themeColor }} />
@@ -305,7 +333,7 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
                                         </div>
                                     ) : (
                                         <button
-                                            onClick={() => fileInputRef.current?.click()}
+                                            onClick={() => handleOpenCamera('evidence')}
                                             className="w-full h-52 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all active:scale-95"
                                             style={{ borderColor: themeColor, background: `${themeColor}08` }}>
                                             <FiCamera className="w-10 h-10" style={{ color: themeColor }} />

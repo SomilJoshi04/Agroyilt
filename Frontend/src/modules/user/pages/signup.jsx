@@ -161,12 +161,26 @@ const Signup = () => {
   };
 
   const handleOtpChange = (index, value) => {
-    const cleanValue = value.replace(/\D/g, '').slice(0, 1);
+    // Allow only numbers
+    if (value && !/^\d+$/.test(value)) return;
+
+    // Handle paste of full OTP
+    if (value.length > 1) {
+      const digits = value.replace(/\D/g, '').slice(0, 6);
+      if (digits.length === 6) {
+        const chars = digits.split('');
+        setOtp(chars);
+        otpInputRefs.current[5]?.focus();
+        return;
+      }
+      return;
+    }
+
     const newOtp = [...otp];
-    newOtp[index] = cleanValue;
+    newOtp[index] = value;
     setOtp(newOtp);
 
-    if (cleanValue && index < 5) {
+    if (value && index < 5) {
       otpInputRefs.current[index + 1]?.focus();
     }
   };
