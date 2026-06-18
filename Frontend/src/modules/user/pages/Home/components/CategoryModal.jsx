@@ -58,8 +58,8 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
       setLoading(true);
       const response = await publicCatalogService.getServices({
         categoryId: category?.id || category?._id,
-        cityId: cityId,
-        pricing_context: 'standalone' // Only show standalone machines here
+        cityId: cityId
+        // Don't filter by pricing_context — show all services for this category
       });
       if (response.success) {
         setServices(response.services || []);

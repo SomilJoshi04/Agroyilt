@@ -53,6 +53,7 @@ const MyPlan = lazyLoad(() => import('../pages/MyPlan'));
 const PlanDetails = lazyLoad(() => import('../pages/MyPlan/PlanDetails'));
 const MyRating = lazyLoad(() => import('../pages/MyRating'));
 const AboutGroo = lazyLoad(() => import('../pages/AboutHomster'));
+const HowToUse = lazyLoad(() => import('../pages/HowToUse'));
 const UpdateProfile = lazyLoad(() => import('../pages/UpdateProfile'));
 const Login = lazyLoad(() => import('../pages/login'));
 const Signup = lazyLoad(() => import('../pages/signup'));
@@ -135,6 +136,7 @@ const UserRoutes = () => {
               <Route path="/my-plan/:id" element={<ProtectedRoute userType="user"><PlanDetails /></ProtectedRoute>} />
               <Route path="/my-rating" element={<ProtectedRoute userType="user"><MyRating /></ProtectedRoute>} />
               <Route path="/about-groo" element={<ProtectedRoute userType="user"><AboutGroo /></ProtectedRoute>} />
+              <Route path="/how-to-use" element={<ProtectedRoute userType="user"><HowToUse /></ProtectedRoute>} />
               <Route path="/update-profile" element={<ProtectedRoute userType="user"><UpdateProfile /></ProtectedRoute>} />
               <Route path="/privacy" element={<Privacy />} />
 

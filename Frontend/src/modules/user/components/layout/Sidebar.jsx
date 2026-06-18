@@ -62,13 +62,20 @@ const Sidebar = ({ isOpen, onClose }) => {
   };
 
   const menuItems = [
-    { name: 'Home', path: '/user', icon: HiOutlineHome },
-    { name: 'My Bookings', path: '/user/my-bookings', icon: HiOutlineClipboardList },
-    { name: 'Wallet', path: '/user/wallet', icon: HiOutlineCreditCard },
     { name: 'Rewards', path: '/user/rewards', icon: HiOutlineGift },
     { name: 'My Profile', path: '/user/account', icon: HiOutlineUser },
     { name: 'Settings', path: '/user/settings', icon: HiOutlineCog },
     { type: 'divider' },
+    { 
+      name: 'How to use our app', 
+      icon: HiOutlineInformationCircle,
+      path: '/user/how-to-use',
+      children: [
+        { name: 'Video Guide', path: '/user/how-to-use?type=video' },
+        { name: 'Image Guide', path: '/user/how-to-use?type=image' },
+        { name: 'PDF Guide', path: '/user/how-to-use?type=pdf' },
+      ]
+    },
     { name: 'Help & Support', path: '/user/help-support', icon: HiOutlineQuestionMarkCircle },
     { name: 'About Us', path: '/user/about-groo', icon: HiOutlineInformationCircle },
     { name: 'Privacy Policy', path: '/user/privacy', icon: HiOutlineShieldCheck },
@@ -145,6 +152,45 @@ const Sidebar = ({ isOpen, onClose }) => {
                   }
 
                   const Icon = item.icon;
+                  
+                  if (item.children) {
+                    return (
+                      <div key={index} className="flex flex-col">
+                        <button
+                          onClick={() => {
+                            const el = document.getElementById(`submenu-${index}`);
+                            if (el) {
+                              el.classList.toggle('hidden');
+                              const arrow = document.getElementById(`arrow-${index}`);
+                              if (arrow) arrow.classList.toggle('rotate-180');
+                            }
+                          }}
+                          className="flex items-center justify-between w-full px-3 py-3.5 rounded-xl text-slate-600 hover:bg-[#F1F8E9] hover:text-[#2E7D32] transition-all active:scale-[0.98] group"
+                        >
+                          <div className="flex items-center gap-4">
+                            <Icon className="w-5 h-5 text-slate-400 group-hover:text-[#2E7D32] transition-colors" />
+                            <span className="font-medium text-[15px]">{item.name}</span>
+                          </div>
+                          <svg id={`arrow-${index}`} className="w-4 h-4 text-slate-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        <div id={`submenu-${index}`} className="hidden pl-12 pr-3 py-1 space-y-1">
+                          {item.children.map((child, cIdx) => (
+                            <Link
+                              key={cIdx}
+                              to={child.path}
+                              onClick={onClose}
+                              className="block py-2 text-[14px] text-slate-500 hover:text-[#2E7D32] font-medium transition-colors"
+                            >
+                              {child.name}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <Link
                       key={index}

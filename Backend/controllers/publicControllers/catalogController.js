@@ -15,11 +15,17 @@ const HomeContent = require('../../models/HomeContent');
 const getPublicCategories = async (req, res) => {
   try {
     const { cityId, type } = req.query;
+    const mongoose = require('mongoose');
 
     // Build query - Keep it simple to ensure all active categories load
     const query = { status: 'active' };
     if (cityId) {
-      query.cityIds = cityId;
+      // Cast to ObjectId so string from URL matches ObjectId stored in cityIds array
+      try {
+        query.cityIds = new mongoose.Types.ObjectId(cityId);
+      } catch (e) {
+        query.cityIds = cityId; // fallback if invalid ObjectId format
+      }
     }
 
     let categories = await Category.find(query)
@@ -347,7 +353,8 @@ const getPublicHomeContent = async (req, res) => {
                       (!homeContent.curated || homeContent.curated.length === 0) &&
                       (!homeContent.noteworthy || homeContent.noteworthy.length === 0) &&
                       (!homeContent.booked || homeContent.booked.length === 0) &&
-                      (!homeContent.categorySections || homeContent.categorySections.length === 0);
+                      (!homeContent.categorySections || homeContent.categorySections.length === 0) &&
+                      (!homeContent.premiumOfferings || homeContent.premiumOfferings.length === 0);
       
       // If empty, fallback to the default content (where cityId is null)
       if (isEmpty) {

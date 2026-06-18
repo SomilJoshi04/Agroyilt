@@ -573,7 +573,7 @@ const Home = () => {
                         targetCategoryId: b.targetCategoryId,
                         slug: b.slug,
                         order: b.order || 0,
-                        route: '/'
+                        route: null
                       })),
                       ...(homeContent?.promos || []).map(promo => ({
                         id: promo.id || promo._id,
@@ -586,7 +586,7 @@ const Home = () => {
                         slug: promo.slug,
                         scrollToSection: promo.scrollToSection,
                         order: promo.order || 0,
-                        route: '/'
+                        route: null
                       }))
                     ].sort((a, b) => (a.order || 0) - (b.order || 0))}
                     onPromoClick={handlePromoClick}
@@ -684,21 +684,29 @@ const Home = () => {
               )}
 
 
-              {/* Categories Section - General (Uncategorized) */}
-              {homeContent?.isCategoriesVisible !== false && (
+              {/* Categories Sections - Show ALL categories grouped by sectionType */}
+              {homeContent?.isCategoriesVisible !== false && categories.length > 0 && (
                 <>
-                  {categories.some(c => c.sectionType === 'General' || !c.sectionType) && (
-                    <motion.section variants={itemVariants} className="relative overflow-hidden pt-2 mb-4">
-                      <div className="absolute inset-0 bg-gradient-to-b from-gray-50/30 to-transparent pointer-events-none -z-10" />
-                      <ServiceCategories
-                        title="General Services"
-                        subtitle="ALL OTHER SERVICES"
-                        categories={categories.filter(c => c.sectionType === 'General' || !c.sectionType)}
-                        onCategoryClick={handleCategoryClick}
-                        onSeeAllClick={() => { }}
-                      />
-                    </motion.section>
-                  )}
+                  {/* Group categories by sectionType and render each group */}
+                  {(() => {
+                    const sectionTypes = [...new Set(categories.map(c => (c.sectionType || 'General').trim()))];
+                    return sectionTypes.map(sectionType => {
+                      const sectionCategories = categories.filter(c => (c.sectionType || 'General').trim() === sectionType);
+                      if (sectionCategories.length === 0) return null;
+                      return (
+                        <motion.section key={sectionType} variants={itemVariants} className="relative overflow-hidden pt-2 mb-4">
+                          <div className="absolute inset-0 bg-gradient-to-b from-gray-50/30 to-transparent pointer-events-none -z-10" />
+                          <ServiceCategories
+                            title={sectionType === 'General' ? 'General Services' : sectionType}
+                            subtitle={sectionType === 'General' ? 'ALL OTHER SERVICES' : `EXPLORE ${sectionType.toUpperCase()}`}
+                            categories={sectionCategories}
+                            onCategoryClick={handleCategoryClick}
+                            onSeeAllClick={() => { }}
+                          />
+                        </motion.section>
+                      );
+                    });
+                  })()}
                 </>
               )}
 

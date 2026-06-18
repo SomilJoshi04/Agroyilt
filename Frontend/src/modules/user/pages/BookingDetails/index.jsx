@@ -744,10 +744,10 @@ const BookingDetails = () => {
           )}
 
           {/* Service Partner Card */}
-          {(booking.workerId || booking.assignedTo || booking.vendorId) && ['confirmed', 'assigned', 'journey_started', 'visited', 'in_progress', 'work_done'].includes(booking.status?.toLowerCase()) && (
+          {(booking.workerId || booking.assignedTo || booking.vendorId) && ['accepted', 'confirmed', 'assigned', 'journey_started', 'visited', 'in_progress', 'work_done'].includes(booking.status?.toLowerCase()) && (
             <div className="bg-white rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
               <div className="flex justify-between items-start mb-4">
-                {['journey_started', 'visited', 'in_progress'].includes(booking.status?.toLowerCase()) ? (
+                {['accepted', 'confirmed', 'assigned', 'journey_started', 'visited', 'in_progress'].includes(booking.status?.toLowerCase()) ? (
                   <div className="flex items-center gap-2">
                     <span className="flex h-3 w-3 relative">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>

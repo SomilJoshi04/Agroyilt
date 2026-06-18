@@ -78,3 +78,35 @@ exports.updateAbout = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 };
+
+const AppGuide = require('../../models/AppGuide');
+
+// ==================== App Guide Controllers ====================
+
+// @desc    Get App Guide Content (Public & Admin)
+exports.getAppGuide = async (req, res) => {
+    try {
+        let guide = await AppGuide.findOne();
+        if (!guide) {
+            guide = await AppGuide.create({ questions: [{ question: 'How to book?', answer: 'Select a machine and click book.' }] });
+        }
+        res.status(200).json({ success: true, data: guide });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+// @desc    Update App Guide Content (Admin)
+exports.updateAppGuide = async (req, res) => {
+    try {
+        let guide = await AppGuide.findOne();
+        if (guide) {
+            guide = await AppGuide.findByIdAndUpdate(guide._id, req.body, { new: true, runValidators: true });
+        } else {
+            guide = await AppGuide.create(req.body);
+        }
+        res.status(200).json({ success: true, data: guide });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+    }
+};

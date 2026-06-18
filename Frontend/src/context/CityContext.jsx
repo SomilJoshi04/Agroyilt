@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import api from '../services/api';
+import api, { apiCache } from '../services/api';
 
 const CityContext = createContext();
 
@@ -52,6 +52,10 @@ export const CityProvider = ({ children }) => {
 
   const selectCity = (city) => {
     setCurrentCity(city);
+    // Invalidate public catalog cache so categories reload for new city
+    if (apiCache && typeof apiCache.invalidatePrefix === 'function') {
+      apiCache.invalidatePrefix('public:');
+    }
     if (city) {
       localStorage.setItem('selectedCityId', city._id || city.id);
     } else {
