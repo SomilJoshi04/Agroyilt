@@ -80,11 +80,12 @@ const ManageSoilTests = () => {
             const res = await adminSoilTestService.getVendors();
             if (res.success) {
                 const allVendors = res.data || res.vendors || [];
-                // Filter to only include active, approved vendors who are marked as a 'soil_testing' service
+                // Filter to only include vendors who are marked as a 'soil_testing' service
+                // Note: approvalStatus check removed - admin has already verified via the toggle
                 const soilLabs = allVendors.filter(v => 
-                    v.isActive && 
-                    v.approvalStatus === 'approved' && 
-                    (Array.isArray(v.service) ? v.service.includes('soil_testing') : v.service === 'soil_testing')
+                    Array.isArray(v.service) 
+                        ? v.service.some(s => s.toLowerCase().includes('soil_testing') || s.toLowerCase().includes('soil testing'))
+                        : String(v.service || '').toLowerCase().includes('soil_testing')
                 );
                 setVendors(soilLabs);
             }
@@ -361,41 +362,57 @@ const ManageSoilTests = () => {
                             <div className="flex justify-between items-center mb-3 px-1">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available Labs</p>
                                 <span className="text-[10px] font-bold text-slate-400">
-                                    {(!(filterByState || filterByDistrict)) ? 0 : vendors.filter(v => {
-                                        const reqLoc = (assignModal.location || '').toLowerCase();
-                                        const vState = (v.address?.state || '').toLowerCase();
-                                        const vCity = (v.address?.city || '').toLowerCase();
-                                        if (filterByState && vState && !reqLoc.includes(vState)) return false;
-                                        if (filterByDistrict && vCity && !reqLoc.includes(vCity)) return false;
+                                    {vendors.filter(v => {
+                                        if (!filterByState && !filterByDistrict) return true;
+                                        const reqLocParts = (assignModal.location || '').toLowerCase().split(/[,\s]+/).filter(Boolean);
+                                        const vState = (v.address?.state || '').toLowerCase().trim();
+                                        const vCity = (v.address?.city || '').toLowerCase().trim();
+                                        if (filterByState && vState && !reqLocParts.some(p => vState.includes(p) || p.includes(vState))) return false;
+                                        if (filterByDistrict && vCity && !reqLocParts.some(p => vCity.includes(p) || p.includes(vCity))) return false;
                                         return true;
                                     }).length} Found
                                 </span>
                             </div>
 
                             <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                                {(!(filterByState || filterByDistrict)) ? (
+                                {vendors.length === 0 ? (
                                     <div className="py-12 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                                        <p className="text-xs font-black text-slate-300 uppercase tracking-widest mb-2">Filters Required</p>
-                                        <p className="text-[10px] font-bold text-slate-400">Select State or District to see matching labs</p>
+                                        <p className="text-xs font-black text-slate-300 uppercase tracking-widest mb-2">No Lab Vendors</p>
+                                        <p className="text-[10px] font-bold text-slate-400">No vendors have been approved as soil labs yet</p>
                                     </div>
                                 ) : (
                                     <>
                                         {vendors.filter(v => {
-                                            const reqLoc = (assignModal.location || '').toLowerCase();
-                                            const vState = (v.address?.state || '').toLowerCase();
-                                            const vCity = (v.address?.city || '').toLowerCase();
+                                            if (!filterByState && !filterByDistrict) return true; // Show all if no filter
+                                            const reqLocParts = (assignModal.location || '').toLowerCase().split(/[,\s]+/).filter(Boolean);
+                                            const vState = (v.address?.state || '').toLowerCase().trim();
+                                            const vCity = (v.address?.city || '').toLowerCase().trim();
                                             
-                                            if (filterByState && vState && !reqLoc.includes(vState)) return false;
-                                            if (filterByDistrict && vCity && !reqLoc.includes(vCity)) return false;
-                                            
+                                            if (filterByState && vState) {
+                                                // Check if any part of the request location matches the vendor state
+                                                const stateMatches = reqLocParts.some(part => 
+                                                    vState.includes(part) || part.includes(vState)
+                                                );
+                                                if (!stateMatches) return false;
+                                            }
+                                            if (filterByDistrict && vCity) {
+                                                // Check if any part of the request location matches the vendor city
+                                                const cityMatches = reqLocParts.some(part => 
+                                                    vCity.includes(part) || part.includes(vCity)
+                                                );
+                                                if (!cityMatches) return false;
+                                            }
                                             return true;
                                         }).map(v => (
                                             <div key={v._id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-200 hover:bg-white hover:shadow-md transition-all group">
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-black text-slate-800 text-xs truncate">{v.businessName || v.name}</p>
                                                     <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
-                                                        <FiMapPin className="text-[9px]" /> {v.address?.city}, {v.address?.state}
+                                                        <FiMapPin className="text-[9px]" /> {v.address?.city || '—'}, {v.address?.state || '—'}
                                                     </p>
+                                                    {v.labDetails?.labName && (
+                                                        <p className="text-[9px] text-teal-600 font-bold mt-0.5">🧪 {v.labDetails.labName}</p>
+                                                    )}
                                                 </div>
                                                 <button 
                                                     onClick={() => { setSelectedVendorId(v._id); handleAssignVendor(v._id); }}
@@ -407,13 +424,20 @@ const ManageSoilTests = () => {
                                         ))}
 
                                         {vendors.filter(v => {
-                                            const reqLoc = (assignModal.location || '').toLowerCase();
-                                            const vState = (v.address?.state || '').toLowerCase();
-                                            const vCity = (v.address?.city || '').toLowerCase();
-                                            if (filterByState && vState && !reqLoc.includes(vState)) return false;
-                                            if (filterByDistrict && vCity && !reqLoc.includes(vCity)) return false;
+                                            if (!filterByState && !filterByDistrict) return true;
+                                            const reqLocParts = (assignModal.location || '').toLowerCase().split(/[,\s]+/).filter(Boolean);
+                                            const vState = (v.address?.state || '').toLowerCase().trim();
+                                            const vCity = (v.address?.city || '').toLowerCase().trim();
+                                            if (filterByState && vState) {
+                                                const stateMatches = reqLocParts.some(part => vState.includes(part) || part.includes(vState));
+                                                if (!stateMatches) return false;
+                                            }
+                                            if (filterByDistrict && vCity) {
+                                                const cityMatches = reqLocParts.some(part => vCity.includes(part) || part.includes(vCity));
+                                                if (!cityMatches) return false;
+                                            }
                                             return true;
-                                        }).length === 0 && (
+                                        }).length === 0 && (filterByState || filterByDistrict) && (
                                             <div className="py-12 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
                                                 <p className="text-xs font-bold text-slate-400">No matching labs found</p>
                                                 <p className="text-[10px] text-slate-300 mt-1">Try relaxing the location filters</p>

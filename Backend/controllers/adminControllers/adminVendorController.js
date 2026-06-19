@@ -16,7 +16,7 @@ const getAllVendors = async (req, res) => {
       approvalStatus,
       isActive,
       page = 1,
-      limit = 20
+      limit = 200  // Higher default for admin use (soil lab listing needs all vendors)
     } = req.query;
 
     // Build query
