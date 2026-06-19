@@ -15,12 +15,11 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
     const bookingId = booking?.id || booking?._id;
     localStorage.removeItem(`alert_start_${bookingId}`);
     try {
-      if (actionFn) await actionFn(bookingId);
+      if (actionFn) await actionFn(bookingId, actionType);
     } catch (error) {
       console.error(error);
     } finally {
       if (typeof window !== 'undefined') {
-        // Prevent immediate re-enabling if unmounted, handled by React state memory leak warning natively, but usually safe
         setLoadingAction(null);
       }
     }

@@ -342,12 +342,26 @@ const rejectBooking = async (req, res) => {
 
     if (!booking) {
       const existingBooking = await Booking.findById(id);
-      if (existingBooking && (existingBooking.status === BOOKING_STATUS.REJECTED || existingBooking.status === BOOKING_STATUS.CANCELLED)) {
-        return res.status(200).json({
-          success: true,
-          message: 'Booking already rejected or cancelled',
-          data: { bookingId: id }
-        });
+      if (existingBooking) {
+        const closedStatuses = [
+          BOOKING_STATUS.REJECTED,
+          BOOKING_STATUS.CANCELLED,
+          BOOKING_STATUS.CONFIRMED,
+          BOOKING_STATUS.ACCEPTED,
+          BOOKING_STATUS.ASSIGNED,
+          BOOKING_STATUS.IN_PROGRESS,
+          BOOKING_STATUS.COMPLETED
+        ];
+        if (closedStatuses.includes(existingBooking.status)) {
+          return res.status(200).json({
+            success: true,
+            alreadyTaken: existingBooking.status !== BOOKING_STATUS.REJECTED && existingBooking.status !== BOOKING_STATUS.CANCELLED,
+            message: existingBooking.status === BOOKING_STATUS.REJECTED || existingBooking.status === BOOKING_STATUS.CANCELLED
+              ? 'Booking already rejected or cancelled'
+              : 'This booking was already accepted by another vendor',
+            data: { bookingId: id }
+          });
+        }
       }
       return res.status(404).json({
         success: false,
@@ -355,11 +369,31 @@ const rejectBooking = async (req, res) => {
       });
     }
 
+    // If booking is already in a terminal/taken state, gracefully return success so frontend closes modal
+    const alreadyClosedStatuses = [
+      BOOKING_STATUS.CONFIRMED,
+      BOOKING_STATUS.ACCEPTED,
+      BOOKING_STATUS.ASSIGNED,
+      BOOKING_STATUS.IN_PROGRESS,
+      BOOKING_STATUS.COMPLETED,
+      BOOKING_STATUS.REJECTED,
+      BOOKING_STATUS.CANCELLED
+    ];
+    if (alreadyClosedStatuses.includes(booking.status)) {
+      return res.status(200).json({
+        success: true,
+        alreadyTaken: ![BOOKING_STATUS.REJECTED, BOOKING_STATUS.CANCELLED].includes(booking.status),
+        message: 'This booking was already accepted by another vendor',
+        data: { bookingId: id }
+      });
+    }
+
     const validStatuses = [BOOKING_STATUS.PENDING, BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING];
     if (!validStatuses.includes(booking.status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot reject booking with status: ${booking.status}`
+      return res.status(200).json({
+        success: true,
+        message: `Booking already in status: ${booking.status}`,
+        data: { bookingId: id }
       });
     }
 

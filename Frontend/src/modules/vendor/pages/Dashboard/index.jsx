@@ -46,25 +46,41 @@ const Dashboard = memo(() => {
 
   const handleAcceptAlert = async (bookingId) => {
     try {
-      await acceptBooking(bookingId);
-      toast.success('Booking accepted successfully');
+      const result = await acceptBooking(bookingId);
+      // Always remove from modal regardless of result
       setActiveAlertBookings(prev => prev.filter(b => String(b.id || b._id) !== String(bookingId)));
       window.dispatchEvent(new Event('vendorStatsUpdated'));
       window.dispatchEvent(new Event('vendorJobsUpdated'));
+      toast.success('Booking accepted successfully');
     } catch (error) {
-      toast.error('Failed to accept booking');
+      const status = error?.response?.status;
+      const msg = error?.response?.data?.message || '';
+      // 409 = already taken by someone else — still close the modal
+      if (status === 409) {
+        setActiveAlertBookings(prev => prev.filter(b => String(b.id || b._id) !== String(bookingId)));
+        toast.error('This job was already accepted by another vendor.');
+      } else {
+        toast.error('Failed to accept booking');
+      }
     }
   };
 
   const handleRejectAlert = async (bookingId) => {
     try {
-      await rejectBooking(bookingId);
-      toast.success('Booking rejected');
+      const result = await rejectBooking(bookingId);
+      // Always close the modal on any success response
       setActiveAlertBookings(prev => prev.filter(b => String(b.id || b._id) !== String(bookingId)));
       window.dispatchEvent(new Event('vendorStatsUpdated'));
       window.dispatchEvent(new Event('vendorJobsUpdated'));
+      if (result?.alreadyTaken) {
+        toast.error('This job was already accepted by another vendor.');
+      } else {
+        toast.success('Booking declined');
+      }
     } catch (error) {
-      toast.error('Failed to reject booking');
+      // Even on unexpected error, remove from modal to prevent infinite loop
+      setActiveAlertBookings(prev => prev.filter(b => String(b.id || b._id) !== String(bookingId)));
+      toast.error('Failed to decline booking');
     }
   };
   

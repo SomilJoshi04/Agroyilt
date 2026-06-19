@@ -57,11 +57,10 @@ const BookingAlert = () => {
   const handleAccept = async () => {
     try {
       await acceptBooking(id);
-      await assignWorker(id, 'SELF');
 
       // Update local storage states
       const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-      const updatedPending = pendingJobs.filter(job => job.id !== id);
+      const updatedPending = pendingJobs.filter(job => job.id !== id && job._id !== id);
       localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
 
       window.dispatchEvent(new Event('vendorJobsUpdated'));
@@ -69,23 +68,39 @@ const BookingAlert = () => {
       navigate('/vendor/dashboard', { replace: true });
     } catch (error) {
       console.error('Error accepting:', error);
-      toast.error('Failed to accept booking. It may have expired.');
+      const status = error?.response?.status;
+      // Always clear from local pending list and navigate back
+      const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+      const updatedPending = pendingJobs.filter(job => job.id !== id && job._id !== id);
+      localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
+      window.dispatchEvent(new Event('vendorJobsUpdated'));
+      if (status === 409) {
+        toast.error('This job was already accepted by another vendor.');
+      } else {
+        toast.error('Failed to accept booking. It may have expired.');
+      }
       navigate('/vendor/dashboard', { replace: true });
     }
   };
 
   const handleReject = async () => {
+    // Always clear from local pending list first
+    const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+    const updated = pendingJobs.filter(job => job.id !== id && job._id !== id);
+    localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
+    window.dispatchEvent(new Event('vendorJobsUpdated'));
+
     try {
-      await rejectBooking(id, 'Vendor rejected');
-
-      const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-      const updated = pendingJobs.filter(job => job.id !== id);
-      localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
-
-      window.dispatchEvent(new Event('vendorJobsUpdated'));
-      navigate('/vendor/dashboard', { replace: true });
+      const result = await rejectBooking(id, 'Vendor rejected');
+      if (result?.alreadyTaken) {
+        toast.error('This job was already accepted by another vendor.');
+      } else {
+        toast.success('Booking declined');
+      }
     } catch (error) {
       console.error('Error rejecting:', error);
+      // Silently navigate — booking is already cleared from local list
+    } finally {
       navigate('/vendor/dashboard', { replace: true });
     }
   };
