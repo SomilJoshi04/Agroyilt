@@ -29,13 +29,15 @@ const createSoilTestRequest = async (req, res) => {
             const notifications = admins.map(admin => createNotification({
                 adminId: admin._id,
                 type: 'soil_test_request',
-                title: 'New Soil Test Request',
+                title: '🌾 New Soil Test Request',
                 message: `Farmer ${req.user.name || 'A user'} has requested a soil test for ${landSize} land.`,
                 relatedId: newRequest._id,
                 relatedType: 'service',
-                data: {
-                    requestId: newRequest._id,
-                    farmerName: req.user.name
+                pushData: {
+                    type: 'soil_test_request',
+                    requestId: newRequest._id.toString(),
+                    farmerName: req.user.name,
+                    link: '/admin/soil-tests'
                 }
             }));
             await Promise.all(notifications);
@@ -151,8 +153,11 @@ const payForSoilTestReport = async (req, res) => {
                                 message: `You have earned ₹${request.vendorEarning} for the completed soil test (ID: ${request._id.toString().slice(-6)}).`,
                                 relatedId: request._id,
                                 relatedType: 'service',
-                                data: {
+                                pushData: {
+                                    type: 'soil_test_payment_received',
                                     requestId: request._id.toString(),
+                                    amount: request.vendorEarning,
+                                    link: '/vendor/soil-tests'
                                 }
                             });
                         } catch (noticeErr) {
@@ -271,8 +276,11 @@ const verifySoilTestPayment = async (req, res) => {
                             message: `You have earned ₹${request.vendorEarning} for the completed soil test (ID: ${request._id.toString().slice(-6)}).`,
                             relatedId: request._id,
                             relatedType: 'service',
-                            data: {
+                            pushData: {
+                                type: 'soil_test_payment_received',
                                 requestId: request._id.toString(),
+                                amount: request.vendorEarning,
+                                link: '/vendor/soil-tests'
                             }
                         });
                     } catch (noticeErr) {

@@ -46,6 +46,27 @@ exports.updateRequestStatus = async (req, res) => {
         request.status = status;
         await request.save();
 
+        // Notify User about status update
+        try {
+            await createNotification({
+                userId: request.userId,
+                type: 'soil_test_status_updated',
+                title: status === 'sample_collected' ? '🧪 Sample Collected' : '🔬 Sample Reached Lab',
+                message: status === 'sample_collected'
+                    ? 'Your soil sample has been collected. It is being sent to the lab.'
+                    : 'Your soil sample has reached the lab. Results coming soon!',
+                relatedId: request._id,
+                relatedType: 'service',
+                pushData: {
+                    type: 'soil_test_status_updated',
+                    requestId: request._id.toString(),
+                    link: '/user/soil-testing'
+                }
+            });
+        } catch (noticeErr) {
+            console.error('Notification error (User Status Update):', noticeErr);
+        }
+
         res.status(200).json({ success: true, data: request });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -92,8 +113,10 @@ exports.uploadReport = async (req, res) => {
                 message: `Vendor ${req.user.name || 'A partner'} has uploaded a soil report for request #${request._id.toString().slice(-6)}.`,
                 relatedId: request._id,
                 relatedType: 'service',
-                data: {
+                pushData: {
+                    type: 'soil_test_report_uploaded',
                     requestId: request._id.toString(),
+                    link: '/admin/soil-tests'
                 }
             }));
             await Promise.all(notifications);
@@ -146,10 +169,10 @@ exports.rejectRequest = async (req, res) => {
                 message: `Vendor ${req.user.name || 'A partner'} has rejected task #${request._id.toString().slice(-6)}. Reason: ${reason || 'Not specified'}`,
                 relatedId: request._id,
                 relatedType: 'service',
-                data: {
+                pushData: {
+                    type: 'soil_test_rejected_by_vendor',
                     requestId: request._id.toString(),
-                    vendorName: req.user.name,
-                    reason: reason || 'N/A'
+                    link: '/admin/soil-tests'
                 }
             }));
             await Promise.all(notifications);

@@ -77,13 +77,14 @@ const assignVendor = async (req, res) => {
             await createNotification({
                 vendorId: vendorId,
                 type: 'soil_test_assigned',
-                title: 'New Task: Soil Test Assigned',
+                title: '🧪 New Task: Soil Test Assigned',
                 message: `You have been assigned a new soil test request from ${request.location}.`,
                 relatedId: request._id,
                 relatedType: 'service',
-                data: {
+                pushData: {
+                    type: 'soil_test_assigned',
                     requestId: request._id.toString(),
-                    link: '/vendor/soil-testing'
+                    link: '/vendor/soil-tests'
                 }
             });
         } catch (noticeErr) {
@@ -140,11 +141,12 @@ const approveReport = async (req, res) => {
             await createNotification({
                 userId: request.userId,
                 type: 'soil_test_report_approved',
-                title: '🎉 Soil Report Approved',
+                title: '🎉 Soil Report Ready!',
                 message: `Your soil test report is ready! Pay ₹${totalAmount} to unlock and download it.`,
                 relatedId: request._id,
                 relatedType: 'service',
-                data: {
+                pushData: {
+                    type: 'soil_test_report_approved',
                     requestId: request._id.toString(),
                     link: '/user/soil-testing'
                 }
