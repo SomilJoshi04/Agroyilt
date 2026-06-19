@@ -70,7 +70,7 @@ const ProductDetail = () => {
     const calculatedVendorPrice = (basePrice - commission).toFixed(2);
 
     const pricing = product.calculatorPrice || { 
-        totalPrice: basePrice, 
+        totalPrice: Number(calculatedPlatformFee) + Number(calculatedVendorPrice), 
         platformFee: Number(calculatedPlatformFee), 
         vendorPrice: Number(calculatedVendorPrice) 
     };

@@ -121,6 +121,9 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
           from { transform: translateY(0);    opacity: 1; }
           to   { transform: translateY(100%); opacity: 0; }
         }
+        .pac-container {
+          z-index: 100000 !important;
+        }
       `}</style>
 
       {/* ── Header ── */}
