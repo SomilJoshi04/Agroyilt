@@ -91,8 +91,10 @@ const MyAgriOrders = () => {
                                     <p className="text-[10px] font-bold text-slate-400 mt-0.5">{format(new Date(order.createdAt), 'dd MMM, hh:mm a')}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Value</p>
-                                    <p className="font-black text-slate-800">₹{order.pricing.itemsTotal}</p>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Grand Total</p>
+                                    <p className="font-black text-slate-800">₹{order.pricing.orderTotal || order.pricing.itemsTotal}</p>
+                                    <p className="text-[8px] font-bold text-teal-600 uppercase tracking-tighter mt-1">Paid: ₹{order.pricing.platformFee}</p>
+                                    <p className="text-[8px] font-bold text-orange-600 uppercase tracking-tighter">COD: ₹{order.pricing.vendorBalance}</p>
                                 </div>
                             </div>
 

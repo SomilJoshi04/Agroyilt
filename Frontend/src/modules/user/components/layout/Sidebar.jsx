@@ -62,10 +62,8 @@ const Sidebar = ({ isOpen, onClose }) => {
   };
 
   const menuItems = [
-    { name: 'Rewards', path: '/user/rewards', icon: HiOutlineGift },
-    { name: 'My Profile', path: '/user/account', icon: HiOutlineUser },
-    { name: 'Settings', path: '/user/settings', icon: HiOutlineCog },
-    { type: 'divider' },
+    { name: 'Home', path: '/user/dashboard', icon: HiOutlineHome },
+    { name: 'About Us', path: '/user/about-groo', icon: HiOutlineInformationCircle },
     { 
       name: 'How to use our app', 
       icon: HiOutlineInformationCircle,
@@ -76,10 +74,9 @@ const Sidebar = ({ isOpen, onClose }) => {
         { name: 'PDF Guide', path: '/user/how-to-use?type=pdf' },
       ]
     },
+    { name: 'FAQ', path: '/user/faq', icon: HiOutlineQuestionMarkCircle },
     { name: 'Help & Support', path: '/user/help-support', icon: HiOutlineQuestionMarkCircle },
-    { name: 'About Us', path: '/user/about-groo', icon: HiOutlineInformationCircle },
-    { name: 'Privacy Policy', path: '/user/privacy', icon: HiOutlineShieldCheck },
-    { name: 'Cancellation Policy', path: '/user/cancellation-policy', icon: HiOutlineShieldCheck },
+    { name: 'Settings', path: '/user/settings', icon: HiOutlineCog },
   ];
 
   const sidebarContent = (
