@@ -67,7 +67,7 @@ const ProductDetail = () => {
     const commission = basePrice * (commissionPercentage / 100);
     const gst = basePrice * (gstPercentage / 100);
     const calculatedPlatformFee = (commission + gst).toFixed(2);
-    const calculatedVendorPrice = (basePrice - commission).toFixed(2);
+    const calculatedVendorPrice = basePrice.toFixed(2); // Vendor gets full base price
 
     const pricing = product.calculatorPrice || { 
         totalPrice: Number(calculatedPlatformFee) + Number(calculatedVendorPrice), 

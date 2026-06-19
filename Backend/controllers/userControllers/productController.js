@@ -63,9 +63,9 @@ const placeOrder = async (req, res) => {
         const adminCommission = (itemsTotal * (product.commissionPercentage / 100));
         const gstAmount = (itemsTotal * (product.gstPercentage / 100));
         const platformFee = adminCommission + gstAmount;
-        const vendorBalance = itemsTotal - adminCommission;
+        const vendorBalance = itemsTotal;
 
-        const orderTotal = itemsTotal + gstAmount;
+        const orderTotal = itemsTotal + platformFee;
         
         const order = new EcommerceOrder({
             userId: req.user._id,
