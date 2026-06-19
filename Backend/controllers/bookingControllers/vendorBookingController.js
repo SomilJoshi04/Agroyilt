@@ -139,7 +139,10 @@ const acceptBooking = async (req, res) => {
       {
         _id: id,
         status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] },
-        vendorId: null // Crucial: Ensures another request didn't just take it
+        $or: [
+          { vendorId: null }, // Ensures another request didn't just take it
+          { vendorId: vendorId } // Direct assigned booking
+        ]
       },
       {
         $set: {
@@ -332,7 +335,8 @@ const rejectBooking = async (req, res) => {
       _id: id,
       $or: [
         { notifiedVendors: vendorId },
-        { vendorId: null, status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] } }
+        { vendorId: null, status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] } },
+        { vendorId: vendorId, status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING, BOOKING_STATUS.PENDING] } }
       ]
     });
 
