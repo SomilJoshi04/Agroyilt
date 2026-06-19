@@ -60,6 +60,7 @@ const Signup = lazyLoad(() => import('../pages/signup'));
 const Privacy = lazyLoad(() => import('../pages/Privacy'));
 
 const Notifications = lazyLoad(() => import('../pages/Notifications'));
+const FAQ = lazyLoad(() => import('../pages/FAQ'));
 const HelpSupport = lazyLoad(() => import('../pages/HelpSupport'));
 const CancellationPolicy = lazyLoad(() => import('../pages/CancellationPolicy'));
 const WeatherReport = lazyLoad(() => import('../pages/WeatherReport'));
@@ -102,6 +103,7 @@ const UserRoutes = () => {
   const isPublicPage = location.pathname.includes('/login') || 
                        location.pathname.includes('/signup') ||
                        location.pathname.includes('/privacy') ||
+                       location.pathname.includes('/faq') ||
                        location.pathname.includes('/help-support') ||
                        location.pathname.includes('/cancellation-policy');
 
@@ -141,6 +143,7 @@ const UserRoutes = () => {
               <Route path="/privacy" element={<Privacy />} />
 
               <Route path="/notifications" element={<ProtectedRoute userType="user"><Notifications /></ProtectedRoute>} />
+              <Route path="/faq" element={<FAQ />} />
               <Route path="/help-support" element={<HelpSupport />} />
               <Route path="/cancellation-policy" element={<CancellationPolicy />} />
               <Route path="/weather" element={<ProtectedRoute userType="user"><WeatherReport /></ProtectedRoute>} />

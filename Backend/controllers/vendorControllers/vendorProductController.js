@@ -2,6 +2,7 @@ const Product = require('../../models/Product');
 const EcommerceOrder = require('../../models/EcommerceOrder');
 const User = require('../../models/User'); // Required for populate('userId')
 const Vendor = require('../../models/Vendor');
+const { createNotification } = require('../notificationControllers/notificationController');
 
 /**
  * Vendor: Get my products (Only Physical Goods for Ecommerce Store)
@@ -136,6 +137,22 @@ const getMyOrders = async (req, res) => {
             if(status === 'cancelled' && order.trackingDetails) order.trackingDetails.cancelledAt = new Date();
             
             await order.save();
+
+            // Notify User
+            try {
+                let msg = `Your order status has been updated to ${status}.`;
+                if (status === 'shipped') msg = `Your order has been shipped via ${courierName} (Trk: ${trackingNumber}).`;
+                if (status === 'delivered') msg = `Your order has been delivered!`;
+                
+                await createNotification({
+                    recipientId: order.userId,
+                    recipientModel: 'User',
+                    title: `Order Update: ${status.toUpperCase()}`,
+                    message: msg,
+                    type: 'ecommerce_order_update',
+                    metadata: { orderId: order._id, status }
+                });
+            } catch (nErr) { console.error('Push notification error:', nErr); }
 
             res.status(200).json({ success: true, message: `Order marked as ${status}`, data: order });
     } catch (error) {

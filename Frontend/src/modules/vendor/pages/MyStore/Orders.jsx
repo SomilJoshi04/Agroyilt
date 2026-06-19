@@ -163,7 +163,7 @@ const StoreOrders = () => {
                                         </td>
                                         <td className="px-6 py-5 text-right">
                                             <p className="font-black text-slate-800 text-base">₹{order.pricing?.vendorBalance || 0}</p>
-                                            <p className="text-[9px] font-black text-slate-400 uppercase">Settlement Amt</p>
+                                            <p className="text-[9px] font-black text-orange-500 uppercase mt-0.5">Collect via COD</p>
                                         </td>
                                         <td className="px-6 py-5 text-center">
                                             {order.deliveryStatus === 'ordered' && (

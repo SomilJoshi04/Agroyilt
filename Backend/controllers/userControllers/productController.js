@@ -3,6 +3,7 @@ const EcommerceOrder = require('../../models/EcommerceOrder');
 const Transaction = require('../../models/Transaction');
 const User = require('../../models/User');
 const { createOrder, verifyPayment } = require('../../services/razorpayService');
+const { createNotification } = require('../notificationControllers/notificationController');
 
 /**
  * User: Get all approved products (Marketplace)
@@ -195,6 +196,18 @@ const payPlatformFee = async (req, res) => {
                  await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
              }
 
+             // Notify Vendor
+             try {
+                 await createNotification({
+                     recipientId: order.vendorId,
+                     recipientModel: 'Vendor',
+                     title: 'New Store Order!',
+                     message: `You received a new order for ${order.items[0].name}. Please pack it for shipping.`,
+                     type: 'ecommerce_order',
+                     metadata: { orderId: order._id }
+                 });
+             } catch (nErr) { console.error('Push notification error:', nErr); }
+
              return res.status(200).json({ 
                  success: true, 
                  message: 'Order confirmed! Platform fee paid via Razorpay.', 
@@ -234,6 +247,18 @@ const payPlatformFee = async (req, res) => {
         for (const item of order.items) {
             await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
         }
+
+        // Notify Vendor
+        try {
+            await createNotification({
+                recipientId: order.vendorId,
+                recipientModel: 'Vendor',
+                title: 'New Store Order!',
+                message: `You received a new order for ${order.items[0].name}. Please pack it for shipping.`,
+                type: 'ecommerce_order',
+                metadata: { orderId: order._id }
+            });
+        } catch (nErr) { console.error('Push notification error:', nErr); }
 
         res.status(200).json({ 
             success: true, 
