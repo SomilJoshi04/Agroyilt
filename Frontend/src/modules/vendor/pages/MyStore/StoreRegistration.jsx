@@ -183,6 +183,7 @@ const StoreRegistration = () => {
                             </div>
                             <input
                                 type="text"
+                                disabled={status?.storeApprovalStatus === 'pending' || status?.storeApprovalStatus === 'approved'}
                                 value={formData.shopName}
                                 onChange={(e) => {
                                     setFormData({...formData, shopName: e.target.value});
@@ -208,8 +209,9 @@ const StoreRegistration = () => {
                             </div>
                             <button
                                 type="button"
+                                disabled={status?.storeApprovalStatus === 'pending' || status?.storeApprovalStatus === 'approved'}
                                 onClick={() => setIsAddressModalOpen(true)}
-                                className="w-full py-4 bg-teal-50 text-teal-700 rounded-2xl font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 border border-teal-100 active:scale-95 transition-all shadow-sm"
+                                className={`w-full py-4 bg-teal-50 text-teal-700 rounded-2xl font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 border border-teal-100 transition-all shadow-sm ${status?.storeApprovalStatus === 'pending' || status?.storeApprovalStatus === 'approved' ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
                             >
                                 <FiMapPin className="w-4 h-4" />
                                 Pick verified location
@@ -224,6 +226,7 @@ const StoreRegistration = () => {
                             </div>
                             <input
                                 type="text"
+                                disabled={status?.storeApprovalStatus === 'pending' || status?.storeApprovalStatus === 'approved'}
                                 value={formData.shopLicense}
                                 onChange={(e) => {
                                     setFormData({...formData, shopLicense: e.target.value});
@@ -241,13 +244,18 @@ const StoreRegistration = () => {
                                 {errors.licenseDocument && <span className="text-[9px] text-rose-500 font-bold bg-rose-50 px-2 py-0.5 rounded-full">{errors.licenseDocument}</span>}
                             </div>
                             <div 
-                                className={`border-2 border-dashed ${errors.licenseDocument ? 'border-rose-300 bg-rose-50/10' : 'border-gray-100'} rounded-[32px] p-8 flex flex-col items-center justify-center bg-gray-50 cursor-pointer active:scale-98 transition-all hover:bg-gray-100/50`}
-                                onClick={() => document.getElementById('license-up').click()}
+                                className={`border-2 border-dashed ${errors.licenseDocument ? 'border-rose-300 bg-rose-50/10' : 'border-gray-100'} rounded-[32px] p-8 flex flex-col items-center justify-center bg-gray-50 transition-all ${status?.storeApprovalStatus === 'pending' || status?.storeApprovalStatus === 'approved' ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer active:scale-98 hover:bg-gray-100/50'}`}
+                                onClick={() => {
+                                    if(status?.storeApprovalStatus !== 'pending' && status?.storeApprovalStatus !== 'approved') {
+                                        document.getElementById('license-up').click();
+                                    }
+                                }}
                             >
                                 <input 
                                     type="file" 
                                     id="license-up" 
                                     className="hidden" 
+                                    disabled={status?.storeApprovalStatus === 'pending' || status?.storeApprovalStatus === 'approved'}
                                     accept="image/*,.pdf"
                                     onChange={(e) => {
                                         setLicenseFile(e.target.files[0]);
@@ -281,18 +289,20 @@ const StoreRegistration = () => {
                             </div>
                         </div>
 
-                        <div className="pt-6">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-5 bg-teal-600 font-black uppercase tracking-[2px] text-[11px] text-white rounded-[24px] shadow-2xl shadow-teal-900/40 active:scale-95 transition-all disabled:opacity-50"
-                            >
-                                {loading ? "Verifying..." : "Register & Submit Approval"}
-                            </button>
-                            <p className="text-[10px] text-center text-gray-400 mt-5 px-6 leading-relaxed font-semibold italic">
-                                * All information provided will be manually verified by our team within 24-48 hours.
-                            </p>
-                        </div>
+                        {status?.storeApprovalStatus !== 'pending' && status?.storeApprovalStatus !== 'approved' && (
+                            <div className="pt-6">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full py-5 bg-teal-600 font-black uppercase tracking-[2px] text-[11px] text-white rounded-[24px] shadow-2xl shadow-teal-900/40 active:scale-95 transition-all disabled:opacity-50"
+                                >
+                                    {loading ? "Verifying..." : "Register & Submit Approval"}
+                                </button>
+                                <p className="text-[10px] text-center text-gray-400 mt-5 px-6 leading-relaxed font-semibold italic">
+                                    * All information provided will be manually verified by our team within 24-48 hours.
+                                </p>
+                            </div>
+                        )}
                     </form>
                 </div>
             </main>
