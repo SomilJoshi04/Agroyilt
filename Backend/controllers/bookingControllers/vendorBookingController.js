@@ -331,7 +331,7 @@ const rejectBooking = async (req, res) => {
     const { reason } = req.body;
 
     // Find booking
-    const booking = await Booking.findOne({
+    let booking = await Booking.findOne({
       _id: id,
       $or: [
         { notifiedVendors: vendorId },
@@ -341,6 +341,14 @@ const rejectBooking = async (req, res) => {
     });
 
     if (!booking) {
+      const existingBooking = await Booking.findById(id);
+      if (existingBooking && (existingBooking.status === BOOKING_STATUS.REJECTED || existingBooking.status === BOOKING_STATUS.CANCELLED)) {
+        return res.status(200).json({
+          success: true,
+          message: 'Booking already rejected or cancelled',
+          data: { bookingId: id }
+        });
+      }
       return res.status(404).json({
         success: false,
         message: 'Booking not found or not available for rejection'
