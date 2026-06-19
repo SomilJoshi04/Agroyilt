@@ -80,7 +80,20 @@ export const VendorDashboardProvider = ({ children }) => {
   const hasLoadedOnceRef = useRef(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(hasValidCache);
 
-  const ignoredBookingIds = useRef(new Set());
+  // Load ignored IDs from localStorage so they survive page refresh
+  const ignoredBookingIds = useRef(new Set(
+    (() => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('vendorIgnoredBookingIds') || '[]');
+        // Only keep IDs that are less than 30 minutes old to auto-clean
+        const recent = stored.filter(entry => Date.now() - entry.ts < 30 * 60 * 1000);
+        if (recent.length !== stored.length) {
+          localStorage.setItem('vendorIgnoredBookingIds', JSON.stringify(recent));
+        }
+        return recent.map(entry => entry.id);
+      } catch { return []; }
+    })()
+  ));
   const lastFetchedVendorId = useRef(null);
 
   // Helper to get current vendor ID
@@ -353,9 +366,29 @@ export const VendorDashboardProvider = ({ children }) => {
 
         ignoredBookingIds.current.add(idToRemove);
 
+        // Persist ignored IDs to localStorage so page refresh doesn't bring them back
+        try {
+          const stored = JSON.parse(localStorage.getItem('vendorIgnoredBookingIds') || '[]');
+          if (!stored.find(e => e.id === idToRemove)) {
+            stored.push({ id: idToRemove, ts: Date.now() });
+            localStorage.setItem('vendorIgnoredBookingIds', JSON.stringify(stored));
+          }
+        } catch (e) { /* ignore */ }
+
         setPendingBookings(prev => prev.filter(b => String(b.id || b._id) !== idToRemove));
         setActiveAlertBookings(prev => prev.filter(b => String(b.id || b._id) !== idToRemove));
         setRecentJobs(prev => prev.filter(b => String(b.id || b._id) !== idToRemove));
+
+        // Also remove from localStorage so it doesn't reappear on next app open
+        try {
+          const localPending = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+          const updated = localPending.filter(b => String(b.id || b._id) !== idToRemove);
+          localStorage.setItem('vendorPendingJobs', JSON.stringify(updated));
+          // Also clear the alert timer key so the countdown doesn't re-trigger
+          localStorage.removeItem(`alert_start_${idToRemove}`);
+        } catch (e) {
+          console.error('Failed to update localStorage on booking removal', e);
+        }
       }
     };
 
