@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiX, FiArrowRight, FiChevronLeft, FiCheckCircle, FiCamera, FiBriefcase, FiChevronDown } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -7,6 +8,7 @@ import { register, sendOTP as sendVendorOTP } from '../services/authService';
 import LogoLoader from '../../../components/common/LogoLoader';
 import Logo from '../../../components/common/Logo';
 import { compressImage } from '../../../utils/imageCompression';
+import API from '../../../services/api';
 
 import { z } from "zod";
 import { publicCatalogService } from '../../../services/catalogService';
@@ -17,7 +19,7 @@ const vendorSignupSchema = z.object({
   email: z.string().email("Please enter a valid email address").optional().or(z.literal('')),
   phoneNumber: z.string().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian phone number"),
   businessName: z.string().min(3, "Business Name must be at least 3 characters"),
-  service: z.array(z.string()).min(1, "Please select at least one equipment category"),
+  service: z.array(z.string()).optional(),
   aadhar: z.string().regex(/^\d{12}$/, "Aadhar number must be exactly 12 digits"),
   pan: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format (e.g. ABCDE1234F)").optional().or(z.literal(''))
 });
@@ -34,7 +36,11 @@ const VendorSignup = () => {
     service: [],
     aadhar: '',
     pan: '',
-    documents: []
+    documents: [],
+    isLabRegistration: false,
+    isShopRegistration: false,
+    labDetails: { labName: '', licenseNumber: '' },
+    shopDetails: { shopName: '', shopAddress: '', shopLicense: '' }
   });
   const [categories, setCategories] = useState([]);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -44,6 +50,27 @@ const VendorSignup = () => {
   const [documentPreview, setDocumentPreview] = useState({});
   const [uploadingDocs, setUploadingDocs] = useState({});
   const [resendTimer, setResendTimer] = useState(0);
+
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [policyContent, setPolicyContent] = useState('');
+  const [policyTitle, setPolicyTitle] = useState('');
+
+  const handleOpenPolicy = async (type, title) => {
+    setPolicyTitle(title);
+    setShowPolicyModal(true);
+    setPolicyContent('Loading...');
+    try {
+      const res = await API.get(`/content/policy/vendor/${type}`);
+      if (res.data.success && res.data.data) {
+        setPolicyContent(res.data.data.content || 'No content available.');
+      } else {
+        setPolicyContent('No content available.');
+      }
+    } catch (e) {
+      setPolicyContent('Failed to load policy content.');
+    }
+  };
 
   // Timer countdown effect
   useEffect(() => {
@@ -112,6 +139,16 @@ const VendorSignup = () => {
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleLabShopChange = (type, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [field]: value
+      }
     }));
   };
 
@@ -239,6 +276,17 @@ const VendorSignup = () => {
     if (!hasAadharDoc) { toast.error('Please upload Aadhar Front document'); return; }
     if (!hasAadharBackDoc) { toast.error('Please upload Aadhar Back document'); return; }
 
+    // Lab & Shop Validation
+    if (formData.isLabRegistration) {
+      if (!formData.labDetails.labName) { toast.error('Please enter Lab Name'); return; }
+      if (!formData.documents.some(d => d.type === 'labCert')) { toast.error('Please upload Lab Certification Document'); return; }
+    }
+    if (formData.isShopRegistration) {
+      if (!formData.shopDetails.shopName) { toast.error('Please enter Shop Name'); return; }
+      if (!formData.shopDetails.shopAddress) { toast.error('Please enter Shop Address'); return; }
+      if (!formData.documents.some(d => d.type === 'shopLicense')) { toast.error('Please upload Shop License Document'); return; }
+    }
+
     setIsLoading(true);
 
     if (verificationToken) {
@@ -247,6 +295,22 @@ const VendorSignup = () => {
         const aadharBackDoc = formData.documents.find(d => d.type === 'aadharBack')?.url || null;
         const panDoc = formData.documents.find(d => d.type === 'pan')?.url || null;
         const otherDocs = formData.documents.filter(d => d.type === 'other').map(d => d.url);
+        
+        let labDetailsPayload = null;
+        if (formData.isLabRegistration) {
+          labDetailsPayload = {
+            ...formData.labDetails,
+            certificationDocument: formData.documents.find(d => d.type === 'labCert')?.url || null
+          };
+        }
+
+        let shopDetailsPayload = null;
+        if (formData.isShopRegistration) {
+          shopDetailsPayload = {
+            ...formData.shopDetails,
+            licenseDocument: formData.documents.find(d => d.type === 'shopLicense')?.url || null
+          };
+        }
 
         const registerData = {
           name: formData.name,
@@ -260,6 +324,8 @@ const VendorSignup = () => {
           aadharBackDocument: aadharBackDoc,
           panDocument: panDoc,
           otherDocuments: otherDocs,
+          labDetails: labDetailsPayload ? JSON.stringify(labDetailsPayload) : null,
+          shopDetails: shopDetailsPayload ? JSON.stringify(shopDetailsPayload) : null,
           verificationToken
         };
 
@@ -360,6 +426,22 @@ const VendorSignup = () => {
       const panDoc = formData.documents.find(d => d.type === 'pan')?.url || null;
       const otherDocs = formData.documents.filter(d => d.type === 'other').map(d => d.url);
 
+      let labDetailsPayload = null;
+      if (formData.isLabRegistration) {
+        labDetailsPayload = {
+          ...formData.labDetails,
+          certificationDocument: formData.documents.find(d => d.type === 'labCert')?.url || null
+        };
+      }
+
+      let shopDetailsPayload = null;
+      if (formData.isShopRegistration) {
+        shopDetailsPayload = {
+          ...formData.shopDetails,
+          licenseDocument: formData.documents.find(d => d.type === 'shopLicense')?.url || null
+        };
+      }
+
       const registerData = {
         name: formData.name,
         email: formData.email,
@@ -372,6 +454,8 @@ const VendorSignup = () => {
         aadharBackDocument: aadharBackDoc,
         panDocument: panDoc,
         otherDocuments: otherDocs,
+        labDetails: labDetailsPayload ? JSON.stringify(labDetailsPayload) : null,
+        shopDetails: shopDetailsPayload ? JSON.stringify(shopDetailsPayload) : null,
         otp: otpValue,
         token: otpToken
       };
@@ -465,11 +549,11 @@ const VendorSignup = () => {
                   <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Equipment Category (Select All That Apply)</label>
                     <div className="flex flex-wrap gap-2">
-                      {categories.map((cat) => {
+                      {categories.map((cat, index) => {
                         const isSelected = formData.service.includes(cat.title);
                         return (
                           <button
-                            key={cat._id}
+                            key={cat._id || cat.id || index}
                             type="button"
                             onClick={() => toggleServiceSelection(cat.title)}
                             className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all duration-300 ${
@@ -485,6 +569,168 @@ const VendorSignup = () => {
                       {categories.length === 0 && (
                         <p className="text-xs text-gray-400 italic">No categories available</p>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Lab & Shop Checkboxes */}
+                  <div className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Additional Services</label>
+                    <div className="flex flex-col gap-4">
+                      <div className="border border-gray-200 rounded-xl p-3 bg-white">
+                        <label className="flex items-center space-x-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.isLabRegistration}
+                            onChange={(e) => setFormData(prev => ({ ...prev, isLabRegistration: e.target.checked }))}
+                            className="h-4 w-4 text-[#347989] border-gray-300 rounded focus:ring-[#347989]"
+                          />
+                          <span className="text-sm text-gray-700 font-bold">Register for Lab Services</span>
+                        </label>
+                        {formData.isLabRegistration && (
+                          <div className="mt-3 pl-7 space-y-3 border-t pt-3">
+                            <div className="relative group">
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
+                                <FiBriefcase className="text-gray-400" />
+                              </div>
+                              <input
+                                type="text"
+                                required
+                                placeholder="Lab Name *"
+                                value={formData.labDetails.labName}
+                                onChange={(e) => handleLabShopChange('labDetails', 'labName', e.target.value)}
+                                className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 ${!formData.labDetails.labName ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-gray-300 focus:border-[#347989]'}`}
+                                style={{ '--tw-ring-color': !formData.labDetails.labName ? '#ef4444' : brandColor }}
+                              />
+                            </div>
+                            <div className="relative group">
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
+                                <FiFileText className="text-gray-400" />
+                              </div>
+                              <input
+                                type="text"
+                                placeholder="License Number"
+                                value={formData.labDetails.licenseNumber}
+                                onChange={(e) => handleLabShopChange('labDetails', 'licenseNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20))}
+                                className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 focus:border-[#347989]"
+                                style={{ '--tw-ring-color': brandColor }}
+                              />
+                            </div>
+                            <div className="space-y-2 mt-2">
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Lab Certificate</p>
+                              {documentPreview.labCert ? (
+                                <div className="relative group overflow-hidden rounded-xl">
+                                  <img src={documentPreview.labCert} className="w-full h-28 object-cover border transform group-hover:scale-110 transition-transform duration-500" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <button type="button" onClick={() => removeDocument('labCert')} className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors">
+                                      <FiX size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-red-300 rounded-xl hover:bg-red-50 transition-all duration-300 hover:border-red-400 group bg-red-50/20 relative">
+                                  {uploadingDocs.labCert ? (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10 rounded-xl">
+                                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#347989]"></div>
+                                    </div>
+                                  ) : null}
+                                  <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
+                                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-full mb-1 hover:bg-blue-100">
+                                      <FiUpload className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-[10px] text-gray-500 font-bold">Upload Lab Cert</span>
+                                    <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'labCert')} disabled={uploadingDocs.labCert} />
+                                  </label>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="border border-gray-200 rounded-xl p-3 bg-white">
+                        <label className="flex items-center space-x-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.isShopRegistration}
+                            onChange={(e) => setFormData(prev => ({ ...prev, isShopRegistration: e.target.checked }))}
+                            className="h-4 w-4 text-[#347989] border-gray-300 rounded focus:ring-[#347989]"
+                          />
+                          <span className="text-sm text-gray-700 font-bold">Register for Shop Services</span>
+                        </label>
+                        {formData.isShopRegistration && (
+                          <div className="mt-3 pl-7 space-y-3 border-t pt-3">
+                            <div className="relative group">
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
+                                <FiBriefcase className="text-gray-400" />
+                              </div>
+                              <input
+                                type="text"
+                                required
+                                placeholder="Shop Name *"
+                                value={formData.shopDetails.shopName}
+                                onChange={(e) => handleLabShopChange('shopDetails', 'shopName', e.target.value)}
+                                className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 ${!formData.shopDetails.shopName ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-gray-300 focus:border-[#347989]'}`}
+                                style={{ '--tw-ring-color': !formData.shopDetails.shopName ? '#ef4444' : brandColor }}
+                              />
+                            </div>
+                            <div className="relative group">
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
+                                <FiBriefcase className="text-gray-400" />
+                              </div>
+                              <input
+                                type="text"
+                                required
+                                placeholder="Shop Address *"
+                                value={formData.shopDetails.shopAddress}
+                                onChange={(e) => handleLabShopChange('shopDetails', 'shopAddress', e.target.value)}
+                                className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 ${!formData.shopDetails.shopAddress ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-gray-300 focus:border-[#347989]'}`}
+                                style={{ '--tw-ring-color': !formData.shopDetails.shopAddress ? '#ef4444' : brandColor }}
+                              />
+                            </div>
+                            <div className="relative group">
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
+                                <FiFileText className="text-gray-400" />
+                              </div>
+                              <input
+                                type="text"
+                                placeholder="Shop License"
+                                value={formData.shopDetails.shopLicense}
+                                onChange={(e) => handleLabShopChange('shopDetails', 'shopLicense', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20))}
+                                className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 focus:border-[#347989]"
+                                style={{ '--tw-ring-color': brandColor }}
+                              />
+                            </div>
+                            <div className="space-y-2 mt-2">
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Shop License Document</p>
+                              {documentPreview.shopLicense ? (
+                                <div className="relative group overflow-hidden rounded-xl">
+                                  <img src={documentPreview.shopLicense} className="w-full h-28 object-cover border transform group-hover:scale-110 transition-transform duration-500" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <button type="button" onClick={() => removeDocument('shopLicense')} className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors">
+                                      <FiX size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-red-300 rounded-xl hover:bg-red-50 transition-all duration-300 hover:border-red-400 group bg-red-50/20 relative">
+                                  {uploadingDocs.shopLicense ? (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10 rounded-xl">
+                                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#347989]"></div>
+                                    </div>
+                                  ) : null}
+                                  <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
+                                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-full mb-1 hover:bg-blue-100">
+                                      <FiUpload className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-[10px] text-gray-500 font-bold">Upload Shop License</span>
+                                    <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'shopLicense')} disabled={uploadingDocs.shopLicense} />
+                                  </label>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -679,10 +925,26 @@ const VendorSignup = () => {
                 </div>
               </div>
 
-              <div className="animate-stagger-3 animate-fade-in">
+              <div className="animate-stagger-3 animate-fade-in space-y-4">
+                <div className="flex items-start mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-1 h-4 w-4 text-[#347989] focus:ring-[#347989] border-gray-300 rounded cursor-pointer"
+                  />
+                  <label htmlFor="terms" className="ml-3 block text-sm text-gray-700">
+                    I agree to the{' '}
+                    <button type="button" onClick={() => handleOpenPolicy('terms', 'Terms and Conditions')} className="text-[#347989] hover:underline font-bold">Terms and Conditions</button>
+                    {' '}and{' '}
+                    <button type="button" onClick={() => handleOpenPolicy('privacy', 'Privacy Policy')} className="text-[#347989] hover:underline font-bold">Privacy Policy</button>.
+                  </label>
+                </div>
+
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || !acceptedTerms}
                   className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-base font-bold rounded-xl text-white transition-all transform hover:-translate-y-1 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
                   style={{
                     backgroundColor: brandColor,
@@ -787,6 +1049,27 @@ const VendorSignup = () => {
           </Link>
         </p>
       </div >
+      {showPolicyModal && createPortal(
+        <div className="fixed inset-0 bg-black/60 z-[99999] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden animate-fade-in m-auto relative">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-xl font-bold text-gray-900">{policyTitle}</h3>
+              <button onClick={() => setShowPolicyModal(false)} className="text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full p-2 transition-colors">
+                <FiX size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1 whitespace-pre-wrap text-sm text-gray-700">
+              {policyContent}
+            </div>
+            <div className="p-4 border-t bg-gray-50 flex justify-end">
+              <button onClick={() => setShowPolicyModal(false)} className="px-6 py-2 bg-[#347989] text-white rounded-lg font-bold hover:bg-[#2a626f] transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div >
   );
 };

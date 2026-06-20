@@ -20,6 +20,20 @@ const cloudinaryStorage = new CloudinaryStorage({
   }
 });
 
+// Configure Cloudinary Storage for videos
+const videoStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'appzeto_videos',
+    resource_type: 'video',
+    allowed_formats: ['mp4', 'mov', 'avi', 'webm', 'mkv'],
+    public_id: (req, file) => {
+      const name = file.originalname.split('.')[0];
+      return `${name}-video-${Date.now()}`;
+    }
+  }
+});
+
 // Configure memory storage (backup/legacy)
 const memoryStorage = multer.memoryStorage();
 
@@ -29,6 +43,15 @@ const imageFilter = (req, file, cb) => {
     cb(null, true);
   } else {
     cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+// File filter - only videos
+const videoFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('video/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only video files are allowed!'), false);
   }
 };
 
@@ -80,6 +103,15 @@ const uploadImage = multer({
   fileFilter: imageFilter,
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+}).single('file');
+
+// Generic Video Upload (Cloudinary)
+const uploadVideo = multer({
+  storage: videoStorage,
+  fileFilter: videoFilter,
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB limit for videos
   }
 }).single('file');
 
@@ -144,6 +176,7 @@ const handleMulterError = (err, req, res, next) => {
 
 module.exports = {
   uploadImage,
+  uploadVideo,
   uploadShopLicense,
   uploadProfilePhoto,
   uploadDocuments,

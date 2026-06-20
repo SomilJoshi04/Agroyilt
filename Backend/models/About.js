@@ -12,6 +12,18 @@ const aboutSchema = new mongoose.Schema({
     images: [{
         url: { type: String, required: true },
         name: { type: String, default: '' }
+    }],
+    videoUrl: {
+        type: String,
+        default: ''
+    },
+    videoDescription: {
+        type: String,
+        default: ''
+    },
+    videos: [{
+        url: { type: String, required: true },
+        description: { type: String, default: '' }
     }]
 }, { timestamps: true });
 

@@ -110,3 +110,40 @@ exports.updateAppGuide = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 };
+
+const Policy = require('../../models/Policy');
+
+// ==================== Policy Controllers ====================
+
+// @desc    Get Policy Content (Public)
+exports.getPolicy = async (req, res) => {
+    try {
+        const { role, type } = req.params;
+        let policy = await Policy.findOne({ role, type });
+        if (!policy) {
+            policy = { role, type, content: '' };
+        }
+        res.status(200).json({ success: true, data: policy });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+// @desc    Update Policy Content (Admin)
+exports.updatePolicy = async (req, res) => {
+    try {
+        const { role, type, content } = req.body;
+        if (!role || !type) {
+            return res.status(400).json({ success: false, message: 'Role and type are required' });
+        }
+        let policy = await Policy.findOne({ role, type });
+        if (policy) {
+            policy = await Policy.findByIdAndUpdate(policy._id, { content }, { new: true, runValidators: true });
+        } else {
+            policy = await Policy.create({ role, type, content });
+        }
+        res.status(200).json({ success: true, data: policy });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+    }
+};
