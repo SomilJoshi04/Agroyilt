@@ -120,47 +120,31 @@ async function sendPushNotification(tokens, payload) {
       priority: payload.highPriority !== false ? 'high' : 'normal'
     };
 
-    /*
-    // Standard notification block (Top-level)
-    // Commented out to prevent duplicate notifications (Reason #4: Both notification + data payload)
-    // We rely entirely on data payload and Service Worker/App handling
-    message.notification = {
-      title: payload.title || 'App Notification',
-      body: payload.body || 'New Update',
-    };
-
-    // Android specific (Sound, Priority, Channel, Icon)
-    message.android.notification = {
-      ...message.android.notification,
-      title: message.notification.title,
-      body: message.notification.body,
-      icon: 'stock_ticker_update',
-      color: '#f44336',
-      clickAction: 'FLUTTER_NOTIFICATION_CLICK', // Common for mobile apps
-    };
-
-    // iOS/APNs specific (Sound, Alert, Badge)
-    message.apns.payload.aps.alert = {
-      title: message.notification.title,
-      body: message.notification.body,
-    };
-
-    // WebPush specific (Title, Body, Icon, Badge)
-    message.webpush.notification = {
-      ...message.webpush.notification,
-      title: message.notification.title,
-      body: message.notification.body,
-      icon: payload.icon || '/grooAgri-logo.png',
-      badge: '/grooAgri-logo.png',
-    };
-    */
-
-    /*
-    if (payload.icon) {
-      message.notification.image = payload.icon;
-      message.android.notification.image = payload.icon;
+    if (!payload.dataOnly) {
+      message.notification = {
+        title: payload.title || 'App Notification',
+        body: payload.body || 'New Update',
+      };
+      
+      message.android.notification = {
+        title: payload.title || 'App Notification',
+        body: payload.body || 'New Update',
+        icon: 'stock_ticker_update',
+        color: '#14B8A6',
+        clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+      };
+      
+      message.apns.payload.aps.alert = {
+        title: payload.title || 'App Notification',
+        body: payload.body || 'New Update',
+      };
+      
+      message.webpush.notification = {
+        title: payload.title || 'App Notification',
+        body: payload.body || 'New Update',
+        icon: payload.icon || '/grooAgri-logo.png',
+      };
     }
-    */
 
     // Ensure critical fields are also in data for background handling
     // Use payload source directly since message.notification is disabled

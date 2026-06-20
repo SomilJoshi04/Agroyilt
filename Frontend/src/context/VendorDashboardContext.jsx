@@ -132,13 +132,26 @@ export const VendorDashboardProvider = ({ children }) => {
       const id = String(b._id || b.id);
 
       // Find distance for this vendor if available
-      let distance = 'N/A';
+      let distance = null;
       if (b.potentialVendors && vendorId) {
         const potentialVendor = b.potentialVendors.find(pv =>
           String(pv.vendorId?._id || pv.vendorId) === vendorId
         );
-        if (potentialVendor && potentialVendor.distance) {
-          distance = `${potentialVendor.distance.toFixed(1)} km`;
+        if (potentialVendor && potentialVendor.distance != null) {
+          distance = `${Number(potentialVendor.distance).toFixed(1)} km`;
+        }
+      }
+
+      // Fallback to local storage distance if API didn't provide it
+      if (!distance) {
+        try {
+          const localPending = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+          const localJob = localPending.find(job => String(job.id || job._id) === id);
+          if (localJob?.location?.distance && localJob.location.distance !== 'N/A') {
+            distance = localJob.location.distance;
+          }
+        } catch (e) {
+          // ignore
         }
       }
 
