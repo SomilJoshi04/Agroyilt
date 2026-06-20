@@ -81,10 +81,10 @@ const MyAgriOrders = () => {
                                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Order ID: #{order._id.slice(-6)}</p>
                                         <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${
                                             order.deliveryStatus === 'cancelled' ? 'bg-red-50 text-red-600' :
-                                            order.paymentStatus === 'paid' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
+                                            order.paymentStatus === 'paid' || order.paymentType === 'cod' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
                                         }`}>
                                             {order.deliveryStatus === 'cancelled' ? 'Cancelled' : 
-                                             order.paymentStatus === 'paid' ? 'Confirmed' : 'Payment Pending'}
+                                             order.paymentStatus === 'paid' || order.paymentType === 'cod' ? 'Confirmed' : 'Payment Pending'}
                                         </span>
                                     </div>
                                     <h3 className="font-black text-slate-800 mt-1">{order.items[0].name}</h3>
@@ -93,8 +93,12 @@ const MyAgriOrders = () => {
                                 <div className="text-right">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Grand Total</p>
                                     <p className="font-black text-slate-800">₹{order.pricing.orderTotal || order.pricing.itemsTotal}</p>
-                                    <p className="text-[8px] font-bold text-teal-600 uppercase tracking-tighter mt-1">Paid: ₹{order.pricing.platformFee}</p>
-                                    <p className="text-[8px] font-bold text-orange-600 uppercase tracking-tighter">COD: ₹{order.pricing.vendorBalance}</p>
+                                    <p className="text-[8px] font-bold text-teal-600 uppercase tracking-tighter mt-1">
+                                        Paid: ₹{order.paymentType === 'online_full' ? order.pricing.orderTotal : order.paymentType === 'cod' ? 0 : order.pricing.platformFee}
+                                    </p>
+                                    <p className="text-[8px] font-bold text-orange-600 uppercase tracking-tighter">
+                                        COD: ₹{order.paymentType === 'online_full' ? 0 : order.paymentType === 'cod' ? order.pricing.orderTotal : order.pricing.vendorBalance}
+                                    </p>
                                 </div>
                             </div>
 
@@ -139,13 +143,13 @@ const MyAgriOrders = () => {
                             </div>
 
                             {/* Alert/Action */}
-                            {order.paymentStatus !== 'paid' ? (
+                            {order.paymentStatus !== 'paid' && order.paymentType !== 'cod' ? (
                                 <div className="pt-2">
                                     <button 
                                         onClick={() => navigate(`/user/order-payment/${order._id}`)}
                                         className="w-full py-4 bg-teal-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-teal-500/20 active:scale-95 transition-all"
                                     >
-                                        Pay Confirm Fee (₹{order.pricing.platformFee})
+                                        {order.paymentType === 'online_full' ? `Pay Total Amount (₹${order.pricing.orderTotal})` : `Pay Confirm Fee (₹${order.pricing.platformFee})`}
                                     </button>
                                 </div>
                             ) : order.deliveryStatus !== 'delivered' && order.deliveryStatus !== 'cancelled' && (
@@ -154,9 +158,16 @@ const MyAgriOrders = () => {
                                     <div className="flex-1">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-1">Direct Settlement</p>
+                                                <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-1">
+                                                    {order.paymentType === 'online_full' ? 'Order Paid' : 'Direct Settlement'}
+                                                </p>
                                                 <p className="text-[8px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest mb-2">
-                                                    Keep ₹{order.pricing.vendorBalance} ready to pay the vendor when items arrive.
+                                                    {order.paymentType === 'online_full' 
+                                                        ? 'This order is fully paid. Nothing to pay on delivery.' 
+                                                        : order.paymentType === 'cod'
+                                                            ? `Keep ₹${order.pricing.orderTotal} ready to pay the vendor when items arrive.`
+                                                            : `Keep ₹${order.pricing.vendorBalance} ready to pay the vendor when items arrive.`
+                                                    }
                                                 </p>
                                             </div>
                                             {/* Cancel Button */}

@@ -69,8 +69,13 @@ const ecommerceOrderSchema = new mongoose.Schema({
     },
     paymentMethod: {
         type: String,
-        enum: ['wallet', 'razorpay'],
+        enum: ['wallet', 'razorpay', 'cash'], // Add 'cash' for COD
         default: 'wallet'
+    },
+    paymentType: {
+        type: String,
+        enum: ['split', 'online_full', 'cod'],
+        default: 'split'
     },
     trackingDetails: {
         packedAt: Date,

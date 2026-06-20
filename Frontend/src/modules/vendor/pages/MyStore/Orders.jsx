@@ -162,8 +162,22 @@ const StoreOrders = () => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-5 text-right">
-                                            <p className="font-black text-slate-800 text-base">₹{order.pricing?.vendorBalance || 0}</p>
-                                            <p className="text-[9px] font-black text-orange-500 uppercase mt-0.5">Collect via COD</p>
+                                            {order.paymentType === 'cod' ? (
+                                                <>
+                                                    <p className="font-black text-slate-800 text-base">₹{order.pricing?.orderTotal || 0}</p>
+                                                    <p className="text-[9px] font-black text-orange-500 uppercase mt-0.5">Collect via COD</p>
+                                                </>
+                                            ) : order.paymentType === 'online_full' ? (
+                                                <>
+                                                    <p className="font-black text-slate-800 text-base">₹{order.pricing?.vendorBalance || 0}</p>
+                                                    <p className="text-[9px] font-black text-green-500 uppercase mt-0.5">Paid Online</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <p className="font-black text-slate-800 text-base">₹{order.pricing?.vendorBalance || 0}</p>
+                                                    <p className="text-[9px] font-black text-slate-500 uppercase mt-0.5">Platform fee paid</p>
+                                                </>
+                                            )}
                                         </td>
                                         <td className="px-6 py-5 text-center">
                                             {order.deliveryStatus === 'ordered' && (
@@ -178,12 +192,21 @@ const StoreOrders = () => {
                                                 <ShippingModal onConfirm={(data) => handleUpdateStatus(order._id, 'shipped', data)} />
                                             )}
                                             {order.deliveryStatus === 'shipped' && (
-                                                <DeliveryOtpModal onConfirm={(otpData) => handleUpdateStatus(order._id, 'delivered', otpData)} />
+                                                <DeliveryOtpModal 
+                                                    onConfirm={(otpData) => handleUpdateStatus(order._id, 'delivered', otpData)} 
+                                                    isCod={order.paymentType === 'cod'} 
+                                                    amount={order.pricing?.orderTotal || 0}
+                                                />
                                             )}
                                             {order.deliveryStatus === 'delivered' && (
-                                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-lg font-black text-[9px] uppercase tracking-widest border border-green-100">
-                                                    <FiCheckCircle className="w-3 h-3" /> Done
-                                                </span>
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-lg font-black text-[9px] uppercase tracking-widest border border-green-100">
+                                                        <FiCheckCircle className="w-3 h-3" /> Done
+                                                    </span>
+                                                    {order.paymentType === 'cod' && (
+                                                        <span className="text-[8px] font-black text-slate-400 uppercase mt-1">₹{order.pricing?.orderTotal || 0} Collected</span>
+                                                    )}
+                                                </div>
                                             )}
                                         </td>
                                     </tr>
@@ -283,7 +306,7 @@ const ShippingModal = ({ onConfirm }) => {
 }
 
 // Helper component for Delivery OTP
-const DeliveryOtpModal = ({ onConfirm }) => {
+const DeliveryOtpModal = ({ onConfirm, isCod, amount }) => {
     const [show, setShow] = useState(false);
     const [otp, setOtp] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
@@ -318,9 +341,9 @@ const DeliveryOtpModal = ({ onConfirm }) => {
         <>
             <button 
                 onClick={() => setShow(true)}
-                className="px-4 py-3 bg-green-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-green-600/20 active:scale-95 transition-all w-full min-w-[160px] whitespace-nowrap mt-2"
+                className={`px-4 py-3 ${isCod ? 'bg-orange-500 shadow-orange-500/20' : 'bg-green-600 shadow-green-600/20'} text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all w-full min-w-[160px] whitespace-nowrap mt-2`}
             >
-                Confirm Delivery
+                {isCod ? `Verify & Collect ₹${amount}` : 'Confirm Delivery'}
             </button>
             {typeof document !== 'undefined' && createPortal(
                 <AnimatePresence>
@@ -341,6 +364,13 @@ const DeliveryOtpModal = ({ onConfirm }) => {
                             >
                                 <h2 className="text-xl font-black text-slate-800">Delivery verification</h2>
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Ask buyer for OTP</p>
+                                
+                                {isCod && (
+                                    <div className="bg-orange-50 rounded-2xl p-4 mb-6 border border-orange-100 text-center">
+                                        <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Please collect cash first</p>
+                                        <p className="text-3xl font-black text-orange-600">₹{amount}</p>
+                                    </div>
+                                )}
                                 
                                 <div className="space-y-4">
                                     <div className="space-y-1">

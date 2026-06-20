@@ -138,6 +138,88 @@ const getMyOrders = async (req, res) => {
             
             await order.save();
 
+            // If COD and Delivered, we need to add platform fee to vendor's dues
+            if (status === 'delivered' && order.paymentType === 'cod') {
+                const Transaction = require('../../models/Transaction');
+                const vendor = await Vendor.findById(order.vendorId);
+                if (vendor) {
+                    const platformFee = order.pricing.platformFee;
+                    const vendorBalance = order.pricing.vendorBalance;
+                    const orderTotal = order.pricing.orderTotal;
+
+                    const cashLimit = vendor.wallet?.cashLimit || 10000;
+                    const currentDues = (vendor.wallet?.dues || 0) + orderTotal;
+                    const currentEarnings = (vendor.wallet?.earnings || 0) + vendorBalance;
+                    const netOwed = currentDues - currentEarnings;
+
+                    const updateQuery = {
+                        $inc: { 
+                            'wallet.dues': orderTotal,
+                            'wallet.earnings': vendorBalance,
+                            'wallet.totalCashCollected': orderTotal
+                        }
+                    };
+
+                    if (netOwed > cashLimit) {
+                        updateQuery.$set = {
+                            'wallet.isBlocked': true,
+                            'wallet.blockedAt': new Date(),
+                            'wallet.blockReason': `Cash limit exceeded. Net owed: ₹${netOwed.toFixed(2)}, Limit: ₹${cashLimit}`
+                        };
+                        // Notify admins about block
+                        try {
+                            const Admin = require('../../models/Admin');
+                            const admins = await Admin.find({ isActive: true }).select('_id');
+                            for (const admin of admins) {
+                                await createNotification({
+                                    adminId: admin._id,
+                                    type: 'vendor_cash_limit_exceeded',
+                                    title: '⚠️ Cash Limit Exceeded',
+                                    message: `${vendor.businessName || vendor.name} exceeded cash limit on COD Delivery! Net owed: ₹${netOwed.toFixed(2)}, Limit: ₹${cashLimit}`,
+                                    relatedId: vendor._id,
+                                    relatedType: 'vendor'
+                                });
+                            }
+                        } catch (err) { console.error('Admin notification error:', err); }
+                    }
+
+                    await Vendor.findByIdAndUpdate(vendor._id, updateQuery);
+
+                    // Transaction 1: Total cash collected from customer
+                    await Transaction.create({
+                        vendorId: vendor._id,
+                        bookingId: null, // Ecommerce
+                        type: 'cash_collected',
+                        amount: orderTotal,
+                        status: 'completed',
+                        paymentMethod: 'cash',
+                        description: `Cash ₹${orderTotal} collected for COD Order #${order._id.toString().slice(-8)}.`,
+                        metadata: {
+                            type: 'dues_increase',
+                            orderId: order._id.toString(),
+                            companyRevenue: platformFee
+                        }
+                    });
+
+                    // Transaction 2: Earnings credited to vendor
+                    if (vendorBalance > 0) {
+                        await Transaction.create({
+                            vendorId: vendor._id,
+                            bookingId: null,
+                            type: 'earnings_credit',
+                            amount: vendorBalance,
+                            status: 'completed',
+                            paymentMethod: 'system',
+                            description: `Earnings ₹${vendorBalance} credited for COD Order #${order._id.toString().slice(-8)}.`,
+                            metadata: {
+                                type: 'earnings_increase',
+                                orderId: order._id.toString()
+                            }
+                        });
+                    }
+                }
+            }
+
             // Notify User
             try {
                 let msg = `Your order status has been updated to ${status}.`;

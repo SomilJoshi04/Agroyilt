@@ -23,6 +23,7 @@ const ProductDetail = () => {
     const [quantity, setQuantity] = useState(1);
     const [showCheckout, setShowCheckout] = useState(false);
     const [address, setAddress] = useState(null); // Will hold {addressLine1, lat, lng}
+    const [paymentType, setPaymentType] = useState('split'); // 'split', 'online_full', 'cod'
 
     useEffect(() => {
         fetchProduct();
@@ -46,11 +47,17 @@ const ProductDetail = () => {
             const res = await ecommerceService.placeOrder({
                 productId: product._id,
                 quantity,
-                shippingAddress: address
+                shippingAddress: address,
+                paymentType
             });
             if (res.success) {
-                toast.success("Order Placed! Please pay the platform fee to confirm.");
-                navigate(`/user/order-payment/${res.data._id}`);
+                if (paymentType === 'cod') {
+                    toast.success("Order Placed Successfully!");
+                    navigate('/user/my-agri-orders');
+                } else {
+                    toast.success("Order Placed! Please complete payment to confirm.");
+                    navigate(`/user/order-payment/${res.data._id}`);
+                }
             }
         } catch (err) {
             toast.error(err.response?.data?.message || "Order failed");
@@ -265,19 +272,55 @@ const ProductDetail = () => {
                                         />
                                     </div>
                                 </div>
-                                
-                                <div className="p-4 bg-orange-50 rounded-3xl border border-orange-100 flex items-start gap-3">
-                                    <FiInfo className="text-orange-500 mt-1 flex-shrink-0" />
-                                    <p className="text-[10px] font-bold text-orange-800 leading-relaxed">
-                                        You are paying ₹{adminFee} to confirm the order. The remaining ₹{vendorBalance} must be paid to the vendor directly when goods are delivered to you.
-                                    </p>
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Method</label>
+                                    <div className="space-y-2">
+                                        <label onClick={() => setPaymentType('split')} className={`flex items-start gap-3 p-4 rounded-3xl border cursor-pointer transition-all ${paymentType === 'split' ? 'border-teal-500 bg-teal-50/50 shadow-sm' : 'border-slate-200 bg-white'}`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center flex-shrink-0 ${paymentType === 'split' ? 'border-teal-500' : 'border-slate-300'}`}>
+                                                {paymentType === 'split' && <div className="w-2.5 h-2.5 bg-teal-500 rounded-full" />}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-black text-slate-800">Split Payment (Recommended)</p>
+                                                <p className="text-[10px] font-bold text-slate-500 mt-1 leading-relaxed">Pay Platform Fee (₹{adminFee}) now. Pay remaining (₹{vendorBalance}) on delivery.</p>
+                                            </div>
+                                        </label>
+
+                                        <label onClick={() => setPaymentType('online_full')} className={`flex items-start gap-3 p-4 rounded-3xl border cursor-pointer transition-all ${paymentType === 'online_full' ? 'border-teal-500 bg-teal-50/50 shadow-sm' : 'border-slate-200 bg-white'}`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center flex-shrink-0 ${paymentType === 'online_full' ? 'border-teal-500' : 'border-slate-300'}`}>
+                                                {paymentType === 'online_full' && <div className="w-2.5 h-2.5 bg-teal-500 rounded-full" />}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-black text-slate-800">Pay Full Amount Online</p>
+                                                <p className="text-[10px] font-bold text-slate-500 mt-1 leading-relaxed">Pay ₹{totalPayable} securely now. Nothing to pay on delivery.</p>
+                                            </div>
+                                        </label>
+
+                                        <label onClick={() => setPaymentType('cod')} className={`flex items-start gap-3 p-4 rounded-3xl border cursor-pointer transition-all ${paymentType === 'cod' ? 'border-teal-500 bg-teal-50/50 shadow-sm' : 'border-slate-200 bg-white'}`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center flex-shrink-0 ${paymentType === 'cod' ? 'border-teal-500' : 'border-slate-300'}`}>
+                                                {paymentType === 'cod' && <div className="w-2.5 h-2.5 bg-teal-500 rounded-full" />}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-black text-slate-800">Cash on Delivery</p>
+                                                <p className="text-[10px] font-bold text-slate-500 mt-1 leading-relaxed">Pay ₹{totalPayable} to vendor upon delivery.</p>
+                                            </div>
+                                        </label>
+                                    </div>
                                 </div>
+                                
+                                {paymentType === 'split' && (
+                                    <div className="p-4 bg-orange-50 rounded-3xl border border-orange-100 flex items-start gap-3">
+                                        <FiInfo className="text-orange-500 mt-1 flex-shrink-0" />
+                                        <p className="text-[10px] font-bold text-orange-800 leading-relaxed">
+                                            You are paying ₹{adminFee} to confirm the order. The remaining ₹{vendorBalance} must be paid to the vendor directly when goods are delivered.
+                                        </p>
+                                    </div>
+                                )}
 
                                 <button 
                                     onClick={handlePlaceOrder}
                                     className="w-full py-5 bg-[#2E7D32] text-white rounded-[28px] font-black text-lg uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-green-900/10"
                                 >
-                                    Confirm & Pay ₹{adminFee}
+                                    {paymentType === 'cod' ? 'Confirm Order' : `Confirm & Pay ₹${paymentType === 'online_full' ? totalPayable : adminFee}`}
                                 </button>
                             </div>
                         </motion.div>

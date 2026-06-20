@@ -53,7 +53,7 @@ const getProductDetails = async (req, res) => {
  */
 const placeOrder = async (req, res) => {
     try {
-        const { productId, quantity, shippingAddress, paymentMethod } = req.body;
+        const { productId, quantity, shippingAddress, paymentMethod, paymentType } = req.body;
         
         const product = await Product.findById(productId);
         if (!product || product.approvalStatus !== 'approved' || product.stock < quantity) {
@@ -89,16 +89,45 @@ const placeOrder = async (req, res) => {
             },
             shippingAddress,
             deliveryOtp: Math.floor(1000 + Math.random() * 9000).toString(),
-            paymentMethod: paymentMethod || 'wallet'
+            paymentMethod: paymentMethod || 'wallet',
+            paymentType: paymentType || 'split'
         });
+
+        if (order.paymentType === 'cod') {
+            order.deliveryStatus = 'ordered'; // Direct to vendor
+            order.paymentMethod = 'cash';
+            await order.save();
+            
+            // Reduce Stock
+            await Product.findByIdAndUpdate(product._id, { $inc: { stock: -quantity } });
+
+            // Notify Vendor
+            try {
+                await createNotification({
+                    recipientId: order.vendorId,
+                    recipientModel: 'Vendor',
+                    title: 'New COD Store Order!',
+                    message: `You received a COD order for ${order.items[0].name}. Please pack it for shipping.`,
+                    type: 'ecommerce_order',
+                    metadata: { orderId: order._id }
+                });
+            } catch (nErr) { console.error('Push notification error:', nErr); }
+
+            return res.status(201).json({ 
+                success: true, 
+                data: order, 
+                message: 'COD Order placed successfully.',
+                paymentType: 'cod'
+            });
+        }
 
         await order.save();
         res.status(201).json({ 
             success: true, 
             data: order, 
-            message: 'Order created. Please pay Platform Fee to confirm.',
-            platformFee: order.pricing.platformFee,
-            vendorPayAmount: order.pricing.vendorBalance
+            message: order.paymentType === 'online_full' ? 'Order created. Please pay full amount to confirm.' : 'Order created. Please pay Platform Fee to confirm.',
+            amountToPay: order.paymentType === 'online_full' ? order.pricing.orderTotal : order.pricing.platformFee,
+            paymentType: order.paymentType
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -115,7 +144,7 @@ const createPaymentOrder = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Order already paid or not found' });
         }
 
-        const amountToPay = order.pricing.platformFee;
+        const amountToPay = order.paymentType === 'online_full' ? order.pricing.orderTotal : order.pricing.platformFee;
 
         // Create Razorpay order
         const razorpayOrder = await createOrder(
@@ -159,7 +188,7 @@ const payPlatformFee = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Order already paid or not found' });
         }
 
-        const amountToPay = order.pricing.platformFee;
+        const amountToPay = order.paymentType === 'online_full' ? order.pricing.orderTotal : order.pricing.platformFee;
 
         if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
              // Verify Razorpay signature
@@ -171,12 +200,12 @@ const payPlatformFee = async (req, res) => {
              // Record Transaction
              const transaction = new Transaction({
                  userId: req.user._id,
-                 type: 'platform_fee',
+                 type: order.paymentType === 'online_full' ? 'ecommerce_full_payment' : 'platform_fee',
                  amount: amountToPay,
                  status: 'completed',
                  paymentMethod: 'razorpay',
                  referenceId: razorpay_payment_id,
-                 description: `Platform fee (Comm+GST) for Ecommerce Order: ${order._id.toString().slice(-8)}`,
+                 description: order.paymentType === 'online_full' ? `Full payment for Ecommerce Order: ${order._id.toString().slice(-8)}` : `Platform fee (Comm+GST) for Ecommerce Order: ${order._id.toString().slice(-8)}`,
                  metadata: { 
                     orderId: order._id, 
                     razorpay_order_id,
@@ -184,6 +213,34 @@ const payPlatformFee = async (req, res) => {
                  }
              });
              await transaction.save();
+
+             if (order.paymentType === 'online_full') {
+                 // Credit vendor wallet
+                 const Vendor = require('../../models/Vendor');
+                 const vendor = await Vendor.findById(order.vendorId);
+                 if (vendor) {
+                     const currentEarnings = vendor.wallet?.earnings || 0;
+                     const updateQuery = {
+                         $inc: { 'wallet.earnings': order.pricing.vendorBalance }
+                     };
+                     await Vendor.findByIdAndUpdate(vendor._id, updateQuery);
+
+                     // Record earning transaction
+                     await Transaction.create({
+                         vendorId: vendor._id,
+                         bookingId: null, // No booking for ecommerce
+                         type: 'earnings_credit',
+                         amount: order.pricing.vendorBalance,
+                         status: 'completed',
+                         paymentMethod: 'system',
+                         description: `Earnings credited for Prepaid Ecommerce Order: ${order._id.toString().slice(-8)}`,
+                         metadata: {
+                             type: 'earnings_increase',
+                             orderId: order._id.toString()
+                         }
+                     });
+                 }
+             }
 
              // Update Order
              order.paymentStatus = 'paid';
@@ -202,7 +259,7 @@ const payPlatformFee = async (req, res) => {
                      recipientId: order.vendorId,
                      recipientModel: 'Vendor',
                      title: 'New Store Order!',
-                     message: `You received a new order for ${order.items[0].name}. Please pack it for shipping.`,
+                     message: `You received a new ${order.paymentType === 'online_full' ? 'PREPAID ' : ''}order for ${order.items[0].name}. Please pack it for shipping.`,
                      type: 'ecommerce_order',
                      metadata: { orderId: order._id }
                  });
@@ -210,7 +267,7 @@ const payPlatformFee = async (req, res) => {
 
              return res.status(200).json({ 
                  success: true, 
-                 message: 'Order confirmed! Platform fee paid via Razorpay.', 
+                 message: order.paymentType === 'online_full' ? 'Order confirmed! Full payment received.' : 'Order confirmed! Platform fee paid via Razorpay.', 
                  data: order 
              });
         } 
@@ -230,14 +287,36 @@ const payPlatformFee = async (req, res) => {
 
         const transaction = new Transaction({
             userId: user._id,
-            type: 'platform_fee',
+            type: order.paymentType === 'online_full' ? 'ecommerce_full_payment' : 'platform_fee',
             amount: amountToPay,
             status: 'completed',
             paymentMethod: 'wallet',
-            description: `Platform fee (Comm+GST) for Ecommerce Order: ${order._id.toString().slice(-8)}`,
+            description: order.paymentType === 'online_full' ? `Full payment for Ecommerce Order: ${order._id.toString().slice(-8)}` : `Platform fee (Comm+GST) for Ecommerce Order: ${order._id.toString().slice(-8)}`,
             metadata: { orderId: order._id }
         });
         await transaction.save();
+
+        if (order.paymentType === 'online_full') {
+            // Credit vendor wallet
+            const Vendor = require('../../models/Vendor');
+            const vendor = await Vendor.findById(order.vendorId);
+            if (vendor) {
+                const updateQuery = {
+                    $inc: { 'wallet.earnings': order.pricing.vendorBalance }
+                };
+                await Vendor.findByIdAndUpdate(vendor._id, updateQuery);
+
+                await Transaction.create({
+                    vendorId: vendor._id,
+                    type: 'earnings_credit',
+                    amount: order.pricing.vendorBalance,
+                    status: 'completed',
+                    paymentMethod: 'system',
+                    description: `Earnings credited for Prepaid Ecommerce Order: ${order._id.toString().slice(-8)}`,
+                    metadata: { type: 'earnings_increase', orderId: order._id.toString() }
+                });
+            }
+        }
 
         order.paymentStatus = 'paid';
         order.deliveryStatus = 'ordered';
@@ -254,7 +333,7 @@ const payPlatformFee = async (req, res) => {
                 recipientId: order.vendorId,
                 recipientModel: 'Vendor',
                 title: 'New Store Order!',
-                message: `You received a new order for ${order.items[0].name}. Please pack it for shipping.`,
+                message: `You received a new ${order.paymentType === 'online_full' ? 'PREPAID ' : ''}order for ${order.items[0].name}. Please pack it for shipping.`,
                 type: 'ecommerce_order',
                 metadata: { orderId: order._id }
             });
@@ -262,7 +341,7 @@ const payPlatformFee = async (req, res) => {
 
         res.status(200).json({ 
             success: true, 
-            message: 'Order confirmed! Platform fee paid from wallet.', 
+            message: order.paymentType === 'online_full' ? 'Order confirmed! Full payment paid from wallet.' : 'Order confirmed! Platform fee paid from wallet.', 
             data: order 
         });
     } catch (error) {

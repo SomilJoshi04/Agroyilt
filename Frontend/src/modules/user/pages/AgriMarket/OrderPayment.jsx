@@ -155,10 +155,17 @@ const OrderPayment = () => {
                             <p className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Grand Total</p>
                             <p className="text-lg font-black text-slate-800 font-sans">₹{order.pricing.orderTotal || (order.pricing.itemsTotal + order.pricing.gstAmount)}</p>
                         </div>
-                        <div className="p-4 mt-2 bg-teal-50 rounded-3xl border border-teal-100/50 flex items-center justify-between">
-                             <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest leading-none">Upfront Platform Fee</p>
-                             <p className="text-2xl font-black text-teal-700 font-sans">₹{order.pricing.platformFee}</p>
-                        </div>
+                        {order.paymentType === 'online_full' ? (
+                            <div className="p-4 mt-2 bg-teal-50 rounded-3xl border border-teal-100/50 flex items-center justify-between">
+                                 <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest leading-none">Total Payment</p>
+                                 <p className="text-2xl font-black text-teal-700 font-sans">₹{order.pricing.orderTotal || (order.pricing.itemsTotal + order.pricing.gstAmount)}</p>
+                            </div>
+                        ) : (
+                            <div className="p-4 mt-2 bg-teal-50 rounded-3xl border border-teal-100/50 flex items-center justify-between">
+                                 <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest leading-none">Upfront Platform Fee</p>
+                                 <p className="text-2xl font-black text-teal-700 font-sans">₹{order.pricing.platformFee}</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -169,20 +176,37 @@ const OrderPayment = () => {
                         <h3 className="text-xs font-black uppercase tracking-widest">Secure Handover</h3>
                     </div>
                     
-                    <div className="space-y-3">
-                        <div className="flex gap-4">
-                            <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 text-xs font-black flex-shrink-0">1</div>
-                            <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest">Pay Platform Fee of ₹{order.pricing.platformFee} securely to confirm your order.</p>
+                    {order.paymentType === 'online_full' ? (
+                        <div className="space-y-3">
+                            <div className="flex gap-4">
+                                <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 text-xs font-black flex-shrink-0">1</div>
+                                <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest">Pay the total amount of ₹{order.pricing.orderTotal} securely to confirm your order.</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 text-xs font-black flex-shrink-0">2</div>
+                                <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest">The Vendor will pack and ship your seeds/fertilizers within 48 hours.</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <div className="w-8 h-8 bg-teal-50 rounded-xl flex items-center justify-center text-teal-600 text-xs font-black flex-shrink-0">3</div>
+                                <p className="text-[10px] font-black text-teal-600 leading-relaxed uppercase tracking-widest">FULLY PAID: Nothing to pay to the vendor upon delivery.</p>
+                            </div>
                         </div>
-                        <div className="flex gap-4">
-                            <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 text-xs font-black flex-shrink-0">2</div>
-                            <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest">The Vendor will pack and ship your seeds/fertilizers within 48 hours.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            <div className="flex gap-4">
+                                <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 text-xs font-black flex-shrink-0">1</div>
+                                <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest">Pay Platform Fee of ₹{order.pricing.platformFee} securely to confirm your order.</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 text-xs font-black flex-shrink-0">2</div>
+                                <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest">The Vendor will pack and ship your seeds/fertilizers within 48 hours.</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <div className="w-8 h-8 bg-teal-50 rounded-xl flex items-center justify-center text-teal-600 text-xs font-black flex-shrink-0">3</div>
+                                <p className="text-[10px] font-black text-teal-600 leading-relaxed uppercase tracking-widest">PAID TO VENDOR: Pay the remaining ₹{order.pricing.vendorBalance} directly to vendor on delivery.</p>
+                            </div>
                         </div>
-                        <div className="flex gap-4">
-                            <div className="w-8 h-8 bg-teal-50 rounded-xl flex items-center justify-center text-teal-600 text-xs font-black flex-shrink-0">3</div>
-                            <p className="text-[10px] font-black text-teal-600 leading-relaxed uppercase tracking-widest">PAID TO VENDOR: Pay the remaining ₹{order.pricing.vendorBalance} directly to vendor on delivery.</p>
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
@@ -196,7 +220,7 @@ const OrderPayment = () => {
                     {paying ? (
                          <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                     ) : (
-                        <>Pay Confirm Fee (₹{order.pricing.platformFee})</>
+                        <>{order.paymentType === 'online_full' ? `Pay Total Amount (₹${order.pricing.orderTotal})` : `Pay Confirm Fee (₹${order.pricing.platformFee})`}</>
                     )}
                 </button>
                 <div className="flex items-center justify-center gap-2 mt-4 text-slate-300">
