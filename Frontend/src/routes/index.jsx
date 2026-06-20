@@ -11,6 +11,10 @@ import BlogListing from '../modules/landing/pages/BlogListing';
 import ArticleListing from '../modules/landing/pages/ArticleListing';
 import BlogDetail from '../modules/landing/pages/BlogDetail';
 import ArticleDetail from '../modules/landing/pages/ArticleDetail';
+import AboutPage from '../modules/landing/pages/AboutPage';
+import ServicesPage from '../modules/landing/pages/ServicesPage';
+import WorkflowPage from '../modules/landing/pages/WorkflowPage';
+import FAQPage from '../modules/landing/pages/FAQPage';
 import { LocationPermissionChecker, Chatbot } from '../components/common';
 
 const AppRoutes = () => {
@@ -48,6 +52,10 @@ const AppRoutes = () => {
 
         {/* Landing experience */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/workflow" element={<WorkflowPage />} />
+        <Route path="/faq" element={<FAQPage />} />
         <Route path="/blogs" element={<BlogListing />} />
         <Route path="/blogs/:id" element={<BlogDetail />} />
         <Route path="/articles" element={<ArticleListing />} />

@@ -35,12 +35,12 @@ const Navbar = () => {
 
   const navLinks = [
     { id: 'home', name: <TranslatedText>Home</TranslatedText>, href: '/', isAnchor: false },
-    { id: 'about', name: <TranslatedText>About</TranslatedText>, href: '/#about', isAnchor: true },
-    { id: 'services', name: <TranslatedText>Services</TranslatedText>, href: '/#services', isAnchor: true },
+    { id: 'about', name: <TranslatedText>About</TranslatedText>, href: '/about', isAnchor: false },
+    { id: 'services', name: <TranslatedText>Services</TranslatedText>, href: '/services', isAnchor: false },
     { id: 'blogs', name: <TranslatedText>Blogs</TranslatedText>, href: '/blogs', isAnchor: false },
     { id: 'articles', name: <TranslatedText>Articles</TranslatedText>, href: '/articles', isAnchor: false },
-    { id: 'workflow', name: <TranslatedText>Workflow</TranslatedText>, href: '/#workflow', isAnchor: true },
-    { id: 'faq', name: <TranslatedText>FAQ</TranslatedText>, href: '/#faq', isAnchor: true },
+    { id: 'workflow', name: <TranslatedText>Workflow</TranslatedText>, href: '/workflow', isAnchor: false },
+    { id: 'faq', name: <TranslatedText>FAQ</TranslatedText>, href: '/faq', isAnchor: false },
   ];
 
   const handleNavClick = (e, link) => {
@@ -88,15 +88,15 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-6">
             <div className="flex items-center space-x-6 mr-4">
               {navLinks.map((link, idx) => (
-                <a
+                <Link
                   key={idx}
-                  href={link.href}
+                  to={link.href}
                   onClick={(e) => handleNavClick(e, link)}
                   className={`text-sm font-medium transition-colors hover:text-yellow-500 ${(isScrolled || isLightPage) ? 'text-gray-700' : 'text-white'
                     }`}
                 >
                   {link.name}
-                </a>
+                </Link>
               ))}
             </div>
 
@@ -221,14 +221,14 @@ const Navbar = () => {
           >
             <div className="px-4 pt-2 pb-6 space-y-1 sm:px-3">
               {navLinks.map((link, idx) => (
-                <a
+                <Link
                   key={idx}
-                  href={link.href}
+                  to={link.href}
                   className="block px-3 py-3 text-base font-medium text-gray-700 hover:text-green-700 hover:bg-gray-50 rounded-md"
                   onClick={(e) => handleNavClick(e, link)}
                 >
                   {link.name}
-                </a>
+                </Link>
               ))}
 
               <div className="flex flex-wrap gap-2 px-3 py-4 border-y border-gray-100">

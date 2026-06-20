@@ -181,7 +181,7 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { name, email, verificationToken, aadhar, pan, businessName, service } = req.body;
+    const { name, email, verificationToken, aadhar, pan, businessName, service, labDetails, shopDetails } = req.body;
     let phone = req.body.phone;
 
     if (verificationToken) {
@@ -196,40 +196,58 @@ const register = async (req, res) => {
     }
 
     // Check existing
-    const existing = await Vendor.findOne({ $or: [{ phone }, { email }] });
+    const query = [{ phone }];
+    if (email && email.trim() !== '') {
+      query.push({ email });
+    }
+    const existing = await Vendor.findOne({ $or: query });
     if (existing) {
       return res.status(400).json({ success: false, message: 'Vendor already exists. Login.' });
     }
 
-    // Upload documents
+    // Upload documents concurrently
+    const uploadBase64 = async (dataStr, folder) => {
+      if (!dataStr || !dataStr.startsWith('data:')) return dataStr;
+      const res = await cloudinaryService.uploadFile(dataStr, { folder });
+      return res.success ? res.url : null;
+    };
+
     let aadharUrl = req.body.aadharDocument || null;
     let aadharBackUrl = req.body.aadharBackDocument || null;
     let panUrl = req.body.panDocument || null;
     let otherUrls = req.body.otherDocuments || [];
+    let parsedLabDetails = labDetails ? (typeof labDetails === 'string' ? JSON.parse(labDetails) : labDetails) : null;
+    let parsedShopDetails = shopDetails ? (typeof shopDetails === 'string' ? JSON.parse(shopDetails) : shopDetails) : null;
 
-    if (aadharUrl && aadharUrl.startsWith('data:')) {
-      const uploadRes = await cloudinaryService.uploadFile(aadharUrl, { folder: 'vendors/documents' });
-      if (uploadRes.success) aadharUrl = uploadRes.url;
+    const pAadhar = uploadBase64(aadharUrl, 'vendors/documents');
+    const pAadharBack = uploadBase64(aadharBackUrl, 'vendors/documents');
+    const pPan = uploadBase64(panUrl, 'vendors/documents');
+    const pOthers = Promise.all(otherUrls.map(doc => uploadBase64(doc, 'vendors/documents/others')));
+
+    let pLabCert = Promise.resolve(null);
+    if (parsedLabDetails && parsedLabDetails.certificationDocument) {
+      pLabCert = uploadBase64(parsedLabDetails.certificationDocument, 'vendors/documents/lab');
     }
-    if (aadharBackUrl && aadharBackUrl.startsWith('data:')) {
-      const uploadRes = await cloudinaryService.uploadFile(aadharBackUrl, { folder: 'vendors/documents' });
-      if (uploadRes.success) aadharBackUrl = uploadRes.url;
+
+    let pShopLicense = Promise.resolve(null);
+    if (parsedShopDetails && parsedShopDetails.licenseDocument) {
+      pShopLicense = uploadBase64(parsedShopDetails.licenseDocument, 'vendors/documents/shop');
     }
-    if (panUrl && panUrl.startsWith('data:')) {
-      const uploadRes = await cloudinaryService.uploadFile(panUrl, { folder: 'vendors/documents' });
-      if (uploadRes.success) panUrl = uploadRes.url;
+
+    const [finalAadhar, finalAadharBack, finalPan, finalOthers, finalLabCert, finalShopLicense] = await Promise.all([
+      pAadhar, pAadharBack, pPan, pOthers, pLabCert, pShopLicense
+    ]);
+
+    aadharUrl = finalAadhar || aadharUrl;
+    aadharBackUrl = finalAadharBack || aadharBackUrl;
+    panUrl = finalPan || panUrl;
+    otherUrls = finalOthers;
+    
+    if (parsedLabDetails && parsedLabDetails.certificationDocument) {
+      parsedLabDetails.certificationDocument = finalLabCert;
     }
-    // ... (otherDocs logic simplified for brevity, assume frontend sends valid array or backend helper used?
-    // I'll keep the simplified logic here assuming loop is standard)
-    if (otherUrls && otherUrls.length > 0) {
-      const uploadedOthers = [];
-      for (const doc of otherUrls) {
-        if (doc && doc.startsWith('data:')) {
-          const up = await cloudinaryService.uploadFile(doc, { folder: 'vendors/documents/others' });
-          if (up.success) uploadedOthers.push(up.url);
-        } else uploadedOthers.push(doc);
-      }
-      otherUrls = uploadedOthers;
+    if (parsedShopDetails && parsedShopDetails.licenseDocument) {
+      parsedShopDetails.licenseDocument = finalShopLicense;
     }
 
     const vendorData = {
@@ -245,6 +263,12 @@ const register = async (req, res) => {
       approvalStatus: VENDOR_STATUS.PENDING,
       isPhoneVerified: true
     };
+
+    if (parsedLabDetails) vendorData.labDetails = parsedLabDetails;
+    if (parsedShopDetails) {
+      parsedShopDetails.storeApprovalStatus = 'pending';
+      vendorData.shopDetails = parsedShopDetails;
+    }
 
     if (email && email.trim() !== '') {
       vendorData.email = email;
@@ -293,7 +317,8 @@ const register = async (req, res) => {
     console.error('Vendor registration error:', error);
     res.status(500).json({
       success: false,
-      message: 'Registration failed.'
+      message: error.message || 'Registration failed.',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };

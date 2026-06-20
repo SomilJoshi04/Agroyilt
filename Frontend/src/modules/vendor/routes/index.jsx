@@ -69,13 +69,21 @@ const VendorRoutes = () => {
   // the Vendor panel when body styles or viewport sizes change.
   useEffect(() => {
     import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
-      // Configure safely before killing
-      ScrollTrigger.config({
-        ignoreMobileResize: true,
-        autoRefreshEvents: "visibilitychange,DOMContentLoaded,load"
+      import('gsap').then(({ gsap }) => {
+        // Configure safely before killing
+        ScrollTrigger.config({
+          ignoreMobileResize: true,
+          autoRefreshEvents: "visibilitychange,DOMContentLoaded,load"
+        });
+        
+        // Kill all matchMedia contexts globally
+        let ctx = gsap.matchMedia();
+        ctx.revert();
+        if (ScrollTrigger.clearMatchMedia) ScrollTrigger.clearMatchMedia();
+
+        // Kill all existing triggers
+        ScrollTrigger.getAll().forEach(t => t.kill());
       });
-      // Kill all existing triggers to prevent background crashes
-      ScrollTrigger.getAll().forEach(t => t.kill());
     }).catch(() => {});
   }, []);
 

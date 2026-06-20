@@ -9,6 +9,7 @@ import Reviews from './Reviews';
 import FAQ from './FAQ';
 import AboutUs from './AboutUs';
 import AppGuide from './AppGuide';
+import Policies from './Policies';
 
 const WebsiteSettings = () => {
   const location = useLocation();
@@ -29,6 +30,7 @@ const WebsiteSettings = () => {
           <Route path="faq" element={<FAQ />} />
           <Route path="about-us" element={<AboutUs />} />
           <Route path="app-guide" element={<AppGuide />} />
+          <Route path="policies" element={<Policies />} />
           <Route path="*" element={<Navigate to="blogs" replace />} />
         </Routes>
       </motion.div>
