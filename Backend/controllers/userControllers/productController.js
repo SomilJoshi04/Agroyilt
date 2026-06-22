@@ -10,7 +10,7 @@ const { createNotification } = require('../notificationControllers/notificationC
  */
 const getApprovedProducts = async (req, res) => {
     try {
-        const { categoryId, query } = req.query;
+        const { categoryId, query, lat, lng, radius } = req.query;
         let filter = { 
             approvalStatus: 'approved', 
             status: 'active', 
@@ -25,13 +25,67 @@ const getApprovedProducts = async (req, res) => {
             ];
         }
 
-        const products = await Product.find(filter)
+        let vendorMap = {};
+
+        // Zone-based filtering logic
+        if (lat && lng && lat !== 'undefined' && lng !== 'undefined') {
+            const userLat = parseFloat(lat);
+            const userLng = parseFloat(lng);
+            const searchRadius = (parseInt(radius) || 1000) * 1000; // Search widely initially (1000km)
+
+            const Vendor = require('../../models/Vendor');
+            const nearbyVendors = await Vendor.aggregate([
+                {
+                    $geoNear: {
+                        near: { type: "Point", coordinates: [userLng, userLat] },
+                        distanceField: "calculatedDistance", // This will be in meters before multiplier
+                        maxDistance: searchRadius,
+                        spherical: true,
+                        distanceMultiplier: 0.001 // Convert meters to km
+                    }
+                },
+                {
+                    $match: {
+                        $expr: {
+                            $lte: ["$calculatedDistance", { $ifNull: ["$shopDetails.deliveryRadius", 50] }]
+                        }
+                    }
+                },
+                {
+                    $project: { _id: 1, calculatedDistance: 1 }
+                }
+            ]);
+
+            nearbyVendors.forEach(v => {
+                vendorMap[v._id.toString()] = v.calculatedDistance;
+            });
+
+            const vendorIds = nearbyVendors.map(v => v._id);
+            filter.vendorId = { $in: vendorIds };
+        }
+
+        let productsQuery = Product.find(filter)
             .populate('categoryId', 'title imageUrl')
             .populate('vendorId', 'businessName name profilePhoto')
-            .sort({ isFeatured: -1, createdAt: -1 });
+            .lean();
+
+        if (!lat || !lng || lat === 'undefined' || lng === 'undefined') {
+            productsQuery = productsQuery.sort({ isFeatured: -1, createdAt: -1 });
+        }
+
+        let products = await productsQuery;
+
+        if (lat && lng && lat !== 'undefined' && lng !== 'undefined') {
+            products = products.map(p => ({
+                ...p,
+                distance: vendorMap[p.vendorId?._id?.toString()] || 0
+            }));
+            products.sort((a, b) => a.distance - b.distance);
+        }
 
         res.status(200).json({ success: true, data: products });
     } catch (error) {
+        console.error('Error fetching products:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch products' });
     }
 };

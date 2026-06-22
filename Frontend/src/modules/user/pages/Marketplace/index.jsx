@@ -26,6 +26,7 @@ const MarketplacePage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [isSearching, setIsSearching] = useState(false);
+    const [userLocation, setUserLocation] = useState(null);
 
     useEffect(() => {
         fetchInitialData();
@@ -34,8 +35,24 @@ const MarketplacePage = () => {
     const fetchInitialData = async () => {
         try {
             setLoading(true);
+
+            let locParams = {};
+            try {
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, maximumAge: 60000 });
+                });
+                locParams = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    radius: 50 // Default 50km radius
+                };
+                setUserLocation(locParams);
+            } catch (geoErr) {
+                console.warn("Could not get location:", geoErr);
+            }
+
             const [prodRes, catRes] = await Promise.all([
-                productService.getProducts(),
+                productService.getProducts(locParams),
                 publicCatalogService.getCategories()
             ]);
 
@@ -59,10 +76,17 @@ const MarketplacePage = () => {
         setIsSearching(true);
 
         try {
-            const res = await productService.getProducts({
+            const params = {
                 query,
                 categoryId: selectedCategory === 'all' ? undefined : selectedCategory
-            });
+            };
+            if (userLocation) {
+                params.lat = userLocation.lat;
+                params.lng = userLocation.lng;
+                params.radius = userLocation.radius;
+            }
+
+            const res = await productService.getProducts(params);
             if (res.success) {
                 setProducts(res.data);
             }
@@ -77,10 +101,17 @@ const MarketplacePage = () => {
         setSelectedCategory(catId);
         setLoading(true);
         try {
-            const res = await productService.getProducts({
+            const params = {
                 categoryId: catId === 'all' ? undefined : catId,
                 query: searchQuery
-            });
+            };
+            if (userLocation) {
+                params.lat = userLocation.lat;
+                params.lng = userLocation.lng;
+                params.radius = userLocation.radius;
+            }
+
+            const res = await productService.getProducts(params);
             if (res.success) {
                 setProducts(res.data);
             }
@@ -238,6 +269,11 @@ const MarketplacePage = () => {
 
                                     {/* Tech Specs Tags */}
                                     <div className="flex flex-wrap gap-1 mb-3">
+                                        {product.distance !== undefined && (
+                                            <span className="text-[7px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md border border-blue-100 flex items-center gap-0.5">
+                                                📍 {product.distance.toFixed(1)} km
+                                            </span>
+                                        )}
                                         {product.hasDriver && (
                                             <span className="text-[7px] font-black uppercase tracking-widest bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md border border-orange-200">
                                                 Driver Included

@@ -40,10 +40,10 @@ const VendorSoilTests = () => {
     const [rejectionReason, setRejectionReason] = useState('');
 
     useEffect(() => { 
-        fetchMyRequests(); 
+        fetchMyRequests(false); 
         
         // AUTO UPDATE: Poll for new requests every 30 seconds
-        const pollInterval = setInterval(fetchMyRequests, 30000);
+        const pollInterval = setInterval(() => fetchMyRequests(true), 30000);
         return () => clearInterval(pollInterval);
     }, []);
 
@@ -62,15 +62,15 @@ const VendorSoilTests = () => {
         };
     }, [modalType]);
 
-    const fetchMyRequests = async () => {
+    const fetchMyRequests = async (isPolling = false) => {
         try {
-            setLoading(true);
+            if (!isPolling) setLoading(true);
             const res = await vendorSoilTestService.getMyRequests();
             if (res.success) setRequests(res.data);
         } catch {
-            toast.error('Failed to load requests');
+            if (!isPolling) toast.error('Failed to load requests');
         } finally {
-            setLoading(false);
+            if (!isPolling) setLoading(false);
         }
     };
 
@@ -96,7 +96,7 @@ const VendorSoilTests = () => {
             if (res.success) {
                 toast.success('Status updated successfully!');
                 closeModal();
-                fetchMyRequests();
+                fetchMyRequests(false);
             }
         } catch { toast.error('Failed to update status'); }
         finally { setSaving(false); }
@@ -156,7 +156,7 @@ const VendorSoilTests = () => {
             if (res.success) {
                 toast.success('Report submitted for Admin review!');
                 closeModal();
-                fetchMyRequests();
+                fetchMyRequests(false);
             }
         } catch { 
             toast.error('Submission failed'); 
@@ -174,7 +174,7 @@ const VendorSoilTests = () => {
             if (res.success) {
                 toast.success('Request rejected. Admin has been notified.');
                 closeModal();
-                fetchMyRequests();
+                fetchMyRequests(false);
             }
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to reject request');
@@ -279,10 +279,20 @@ const VendorSoilTests = () => {
                             <div className="flex items-center gap-2 text-slate-500 mb-1">
                                 <FiMapPin className="flex-shrink-0 text-xs" />
                                 <p className="text-xs font-bold truncate">{req.location}</p>
+                                {req.latitude && req.longitude && (
+                                    <a href={`https://www.google.com/maps?q=${req.latitude},${req.longitude}`} target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors shrink-0">
+                                        View on Map 🗺️
+                                    </a>
+                                )}
                             </div>
-                            <p className="text-xs text-slate-400 font-bold ml-5">
-                                {req.landSize} — {req.cropType || 'General Crop'}
-                            </p>
+                            <div className="ml-5 space-y-0.5">
+                                <p className="text-xs text-slate-400 font-bold">
+                                    {req.landSize} — {req.cropType || 'General Crop'}
+                                </p>
+                                <p className="text-[10px] font-black text-teal-600">
+                                    {req.testType === 'Advanced' ? 'Advanced Test (12 Param)' : 'Basic Test (3 Param)'}
+                                </p>
+                            </div>
 
                             {/* Tracking Bar */}
                             {!['cancelled'].includes(req.status) && (
@@ -428,20 +438,20 @@ const VendorSoilTests = () => {
                                         )}
                                     </label>
                                 </div>
-                                <div className="flex gap-3 pt-2">
+                                <div className="flex gap-2 pt-2">
                                     <button type="button" onClick={closeModal}
-                                        className="flex-1 py-4 rounded-2xl font-black text-slate-500 bg-slate-100 active:scale-95 transition-all">Cancel</button>
+                                        className="flex-1 py-3.5 rounded-2xl font-black text-slate-500 bg-slate-100 active:scale-95 transition-all text-sm">Cancel</button>
                                     <button type="submit" disabled={saving || !selectedFile}
-                                        className="flex-1 py-4 rounded-[20px] font-black text-white bg-teal-600 shadow-xl shadow-teal-500/30 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                        className="flex-1 py-3.5 rounded-[20px] font-black text-white bg-teal-600 shadow-xl shadow-teal-500/30 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-1.5 text-sm px-1">
                                         {saving ? (
                                             <>
-                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Submitting...
+                                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                                                <span className="truncate">Submitting</span>
                                             </>
                                         ) : (
                                             <>
-                                                <FiCheckCircle className="text-lg" />
-                                                Submit Report
+                                                <FiCheckCircle className="text-lg shrink-0" />
+                                                <span className="truncate">Submit</span>
                                             </>
                                         )}
                                     </button>
@@ -482,20 +492,20 @@ const VendorSoilTests = () => {
                                         onChange={(e) => setRejectionReason(e.target.value)}
                                     />
                                 </div>
-                                <div className="flex gap-3 pt-2">
+                                <div className="flex gap-2 pt-2">
                                     <button onClick={closeModal}
-                                        className="flex-1 py-4 rounded-2xl font-black text-slate-500 bg-slate-100 active:scale-95 transition-all">Go Back</button>
+                                        className="flex-1 py-3.5 rounded-2xl font-black text-slate-500 bg-slate-100 active:scale-95 transition-all text-sm">Cancel</button>
                                     <button onClick={handleReject} disabled={saving || !rejectionReason.trim()}
-                                        className="flex-1 py-4 rounded-[20px] font-black text-white bg-red-600 shadow-xl shadow-red-500/30 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                        className="flex-1 py-3.5 rounded-[20px] font-black text-white bg-red-600 shadow-xl shadow-red-500/30 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-1.5 text-sm px-1">
                                         {saving ? (
                                             <>
-                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Rejecting...
+                                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                                                <span className="truncate">Rejecting</span>
                                             </>
                                         ) : (
                                             <>
-                                                <FiX className="text-lg" />
-                                                Confirm Reject
+                                                <FiX className="text-lg shrink-0" />
+                                                <span className="truncate">Reject</span>
                                             </>
                                         )}
                                     </button>

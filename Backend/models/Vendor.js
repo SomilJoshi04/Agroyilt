@@ -141,6 +141,10 @@ const vendorSchema = new mongoose.Schema({
       type: String,
       enum: ['pending', 'approved', 'rejected', 'not_submitted'],
       default: 'not_submitted'
+    },
+    deliveryRadius: {
+      type: Number,
+      default: 50
     }
   },
   approvalDate: {

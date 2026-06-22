@@ -118,9 +118,9 @@ const ProductDetail = () => {
                     <h1 className="text-3xl font-black text-slate-800 leading-tight">{product.title}</h1>
                     
                     <div className="flex items-baseline gap-2 pt-2">
-                        <p className="text-3xl font-black text-slate-800">₹{pricing.totalPrice}</p>
+                        <p className="text-3xl font-black text-slate-800">₹{pricing.vendorPrice}</p>
                         <p className="text-xs font-black text-slate-400 uppercase tracking-widest">/ {product.unit}</p>
-                        <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full ml-2">Verified Price</p>
+                        <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full ml-2">Base Price</p>
                     </div>
                 </div>
 
@@ -141,7 +141,7 @@ const ProductDetail = () => {
                         
                         <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
                             <div>
-                                <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-none">Vendor Balance</p>
+                                <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-none">Base Price</p>
                                 <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-tighter">Pay to vendor directly on delivery</p>
                             </div>
                             <p className="text-lg font-black text-slate-800 font-sans">₹{pricing.vendorPrice}</p>

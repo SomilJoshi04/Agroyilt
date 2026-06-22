@@ -9,7 +9,8 @@ import {
     FiFilter,
     FiMoreVertical,
     FiUploadCloud,
-    FiUser
+    FiUser,
+    FiImage
 } from 'react-icons/fi';
 import adminProductService from '../../../../services/adminProductService';
 import { publicCatalogService } from '../../../../services/catalogService';
@@ -178,8 +179,8 @@ const EcommerceManager = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.title || !formData.price || !formData.categoryId || !formData.unit) {
-            return toast.error("Kripya Title, Price, Category aur Unit bharein");
+        if (!formData.title || !formData.price || !formData.unit) {
+            return toast.error("Kripya Title, Price aur Unit bharein");
         }
 
         try {
@@ -388,8 +389,8 @@ const EcommerceManager = () => {
                                         )}
                                     </td>
                                     <td className="px-6 py-4">
-                                         <p className="font-black text-emerald-600 text-sm">₹{product.discountPrice || product.price}</p>
-                                         {product.discountPrice && (
+                                         <p className="font-black text-emerald-600 text-sm">₹{product.discountPrice > 0 ? product.discountPrice : product.price}</p>
+                                         {product.discountPrice > 0 && (
                                             <p className="text-[10px] text-slate-300 line-through font-bold">₹{product.price}</p>
                                          )}
                                     </td>
@@ -442,18 +443,33 @@ const EcommerceManager = () => {
 
                             <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
                                 <div className="p-8 overflow-y-auto flex-1 custom-scrollbar space-y-6">
-                                    {/* Same form as before but without DRIVER details */}
+                                    {/* Image Upload */}
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-slate-400">Product Photos</label>
+                                        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+                                            {(formData.images || []).map((img, idx) => (
+                                                <div key={idx} className="relative w-24 h-24 flex-shrink-0 rounded-[28px] bg-slate-50 border border-slate-100 overflow-hidden group">
+                                                    <img src={img} alt="" className="w-full h-full object-cover" />
+                                                    <button type="button" onClick={() => setFormData({...formData, images: formData.images.filter((_, i) => i !== idx)})}
+                                                        className="absolute inset-0 bg-rose-500/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <FiTrash2 className="text-white w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <div className="w-24 h-24 flex-shrink-0 rounded-[28px] bg-slate-50 border-2 border-dashed border-slate-200 relative flex flex-col items-center justify-center">
+                                                <FiImage className="w-6 h-6 text-slate-300" />
+                                                {uploading ? (
+                                                    <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div></div>
+                                                ) : (
+                                                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} accept="image/*" multiple />
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-1 md:col-span-2">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Title</label>
                                             <input required className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
-                                            <select required className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none" value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: e.target.value})}>
-                                                <option value="">Select Category</option>
-                                                {categories.map(c => <option key={c._id} value={c._id}>{c.title}</option>)}
-                                            </select>
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Brand</label>
@@ -461,15 +477,15 @@ const EcommerceManager = () => {
                                         </div>
                                         <div className="space-y-1 text-sm font-bold">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Base Price</label>
-                                            <input type="number" required className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+                                            <input type="number" min="0" required className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
                                         </div>
                                         <div className="space-y-1 text-sm font-bold">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Discount Price</label>
-                                            <input type="number" className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-emerald-600 outline-none" value={formData.discountPrice} onChange={e => setFormData({...formData, discountPrice: e.target.value})} />
+                                            <input type="number" min="0" className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-emerald-600 outline-none" value={formData.discountPrice} onChange={e => setFormData({...formData, discountPrice: e.target.value})} />
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock</label>
-                                            <input type="number" className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} />
+                                            <input type="number" min="0" className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} />
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit (e.g. bag, kg)</label>

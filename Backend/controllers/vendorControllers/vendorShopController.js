@@ -5,25 +5,36 @@ const Vendor = require('../../models/Vendor');
  */
 const registerShop = async (req, res) => {
     try {
-        const { shopName, shopAddress, shopLocation, shopLicense, licenseDocument } = req.body;
+        const { shopName, shopAddress, shopLocation, shopLicense, licenseDocument, deliveryRadius } = req.body;
         
         if (!shopName || !shopAddress) {
             return res.status(400).json({ success: false, message: 'Shop Name and Address are required' });
         }
 
+        let updateData = {
+            'shopDetails.shopName': shopName,
+            'shopDetails.shopAddress': shopAddress,
+            'shopDetails.shopLocation': shopLocation,
+            'shopDetails.shopLicense': shopLicense,
+            'shopDetails.licenseDocument': licenseDocument,
+            'shopDetails.storeApprovalStatus': 'pending',
+            'shopDetails.isStoreApproved': false
+        };
+
+        if (deliveryRadius) {
+            updateData['shopDetails.deliveryRadius'] = parseFloat(deliveryRadius) || 50;
+        }
+
+        if (shopLocation && shopLocation.lng && shopLocation.lat) {
+            updateData.geoLocation = {
+                type: 'Point',
+                coordinates: [parseFloat(shopLocation.lng), parseFloat(shopLocation.lat)]
+            };
+        }
+
         const vendor = await Vendor.findByIdAndUpdate(
             req.user._id,
-            {
-                $set: {
-                    'shopDetails.shopName': shopName,
-                    'shopDetails.shopAddress': shopAddress,
-                    'shopDetails.shopLocation': shopLocation,
-                    'shopDetails.shopLicense': shopLicense,
-                    'shopDetails.licenseDocument': licenseDocument,
-                    'shopDetails.storeApprovalStatus': 'pending',
-                    'shopDetails.isStoreApproved': false
-                }
-            },
+            { $set: updateData },
             { new: true }
         );
 

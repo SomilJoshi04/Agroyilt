@@ -10,7 +10,9 @@ import {
     FiFileText,
     FiInfo,
     FiDownload,
-    FiShield
+    FiShield,
+    FiChevronDown,
+    FiTarget
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/layout/Header';
@@ -29,18 +31,29 @@ const SoilTesting = () => {
     const [paymentModal, setPaymentModal] = useState(null);
     const [processingPayment, setProcessingPayment] = useState(false);
 
+    const [fetchingLocation, setFetchingLocation] = useState(false);
     const [formData, setFormData] = useState({
         landSize: '',
         location: localStorage.getItem('currentAddress') || '',
+        latitude: null,
+        longitude: null,
         cropType: '',
+        testType: 'Basic',
         phoneNumber: JSON.parse(localStorage.getItem('userData') || '{}').phone || ''
     });
 
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+    const testOptions = [
+        { value: 'Basic', label: 'Basic Test (3 Parameters - NPK)', desc: 'Tests Nitrogen, Phosphorus, and Potassium' },
+        { value: 'Advanced', label: 'Advanced Test (12 Parameters - Govt. Standard)', desc: 'Complete analysis including pH, EC, OC, NPK & Micro-nutrients' }
+    ];
+
     useEffect(() => {
-        fetchMyRequests();
+        fetchMyRequests(false);
 
         // Auto-update status every 15 seconds
-        const interval = setInterval(fetchMyRequests, 15000);
+        const interval = setInterval(() => fetchMyRequests(true), 15000);
         return () => clearInterval(interval);
     }, []);
 
@@ -56,17 +69,44 @@ const SoilTesting = () => {
         };
     }, [showForm, paymentModal]);
 
-    const fetchMyRequests = async () => {
+    const fetchMyRequests = async (isPolling = false) => {
         try {
-            // Only show loader on initial fetch
-            if (requests.length === 0) setLoading(true);
+            if (!isPolling) setLoading(true);
             const res = await soilTestService.getMyRequests();
             if (res.success) setRequests(res.data);
         } catch (err) {
             console.error(err);
         } finally {
-            setLoading(false);
+            if (!isPolling) setLoading(false);
         }
+    };
+
+    const handleGetLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error("Geolocation is not supported by your browser");
+            return;
+        }
+        
+        setFetchingLocation(true);
+        const toastId = toast.loading("Detecting your field location...");
+        
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setFormData({
+                    ...formData,
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                });
+                toast.success("Location acquired successfully!", { id: toastId });
+                setFetchingLocation(false);
+            },
+            (error) => {
+                console.error("Error getting location:", error);
+                toast.error("Please allow location access in your browser/device settings.", { id: toastId });
+                setFetchingLocation(false);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+        );
     };
 
     const handleSubmit = async (e) => {
@@ -77,11 +117,14 @@ const SoilTesting = () => {
             if (res.success) {
                 toast.success("Request submitted successfully! Our team will contact you soon.");
                 setShowForm(false);
-                fetchMyRequests();
+                fetchMyRequests(false);
                 setFormData({
                     landSize: '',
                     location: localStorage.getItem('currentAddress') || '',
+                    latitude: null,
+                    longitude: null,
                     cropType: '',
+                    testType: 'Basic',
                     phoneNumber: JSON.parse(localStorage.getItem('userData') || '{}').phone || ''
                 });
             }
@@ -99,7 +142,7 @@ const SoilTesting = () => {
             if (res.success) {
                 toast.success('Payment successful via Wallet!');
                 setPaymentModal(null);
-                fetchMyRequests();
+                fetchMyRequests(false);
             }
         } catch (error) {
             if (error.response?.data?.needsOnlinePayment) {
@@ -136,7 +179,7 @@ const SoilTesting = () => {
                             if (verifyRes.success) {
                                 toast.success('Payment verified successfully!');
                                 setPaymentModal(null);
-                                fetchMyRequests();
+                                fetchMyRequests(false);
                             }
                         } catch (verifyErr) {
                             toast.error(verifyErr.response?.data?.message || 'Payment verification failed');
@@ -310,6 +353,7 @@ const SoilTesting = () => {
                                         <div>
                                             <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Request ID: {req._id.slice(-8)}</p>
                                             <h4 className="font-black text-slate-800 text-base">{req.landSize?.replace(/Arce/g, 'Acre')} Land — {req.cropType || 'General'}</h4>
+                                            <p className="text-xs font-bold text-teal-600 mb-1">{req.testType === 'Advanced' ? 'Advanced Test (12 Parameters)' : 'Basic Test (3 Parameters)'}</p>
                                         </div>
                                         <StatusBadge status={req.status} />
                                     </div>
@@ -457,7 +501,27 @@ const SoilTesting = () => {
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Location / Address</label>
+                                        <div className="flex items-center justify-between ml-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location / Address</label>
+                                            <button 
+                                                type="button" 
+                                                onClick={handleGetLocation}
+                                                disabled={fetchingLocation}
+                                                className={`text-[10px] font-black flex items-center gap-1 transition-all ${
+                                                    formData.latitude && formData.longitude 
+                                                        ? 'text-emerald-600' 
+                                                        : 'text-blue-600 active:scale-95'
+                                                }`}
+                                            >
+                                                {fetchingLocation ? (
+                                                    <><div className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" /> Detecting...</>
+                                                ) : formData.latitude && formData.longitude ? (
+                                                    <><FiCheckCircle /> Location Acquired</>
+                                                ) : (
+                                                    <><FiTarget /> Detect Field Location</>
+                                                )}
+                                            </button>
+                                        </div>
                                         <div className="relative">
                                             <FiMapPin className="absolute left-4 top-4 text-slate-300" />
                                             <textarea
@@ -481,6 +545,55 @@ const SoilTesting = () => {
                                                 value={formData.cropType}
                                                 onChange={e => setFormData({ ...formData, cropType: e.target.value })}
                                             />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Test Type</label>
+                                            <div className="relative">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                                    className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-12 font-bold outline-none text-left flex items-center justify-between transition-all text-slate-700"
+                                                >
+                                                    <FiFileText className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                                                    <span className="truncate text-sm">{testOptions.find(o => o.value === formData.testType)?.label}</span>
+                                                    <FiChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                                                </button>
+
+                                                <AnimatePresence>
+                                                    {isDropdownOpen && (
+                                                        <>
+                                                            <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: -10 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                exit={{ opacity: 0, y: -10 }}
+                                                                className="absolute z-50 w-full mt-2 bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 overflow-hidden"
+                                                            >
+                                                                {testOptions.map(option => (
+                                                                    <button
+                                                                        key={option.value}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setFormData({ ...formData, testType: option.value });
+                                                                            setIsDropdownOpen(false);
+                                                                        }}
+                                                                        className={`w-full text-left p-4 transition-colors flex flex-col gap-1 border-b last:border-b-0 border-slate-50
+                                                                            ${formData.testType === option.value ? 'bg-teal-50/50' : 'hover:bg-slate-50'}`}
+                                                                    >
+                                                                        <div className="flex items-center justify-between">
+                                                                            <span className={`font-black text-sm ${formData.testType === option.value ? 'text-teal-700' : 'text-slate-800'}`}>
+                                                                                {option.label}
+                                                                            </span>
+                                                                            {formData.testType === option.value && <FiCheckCircle className="text-teal-600" />}
+                                                                        </div>
+                                                                        <span className="text-[10px] font-bold text-slate-400 leading-tight">{option.desc}</span>
+                                                                    </button>
+                                                                ))}
+                                                            </motion.div>
+                                                        </>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mobile Number</label>

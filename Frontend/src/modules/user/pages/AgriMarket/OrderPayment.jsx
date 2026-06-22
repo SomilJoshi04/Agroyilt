@@ -147,10 +147,12 @@ const OrderPayment = () => {
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Items Subtotal</p>
                             <p className="font-black text-slate-800 font-sans">₹{order.pricing.itemsTotal}</p>
                         </div>
-                        <div className="flex justify-between items-center px-1">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taxes (GST)</p>
-                            <p className="font-black text-slate-800 font-sans">₹{order.pricing.gstAmount}</p>
-                        </div>
+                        {order.pricing.gstAmount > 0 && (
+                            <div className="flex justify-between items-center px-1">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taxes (GST)</p>
+                                <p className="font-black text-slate-800 font-sans">₹{order.pricing.gstAmount}</p>
+                            </div>
+                        )}
                         <div className="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center px-1">
                             <p className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Grand Total</p>
                             <p className="text-lg font-black text-slate-800 font-sans">₹{order.pricing.orderTotal || (order.pricing.itemsTotal + order.pricing.gstAmount)}</p>

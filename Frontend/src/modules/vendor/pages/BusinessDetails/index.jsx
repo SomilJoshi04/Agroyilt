@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSave, FiUploadCloud, FiCheckCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiUploadCloud, FiCheckCircle, FiMapPin, FiCamera, FiUpload, FiClock, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { vendorAuthService } from '../../../../services/authService';
+import api from '../../../../services/api';
+import AddressSelectionModal from '../../../user/pages/Checkout/components/AddressSelectionModal';
 
 const BusinessDetails = () => {
   const navigate = useNavigate();
@@ -11,12 +13,26 @@ const BusinessDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Form State
+  // Form State: Lab Registration
   const [isSoilLab, setIsSoilLab] = useState(false);
   const [labName, setLabName] = useState('');
-  const [licenseNumber, setLicenseNumber] = useState('');
+  const [labLicenseNumber, setLabLicenseNumber] = useState('');
   const [certDoc, setCertDoc] = useState('');
   const [certPreview, setCertPreview] = useState('');
+
+  // Form State: Shop Registration
+  const [isAgriStore, setIsAgriStore] = useState(false);
+  const [shopStatus, setShopStatus] = useState(null);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [shopFormData, setShopFormData] = useState({
+      shopName: '',
+      shopAddress: '',
+      shopLocation: { lat: null, lng: null },
+      shopLicense: '',
+      licenseDocument: ''
+  });
+  const [shopLicenseFile, setShopLicenseFile] = useState(null);
+
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -33,18 +49,20 @@ const BusinessDetails = () => {
       
       if (storedVendorData.labDetails) {
         setLabName(storedVendorData.labDetails.labName || '');
-        setLicenseNumber(storedVendorData.labDetails.licenseNumber || '');
+        setLabLicenseNumber(storedVendorData.labDetails.licenseNumber || '');
         setCertPreview(storedVendorData.labDetails.certificationDocument || '');
       }
-      setIsLoading(false);
     }
 
-    // Then fetch fresh data
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
-        const response = await vendorAuthService.getProfile();
-        if (response.success && response.vendor) {
-          const v = response.vendor;
+        const [profileRes, shopStatusRes] = await Promise.all([
+          vendorAuthService.getProfile(),
+          api.get('/vendors/shop/status')
+        ]);
+
+        if (profileRes.success && profileRes.vendor) {
+          const v = profileRes.vendor;
           setProfile(v);
           
           const hasSoilTesting = Array.isArray(v.service) 
@@ -55,21 +73,36 @@ const BusinessDetails = () => {
           
           if (v.labDetails) {
             setLabName(v.labDetails.labName || '');
-            setLicenseNumber(v.labDetails.licenseNumber || '');
+            setLabLicenseNumber(v.labDetails.licenseNumber || '');
             setCertPreview(v.labDetails.certificationDocument || '');
           }
         }
+
+        if (shopStatusRes.data.success) {
+            setShopStatus(shopStatusRes.data.data);
+            if (shopStatusRes.data.data) {
+                setIsAgriStore(true);
+                setShopFormData({
+                    shopName: shopStatusRes.data.data.shopName || '',
+                    shopAddress: shopStatusRes.data.data.shopAddress || '',
+                    shopLocation: shopStatusRes.data.data.shopLocation || { lat: null, lng: null },
+                    shopLicense: shopStatusRes.data.data.shopLicense || '',
+                    licenseDocument: shopStatusRes.data.data.licenseDocument || ''
+                });
+            }
+        }
+
       } catch (err) {
-        console.error('Failed to fetch profile:', err);
+        console.error('Failed to fetch data:', err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchProfile();
+    fetchData();
   }, []);
 
-  const handleFileChange = (e) => {
+  const handleLabFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -85,10 +118,35 @@ const BusinessDetails = () => {
     }
   };
 
-  const handleSave = async () => {
-    if (!profile) return;
-    
+  const handleShopFileUpload = async (file) => {
+    const uploadData = new FormData();
+    uploadData.append('file', file);
+    try {
+        const res = await api.post('/image/upload', uploadData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return res.data.imageUrl;
+    } catch (err) {
+        console.error("Upload error:", err.response?.data || err.message);
+        toast.error("File upload failed: " + (err.response?.data?.message || "Server Error"));
+        return null;
+    }
+  };
+
+  const handleAddressSave = (houseNumber, location) => {
+      setShopFormData(prev => ({
+          ...prev,
+          shopAddress: location.address,
+          shopLocation: { lat: location.lat, lng: location.lng }
+      }));
+      setErrors(prev => ({ ...prev, shopAddress: null }));
+      setIsAddressModalOpen(false);
+  };
+
+  const validateForm = () => {
     let validationErrors = {};
+    
+    // Lab Validation
     if (isSoilLab) {
       if (!labName.trim()) {
         validationErrors.labName = 'Lab Name is required';
@@ -98,26 +156,57 @@ const BusinessDetails = () => {
         validationErrors.labName = 'Special characters are not allowed';
       }
       
-      if (!licenseNumber.trim()) {
-        validationErrors.licenseNumber = 'License Number is required';
-      } else if (licenseNumber.trim().length < 4) {
-        validationErrors.licenseNumber = 'License Number must be at least 4 characters';
-      } else if (!/^[A-Za-z0-9-\s]+$/.test(licenseNumber.trim())) {
-        validationErrors.licenseNumber = 'Only alphanumeric characters and hyphens allowed';
+      if (!labLicenseNumber.trim()) {
+        validationErrors.labLicenseNumber = 'License Number is required';
+      } else if (labLicenseNumber.trim().length < 4) {
+        validationErrors.labLicenseNumber = 'License Number must be at least 4 characters';
+      } else if (!/^[A-Za-z0-9-\s]+$/.test(labLicenseNumber.trim())) {
+        validationErrors.labLicenseNumber = 'Only alphanumeric characters and hyphens allowed';
       }
     }
 
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    // Shop Validation
+    if (isAgriStore && (!shopStatus || (shopStatus.storeApprovalStatus !== 'pending' && shopStatus.storeApprovalStatus !== 'approved'))) {
+        const shopNameRegex = /^[A-Za-z0-9\s&*.,-]{3,50}$/;
+        if (!shopFormData.shopName.trim()) {
+            validationErrors.shopName = "Shop name is required";
+        } else if (!shopNameRegex.test(shopFormData.shopName.trim())) {
+            validationErrors.shopName = "Invalid name (3-50 chars)";
+        }
+
+        if (!shopFormData.shopAddress) {
+            validationErrors.shopAddress = "Please pick your shop location on map";
+        }
+
+        const licenseRegex = /^[A-Z0-9-]{5,25}$/i;
+        if (!shopFormData.shopLicense.trim()) {
+            validationErrors.shopLicense = "License number is required";
+        } else if (!licenseRegex.test(shopFormData.shopLicense.trim())) {
+            validationErrors.shopLicense = "Invalid format (5-25 alphanumeric chars)";
+        }
+
+        if (!shopLicenseFile && !shopFormData.licenseDocument) {
+            validationErrors.licenseDocument = "License document photo is required";
+        }
+    }
+
+    setErrors(validationErrors);
+    return Object.keys(validationErrors).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!profile) return;
+    
+    if (!validateForm()) {
       toast.error('Please fix the errors in the form.');
       return;
     }
 
-    setErrors({});
     setIsSaving(true);
+    let successCount = 0;
     
     try {
-      // Calculate new services array
+      // 1. Update Profile & Lab Details
       let currentServices = Array.isArray(profile.service) 
         ? [...profile.service] 
         : (profile.service ? [profile.service] : []);
@@ -128,29 +217,53 @@ const BusinessDetails = () => {
         currentServices = currentServices.filter(s => s !== 'soil_testing');
       }
 
-      const updateData = {
-        services: currentServices
-      };
-
+      const updateData = { services: currentServices };
       if (isSoilLab) {
         updateData.labName = labName;
-        updateData.licenseNumber = licenseNumber;
-        if (certDoc) {
-          updateData.certificationDocument = certDoc;
-        }
+        updateData.licenseNumber = labLicenseNumber;
+        if (certDoc) updateData.certificationDocument = certDoc;
       }
 
-      const response = await vendorAuthService.updateBusinessProfile(updateData);
-      
-      if (response.success) {
-        toast.success('Business Profile updated successfully!');
-        if (isSoilLab) {
-           toast.success('Admin will verify your Lab details before you can receive requests.', { duration: 4000 });
-        }
-        navigate('/vendor/profile', { replace: true });
+      const profileRes = await vendorAuthService.updateBusinessProfile(updateData);
+      if (profileRes.success) {
+          successCount++;
       } else {
-        toast.error(response.message || 'Failed to update profile');
+          toast.error(profileRes.message || 'Failed to update business profile');
       }
+
+      // 2. Update Shop Details (if opted in and not already pending/approved)
+      if (isAgriStore && (!shopStatus || (shopStatus.storeApprovalStatus !== 'pending' && shopStatus.storeApprovalStatus !== 'approved'))) {
+          let licenseUrl = shopFormData.licenseDocument;
+          if (shopLicenseFile) {
+              licenseUrl = await handleShopFileUpload(shopLicenseFile);
+          }
+
+          if (licenseUrl || shopFormData.licenseDocument) {
+              const payload = {
+                  ...shopFormData,
+                  licenseDocument: licenseUrl || shopFormData.licenseDocument
+              };
+
+              const shopRes = await api.post('/vendors/shop/register', payload);
+              if (shopRes.data.success) {
+                  successCount++;
+              }
+          } else {
+              toast.error("Shop License document upload failed.");
+          }
+      } else if (isAgriStore && shopStatus) {
+         // It's already pending or approved, we just skip updating shop but still mark as success for profile update
+         successCount++;
+      } else {
+          // They didn't opt for Agri Store, we just consider it a success for profile
+          successCount++;
+      }
+
+      if (successCount > 0) {
+        toast.success('Details saved successfully!');
+        navigate('/vendor/profile', { replace: true });
+      }
+
     } catch (err) {
       console.error('Save error:', err);
       toast.error('Server error. Please try again.');
@@ -167,48 +280,62 @@ const BusinessDetails = () => {
     );
   }
 
+  const isShopFormDisabled = shopStatus?.storeApprovalStatus === 'pending' || shopStatus?.storeApprovalStatus === 'approved';
+
   return (
     <div className="min-h-screen pb-6" style={{ background: themeColors.backgroundGradient }}>
-      {/* Header */}
       <div className="bg-white px-4 py-4 flex items-center gap-3 shadow-sm sticky top-0 z-20">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl active:bg-gray-100 transition-colors">
           <FiArrowLeft className="w-5 h-5 text-gray-800" />
         </button>
-        <h1 className="text-xl font-bold text-gray-800 flex-1">Business Profile</h1>
+        <h1 className="text-xl font-bold text-gray-800 flex-1">Business & Registrations</h1>
       </div>
 
       <main className="p-4 space-y-6">
         
         {/* Intro */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <h2 className="text-sm font-bold text-gray-800 mb-2">Service Opt-in</h2>
+          <h2 className="text-sm font-bold text-gray-800 mb-2">Service Opt-ins</h2>
           <p className="text-xs text-gray-500 mb-5">
-            Manage additional services you offer. By enabling "Soil Testing", you will be listed as a Soil Lab pending admin verification.
+            Manage additional services you offer. Registrations will require admin verification.
           </p>
 
-          {/* Toggle Soil Lab */}
-          <div className="flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-300"
-               style={{ 
-                 borderColor: isSoilLab ? themeColors.button : '#e5e7eb',
-                 backgroundColor: isSoilLab ? `${themeColors.button}10` : 'white'
-               }}>
-            <div>
-              <h3 className="text-sm font-bold text-gray-800">Operate as Soil Testing Lab</h3>
-              <p className="text-[11px] text-gray-500 mt-0.5">Accept soil samples for testing</p>
-            </div>
-            
-            {/* Custom Toggle switch */}
-            <button 
-              onClick={() => setIsSoilLab(!isSoilLab)}
-              className="relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-              style={{ backgroundColor: isSoilLab ? themeColors.button : '#d1d5db' }}
-            >
-              <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isSoilLab ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
+          <div className="space-y-3">
+              {/* Toggle Soil Lab */}
+              <div className="flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-300"
+                  style={{ borderColor: isSoilLab ? themeColors.button : '#e5e7eb', backgroundColor: isSoilLab ? `${themeColors.button}10` : 'white' }}>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-800">Operate as Soil Testing Lab</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Accept soil samples for testing</p>
+                </div>
+                <button 
+                  onClick={() => setIsSoilLab(!isSoilLab)}
+                  className="relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                  style={{ backgroundColor: isSoilLab ? themeColors.button : '#d1d5db' }}
+                >
+                  <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isSoilLab ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Toggle Agri Store */}
+              <div className="flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-300"
+                  style={{ borderColor: isAgriStore ? themeColors.button : '#e5e7eb', backgroundColor: isAgriStore ? `${themeColors.button}10` : 'white' }}>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-800">Operate as Agri-Store</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Sell Seeds & Fertilizers</p>
+                </div>
+                <button 
+                  onClick={() => setIsAgriStore(!isAgriStore)}
+                  className="relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                  style={{ backgroundColor: isAgriStore ? themeColors.button : '#d1d5db' }}
+                >
+                  <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isAgriStore ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
           </div>
         </div>
 
-        {/* Soil Lab Details Form (Conditionally rendered) */}
+        {/* Soil Lab Details Form */}
         {isSoilLab && (
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
             <div className="flex items-center gap-2 mb-2">
@@ -226,44 +353,30 @@ const BusinessDetails = () => {
                   setLabName(val);
                   if (errors.labName && val.length >= 3) setErrors({ ...errors, labName: null });
                 }}
-                onBlur={() => {
-                   if(isSoilLab && labName.trim() && labName.trim().length < 3) {
-                       setErrors(prev => ({...prev, labName: 'Lab Name must be at least 3 characters'}));
-                   }
-                }}
                 placeholder="Enter Registered Lab Name"
                 className={`w-full px-4 py-3 rounded-xl border-2 transition-all text-sm focus:outline-none text-gray-800 ${
-                  errors.labName 
-                    ? 'border-red-300 bg-red-50 focus:border-red-400' 
-                    : 'bg-gray-50 border-transparent focus:border-teal-100 focus:bg-white'
+                  errors.labName ? 'border-red-300 bg-red-50 focus:border-red-400' : 'bg-gray-50 border-transparent focus:border-teal-100 focus:bg-white'
                 }`}
               />
               {errors.labName && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.labName}</p>}
             </div>
 
             <div>
-              <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.licenseNumber ? 'text-red-500' : 'text-gray-700'}`}>License/Registration Number *</label>
+              <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.labLicenseNumber ? 'text-red-500' : 'text-gray-700'}`}>License/Registration Number *</label>
               <input 
                 type="text" 
-                value={licenseNumber}
+                value={labLicenseNumber}
                 onChange={(e) => {
                   let val = e.target.value.replace(/[^A-Za-z0-9-\s]/g, '').toUpperCase();
-                  setLicenseNumber(val);
-                  if (errors.licenseNumber && val.length >= 4) setErrors({ ...errors, licenseNumber: null });
-                }}
-                onBlur={() => {
-                   if(isSoilLab && licenseNumber.trim() && licenseNumber.trim().length < 4) {
-                       setErrors(prev => ({...prev, licenseNumber: 'License Number must be at least 4 characters'}));
-                   }
+                  setLabLicenseNumber(val);
+                  if (errors.labLicenseNumber && val.length >= 4) setErrors({ ...errors, labLicenseNumber: null });
                 }}
                 placeholder="e.g. LAB-2023-XXXX"
                 className={`w-full px-4 py-3 rounded-xl border-2 transition-all text-sm focus:outline-none text-gray-800 ${
-                  errors.licenseNumber 
-                    ? 'border-red-300 bg-red-50 focus:border-red-400' 
-                    : 'bg-gray-50 border-transparent focus:border-teal-100 focus:bg-white'
+                  errors.labLicenseNumber ? 'border-red-300 bg-red-50 focus:border-red-400' : 'bg-gray-50 border-transparent focus:border-teal-100 focus:bg-white'
                 }`}
               />
-              {errors.licenseNumber && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.licenseNumber}</p>}
+              {errors.labLicenseNumber && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.labLicenseNumber}</p>}
             </div>
 
             <div>
@@ -273,7 +386,7 @@ const BusinessDetails = () => {
                   type="file"
                   id="certUpload"
                   className="hidden"
-                  onChange={handleFileChange}
+                  onChange={handleLabFileChange}
                   accept="image/*,application/pdf"
                 />
                 
@@ -313,13 +426,152 @@ const BusinessDetails = () => {
             
             <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 mt-2">
               <p className="text-[11px] text-blue-700 leading-relaxed">
-                <span className="font-bold">Note:</span> Enabling Soil Testing mode requires admin verification. You will be categorized as pending until approved.
+                <span className="font-bold">Note:</span> Enabling Soil Testing mode requires admin verification.
               </p>
             </div>
           </div>
         )}
 
+        {/* Shop Registration Form */}
+        {isAgriStore && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <FiCheckCircle className="w-5 h-5" style={{ color: themeColors.button }} />
+                  <h2 className="text-base font-bold text-gray-800">Shop Details</h2>
+                </div>
+
+                {shopStatus?.storeApprovalStatus === 'pending' && (
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4 flex items-start gap-3">
+                        <FiClock className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+                        <div>
+                            <p className="text-sm font-bold text-amber-800">Review in Progress</p>
+                            <p className="text-[11px] text-amber-700 mt-0.5">Your application is currently being verified.</p>
+                        </div>
+                    </div>
+                )}
+
+                {shopStatus?.storeApprovalStatus === 'rejected' && (
+                    <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 mb-4 flex items-start gap-3">
+                        <FiAlertCircle className="w-5 h-5 text-rose-500 mt-0.5 shrink-0" />
+                        <div>
+                            <p className="text-sm font-bold text-rose-800">Application Rejected</p>
+                            <p className="text-[11px] text-rose-700 mt-0.5">{shopStatus.remarks || 'Please check your details and re-submit for approval.'}</p>
+                        </div>
+                    </div>
+                )}
+
+                <div>
+                    <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.shopName ? 'text-red-500' : 'text-gray-700'}`}>Shop Name *</label>
+                    <input
+                        type="text"
+                        disabled={isShopFormDisabled}
+                        value={shopFormData.shopName}
+                        onChange={(e) => {
+                            setShopFormData({...shopFormData, shopName: e.target.value});
+                            if (errors.shopName) setErrors({...errors, shopName: null});
+                        }}
+                        placeholder="Enter Full Shop Name"
+                        className={`w-full px-4 py-3 rounded-xl border-2 transition-all text-sm focus:outline-none text-gray-800 ${
+                            errors.shopName ? 'border-red-300 bg-red-50 focus:border-red-400' : 'bg-gray-50 border-transparent focus:border-teal-100 focus:bg-white'
+                        }`}
+                    />
+                    {errors.shopName && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.shopName}</p>}
+                </div>
+
+                <div>
+                    <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.shopAddress ? 'text-red-500' : 'text-gray-700'}`}>Business Location *</label>
+                    <div className={`w-full px-4 py-3 bg-gray-50 border-2 ${errors.shopAddress ? 'border-red-300' : 'border-transparent'} rounded-xl mb-2 flex items-center min-h-[50px]`}>
+                        <p className="text-xs text-gray-700 leading-normal font-medium">
+                            {shopFormData.shopAddress || <span className="text-gray-400 italic">No location selected yet.</span>}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        disabled={isShopFormDisabled}
+                        onClick={() => setIsAddressModalOpen(true)}
+                        className={`w-full py-3 bg-teal-50 text-teal-700 rounded-xl font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 border border-teal-100 transition-all shadow-sm ${isShopFormDisabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
+                    >
+                        <FiMapPin className="w-4 h-4" />
+                        Pick verified location
+                    </button>
+                    {errors.shopAddress && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.shopAddress}</p>}
+                </div>
+
+                <div>
+                    <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.shopLicense ? 'text-red-500' : 'text-gray-700'}`}>License Number *</label>
+                    <input
+                        type="text"
+                        disabled={isShopFormDisabled}
+                        value={shopFormData.shopLicense}
+                        onChange={(e) => {
+                            setShopFormData({...shopFormData, shopLicense: e.target.value});
+                            if (errors.shopLicense) setErrors({...errors, shopLicense: null});
+                        }}
+                        placeholder="e.g. FERT12345ABC"
+                        className={`w-full px-4 py-3 rounded-xl border-2 transition-all text-sm focus:outline-none text-gray-800 uppercase ${
+                            errors.shopLicense ? 'border-red-300 bg-red-50 focus:border-red-400' : 'bg-gray-50 border-transparent focus:border-teal-100 focus:bg-white'
+                        }`}
+                    />
+                    {errors.shopLicense && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.shopLicense}</p>}
+                </div>
+
+                <div>
+                    <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.licenseDocument ? 'text-red-500' : 'text-gray-700'}`}>License Copy (Photos) *</label>
+                    <div 
+                        className={`border-2 border-dashed ${errors.licenseDocument ? 'border-red-300 bg-red-50' : 'border-gray-200'} rounded-[24px] p-6 flex flex-col items-center justify-center bg-gray-50 transition-all ${isShopFormDisabled ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer active:scale-98 hover:bg-gray-100'}`}
+                        onClick={() => {
+                            if(!isShopFormDisabled) document.getElementById('shop-license-up').click();
+                        }}
+                    >
+                        <input 
+                            type="file" 
+                            id="shop-license-up" 
+                            className="hidden" 
+                            disabled={isShopFormDisabled}
+                            accept="image/*,.pdf"
+                            onChange={(e) => {
+                                setShopLicenseFile(e.target.files[0]);
+                                if (errors.licenseDocument) setErrors({...errors, licenseDocument: null});
+                            }}
+                        />
+                        {shopLicenseFile ? (
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center shadow-inner">
+                                    <FiCheckCircle className="text-teal-600 w-6 h-6" />
+                                </div>
+                                <span className="text-[11px] font-bold text-teal-800 truncate max-w-[200px] mt-1">{shopLicenseFile.name}</span>
+                                <span className="text-[9px] text-gray-400 font-medium">Click to change file</span>
+                            </div>
+                        ) : shopFormData.licenseDocument ? (
+                            <div className="relative group">
+                                <img src={shopFormData.licenseDocument} alt="License" className="h-28 w-auto rounded-xl shadow-md border-4 border-white" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-xl transition-opacity flex items-center justify-center">
+                                    <FiUpload className="text-white w-5 h-5" />
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-2 shadow-sm border border-gray-100 text-gray-300">
+                                    <FiCamera className="w-6 h-6" />
+                                </div>
+                                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Tap to Upload</span>
+                                <span className="text-[9px] text-gray-400 mt-1 font-medium">JPG, PNG or PDF</span>
+                            </>
+                        )}
+                    </div>
+                    {errors.licenseDocument && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.licenseDocument}</p>}
+                </div>
+            </div>
+        )}
+
       </main>
+
+      <AddressSelectionModal
+          isOpen={isAddressModalOpen}
+          onClose={() => setIsAddressModalOpen(false)}
+          onSave={handleAddressSave}
+          address={shopFormData.shopAddress}
+      />
 
       {/* Save Button */}
       <div className="px-4 pb-8 pt-2">
@@ -338,7 +590,7 @@ const BusinessDetails = () => {
           ) : (
             <>
               <FiSave className="w-5 h-5" />
-              Save Business Profile
+              Save Details
             </>
           )}
         </button>

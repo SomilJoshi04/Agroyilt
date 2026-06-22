@@ -271,7 +271,7 @@ const FarmerPayments = () => {
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-100">
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Transaction ID</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Booking ID</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ref / Booking ID</th>
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Farmer / Entity</th>
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
@@ -289,10 +289,13 @@ const FarmerPayments = () => {
                     className="hover:bg-gray-50/50 transition-colors"
                   >
                     <td className="px-6 py-4">
-                      <span className="text-sm font-medium text-gray-900">{tx.referenceId || tx._id.substring(0, 10).toUpperCase()}</span>
+                      <span className="text-sm font-medium text-gray-900">{tx._id.substring(0, 10).toUpperCase()}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600">{tx.bookingId?.bookingNumber || 'N/A'}</span>
+                      <span className="text-sm text-gray-600">
+                        {tx.bookingId?.bookingNumber || 
+                         (tx.referenceId ? (tx.referenceId.length > 20 ? tx.referenceId.substring(0, 10).toUpperCase() : tx.referenceId) : 'N/A')}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
@@ -316,9 +319,16 @@ const FarmerPayments = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-100">
-                        {tx.type}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-100">
+                          {tx.type}
+                        </span>
+                        {tx.description && (
+                          <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">
+                            {tx.description}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-600 capitalize">{tx.paymentMethod?.replace('_', ' ')}</span>

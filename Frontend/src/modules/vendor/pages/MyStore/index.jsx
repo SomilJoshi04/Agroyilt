@@ -386,12 +386,12 @@ const MyStore = () => {
             {/* Add/Edit Modal */}
             <AnimatePresence>
                 {showModal && (
-                    <div className="fixed inset-0 z-50 flex items-end justify-center pt-10 px-4">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModal(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModal(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
                         <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            className="relative bg-white w-full max-w-xl max-h-[92vh] rounded-t-[48px] shadow-2xl overflow-hidden flex flex-col"
+                            className="relative bg-white w-full h-full sm:h-auto sm:max-w-xl sm:max-h-[90vh] rounded-none sm:rounded-[48px] shadow-2xl overflow-hidden flex flex-col"
                         >
-                            <div className="p-8 pb-4 flex items-center justify-between sticky top-0 bg-white z-10 border-b border-slate-50">
+                            <div className="p-6 sm:p-8 pb-4 sm:pb-4 flex items-center justify-between sticky top-0 bg-white z-10 border-b border-slate-50">
                                 <div>
                                     <h2 className="text-2xl font-black text-slate-800">{editMode ? 'Edit Product' : 'Add New Product'}</h2>
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Seeds & Fertilizers details</p>
@@ -399,7 +399,7 @@ const MyStore = () => {
                                 <button onClick={() => setShowModal(false)} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold">✕</button>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto pb-32">
+                            <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6 overflow-y-auto scrollbar-hide pb-8">
                                 {/* Image Upload */}
                                 <div className="space-y-4">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-slate-400">Product Photos</label>
@@ -475,7 +475,7 @@ const MyStore = () => {
                                     </div>
                                 </div>
 
-                                <button type="submit" className="w-full bg-[#2E7D32] py-5 rounded-[28px] font-black text-white shadow-xl shadow-green-900/20 active:scale-95 transition-all text-lg sticky bottom-0">
+                                <button type="submit" className="w-full bg-[#2E7D32] py-5 rounded-[28px] font-black text-white shadow-xl shadow-green-900/20 active:scale-95 transition-all text-lg mt-6">
                                     {editMode ? 'Update Product' : 'Add Product for Review'}
                                 </button>
                             </form>

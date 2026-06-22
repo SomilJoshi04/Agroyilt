@@ -62,7 +62,7 @@ const addMoneyToWallet = async (req, res) => {
     const orderResult = await createOrder(
       amount,
       'INR',
-      `WALLET_${userId}_${Date.now()}`,
+      `WT_${Date.now()}`,
       {
         userId: userId.toString(),
         type: 'wallet_topup'
@@ -72,7 +72,7 @@ const addMoneyToWallet = async (req, res) => {
     if (!orderResult.success) {
       return res.status(500).json({
         success: false,
-        message: 'Failed to create payment order'
+        message: orderResult.error || 'Failed to create payment order'
       });
     }
 

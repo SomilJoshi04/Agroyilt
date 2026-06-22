@@ -15,9 +15,22 @@ const soilTestRequestSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Location/Address is required']
     },
+    latitude: {
+        type: Number,
+        default: null
+    },
+    longitude: {
+        type: Number,
+        default: null
+    },
     cropType: {
         type: String,
         default: ''
+    },
+    testType: {
+        type: String,
+        enum: ['Basic', 'Advanced'],
+        default: 'Basic'
     },
     phoneNumber: {
         type: String,

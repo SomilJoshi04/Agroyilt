@@ -27,17 +27,8 @@ const Profile = () => {
   const [error, setError] = useState(null);
 
   const menuItems = React.useMemo(() => [
-    { id: 12, label: 'My Agri-Store (Equipments & Supplies)', icon: FaTractor, path: '/vendor/store' },
-    { id: 14, label: 'Business Profile', icon: FiBriefcase, path: '/vendor/business-details' },
-    {
-      id: 15,
-      label: profile?.shopDetails?.storeApprovalStatus === 'approved' ? 'My Shop (Approved)' :
-        profile?.shopDetails?.storeApprovalStatus === 'pending' ? 'Shop Status: Pending' :
-          profile?.shopDetails?.storeApprovalStatus === 'rejected' ? 'Shop Rejected (Action Required)' :
-            'Register Your Shop (Seeds/Fertilizers)',
-      icon: FiPackage,
-      path: '/vendor/store/registration'
-    },
+    { id: 12, label: 'My Agri-Store (Supplies)', icon: FaTractor, path: '/vendor/store' },
+    { id: 14, label: 'Business Profile & Registrations', icon: FiBriefcase, path: '/vendor/business-details' },
     { id: 5, label: 'My Ratings', icon: FiStar, path: '/vendor/my-ratings' },
     { id: 7, label: 'Manage Address', icon: FiMapPin, path: '/vendor/address-management' },
     { id: 8, label: 'Settings', icon: FiSettings, path: '/vendor/settings' },

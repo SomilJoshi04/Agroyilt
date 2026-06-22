@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
     FiSearch, FiFilter, FiTrash2, FiCheckCircle, FiClock,
-    FiUser, FiMapPin, FiActivity, FiUpload, FiUserCheck, FiX
+    FiUser, FiMapPin, FiActivity, FiUpload, FiUserCheck, FiX,
+    FiDollarSign, FiTrendingUp, FiCreditCard, FiPieChart
 } from 'react-icons/fi';
 import adminSoilTestService from '../../../../services/adminSoilTestService';
 import { toast } from 'react-hot-toast';
@@ -38,6 +39,7 @@ const ManageSoilTests = () => {
     const [loading, setLoading]           = useState(true);
     const [searchTerm, setSearchTerm]     = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [viewMode, setViewMode]         = useState('requests'); // 'requests' | 'transactions'
 
     // Vendor matching filters
     const [filterByState, setFilterByState] = useState(false);
@@ -54,24 +56,23 @@ const ManageSoilTests = () => {
     const [saving, setSaving]             = useState(false);
 
     useEffect(() => { 
-        fetchRequests(); 
+        fetchRequests(false); 
         fetchVendors(); 
 
         // Auto-update status every 15 seconds
-        const interval = setInterval(fetchRequests, 15000);
+        const interval = setInterval(() => fetchRequests(true), 15000);
         return () => clearInterval(interval);
     }, []);
 
-    const fetchRequests = async () => {
+    const fetchRequests = async (isPolling = false) => {
         try {
-            // Only show loader on initial fetch
-            if (requests.length === 0) setLoading(true);
+            if (!isPolling) setLoading(true);
             const res = await adminSoilTestService.getAll();
             if (res.success) setRequests(res.data);
         } catch {
-            toast.error('Failed to fetch requests');
+            if (!isPolling) toast.error('Failed to fetch requests');
         } finally {
-            setLoading(false);
+            if (!isPolling) setLoading(false);
         }
     };
 
@@ -106,7 +107,7 @@ const ManageSoilTests = () => {
                 setSelectedVendorId('');
                 setFilterByState(false);
                 setFilterByDistrict(false);
-                fetchRequests();
+                fetchRequests(false);
             }
         } catch { toast.error('Failed to assign vendor'); }
         finally { setSaving(false); }
@@ -125,7 +126,7 @@ const ManageSoilTests = () => {
                 toast.success('Report approved! The farmer can now pay & download it.');
                 setApproveModal(null);
                 setApproveNotes('');
-                fetchRequests();
+                fetchRequests(false);
             }
         } catch { toast.error('Failed to approve report'); }
         finally { setSaving(false); }
@@ -135,7 +136,7 @@ const ManageSoilTests = () => {
         if (!window.confirm('Are you sure?')) return;
         try {
             const res = await adminSoilTestService.delete(id);
-            if (res.success) { toast.success('Request deleted'); fetchRequests(); }
+            if (res.success) { toast.success('Request deleted'); fetchRequests(false); }
         } catch { toast.error('Delete failed'); }
     };
 
@@ -175,16 +176,37 @@ const ManageSoilTests = () => {
         completed:requests.filter(r => r.status === 'completed').length,
     };
 
+    const paidRequests = requests.filter(r => r.paymentStatus === 'paid');
+    const txnStats = {
+        transactions: paidRequests.length,
+        collections: paidRequests.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0),
+        revenue: paidRequests.reduce((acc, curr) => acc + (curr.adminCommission || 0), 0),
+        payouts: paidRequests.reduce((acc, curr) => acc + (curr.vendorEarning || 0), 0),
+    };
+
+    const filteredTransactions = paidRequests.filter(req => {
+        const lowerSearch = searchTerm.trim().toLowerCase();
+        return (req.userId?.name || '').toLowerCase().includes(lowerSearch) ||
+               (req.transactionId || '').toLowerCase().includes(lowerSearch) ||
+               req._id.toLowerCase().includes(lowerSearch);
+    });
+
     return (
         <div className="p-8">
             <div className="flex justify-between items-start mb-8">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-800">Soil Testing Requests</h1>
-                    <p className="text-slate-500 font-medium tracking-tight">Review, assign lab vendors, and verify farmer soil test reports</p>
+                    <h1 className="text-3xl font-black text-slate-800">Soil Testing</h1>
+                    <p className="text-slate-500 font-medium tracking-tight">Review requests, assign labs, and track revenue</p>
+                </div>
+                <div className="bg-slate-100 p-1 rounded-2xl flex">
+                    <button onClick={() => { setViewMode('requests'); setSearchTerm(''); }} className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all ${viewMode === 'requests' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}>Requests</button>
+                    <button onClick={() => { setViewMode('transactions'); setSearchTerm(''); }} className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all ${viewMode === 'transactions' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}>Transactions</button>
                 </div>
             </div>
 
-            {/* Stats */}
+            {viewMode === 'requests' ? (
+                <>
+                    {/* Stats */}
             <div className="grid grid-cols-4 gap-6 mb-8">
                 {[
                     { label: 'Total',     value: stats.total,     color: 'slate',   icon: FiActivity },
@@ -259,10 +281,16 @@ const ManageSoilTests = () => {
                                 </td>
                                 <td className="p-6">
                                     <p className="font-bold text-slate-800 text-sm">{req.landSize?.replace(/Arce/g, 'Acre')} — {req.cropType || 'General'}</p>
+                                    <p className="text-[10px] font-black text-teal-600 mb-1">{req.testType === 'Advanced' ? 'Advanced Test (12 Param)' : 'Basic Test (3 Param)'}</p>
                                     <div className="flex items-center gap-1 text-slate-400">
                                         <FiMapPin className="text-[10px]" />
                                         <p className="text-[10px] font-medium truncate max-w-[180px]">{req.location}</p>
                                     </div>
+                                    {req.latitude && req.longitude && (
+                                        <a href={`https://www.google.com/maps?q=${req.latitude},${req.longitude}`} target="_blank" rel="noopener noreferrer" className="inline-block mt-1 text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors">
+                                            View on Map 🗺️
+                                        </a>
+                                    )}
                                     <p className="text-[10px] text-slate-300 mt-1">{new Date(req.createdAt).toLocaleDateString()}</p>
                                 </td>
                                 <td className="p-6">
@@ -315,6 +343,106 @@ const ManageSoilTests = () => {
                     </tbody>
                 </table>
             </div>
+            </>
+            ) : (
+                <>
+                    {/* Transaction Stats */}
+                    <div className="grid grid-cols-4 gap-6 mb-8">
+                        {[
+                            { label: 'Total Transactions', value: txnStats.transactions, color: 'blue', icon: FiCreditCard, prefix: '' },
+                            { label: 'Total Collections', value: txnStats.collections.toFixed(2), color: 'emerald', icon: FiDollarSign, prefix: '₹' },
+                            { label: 'Platform Revenue', value: txnStats.revenue.toFixed(2), color: 'teal', icon: FiTrendingUp, prefix: '₹' },
+                            { label: 'Vendor Payouts', value: txnStats.payouts.toFixed(2), color: 'orange', icon: FiPieChart, prefix: '₹' },
+                        ].map((s, i) => (
+                            <div key={i} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-2xl bg-${s.color}-50 flex items-center justify-center`}>
+                                        <s.icon className={`text-${s.color}-600 w-6 h-6`} />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{s.label}</p>
+                                        <p className="text-2xl font-black text-slate-800">{s.prefix}{s.value}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Transaction Filters */}
+                    <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm mb-8 flex gap-4">
+                        <div className="flex-1 relative">
+                            <FiSearch className="absolute left-4 top-4 text-slate-400" />
+                            <input type="text" placeholder="Search by Farmer Name or Transaction ID..."
+                                className="w-full bg-slate-50 border-none rounded-2xl py-3.5 pl-12 pr-5 font-bold outline-none"
+                                value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        </div>
+                    </div>
+
+                    {/* Transactions Table */}
+                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="border-b border-slate-50 bg-slate-50/30">
+                                    {['Date & Txn ID', 'Farmer Details', 'Payment Method', 'Amounts (₹)'].map(h => (
+                                        <th key={h} className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr><td colSpan="4" className="p-20 text-center font-bold text-slate-400">Loading...</td></tr>
+                                ) : filteredTransactions.length === 0 ? (
+                                    <tr><td colSpan="4" className="p-20 text-center font-bold text-slate-400">No transactions found.</td></tr>
+                                ) : filteredTransactions.map(req => (
+                                    <tr key={req._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                        <td className="p-6">
+                                            <p className="font-black text-slate-800">{new Date(req.updatedAt).toLocaleDateString()}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{req.transactionId || req._id.slice(-8)}</p>
+                                            <span className="inline-block px-2 py-1 bg-emerald-50 text-emerald-600 rounded-md text-[9px] font-black uppercase mt-2 border border-emerald-100">Paid ✓</span>
+                                        </td>
+                                        <td className="p-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                                                    <FiUser className="text-blue-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-slate-800">{req.userId?.name || 'Unknown'}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400">{req.phoneNumber}</p>
+                                                    <p className="text-[9px] font-black text-blue-600 mt-0.5">REQ: {req._id.slice(-6).toUpperCase()}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="p-6">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+                                                    <FiCreditCard className="text-slate-500 w-4 h-4" />
+                                                </div>
+                                                <p className="font-bold text-slate-700 capitalize">{req.paymentMethod || 'Wallet'}</p>
+                                            </div>
+                                        </td>
+                                        <td className="p-6">
+                                            <div className="space-y-1.5">
+                                                <div className="flex justify-between items-center text-xs w-48">
+                                                    <span className="text-slate-400 font-bold">Collected:</span>
+                                                    <span className="font-black text-slate-800">₹{req.totalAmount?.toFixed(2) || '0.00'}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-xs w-48 border-b border-slate-100 pb-1.5">
+                                                    <span className="text-slate-400 font-bold">Vendor ({req.commissionPercentage ? 100 - req.commissionPercentage : 90}%):</span>
+                                                    <span className="font-black text-orange-500">₹{req.vendorEarning?.toFixed(2) || '0.00'}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-xs w-48 pt-0.5">
+                                                    <span className="text-teal-600 font-black">Platform Cut:</span>
+                                                    <span className="font-black text-teal-600">₹{req.adminCommission?.toFixed(2) || '0.00'}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
 
             {/* ── Assign Vendor Modal ── */}
             <AnimatePresence>
@@ -323,8 +451,8 @@ const ManageSoilTests = () => {
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={() => setAssignModal(null)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-                            className="relative bg-white w-full max-w-md rounded-[40px] shadow-2xl p-8">
-                            <div className="flex justify-between items-center mb-6">
+                            className="relative bg-white w-full max-w-md rounded-[40px] shadow-2xl p-6 md:p-8 overflow-y-auto max-h-[90vh] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+                            <div className="flex justify-between items-center mb-6 sticky top-0 bg-white z-10 py-2 border-b border-transparent">
                                 <h2 className="text-xl font-black text-slate-800">Assign Lab Vendor</h2>
                                 <button onClick={() => { setAssignModal(null); setFilterByState(false); setFilterByDistrict(false); }} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">
                                     <FiX />
@@ -334,9 +462,14 @@ const ManageSoilTests = () => {
                             <div className="bg-slate-50 rounded-2xl p-4 mb-6">
                                 <p className="text-xs font-black text-slate-400 uppercase mb-1">Request Details</p>
                                 <p className="font-black text-slate-800 text-sm">{assignModal.userId?.name} — {assignModal.landSize}</p>
-                                <p className="text-[10px] text-slate-400 flex items-center gap-1">
-                                    <FiMapPin className="text-[10px]" /> {assignModal.location}
-                                </p>
+                                <div className="text-[10px] text-slate-400 flex flex-col gap-1 mt-1">
+                                    <p className="flex items-center gap-1"><FiMapPin className="text-[10px]" /> {assignModal.location}</p>
+                                    {assignModal.latitude && assignModal.longitude && (
+                                        <a href={`https://www.google.com/maps?q=${assignModal.latitude},${assignModal.longitude}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 font-bold hover:underline w-max">
+                                            View Field on Map ↗
+                                        </a>
+                                    )}
+                                </div>
                             </div>
 
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Location Filters</p>

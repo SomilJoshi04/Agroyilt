@@ -137,14 +137,26 @@ class FlutterBridge {
     if (this.isFlutter) {
       return this.callHandler("downloadFile", { url, fileName });
     } else {
-      // Browser Fallback
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      return { success: true };
+      // Browser Fallback (handles Cross-Origin URLs)
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+        return { success: true };
+      } catch (error) {
+        // Fallback if fetch fails due to CORS
+        window.open(url, '_blank');
+        return { success: true };
+      }
     }
   }
 

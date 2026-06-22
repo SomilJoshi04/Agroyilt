@@ -11,13 +11,16 @@ const { createOrder, verifyPayment } = require('../../services/razorpayService')
  */
 const createSoilTestRequest = async (req, res) => {
     try {
-        const { landSize, location, cropType, phoneNumber } = req.body;
+        const { landSize, location, latitude, longitude, cropType, testType, phoneNumber } = req.body;
 
         const newRequest = new SoilTestRequest({
             userId: req.user.id,
             landSize,
             location,
+            latitude,
+            longitude,
             cropType,
+            testType,
             phoneNumber
         });
 
