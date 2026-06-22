@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     FiChevronLeft, 
+    FiChevronRight,
     FiPackage, 
     FiCheckCircle, 
     FiInfo,
@@ -24,6 +25,15 @@ const ProductDetail = () => {
     const [showCheckout, setShowCheckout] = useState(false);
     const [address, setAddress] = useState(null); // Will hold {addressLine1, lat, lng}
     const [paymentType, setPaymentType] = useState('split'); // 'split', 'online_full', 'cod'
+    const scrollRef = useRef(null);
+
+    const scrollImage = (direction) => {
+        if (scrollRef.current) {
+            const { scrollLeft, clientWidth } = scrollRef.current;
+            const scrollTo = direction === 'left' ? scrollLeft - clientWidth : scrollLeft + clientWidth;
+            scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+        }
+    };
 
     useEffect(() => {
         fetchProduct();
@@ -97,13 +107,46 @@ const ProductDetail = () => {
                 </div>
                 
                 {product.images && product.images.length > 0 ? (
-                    <div className="w-full h-full flex overflow-x-auto snap-x scrollbar-hide">
-                        {product.images.map((img, idx) => (
-                            <img key={idx} src={img} alt="" className="w-full h-full object-cover flex-shrink-0 snap-center" />
-                        ))}
+                    <div className="relative w-full h-full group">
+                        <div ref={scrollRef} className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide" onScroll={(e) => {
+                            const scrollLeft = e.target.scrollLeft;
+                            const width = e.target.offsetWidth;
+                            const activeIndex = Math.round(scrollLeft / width);
+                            const dots = document.querySelectorAll('.image-dot');
+                            dots.forEach((dot, i) => {
+                                if (i === activeIndex) {
+                                    dot.classList.add('bg-teal-500', 'w-4');
+                                    dot.classList.remove('bg-white/50', 'w-1.5');
+                                } else {
+                                    dot.classList.add('bg-white/50', 'w-1.5');
+                                    dot.classList.remove('bg-teal-500', 'w-4');
+                                }
+                            });
+                        }}>
+                            {product.images.map((img, idx) => (
+                                <img key={idx} src={img} alt="" className="w-full h-full object-cover flex-shrink-0 snap-center" />
+                            ))}
+                        </div>
+                        {product.images.length > 1 && (
+                            <>
+                                <button onClick={() => scrollImage('left')} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center text-slate-800 shadow-lg active:scale-90 transition-all z-20">
+                                    <FiChevronLeft className="w-6 h-6 -ml-0.5" />
+                                </button>
+                                <button onClick={() => scrollImage('right')} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center text-slate-800 shadow-lg active:scale-90 transition-all z-20">
+                                    <FiChevronRight className="w-6 h-6 ml-0.5" />
+                                </button>
+                                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5 z-20">
+                                    {product.images.map((_, idx) => (
+                                        <div key={idx} className={`image-dot h-1.5 rounded-full transition-all duration-300 ${idx === 0 ? 'bg-teal-500 w-4' : 'bg-white/50 w-1.5'}`} />
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
+                ) : product.imageUrl ? (
+                    <img src={product.imageUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-100"><FiPackage className="w-24 h-24" /></div>
+                    <div className="w-full h-full flex items-center justify-center text-slate-100 bg-slate-200"><FiPackage className="w-24 h-24" /></div>
                 )}
             </div>
 
@@ -130,21 +173,35 @@ const ProductDetail = () => {
                         <FiInfo className="text-teal-600" /> Payment Structure
                     </div>
                     
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center p-4 bg-teal-50 rounded-2xl border border-teal-100/50">
-                            <div>
-                                <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest leading-none">Platform Fee (Admin)</p>
-                                <p className="text-[8px] font-bold text-teal-400 mt-1 uppercase tracking-tighter">Pay now to confirm order</p>
+                    <div className="space-y-4">
+                        <div className="p-6 pl-8 bg-white rounded-2xl border border-teal-100 shadow-[0_4px_20px_-4px_rgba(20,184,166,0.1)] relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-3 h-full bg-teal-500"></div>
+                            <div className="flex justify-between items-center mb-5">
+                                <div>
+                                    <p className="text-xs font-black text-slate-800 uppercase tracking-widest leading-none">Booking Amount</p>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">Pay now to confirm order</p>
+                                </div>
+                                <p className="text-3xl font-black text-teal-600 font-sans tracking-tight">₹{pricing.platformFee}</p>
                             </div>
-                            <p className="text-lg font-black text-teal-700 font-sans">₹{pricing.platformFee}</p>
+                            
+                            <div className="pt-4 border-t border-dashed border-slate-200 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Platform Commission <span className="text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-1">{commissionPercentage}%</span></p>
+                                    <p className="text-xs font-black text-slate-700 font-sans">₹{(commission * quantity).toFixed(2)}</p>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">GST (Taxes) <span className="text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-1">{gstPercentage}%</span></p>
+                                    <p className="text-xs font-black text-slate-700 font-sans">₹{(gst * quantity).toFixed(2)}</p>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div className="flex justify-between items-center p-6 bg-slate-50 rounded-2xl border border-slate-200 shadow-sm">
                             <div>
-                                <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-none">Base Price</p>
-                                <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-tighter">Pay to vendor directly on delivery</p>
+                                <p className="text-xs font-black text-slate-800 uppercase tracking-widest leading-none">Base Price</p>
+                                <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">Pay to vendor on delivery</p>
                             </div>
-                            <p className="text-lg font-black text-slate-800 font-sans">₹{pricing.vendorPrice}</p>
+                            <p className="text-3xl font-black text-slate-800 font-sans tracking-tight">₹{pricing.vendorPrice}</p>
                         </div>
                     </div>
                 </div>
