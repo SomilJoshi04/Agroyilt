@@ -147,15 +147,15 @@ const OrderPayment = () => {
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Items Subtotal</p>
                             <p className="font-black text-slate-800 font-sans">₹{order.pricing.itemsTotal}</p>
                         </div>
-                        {order.pricing.gstAmount > 0 && (
+                        {order.pricing.platformFee > 0 && (
                             <div className="flex justify-between items-center px-1">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taxes (GST)</p>
-                                <p className="font-black text-slate-800 font-sans">₹{order.pricing.gstAmount}</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Platform Fee & Taxes</p>
+                                <p className="font-black text-slate-800 font-sans">₹{order.pricing.platformFee}</p>
                             </div>
                         )}
                         <div className="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center px-1">
                             <p className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Grand Total</p>
-                            <p className="text-lg font-black text-slate-800 font-sans">₹{order.pricing.orderTotal || (order.pricing.itemsTotal + order.pricing.gstAmount)}</p>
+                            <p className="text-lg font-black text-slate-800 font-sans">₹{order.pricing.orderTotal || (order.pricing.itemsTotal + order.pricing.platformFee)}</p>
                         </div>
                         {order.paymentType === 'online_full' ? (
                             <div className="p-4 mt-2 bg-teal-50 rounded-3xl border border-teal-100/50 flex items-center justify-between">

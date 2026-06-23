@@ -111,25 +111,31 @@ const AgriMarket = () => {
                 </div>
             </div>
 
-            <div className="p-6 space-y-8 pb-32">
-                {/* Categories Scroll */}
-                <div className="space-y-4">
-                    <h2 className="text-xs font-black text-slate-800 uppercase tracking-widest ml-1">Categories</h2>
-                    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x">
-                        {categories.map((cat, idx) => (
-                            <div 
-                                key={cat._id || `cat-${idx}`}
-                                onClick={() => setSelectedCategory(cat._id)}
-                                className={`flex-shrink-0 px-6 py-4 rounded-3xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer snap-start border ${
-                                    selectedCategory === cat._id ? 'bg-teal-600 text-white border-teal-600 shadow-lg shadow-teal-500/20' : 'bg-white text-slate-400 border-slate-100'
-                                }`}
-                            >
-                                {cat.title}
+            {/* Track My Orders (Top position) */}
+            {hasOrders && (
+                <div className="px-6 pt-6 -mb-2">
+                    <button 
+                        onClick={() => navigate('/user/my-agri-orders')}
+                        className="w-full flex items-center justify-between bg-slate-900 text-white px-6 py-4 rounded-3xl shadow-lg active:scale-95 transition-all"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+                                <FiPackage className="w-5 h-5 text-white" />
                             </div>
-                        ))}
-                    </div>
+                            <div className="text-left">
+                                <span className="text-xs font-black uppercase tracking-widest block">Track My Orders</span>
+                                <span className="text-[10px] text-slate-400 font-bold block mt-0.5">View your purchase history</span>
+                            </div>
+                        </div>
+                        <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                            <FiArrowRight className="w-4 h-4" />
+                        </div>
+                    </button>
                 </div>
+            )}
 
+            <div className="p-6 space-y-8 pb-32">
+                {/* Categories removed as per user request */}
                 {/* Products Grid */}
                 <div className="grid grid-cols-2 gap-4">
                     {loading ? (
@@ -219,21 +225,6 @@ const AgriMarket = () => {
                     )}
                 </div>
             </div>
-
-            {/* Float Action - My Orders (Only if user has orders) */}
-            {hasOrders && (
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
-                    <button 
-                        onClick={() => navigate('/user/my-agri-orders')}
-                        className="flex items-center gap-3 bg-slate-900 text-white px-8 py-5 rounded-full shadow-2xl shadow-slate-900/40 active:scale-95 transition-all"
-                    >
-                        <span className="text-[10px] font-black uppercase tracking-widest">Track My Orders</span>
-                        <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                            <FiArrowRight className="w-3 h-3" />
-                        </div>
-                    </button>
-                </div>
-            )}
         </div>
     );
 };

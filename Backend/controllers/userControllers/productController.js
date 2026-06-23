@@ -269,31 +269,7 @@ const payPlatformFee = async (req, res) => {
              await transaction.save();
 
              if (order.paymentType === 'online_full') {
-                 // Credit vendor wallet
-                 const Vendor = require('../../models/Vendor');
-                 const vendor = await Vendor.findById(order.vendorId);
-                 if (vendor) {
-                     const currentEarnings = vendor.wallet?.earnings || 0;
-                     const updateQuery = {
-                         $inc: { 'wallet.earnings': order.pricing.vendorBalance }
-                     };
-                     await Vendor.findByIdAndUpdate(vendor._id, updateQuery);
-
-                     // Record earning transaction
-                     await Transaction.create({
-                         vendorId: vendor._id,
-                         bookingId: null, // No booking for ecommerce
-                         type: 'earnings_credit',
-                         amount: order.pricing.vendorBalance,
-                         status: 'completed',
-                         paymentMethod: 'system',
-                         description: `Earnings credited for Prepaid Ecommerce Order: ${order._id.toString().slice(-8)}`,
-                         metadata: {
-                             type: 'earnings_increase',
-                             orderId: order._id.toString()
-                         }
-                     });
-                 }
+                 // Removed: Vendor wallet credit is now handled on delivery.
              }
 
              // Update Order
@@ -351,25 +327,7 @@ const payPlatformFee = async (req, res) => {
         await transaction.save();
 
         if (order.paymentType === 'online_full') {
-            // Credit vendor wallet
-            const Vendor = require('../../models/Vendor');
-            const vendor = await Vendor.findById(order.vendorId);
-            if (vendor) {
-                const updateQuery = {
-                    $inc: { 'wallet.earnings': order.pricing.vendorBalance }
-                };
-                await Vendor.findByIdAndUpdate(vendor._id, updateQuery);
-
-                await Transaction.create({
-                    vendorId: vendor._id,
-                    type: 'earnings_credit',
-                    amount: order.pricing.vendorBalance,
-                    status: 'completed',
-                    paymentMethod: 'system',
-                    description: `Earnings credited for Prepaid Ecommerce Order: ${order._id.toString().slice(-8)}`,
-                    metadata: { type: 'earnings_increase', orderId: order._id.toString() }
-                });
-            }
+            // Removed: Vendor wallet credit is now handled on delivery.
         }
 
         order.paymentStatus = 'paid';
@@ -449,10 +407,13 @@ const cancelOrder = async (req, res) => {
         const oldStatus = order.deliveryStatus;
         order.deliveryStatus = 'cancelled';
         
-        // If it was already paid, refund the platform fee to the user's wallet
+        // If it was already paid, refund the correct amount to the user's wallet
         if (order.paymentStatus === 'paid') {
             const user = await User.findById(userId);
-            const refundAmount = order.pricing.platformFee;
+            let refundAmount = order.pricing.platformFee;
+            if (order.paymentType === 'online_full') {
+                refundAmount = order.pricing.orderTotal;
+            }
             
             user.wallet.balance += refundAmount;
             await user.save();

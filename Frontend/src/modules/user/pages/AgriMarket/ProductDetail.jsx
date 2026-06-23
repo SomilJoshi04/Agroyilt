@@ -285,10 +285,17 @@ const ProductDetail = () => {
                     <div className="fixed inset-0 z-[100] flex flex-col justify-end sm:p-6 sm:items-center">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCheckout(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
                         <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="relative bg-white w-full max-w-md mx-auto rounded-t-[48px] sm:rounded-[48px] p-6 pb-8 shadow-2xl flex flex-col max-h-[90dvh]">
-                            <div className="shrink-0 pb-4">
-                                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
-                                <h2 className="text-xl font-black text-slate-800 text-center">Confirm Order</h2>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mt-1">Seeds & Fertilizers Delivery</p>
+                            <div className="shrink-0 pb-4 relative">
+                                <div 
+                                    className="absolute -top-6 left-0 right-0 h-12 flex items-center justify-center cursor-pointer z-10"
+                                    onClick={() => setShowCheckout(false)}
+                                >
+                                    <div className="w-12 h-1.5 bg-slate-300 rounded-full mt-2" />
+                                </div>
+                                <div className="pt-4">
+                                    <h2 className="text-xl font-black text-slate-800 text-center">Confirm Order</h2>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mt-1">Seeds & Fertilizers Delivery</p>
+                                </div>
                             </div>
                             
                             <div className="space-y-6 overflow-y-auto overflow-x-hidden p-2 pb-4 scrollbar-hide flex-1 shrink">

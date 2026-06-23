@@ -68,6 +68,22 @@ const vendorWalletService = {
   },
 
   /**
+   * Create Razorpay Settlement Order
+   */
+  createSettlementOrder: async (amount) => {
+    const response = await api.post('/vendors/wallet/create-settlement-order', { amount });
+    return response.data;
+  },
+
+  /**
+   * Verify Razorpay Settlement Payment
+   */
+  verifySettlementPayment: async (data) => {
+    const response = await api.post('/vendors/wallet/verify-settlement', data);
+    return response.data;
+  },
+
+  /**
    * Get settlement history
    */
   getSettlements: async (params = {}) => {

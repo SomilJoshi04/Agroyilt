@@ -12,7 +12,9 @@ const {
   getWalletSummary,
   payWorker,
   requestWithdrawal,
-  getWithdrawals
+  getWithdrawals,
+  createSettlementOrder,
+  verifySettlementPayment
 } = require('../../controllers/vendorControllers/vendorWalletController');
 
 // Validation rules
@@ -46,8 +48,16 @@ router.get('/wallet/transactions', authenticate, isVendor, getTransactions);
 // Record cash collection (creates negative entry - vendor owes admin)
 router.post('/wallet/cash-collection', authenticate, isVendor, cashCollectionValidation, recordCashCollection);
 
-// Request settlement (vendor pays admin)
+// Request settlement (manual flow - kept for legacy/fallback if needed)
 router.post('/wallet/settlement', authenticate, isVendor, settlementValidation, requestSettlement);
+
+// Create Razorpay settlement order
+router.post('/wallet/create-settlement-order', authenticate, isVendor, [
+  body('amount').isFloat({ min: 1 }).withMessage('Valid amount is required')
+], createSettlementOrder);
+
+// Verify Razorpay settlement
+router.post('/wallet/verify-settlement', authenticate, isVendor, verifySettlementPayment);
 
 // Pay worker for a booking
 router.post('/wallet/pay-worker', authenticate, isVendor, payWorkerValidation, payWorker);
