@@ -5,6 +5,7 @@ const Withdrawal = require('../../models/Withdrawal');
 const Booking = require('../../models/Booking');
 const Worker = require('../../models/Worker');
 const { uploadPaymentScreenshot } = require('../../utils/cloudinaryUpload');
+const { createOrder, verifyPayment } = require('../../services/razorpayService');
 
 /**
  * Get vendor wallet with ledger balance
@@ -415,6 +416,131 @@ const requestSettlement = async (req, res) => {
 };
 
 /**
+ * Create Razorpay Order for Vendor Settlement
+ */
+const createSettlementOrder = async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Valid amount is required' });
+    }
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: 'Vendor not found' });
+    }
+
+    const currentDues = vendor.wallet?.dues || 0;
+    if (amount > currentDues) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Amount cannot exceed current dues (₹${currentDues})` 
+      });
+    }
+
+    const orderResult = await createOrder(
+      amount,
+      'INR',
+      `STL_${vendorId.toString().slice(-6)}_${Date.now()}`,
+      { type: 'vendor_settlement', vendorId: vendorId.toString() }
+    );
+
+    if (!orderResult.success) {
+      return res.status(500).json({ success: false, message: 'Failed to create payment order', error: orderResult.error });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        orderId: orderResult.orderId,
+        amount: orderResult.amount / 100,
+        currency: orderResult.currency,
+        key: process.env.RAZORPAY_KEY_ID
+      }
+    });
+
+  } catch (error) {
+    console.error('Create settlement order error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * Verify Razorpay Settlement Payment
+ */
+const verifySettlementPayment = async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
+
+    const isValid = verifyPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Invalid payment signature' });
+    }
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: 'Vendor not found' });
+    }
+
+    const currentDues = vendor.wallet?.dues || 0;
+    const settlementAmount = parseFloat(amount);
+    
+    // Create an auto-approved settlement record
+    const settlement = await Settlement.create({
+      vendorId,
+      amount: settlementAmount,
+      balanceBefore: currentDues,
+      balanceAfter: currentDues - settlementAmount,
+      paymentMethod: 'razorpay',
+      paymentReference: razorpay_payment_id,
+      status: 'completed', // Auto completed
+      adminNotes: 'Automated Razorpay Settlement'
+    });
+
+    // Update Vendor Wallet
+    vendor.wallet.dues -= settlementAmount;
+    if (vendor.wallet.dues < 0) vendor.wallet.dues = 0;
+    
+    vendor.wallet.totalSettled = (vendor.wallet.totalSettled || 0) + settlementAmount;
+
+    // Check if we should unblock the vendor
+    const cashLimit = vendor.wallet.cashLimit || 10000;
+    const netOwed = vendor.wallet.dues - (vendor.wallet.earnings || 0);
+    if (vendor.wallet.isBlocked && netOwed <= cashLimit) {
+      vendor.wallet.isBlocked = false;
+      vendor.wallet.blockReason = null;
+      vendor.wallet.blockedAt = null;
+    }
+
+    await vendor.save();
+
+    // Create Transaction Record
+    await Transaction.create({
+      vendorId,
+      type: 'settlement',
+      amount: settlementAmount,
+      status: 'completed',
+      paymentMethod: 'razorpay',
+      referenceId: razorpay_payment_id,
+      description: `Settlement of ₹${settlementAmount} paid via Razorpay`,
+      metadata: { settlementId: settlement._id.toString() }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Settlement completed successfully'
+    });
+
+  } catch (error) {
+    console.error('Verify settlement payment error:', error);
+    res.status(500).json({ success: false, message: 'Failed to verify payment' });
+  }
+};
+
+/**
  * Request Withdrawal (Vendor requests payout of earnings)
  */
 const requestWithdrawal = async (req, res) => {
@@ -806,6 +932,8 @@ module.exports = {
   getSettlements,
   getWalletSummary,
   payWorker,
+  createSettlementOrder,
+  verifySettlementPayment,
   requestWithdrawal,
   getWithdrawals
 };

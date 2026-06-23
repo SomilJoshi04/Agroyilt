@@ -148,14 +148,13 @@ const getMyOrders = async (req, res) => {
                     const orderTotal = order.pricing.orderTotal;
 
                     const cashLimit = vendor.wallet?.cashLimit || 10000;
-                    const currentDues = (vendor.wallet?.dues || 0) + orderTotal;
-                    const currentEarnings = (vendor.wallet?.earnings || 0) + vendorBalance;
+                    const currentDues = (vendor.wallet?.dues || 0) + platformFee;
+                    const currentEarnings = vendor.wallet?.earnings || 0;
                     const netOwed = currentDues - currentEarnings;
 
                     const updateQuery = {
                         $inc: { 
-                            'wallet.dues': orderTotal,
-                            'wallet.earnings': vendorBalance,
+                            'wallet.dues': platformFee,
                             'wallet.totalCashCollected': orderTotal
                         }
                     };
@@ -193,7 +192,7 @@ const getMyOrders = async (req, res) => {
                         amount: orderTotal,
                         status: 'completed',
                         paymentMethod: 'cash',
-                        description: `Cash ₹${orderTotal} collected for COD Order #${order._id.toString().slice(-8)}.`,
+                        description: `Cash ₹${orderTotal} collected for COD Order #${order._id.toString().slice(-8)} (Admin Commission: ₹${platformFee}).`,
                         metadata: {
                             type: 'dues_increase',
                             orderId: order._id.toString(),
@@ -210,7 +209,81 @@ const getMyOrders = async (req, res) => {
                             amount: vendorBalance,
                             status: 'completed',
                             paymentMethod: 'system',
-                            description: `Earnings ₹${vendorBalance} credited for COD Order #${order._id.toString().slice(-8)}.`,
+                            description: `Earnings ₹${vendorBalance} settled directly in cash for COD Order #${order._id.toString().slice(-8)}.`,
+                            metadata: {
+                                type: 'earnings_increase',
+                                orderId: order._id.toString()
+                            }
+                        });
+                    }
+                }
+            } else if (status === 'delivered' && order.paymentType === 'online_full') {
+                const Transaction = require('../../models/Transaction');
+                const vendor = await Vendor.findById(order.vendorId);
+                if (vendor) {
+                    const vendorBalance = order.pricing.vendorBalance;
+                    
+                    const updateQuery = {
+                        $inc: { 'wallet.earnings': vendorBalance }
+                    };
+                    await Vendor.findByIdAndUpdate(vendor._id, updateQuery);
+
+                    if (vendorBalance > 0) {
+                        await Transaction.create({
+                            vendorId: vendor._id,
+                            bookingId: null, // No booking for ecommerce
+                            type: 'earnings_credit',
+                            amount: vendorBalance,
+                            status: 'completed',
+                            paymentMethod: 'system',
+                            description: `Earnings ₹${vendorBalance} credited for Prepaid Ecommerce Order #${order._id.toString().slice(-8)} on delivery.`,
+                            metadata: {
+                                type: 'earnings_increase',
+                                orderId: order._id.toString()
+                            }
+                        });
+                    }
+                }
+            } else if (status === 'delivered' && order.paymentType === 'split') {
+                const Transaction = require('../../models/Transaction');
+                const vendor = await Vendor.findById(order.vendorId);
+                if (vendor) {
+                    const vendorBalance = order.pricing.vendorBalance;
+
+                    const updateQuery = {
+                        $inc: { 
+                            'wallet.totalCashCollected': vendorBalance
+                        }
+                    };
+
+                    await Vendor.findByIdAndUpdate(vendor._id, updateQuery);
+
+                    // Transaction 1: Total cash collected from customer (retained by vendor, no dues to admin)
+                    await Transaction.create({
+                        vendorId: vendor._id,
+                        bookingId: null, // Ecommerce
+                        type: 'cash_collected',
+                        amount: vendorBalance,
+                        status: 'completed',
+                        paymentMethod: 'cash',
+                        description: `Cash ₹${vendorBalance} collected directly by vendor for Split Order #${order._id.toString().slice(-8)} (No Admin Dues).`,
+                        metadata: {
+                            type: 'dues_increase', // Keeps metadata format consistent
+                            orderId: order._id.toString(),
+                            companyRevenue: 0 // Platform fee was already paid online to admin
+                        }
+                    });
+
+                    // Transaction 2: Earnings credited to vendor (retained by vendor, no payout pending)
+                    if (vendorBalance > 0) {
+                        await Transaction.create({
+                            vendorId: vendor._id,
+                            bookingId: null,
+                            type: 'earnings_credit',
+                            amount: vendorBalance,
+                            status: 'completed',
+                            paymentMethod: 'system',
+                            description: `Earnings ₹${vendorBalance} settled directly in cash for Split Order #${order._id.toString().slice(-8)}.`,
                             metadata: {
                                 type: 'earnings_increase',
                                 orderId: order._id.toString()

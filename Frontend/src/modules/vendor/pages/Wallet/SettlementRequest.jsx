@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSend, FiUpload, FiCheck, FiCreditCard, FiSmartphone, FiDollarSign } from 'react-icons/fi';
+import { FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
@@ -12,14 +12,7 @@ const SettlementRequest = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [wallet, setWallet] = useState({ amountDue: 0 });
-  const [formData, setFormData] = useState({
-    amount: '',
-    paymentMethod: 'upi',
-    paymentReference: '',
-    paymentProof: '',
-    notes: ''
-  });
-  const [proofPreview, setProofPreview] = useState(null);
+  const [amount, setAmount] = useState('');
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -40,6 +33,7 @@ const SettlementRequest = () => {
 
   useEffect(() => {
     loadWallet();
+    loadRazorpayScript();
   }, []);
 
   const loadWallet = async () => {
@@ -48,7 +42,7 @@ const SettlementRequest = () => {
       const res = await vendorWalletService.getWallet();
       if (res.success) {
         setWallet(res.data);
-        setFormData(prev => ({ ...prev, amount: res.data.amountDue.toString() }));
+        setAmount(res.data.amountDue.toString());
       }
     } catch (error) {
       toast.error('Failed to load wallet');
@@ -57,149 +51,88 @@ const SettlementRequest = () => {
     }
   };
 
-  const compressImage = (file) => {
+  const loadRazorpayScript = () => {
     return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          const MAX_WIDTH = 1000;
-          const MAX_HEIGHT = 1000;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          canvas.toBlob((blob) => {
-            resolve(new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
-              type: 'image/jpeg',
-              lastModified: Date.now()
-            }));
-          }, 'image/jpeg', 0.8); // 0.8 quality
-        };
-      };
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
     });
   };
 
-  const handleProofUpload = async (e) => {
-    const originalFile = e.target.files[0];
-    if (!originalFile) return;
-
-    if (originalFile.size > 10 * 1024 * 1024) {
-      toast.error('File too large (max 10MB original)');
-      return;
-    }
-
-    // Preview
-    const reader = new FileReader();
-    reader.onload = () => setProofPreview(reader.result);
-    reader.readAsDataURL(originalFile);
-
-    try {
-      const loadingToast = toast.loading('Optimizing & Uploading...');
-
-      // Compress client-side
-      const file = await compressImage(originalFile);
-
-      // 1. Get Signature from Backend (Generic Endpoint)
-      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-      const sigRes = await fetch(`${apiUrl}/upload/sign-signature`);
-      const sigData = await sigRes.json();
-
-      if (!sigData.success) {
-        toast.dismiss(loadingToast);
-        throw new Error(sigData.message || 'Failed to get upload signature');
-      }
-
-      const { signature, timestamp, cloudName, apiKey, folder } = sigData;
-
-      // 2. Upload to Cloudinary
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('api_key', apiKey);
-      formData.append('timestamp', timestamp);
-      formData.append('signature', signature);
-      if (folder) formData.append('folder', folder);
-
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        { method: 'POST', body: formData }
-      );
-
-      const data = await res.json();
-      toast.dismiss(loadingToast);
-
-      if (data.error) {
-        throw new Error(data.error.message);
-      }
-
-      setFormData(prev => ({ ...prev, paymentProof: data.secure_url }));
-      toast.success('Proof uploaded successfully');
-    } catch (error) {
-      console.error('Upload failed:', error);
-      toast.error('Failed to upload proof');
-      setProofPreview(null);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+  const handlePayment = async () => {
+    if (!amount || parseFloat(amount) <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
 
-    if (parseFloat(formData.amount) > wallet.amountDue) {
+    if (parseFloat(amount) > wallet.amountDue) {
       toast.error(`Amount cannot exceed ₹${wallet.amountDue}`);
-      return;
-    }
-
-    if (!formData.paymentReference) {
-      toast.error('Please enter UPI/Transaction reference');
-      return;
-    }
-
-    if (!formData.paymentProof) {
-      toast.error('Payment screenshot is required');
       return;
     }
 
     try {
       setSubmitting(true);
-      const res = await vendorWalletService.requestSettlement({
-        amount: parseFloat(formData.amount),
-        paymentMethod: formData.paymentMethod,
-        paymentReference: formData.paymentReference,
-        paymentProof: formData.paymentProof,
-        notes: formData.notes
-      });
+      const orderRes = await vendorWalletService.createSettlementOrder(parseFloat(amount));
 
-      if (res.success) {
-        toast.success('Settlement request submitted!');
-        navigate('/vendor/wallet');
-      } else {
-        toast.error(res.message || 'Failed to submit request');
+      if (!orderRes.success) {
+        toast.error(orderRes.message || 'Failed to create payment order');
+        setSubmitting(false);
+        return;
       }
+
+      const { orderId, amount: orderAmount, currency, key } = orderRes.data;
+
+      const options = {
+        key: key,
+        amount: orderAmount * 100, // paise
+        currency: currency,
+        name: 'Appzeto',
+        description: 'Vendor Settlement',
+        order_id: orderId,
+        handler: async function (response) {
+          try {
+            toast.loading('Verifying payment...', { id: 'verify' });
+            const verifyRes = await vendorWalletService.verifySettlementPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              amount: parseFloat(amount)
+            });
+
+            if (verifyRes.success) {
+              toast.success('Payment successful!', { id: 'verify' });
+              navigate('/vendor/wallet');
+            } else {
+              toast.error(verifyRes.message || 'Payment verification failed', { id: 'verify' });
+            }
+          } catch (err) {
+            toast.error('Payment verification failed', { id: 'verify' });
+          }
+        },
+        prefill: {
+          name: wallet.vendor?.businessName || wallet.vendor?.name || 'Vendor',
+        },
+        theme: {
+          color: themeColors.primary || '#3B82F6'
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        toast.error(response.error.description || 'Payment failed');
+      });
+      
+      rzp.open();
+      setSubmitting(false);
+
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to submit request');
-    } finally {
+      toast.error('Failed to initiate payment');
       setSubmitting(false);
     }
   };
@@ -244,8 +177,8 @@ const SettlementRequest = () => {
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₹</span>
               <input
                 type="number"
-                value={formData.amount}
-                onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-xl border-2 border-gray-100 focus:border-blue-400 focus:outline-none"
                 placeholder="Enter amount"
                 max={wallet.amountDue}
@@ -253,125 +186,34 @@ const SettlementRequest = () => {
             </div>
             <p className="text-xs text-gray-500 mt-1">Max: ₹{wallet.amountDue?.toLocaleString()}</p>
           </div>
-
-          {/* Payment Method */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Payment Method *
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { id: 'upi', label: 'UPI', icon: FiSmartphone },
-                { id: 'bank_transfer', label: 'Bank Transfer', icon: FiCreditCard },
-              ].map(method => (
-                <button
-                  key={method.id}
-                  onClick={() => setFormData(prev => ({ ...prev, paymentMethod: method.id }))}
-                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${formData.paymentMethod === method.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 bg-gray-50'
-                    }`}
-                >
-                  <method.icon className={`w-6 h-6 ${formData.paymentMethod === method.id ? 'text-blue-600' : 'text-gray-500'}`} />
-                  <span className={`text-sm font-semibold ${formData.paymentMethod === method.id ? 'text-blue-700' : 'text-gray-600'}`}>
-                    {method.label}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Payment Reference */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              UPI / Transaction Reference *
-            </label>
-            <input
-              type="text"
-              value={formData.paymentReference}
-              onChange={(e) => setFormData(prev => ({ ...prev, paymentReference: e.target.value }))}
-              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-2 border-gray-100 focus:border-blue-400 focus:outline-none"
-              placeholder="Enter UPI Transaction ID or Bank Ref No."
-            />
-          </div>
-
-          {/* Payment Proof */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Payment Screenshot *
-            </label>
-            {proofPreview ? (
-              <div className="relative">
-                <img
-                  src={proofPreview}
-                  alt="Payment Proof"
-                  className="w-full h-40 object-cover rounded-xl border-2 border-gray-200"
-                />
-                <button
-                  onClick={() => {
-                    setProofPreview(null);
-                    setFormData(prev => ({ ...prev, paymentProof: '' }));
-                  }}
-                  className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full"
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                <FiUpload className="w-8 h-8 text-gray-400 mb-2" />
-                <span className="text-sm text-gray-500">Upload Screenshot</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleProofUpload}
-                />
-              </label>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Notes (Optional)
-            </label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-2 border-gray-100 focus:border-blue-400 focus:outline-none resize-none"
-              rows={3}
-              placeholder="Any additional notes..."
-            />
-          </div>
         </div>
 
         {/* Submit Button */}
         <button
-          onClick={handleSubmit}
-          disabled={submitting || !formData.amount || !formData.paymentReference || !formData.paymentProof}
+          onClick={handlePayment}
+          disabled={submitting || !amount || parseFloat(amount) <= 0 || parseFloat(amount) > wallet.amountDue}
           className="w-full mt-6 py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
           style={{
-            background: themeColors.button,
-            boxShadow: `0 4px 12px ${themeColors.button}40`,
+            background: '#3399cc', // Razorpay color
+            boxShadow: `0 4px 12px rgba(51, 153, 204, 0.4)`,
           }}
         >
           {submitting ? (
             <>
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Submitting...
+              Processing...
             </>
           ) : (
             <>
-              <FiSend className="w-5 h-5" />
-              Submit Settlement Request
+              <FiCheckCircle className="w-5 h-5" />
+              Pay via Razorpay
             </>
           )}
         </button>
 
         {/* Info */}
         <p className="text-center text-xs text-gray-500 mt-4">
-          Admin will verify your payment and update your balance within 24 hours.
+          Your balance will be updated instantly upon successful payment.
         </p>
       </main>
 

@@ -126,6 +126,10 @@ const StoreOrders = () => {
                                         <td className="px-6 py-5">
                                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">#{order._id.slice(-6)}</p>
                                             <p className="font-bold text-slate-800 text-sm">{order.items[0]?.name || 'Item'} {order.items.length > 1 && `(+${order.items.length - 1})`}</p>
+                                            <p className="text-xs text-slate-500 font-medium my-0.5">
+                                                Qty: {order.items[0]?.quantity || 1}
+                                                {order.items[0]?.bagWeight ? ` • ${order.items[0]?.bagWeight}kg` : ''}
+                                            </p>
                                             <p className="text-[10px] text-teal-600 font-bold">{format(new Date(order.createdAt), 'dd MMM, hh:mm a')}</p>
                                             {order.trackingDetails?.courierName && (
                                                 <div className="mt-2 bg-slate-50 border border-slate-100 p-2 rounded-lg inline-block text-[9px]">
@@ -189,7 +193,12 @@ const StoreOrders = () => {
                                                 </button>
                                             )}
                                             {order.deliveryStatus === 'packed' && (
-                                                <ShippingModal onConfirm={(data) => handleUpdateStatus(order._id, 'shipped', data)} />
+                                                <button 
+                                                    onClick={() => handleUpdateStatus(order._id, 'shipped')}
+                                                    className="w-full min-w-[160px] whitespace-nowrap px-4 py-3 bg-teal-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-teal-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <FiTruck className="flex-shrink-0 w-4 h-4" /> Mark as Shipped
+                                                </button>
                                             )}
                                             {order.deliveryStatus === 'shipped' && (
                                                 <DeliveryOtpModal 
@@ -243,67 +252,6 @@ const StoreOrders = () => {
     );
 };
 
-// Helper component for Shipping Input
-const ShippingModal = ({ onConfirm }) => {
-    const [show, setShow] = useState(false);
-    const [data, setData] = useState({ courierName: '', trackingNumber: '' });
-
-    useEffect(() => {
-        if (show) document.body.style.overflow = 'hidden';
-        else document.body.style.overflow = 'unset';
-        return () => { document.body.style.overflow = 'unset'; }
-    }, [show]);
-
-    return (
-        <>
-            <button 
-                onClick={() => setShow(true)}
-                className="w-full min-w-[160px] whitespace-nowrap px-4 py-3 bg-teal-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-teal-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-            >
-                <FiTruck className="flex-shrink-0 w-4 h-4" /> Mark as Shipped
-            </button>
-            {typeof document !== 'undefined' && createPortal(
-                <AnimatePresence>
-                    {show && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" style={{ position: 'fixed' }}>
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShow(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
-                            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl">
-                                <h2 className="text-xl font-black text-slate-800">Shipping Details</h2>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Enter tracking info for user</p>
-                                
-                                <div className="space-y-4">
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Courier Service</label>
-                                        <input type="text" className="w-full bg-slate-50 border-none rounded-xl py-4 px-5 font-bold outline-none" placeholder="e.g. BlueDart, DTDC, Self" value={data.courierName} onChange={e => setData({...data, courierName: e.target.value})} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Tracking Number</label>
-                                        <input type="text" className="w-full bg-slate-50 border-none rounded-xl py-4 px-5 font-bold outline-none" placeholder="e.g. TRK123456" value={data.trackingNumber} onChange={e => setData({...data, trackingNumber: e.target.value})} />
-                                    </div>
-                                    <div className="flex gap-2 mt-6">
-                                        <button 
-                                            onClick={() => setShow(false)}
-                                            className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-[24px] font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button 
-                                            onClick={() => { onConfirm(data); setShow(false); }}
-                                            className="flex-1 py-4 bg-[#2E7D32] text-white rounded-[24px] font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
-                                        >
-                                            Confirm
-                                        </button>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </div>
-                    )}
-                </AnimatePresence>,
-                document.body
-            )}
-        </>
-    );
-}
 
 // Helper component for Delivery OTP
 const DeliveryOtpModal = ({ onConfirm, isCod, amount }) => {

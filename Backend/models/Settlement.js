@@ -32,7 +32,7 @@ const settlementSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['upi', 'bank_transfer', 'cash', 'other'],
+    enum: ['upi', 'bank_transfer', 'cash', 'other', 'razorpay'],
     default: 'upi'
   },
   // Reference/Transaction ID from vendor's payment
