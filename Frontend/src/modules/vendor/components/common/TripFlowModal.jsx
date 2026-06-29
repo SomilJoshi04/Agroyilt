@@ -21,7 +21,7 @@ import { flutterBridge } from '../../../../utils/flutterBridge';
  *   rentalType {string} 'hourly' | 'land_based' | 'monthly'
  *   isMachinery {boolean} True if this is an equipment rental
  */
-const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, isMachinery = false, requiresDriver = true, trackingType = 'odometer' }) => {
+const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, isMachinery = false, requiresDriver = true, trackingType = 'odometer', booking }) => {
     const [step, setStep] = useState(1); // 1 = Photo, 2 = OTP
     const [photoPreview, setPhotoPreview] = useState(null);
     const [photoFile, setPhotoFile] = useState(null);
@@ -64,7 +64,7 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
     const isStart = mode === 'start';
     // Machinery auto-generates End OTP, so vendor doesn't need to enter one on end trip
     // But for Standalone (no driver), we REQUIRE Start OTP to verify handover.
-    const skipOtpStep = isMachinery && (requiresDriver === true);
+    const skipOtpStep = isStart ? !booking?.driver_start_otp : !booking?.driver_end_otp;
     const isMeterBased = trackingType === 'odometer';
 
     const title = isStart ? (requiresDriver ? '🚜 Start Trip' : '📦 Handover Equipment') : (requiresDriver ? '🏁 End Trip' : '✅ Collect Equipment');
@@ -237,7 +237,7 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
                             <div>
                                 <h2 className="text-lg font-extrabold text-gray-900">{title}</h2>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                    Step {step} of {skipOtpStep ? (isStart ? 1 : 2) : 3}: {
+                                    Step {step === 3 && isStart ? 2 : step} of {skipOtpStep ? (isStart ? 1 : 2) : (isStart ? 2 : 3)}: {
                                        step === 1 ? (isMeterBased ? 'Take KM Photo' : 'Confirm & Handover') : 
                                        step === 2 ? (skipOtpStep ? 'Confirm Submission' : 'Evidence of Work') : 
                                        'Enter Farmer OTP'
@@ -250,9 +250,8 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
                             </button>
                         </div>
 
-                        {/* Step Indicator */}
                         <div className="flex gap-1.5 px-5 pt-3">
-                            {(skipOtpStep ? (isStart ? [1] : [1, 2]) : [1, 2, 3]).map(s => (
+                            {(skipOtpStep ? (isStart ? [1] : [1, 2]) : (isStart ? [1, 3] : [1, 2, 3])).map(s => (
                                 <div key={s} className="flex-1 h-1 rounded-full transition-all"
                                     style={{ background: step >= s ? themeColor : '#e5e7eb' }} />
                             ))}

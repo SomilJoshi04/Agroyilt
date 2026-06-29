@@ -816,9 +816,10 @@ const startSelfJob = async (req, res) => {
     // Ensure no worker is assigned (or self-assigned flag?) implementation assumes workerId null means unassigned or self?
     // User says: "if vendor didn't assignes to worker and do himself"
     // Usually means workerId is null.
-    if (booking.workerId) {
-      return res.status(400).json({ success: false, message: 'Worker is assigned to this booking. You cannot start it yourself unless you unassign worker.' });
-    }
+    // Allow vendor to act on behalf of the assigned worker
+    // if (booking.workerId) {
+    //   return res.status(400).json({ success: false, message: 'Worker is assigned to this booking. You cannot start it yourself unless you unassign worker.' });
+    // }
 
     if (booking.status !== BOOKING_STATUS.CONFIRMED && booking.status !== BOOKING_STATUS.ASSIGNED) {
       // Allow ASSIGNED if we consider "Self Assigned" as a state? 
@@ -1031,13 +1032,10 @@ const completeSelfJob = async (req, res) => {
     const Settings = require('../../models/Settings');
     const settings = await Settings.findOne({ type: 'global' });
 
-    // Agriculture: default GST 5%. Everything else 18%.
-    const isAgri = booking.serviceCategory === 'Agriculture' || booking.categoryId?.title === 'Agriculture' || booking.categoryId === 'Marketplace';
-
     let serviceSplitPct = settings?.servicePayoutPercentage ?? 70;
     let partsSplitPct = settings?.partsPayoutPercentage ?? 10;
-    let serviceGstPct = isAgri ? 5 : (settings?.serviceGstPercentage ?? 18);
-    let partsGstPct = isAgri ? 5 : (settings?.partsGstPercentage ?? 18);
+    let serviceGstPct = settings?.serviceGstPercentage ?? 18;
+    let partsGstPct = settings?.partsGstPercentage ?? 18;
 
     // ═══════════════════════════════════════════
     // STEP 1: BUILD LINE ITEMS
@@ -1692,7 +1690,7 @@ const endTrip = async (req, res) => {
     // 2. FETCH SPLIT CONFIG
     const settings = await Settings.findOne({ type: 'global' });
     const serviceSplitPct = settings?.rentalPayoutPercentage ?? 90;
-    const gstPct = settings?.rentalGstPercentage ?? 5;
+    const gstPct = settings?.serviceGstPercentage ?? 18;
 
     const gstAmount = parseFloat(((baseAmount * gstPct) / 100).toFixed(2));
     const finalAmount = parseFloat((baseAmount + gstAmount).toFixed(2));

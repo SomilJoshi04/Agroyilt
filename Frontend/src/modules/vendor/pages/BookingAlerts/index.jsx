@@ -9,9 +9,16 @@ import { vendorDashboardService } from '../../services/dashboardService';
 import { acceptBooking, rejectBooking, getBookings } from '../../services/bookingService';
 import { useSocket } from '../../../../context/SocketContext';
 
-// Timer Component
-const CountdownTimer = ({ durationSeconds, onExpire }) => {
-  const [timeLeft, setTimeLeft] = useState(durationSeconds);
+// Timer Component — calculates remaining time from booking's actual createdAt
+const CountdownTimer = ({ totalSeconds = 300, startTime, onExpire }) => {
+  // Calculate initial remaining time from actual booking createdAt
+  const getInitialTimeLeft = () => {
+    if (!startTime) return totalSeconds;
+    const elapsed = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
+    return Math.max(0, totalSeconds - elapsed);
+  };
+
+  const [timeLeft, setTimeLeft] = useState(getInitialTimeLeft);
 
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -20,11 +27,18 @@ const CountdownTimer = ({ durationSeconds, onExpire }) => {
     }
 
     const interval = setInterval(() => {
-      setTimeLeft(prev => prev - 1);
+      const remaining = getInitialTimeLeft();
+      if (remaining <= 0) {
+        clearInterval(interval);
+        setTimeLeft(0);
+        onExpire && onExpire();
+      } else {
+        setTimeLeft(remaining);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timeLeft, onExpire]);
+  }, [startTime, totalSeconds]);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
@@ -230,9 +244,12 @@ const BookingAlerts = () => {
                   {alert.bookingType === 'instant' && <span className="text-sm">⚡</span>}
                   {alert.bookingType === 'instant' ? 'INSTANT Request' : 'New Request'}
                 </span>
-                {/* Fake timer for demo - purely visual urgency as requested "with timer" */}
-                {/* In real app, calculate actual remaining time from createdAt */}
-                <CountdownTimer durationSeconds={300} onExpire={() => { }} />
+                {/* Timer calculated from actual booking createdAt — survives page refresh */}
+                <CountdownTimer
+                  totalSeconds={300}
+                  startTime={alert.createdAt}
+                  onExpire={() => handleReject(bookingId)}
+                />
               </div>
 
               <div className="p-4">

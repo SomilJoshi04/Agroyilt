@@ -122,10 +122,10 @@ const addWorker = async (req, res) => {
       name,
       email: email || null, // Handle empty string as null for sparse index
       phone,
-      aadhar: {
+      aadhar: aadhar ? {
         number: aadhar.number,
         document: aadharUrl
-      },
+      } : undefined,
       vendorId,
       serviceCategories: serviceCategories || [],
       skills: skills || [],

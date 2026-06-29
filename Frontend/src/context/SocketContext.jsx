@@ -138,15 +138,15 @@ export const SocketProvider = ({ children }) => {
       auth: {
         token: token
       },
-      transports: ['polling', 'websocket'], // Try polling first for reliability
+      transports: ['websocket', 'polling'], // WebSocket first for instant real-time alerts
       path: '/socket.io/',
       secure: true,
       rejectUnauthorized: false,
       reconnection: true,
       reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 3000,
+      timeout: 10000,
       autoConnect: true
     });
 
@@ -248,18 +248,13 @@ export const SocketProvider = ({ children }) => {
         // Save to localStorage for the Alert screen and Dashboard to read
         // Note: Even though we are moving to backend, keeping this for immediate UI responsiveness before potential refresh lag
         const newJob = {
+          ...data,
           id: data.bookingId,
           serviceType: data.serviceName,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
           location: {
             address: data.address?.addressLine1 || 'Location shared',
             distance: data.distance ? `${Number(data.distance).toFixed(1)} km` : 'Near you'
           },
-          price: data.price,
-          vendorEarnings: data.vendorEarnings, // Add this
-          scheduledDate: data.scheduledDate,
-          scheduledTime: data.scheduledTime,
           timeSlot: {
             date: new Date(data.scheduledDate).toLocaleDateString(),
             time: data.scheduledTime
@@ -285,7 +280,7 @@ export const SocketProvider = ({ children }) => {
         window.dispatchEvent(new Event('vendorNotificationsUpdated'));
 
         // If on Dashboard, show modal there instead of navigating
-        if (location.pathname === '/vendor/dashboard') {
+        if (window.location.pathname === '/vendor/dashboard') {
           const event = new CustomEvent('showDashboardBookingAlert', { detail: newJob });
           window.dispatchEvent(event);
         } else {

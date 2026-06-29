@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { FiX, FiMapPin, FiClock, FiDollarSign, FiArrowRight, FiBell, FiAlertCircle, FiMinimize2, FiUsers } from 'react-icons/fi';
+import { FaRupeeSign } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { playAlertRing, stopAlertRing } from '../../../../utils/notificationSound';
 
-const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLeft = 60 }) => {
+const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLeft = 60, servicePayoutPct = 70 }) => {
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
   const [loadingAction, setLoadingAction] = useState(null);
 
@@ -73,9 +74,9 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
   const dashoffset = circumference - progress;
 
   return (
-    <div className="bg-white w-full sm:w-[350px] flex-none rounded-[3rem] overflow-y-auto max-h-[90vh] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] relative scrollbar-hide snap-center">
+    <div className="bg-white w-full sm:w-[350px] flex-none rounded-[3rem] overflow-hidden max-h-[90vh] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] relative flex flex-col scrollbar-hide snap-center">
       {/* Header Section */}
-      <div className="relative h-32 bg-gradient-to-br from-teal-600 to-emerald-700 flex flex-col items-center justify-center pt-2">
+      <div className="relative h-32 bg-gradient-to-br from-teal-600 to-emerald-700 flex flex-col items-center justify-center pt-2 shrink-0">
         <div className="absolute inset-0 opacity-10 pointer-events-none">
           <motion.div
             animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
@@ -102,8 +103,8 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
         </div>
       </div>
 
-      {/* Body Section */}
-      <div className="px-6 py-5">
+      {/* Body Section - Scrollable */}
+      <div className="px-6 py-5 overflow-y-auto flex-1 scrollbar-hide">
         <div className="flex justify-center -mt-12 mb-4">
           <div className="relative w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-2xl p-0.5">
             <svg className="absolute inset-0 w-full h-full -rotate-90 transform" viewBox="0 0 80 80">
@@ -123,12 +124,21 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
           </div>
         </div>
 
-        <div className="flex items-center justify-center mb-6 bg-emerald-50/50 py-3 rounded-2xl border border-emerald-100/50">
-          <div className="text-center">
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-emerald-50/50 py-3 rounded-2xl border border-emerald-100/50 text-center flex flex-col justify-center items-center">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.1em] mb-1 block">Travel Distance</span>
-            <div className="text-2xl font-black text-emerald-600 tracking-tight flex items-center gap-1 justify-center">
-              <FiMapPin className="w-4 h-4" />
-              {booking.location?.distance || (booking.distance ? (String(booking.distance).includes('km') ? booking.distance : `${booking.distance} km`) : 'Near You')}
+            <div className="text-xl font-black text-emerald-600 tracking-tight flex items-center gap-1 justify-center">
+              <FiMapPin className="w-4 h-4 shrink-0" />
+              <span className="truncate max-w-[110px]">
+                {booking.location?.distance || (booking.distance ? (String(booking.distance).includes('km') ? booking.distance : `${booking.distance} km`) : 'Near You')}
+              </span>
+            </div>
+          </div>
+          <div className="bg-blue-50/50 py-3 rounded-2xl border border-blue-100/50 text-center flex flex-col justify-center items-center">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.1em] mb-1 block">Your Earning ({servicePayoutPct}%)</span>
+            <div className="text-xl font-black text-blue-600 tracking-tight flex items-center gap-1 justify-center">
+              <FaRupeeSign className="w-3.5 h-3.5 shrink-0" />
+              <span>{Math.round((booking.basePrice || booking.price || booking.totalAmount || booking.finalAmount || 0) * (servicePayoutPct / 100)).toLocaleString('en-IN')}</span>
             </div>
           </div>
         </div>
@@ -143,7 +153,7 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
                 <span className="w-5 h-5 flex items-center justify-center bg-gray-200 rounded-full text-[10px]">⚡</span>
               )}
               <span className="text-[11px] font-black tracking-widest text-gray-700 uppercase">
-                {booking.serviceCategory || 'Category'}
+                {booking.serviceCategory || booking.categoryName || (booking.categoryId && booking.categoryId.title) || 'Category'}
               </span>
             </div>
             <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-100 px-2 py-1.5 rounded-lg shadow-sm">
@@ -163,33 +173,22 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
                 {booking.serviceName || booking.serviceType || 'Service Request'}
               </h4>
 
-              {(typeof booking.brandName === 'string' || typeof booking.brandIcon === 'string') && (
-                <div className="flex items-center gap-2.5 bg-gray-50/80 rounded-xl p-2.5 border border-gray-100 shadow-sm w-fit mt-1">
-                  {typeof booking.brandIcon === 'string' && booking.brandIcon ? (
-                    <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm p-1 border border-gray-50">
-                      <img src={booking.brandIcon} alt={typeof booking.brandName === 'string' ? booking.brandName : 'Brand'} className="max-w-full max-h-full object-contain" />
-                    </div>
-                  ) : (
-                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-50 text-xs font-black text-gray-500">
-                      {typeof booking.brandName === 'string' && booking.brandName ? booking.brandName.substring(0, 2).toUpperCase() : 'BR'}
-                    </div>
-                  )}
-                  <div className="flex flex-col pr-2">
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] leading-none mb-0.5">Brand</span>
-                    <span className="text-xs font-black text-gray-800 uppercase tracking-wide">{typeof booking.brandName === 'string' ? booking.brandName : 'N/A'}</span>
-                  </div>
-                </div>
-              )}
+
 
               {/* Agriculture/Drone Specific Details */}
-              {(booking.landSize || booking.cropType || booking.chemicalUsed) && (
+              {(booking.landSize || booking.cropType || booking.chemicalUsed || booking.estimatedDuration || booking.rental_type) && (
                 <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-teal-50">
-                  {booking.landSize && (
+                  {booking.rental_type === 'hourly' && booking.estimatedDuration ? (
+                    <div className="bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-center gap-1.5">
+                      <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Duration:</span>
+                      <span className="text-xs font-black text-blue-800">{booking.estimatedDuration} Hour(s)</span>
+                    </div>
+                  ) : booking.landSize ? (
                     <div className="bg-emerald-50 px-2 py-1 rounded border border-emerald-100 flex items-center gap-1.5">
                       <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Area:</span>
-                      <span className="text-xs font-black text-emerald-800">{booking.landSize}</span>
+                      <span className="text-xs font-black text-emerald-800">{booking.landSize} Acre(s)</span>
                     </div>
-                  )}
+                  ) : null}
                   {booking.cropType && (
                     <div className="bg-amber-50 px-2 py-1 rounded border border-amber-100 flex items-center gap-1.5">
                       <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">Crop:</span>
@@ -252,6 +251,35 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
 
 const BookingAlertModal = ({ isOpen, booking, bookings, onAccept, onReject, onAssign, onMinimize, timeLeft = 60 }) => {
   const alertsArray = bookings || (booking ? [booking] : []);
+  const [servicePayoutPct, setServicePayoutPct] = useState(70);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPayoutSettings = async () => {
+      try {
+        const token = localStorage.getItem('vendorAccessToken');
+        if (!token) return;
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/vendors/settings`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (isMounted && data.success && data.data?.global) {
+          const globalSettings = data.data.global;
+          const commission = globalSettings.bookingCommissionPercentage ?? (100 - (globalSettings.servicePayoutPercentage ?? 90));
+          setServicePayoutPct(100 - commission);
+        }
+      } catch (error) {
+        console.error('Error fetching global vendor settings in modal:', error);
+      }
+    };
+
+    if (isOpen) {
+      fetchPayoutSettings();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && alertsArray.length > 0) {
@@ -283,6 +311,7 @@ const BookingAlertModal = ({ isOpen, booking, bookings, onAccept, onReject, onAs
                 onReject={onReject}
                 onAssign={onAssign}
                 initialTimeLeft={timeLeft}
+                servicePayoutPct={servicePayoutPct}
               />
             ))}
           </div>

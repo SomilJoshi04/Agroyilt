@@ -13,7 +13,8 @@ const initializeSocket = (server) => {
       credentials: true,
       methods: ["GET", "POST"]
     },
-    transports: ['polling', 'websocket']
+    transports: ['websocket', 'polling'],
+    allowEIO3: true
   });
 
   // Authentication middleware for Socket.io
@@ -243,14 +244,12 @@ const updateVendorOnlineStatus = async (vendorId, isOnline, socketId) => {
 
     const updateData = {
       isOnline,
-      currentSocketId: socketId
+      currentSocketId: socketId,
+      availability: isOnline ? 'AVAILABLE' : 'OFFLINE'
     };
 
-    if (isOnline) {
-      updateData.availability = 'AVAILABLE';
-    } else {
+    if (!isOnline) {
       updateData.lastSeenAt = new Date();
-      updateData.availability = 'OFFLINE';
     }
 
     // Update MongoDB
@@ -258,7 +257,6 @@ const updateVendorOnlineStatus = async (vendorId, isOnline, socketId) => {
 
     // Update Redis cache (fast lookup)
     await setVendorOnline(vendorId, isOnline);
-    await setVendorAvailability(vendorId, updateData.availability);
 
     console.log(`[Socket] Vendor ${vendorId} is now ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
   } catch (error) {

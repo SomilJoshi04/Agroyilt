@@ -204,20 +204,29 @@ export const VendorDashboardProvider = ({ children }) => {
     localStorage.setItem('vendorPendingJobs', JSON.stringify(mergedPending));
 
     // Auto-trigger modal for fresh pending bookings (app reopen scenario - missed socket event)
-    const freshPending = mergedPending.filter(b => {
-      const createdAt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      const age = Date.now() - createdAt;
-      return age < 120000; // Less than 2 minutes old — still actionable
-    });
-    if (freshPending.length > 0) {
-      setActiveAlertBookings(prev => {
-        const existingIds = new Set(prev.map(b => String(b.id || b._id)));
-        const newOnes = freshPending.filter(b => !existingIds.has(String(b.id || b._id)));
-        if (newOnes.length === 0) return prev;
-        // Play alarm ring for missed bookings on app reopen
-        try { playAlertRing(); } catch (e) { /* Browser may block audio before user interaction */ }
-        return [...newOnes, ...prev];
+    // IMPORTANT: Only trigger once per session (not on every dashboard poll / page refresh)
+    const sessionKey = 'vendorAlertShownThisSession';
+    const alreadyShownThisSession = sessionStorage.getItem(sessionKey);
+
+    if (!alreadyShownThisSession) {
+      const freshPending = mergedPending.filter(b => {
+        const id = String(b.id || b._id);
+        const createdAt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const age = Date.now() - createdAt;
+        // Less than 2 minutes old AND not already ignored/seen
+        return age < 120000 && !ignoredBookingIds.current.has(id);
       });
+      if (freshPending.length > 0) {
+        sessionStorage.setItem(sessionKey, '1'); // Mark as shown for this session
+        setActiveAlertBookings(prev => {
+          const existingIds = new Set(prev.map(b => String(b.id || b._id)));
+          const newOnes = freshPending.filter(b => !existingIds.has(String(b.id || b._id)));
+          if (newOnes.length === 0) return prev;
+          // Play alarm ring for missed bookings on app reopen
+          try { playAlertRing(); } catch (e) { /* Browser may block audio before user interaction */ }
+          return [...newOnes, ...prev];
+        });
+      }
     }
 
     // Update stats with cache persist
@@ -231,7 +240,8 @@ export const VendorDashboardProvider = ({ children }) => {
         rating: apiStats?.rating || 0,
         complianceAlerts: apiStats?.complianceAlerts || [],
         machinesInMaintenance: prev.machinesInMaintenance || 0,
-        ecommerceEarnings: apiStats?.ecommerceEarnings || 0
+        ecommerceEarnings: apiStats?.ecommerceEarnings || 0,
+        servicePayoutPercentage: apiStats?.servicePayoutPercentage || 70
       };
       localStorage.setItem('vendorDashboardStats', JSON.stringify(updatedStats));
       return updatedStats;
@@ -362,6 +372,8 @@ export const VendorDashboardProvider = ({ children }) => {
 
     const handleShowAlert = (e) => {
       if (e.detail) {
+        // Clear session flag so this real-time booking is always shown
+        sessionStorage.removeItem('vendorAlertShownThisSession');
         setActiveAlertBookings(prev => {
           if (prev.find(b => String(b.id || b._id) === String(e.detail.id || e.detail._id))) return prev;
           return [e.detail, ...prev];

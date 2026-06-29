@@ -40,6 +40,7 @@ exports.updateSettings = async (req, res, next) => {
       platformFeePercentage,
       vendorCashLimit,
       cancellationPenalty,
+      bookingCommissionPercentage,
       razorpayKeyId,
       razorpayKeySecret,
       razorpayWebhookSecret,
@@ -66,6 +67,7 @@ exports.updateSettings = async (req, res, next) => {
         platformFeePercentage,
         vendorCashLimit, // Add this
         cancellationPenalty,
+        bookingCommissionPercentage,
         razorpayKeyId,
         razorpayKeySecret,
         razorpayWebhookSecret,
@@ -87,6 +89,7 @@ exports.updateSettings = async (req, res, next) => {
       if (platformFeePercentage !== undefined) settings.platformFeePercentage = platformFeePercentage;
       if (vendorCashLimit !== undefined) settings.vendorCashLimit = vendorCashLimit; // Add this
       if (cancellationPenalty !== undefined) settings.cancellationPenalty = cancellationPenalty;
+      if (bookingCommissionPercentage !== undefined) settings.bookingCommissionPercentage = bookingCommissionPercentage;
       if (razorpayKeyId !== undefined) settings.razorpayKeyId = razorpayKeyId;
       if (razorpayKeySecret !== undefined) settings.razorpayKeySecret = razorpayKeySecret;
       if (razorpayWebhookSecret !== undefined) settings.razorpayWebhookSecret = razorpayWebhookSecret;
@@ -142,7 +145,7 @@ exports.updateSettings = async (req, res, next) => {
 // Get Public Settings (Visited Charges, GST)
 exports.getPublicSettings = async (req, res, next) => {
   try {
-    let settings = await Settings.findOne({ type: 'global' }).select('visitedCharges serviceGstPercentage partsGstPercentage supportEmail supportPhone supportWhatsapp cancellationPenalty');
+    let settings = await Settings.findOne({ type: 'global' }).select('visitedCharges serviceGstPercentage partsGstPercentage supportEmail supportPhone supportWhatsapp cancellationPenalty bookingCommissionPercentage');
 
     // Default if not found (fallback values)
     if (!settings) {

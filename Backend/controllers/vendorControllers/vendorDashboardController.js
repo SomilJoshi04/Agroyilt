@@ -3,6 +3,7 @@ const VendorBill = require('../../models/VendorBill');
 const Worker = require('../../models/Worker');
 const Service = require('../../models/Service');
 const EcommerceOrder = require('../../models/EcommerceOrder');
+const Settings = require('../../models/Settings');
 const { BOOKING_STATUS, PAYMENT_STATUS, WORKER_STATUS } = require('../../utils/constants');
 
 const mongoose = require('mongoose');
@@ -161,6 +162,10 @@ const getDashboardStats = async (req, res) => {
       checkDoc('Insurance', docs.insurance);
     }
 
+    // Fetch Global Settings to pass dynamic payout percentage to the app
+    const globalSettings = await Settings.findOne({ type: 'global' });
+    const servicePayoutPercentage = globalSettings?.servicePayoutPercentage ?? 70;
+
     res.status(200).json({
       success: true,
       data: {
@@ -174,7 +179,8 @@ const getDashboardStats = async (req, res) => {
           ecommerceEarnings, // NEW
           workersOnline,
           rating,
-          complianceAlerts // Add this
+          complianceAlerts, // Add this
+          servicePayoutPercentage
         },
         recentBookings
       }

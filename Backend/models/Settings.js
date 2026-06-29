@@ -72,6 +72,13 @@ const settingsSchema = new mongoose.Schema({
     default: 49,
     min: 0
   },
+  // Per-booking vendor commission deduction
+  bookingCommissionPercentage: {
+    type: Number,
+    default: 10, // 10% commission deducted from vendor per booking
+    min: 0,
+    max: 100
+  },
   // Razorpay Settings
   razorpayKeyId: {
     type: String,

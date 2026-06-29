@@ -11,7 +11,6 @@ import {
   verifySelfVisit, 
   completeSelfJob, 
   collectSelfCash, 
-  payWorker, 
   startTrip, 
   endTrip 
 } from '../../services/bookingService';
@@ -116,11 +115,13 @@ const BookingTimeline = () => {
         if (!requiresDriver && (apiData.status === 'confirmed' || apiData.status === 'accepted')) {
           stage = 6; // Directly jump to Handover stage
         }
-        
+        if (apiData.status === 'work_done' && isSelfJob) {
+          stage = 9; // Skip approve/pay for self job
+        }
+
         if (apiData.status === 'completed') {
           if (isSettled) stage = 10; // Booking Complete
-          else if (isActuallyPaid || isSelfJob) stage = 9; // Final Settlement (Skip Pay Worker for self)
-          else stage = 8; // Pay Worker
+          else stage = 9; // Final Settlement
         }
 
         setCurrentStage(stage);
@@ -160,31 +161,6 @@ const BookingTimeline = () => {
   }, [isVisitModalOpen, isWorkDoneModalOpen, isTripModalOpen, confirmDialog.isOpen]);
 
   /* Handlers */
-  const handleWorkerPayment = async () => {
-    // Determine payment type
-    const confirmMsg = booking?.cashCollected
-      ? `Operator has collected ₹${booking.finalAmount}. Confirm payment of ₹${booking.vendorEarnings} to operator?`
-      : `Confirm payment of ₹${booking.vendorEarnings} to the operator?`;
-
-    setConfirmDialog({
-      isOpen: true,
-      title: 'Pay Operator',
-      message: confirmMsg,
-      type: 'info',
-      onConfirm: async () => {
-        try {
-          setActionLoading(true);
-          await payWorker(id);
-          toast.success('Operator payment processed successfully');
-          window.location.reload();
-        } catch (e) {
-          toast.error(e.response?.data?.message || 'Payment failed');
-        } finally {
-          setActionLoading(false);
-        }
-      }
-    });
-  };
 
   const handleApproveWork = async () => {
     setConfirmDialog({
@@ -357,14 +333,14 @@ const BookingTimeline = () => {
       id: 4,
       title: 'Journey Started',
       icon: FiMapPin,
-      action: (currentStage === 3 && booking?.isSelfJob) ? handleStartSelfJob : null,
+      action: (currentStage === 3) ? handleStartSelfJob : null,
       description: booking?.isSelfJob ? 'You started journey' : (booking?.assignedTo ? 'Operator started journey' : 'Waiting for journey start'),
     },
     {
       id: 5,
       title: 'Visited Site',
       icon: FiMapPin,
-      action: (currentStage === 4 && booking?.isSelfJob) ? () => setIsVisitModalOpen(true) : null,
+      action: (currentStage === 4) ? () => setIsVisitModalOpen(true) : null,
       description: 'Arrived at location',
     },
     {
@@ -384,11 +360,11 @@ const BookingTimeline = () => {
                   return () => { setTripModalMode('start'); setIsTripModalOpen(true); };
               }
           } else if (isAgriBooking) {
-              if (booking?.status === 'visited' && booking?.isSelfJob) {
+              if (booking?.status === 'visited') {
                   return () => { setTripModalMode('start'); setIsTripModalOpen(true); };
               }
           } else {
-              if (currentStage === 5 && booking?.isSelfJob) return () => setIsWorkDoneModalOpen(true);
+              if (currentStage === 5) return () => setIsWorkDoneModalOpen(true);
           }
           return null;
       })(),
@@ -398,7 +374,7 @@ const BookingTimeline = () => {
     },
     {
       id: 7,
-      title: booking?.isSelfJob ? 'Collect Payment' : 'Approve Operator Work',
+      title: 'Collect Payment',
       icon: FiCheckCircle,
       action: (() => {
         if (booking?.status === 'completed' || booking?.status === 'COMPLETED' || booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid') return null;
@@ -412,14 +388,7 @@ const BookingTimeline = () => {
         }
         return null;
       })(),
-      description: booking?.isSelfJob ? 'Collect cash and complete booking' : 'Review and approve operator work',
-    },
-    {
-      id: 8,
-      title: 'Pay Operator',
-      icon: FiDollarSign,
-      action: (currentStage === 8 && !(booking?.isWorkerPaid || booking?.workerPaymentStatus === 'PAID' || booking?.workerPaymentStatus === 'SUCCESS')) ? handleWorkerPayment : null,
-      description: (booking?.isWorkerPaid || booking?.workerPaymentStatus === 'PAID' || booking?.workerPaymentStatus === 'SUCCESS') ? 'Operator Paid' : 'Settle payment with operator',
+      description: 'Collect cash or wait for online payment',
     },
     {
       id: 9,
@@ -437,7 +406,7 @@ const BookingTimeline = () => {
     },
   ].filter(stage => {
     // Hide worker-specific stages for self jobs
-    if (booking?.isSelfJob && stage.id === 8) return false;
+    if (booking?.isSelfJob && stage.id === 7) return false;
     
     // Standalone: Hide Assigned (3), Journey (4), and Visited (5)
     if (!requiresDriver && [3, 4, 5].includes(stage.id)) return false;
@@ -584,10 +553,9 @@ const BookingTimeline = () => {
                                   stage.id === 7 ? (
                                     (booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid')
                                       ? 'Online Payment Done'
-                                      : (booking?.isSelfJob || (!requiresDriver && isAgriBooking) ? 'Collect Cash' : 'Approve Work')
+                                      : 'Collect Payment'
                                   ) :
-                                    stage.id === 8 ? 'Pay Operator' :
-                                      stage.id === 9 ? 'Final Settlement' : 'Continue'}
+                                    stage.id === 9 ? 'Final Settlement' : 'Continue'}
                         </button>
                       )}
 
@@ -663,6 +631,7 @@ const BookingTimeline = () => {
         isMachinery={isAgriBooking}
         requiresDriver={requiresDriver}
         trackingType={requiresDriver ? 'odometer' : 'condition'}
+        booking={booking}
       />
     </div>
   );

@@ -33,6 +33,7 @@ import DisputeModal from '../../../../components/common/DisputeModal'; // NEW
 import disputeService from '../../../../services/disputeService'; // NEW
 import LogoLoader from '../../../../components/common/LogoLoader'; // NEW
 import flutterBridge from '../../../../utils/flutterBridge';
+import { configService } from '../../../../services/configService'; // For commission %
 
 export default function BookingDetails() {
   const { id } = useParams();
@@ -50,6 +51,7 @@ export default function BookingDetails() {
   const [isTripModalOpen, setIsTripModalOpen] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false); // NEW
   const [tripMode, setTripMode] = useState('start'); // 'start' | 'end'
+  const [bookingCommissionPct, setBookingCommissionPct] = useState(10); // Commission % from settings
   // ─────────────────────────────────────────────────────────────
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -158,6 +160,13 @@ export default function BookingDetails() {
     };
 
     loadBooking();
+
+    // Load commission % from global settings
+    configService.getSettings().then(res => {
+      if (res?.settings?.bookingCommissionPercentage !== undefined) {
+        setBookingCommissionPct(res.settings.bookingCommissionPercentage);
+      }
+    }).catch(() => {});
     window.addEventListener('vendorJobsUpdated', loadBooking);
 
     return () => {
@@ -455,7 +464,8 @@ export default function BookingDetails() {
   const handleDownloadInvoice = async () => {
     try {
       setActionLoading(true);
-      const url = `${import.meta.env.VITE_API_BASE_URL}/vendors/bookings/${id}/invoice`;
+      const token = sessionStorage.getItem('vendorAccessToken') || localStorage.getItem('vendorAccessToken');
+      const url = `${import.meta.env.VITE_API_BASE_URL}/vendors/bookings/${id}/bill/download?token=${token}`;
       const fileName = `Invoice_${booking.bookingNumber}.pdf`;
       
       const result = await flutterBridge.downloadFile(url, fileName);
@@ -1143,6 +1153,12 @@ export default function BookingDetails() {
                 <span>Platform Commission</span>
                 <span>-₹{(bill?.adminCommission || booking.adminCommission || booking.platformCommission || 0).toFixed(2)}</span>
               </div>
+              {/* Commission % info badge */}
+              <div className="mt-2 flex items-center gap-1.5 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                <span className="text-[9px] font-black text-orange-500 uppercase tracking-wider">Per Booking Commission</span>
+                <span className="ml-auto text-[11px] font-black text-orange-600">{bookingCommissionPct}%</span>
+                <span className="text-[9px] text-orange-400">deducted by platform</span>
+              </div>
             </div>
           ) : (
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-100/50 text-center">
@@ -1257,7 +1273,7 @@ export default function BookingDetails() {
               </div>
 
               {/* Status Display */}
-              {!booking.workerResponse || booking.workerResponse === 'PENDING' ? (
+              {(!booking.workerResponse || booking.workerResponse === 'PENDING') && (booking.status === 'pending' || booking.status === 'assigned') ? (
                 <div className="flex items-center gap-4 text-amber-600 bg-white/80 backdrop-blur-md p-4 rounded-xl border border-amber-100 shadow-sm relative z-10">
                   <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
                     <FiClock className="w-5 h-5 animate-pulse" />
@@ -1267,7 +1283,7 @@ export default function BookingDetails() {
                     <p className="text-xs text-amber-700/80 font-medium mt-0.5">Operator has not responded yet</p>
                   </div>
                 </div>
-              ) : booking.workerResponse === 'ACCEPTED' ? (
+              ) : (booking.workerResponse === 'ACCEPTED' || ['journey_started', 'visited', 'in_progress', 'work_done', 'completed'].includes(booking.status)) ? (
                 <div className="space-y-6 relative z-10">
                   {/* Progress Steps Visual - Pro Design */}
                   <div className="relative px-2">
@@ -1320,14 +1336,16 @@ export default function BookingDetails() {
                   {/* Clear Text Status with Glass Effect */}
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/50 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow duration-300">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${booking.status === 'journey_started' ? 'bg-blue-50 text-blue-600' :
-                      booking.status === 'in_progress' ? 'bg-orange-50 text-orange-600' :
-                        ['work_done', 'completed'].includes(booking.status) ? 'bg-green-50 text-green-600' :
-                          'bg-gray-100 text-gray-500'
+                      booking.status === 'visited' ? 'bg-purple-50 text-purple-600' :
+                        booking.status === 'in_progress' ? 'bg-orange-50 text-orange-600' :
+                          ['work_done', 'completed'].includes(booking.status) ? 'bg-green-50 text-green-600' :
+                            'bg-gray-100 text-gray-500'
                       }`}>
                       {booking.status === 'journey_started' ? <FiNavigation className="w-6 h-6 drop-shadow-sm" /> :
-                        booking.status === 'in_progress' ? <FiTool className="w-6 h-6 animate-pulse drop-shadow-sm" /> :
-                          ['work_done', 'completed'].includes(booking.status) ? <FiCheckCircle className="w-6 h-6 drop-shadow-sm" /> :
-                            <FiCheck className="w-6 h-6 text-gray-400" />}
+                        booking.status === 'visited' ? <FiMapPin className="w-6 h-6 drop-shadow-sm" /> :
+                          booking.status === 'in_progress' ? <FiTool className="w-6 h-6 animate-pulse drop-shadow-sm" /> :
+                            ['work_done', 'completed'].includes(booking.status) ? <FiCheckCircle className="w-6 h-6 drop-shadow-sm" /> :
+                              <FiCheck className="w-6 h-6 text-gray-400" />}
                     </div>
                     <div>
                       <p className="font-bold text-gray-900 text-base tracking-tight mb-0.5">
@@ -1736,6 +1754,7 @@ export default function BookingDetails() {
         trackingType={booking.categoryId?.trackingType}
         isMachinery={!!(booking?.rental_type || ['equipment', 'machinery', 'tractor', 'agriculture'].some(cat => (booking?.serviceCategory || booking?.serviceType || '').toLowerCase().includes(cat)))}
         onSubmit={handleTripSubmit}
+        booking={booking}
       />
 
       {/* Dispute Modal */}

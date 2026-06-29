@@ -4,6 +4,7 @@ import { FiSave, FiX, FiLink, FiUserPlus, FiSearch, FiChevronDown, FiCamera, FiU
 import AddressSelectionModal from '../../../user/pages/Checkout/components/AddressSelectionModal';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
+import { FormContainer, FormSection } from '../../../../components/common';
 import BottomNav from '../../components/layout/BottomNav';
 import { createWorker, updateWorker, getWorkerById, linkWorker } from '../../services/workerService';
 import { publicCatalogService } from '../../../../services/catalogService';
@@ -14,18 +15,11 @@ import { z } from "zod";
 const addWorkerSchema = z.object({
   name: z.string().min(2, "Name is required"),
   phone: z.string().regex(/^\d{10}$/, "Enter valid 10-digit phone number"),
-  serviceCategories: z.array(z.string()).min(1, "Select at least one category"),
-  skills: z.array(z.string()).min(1, "Select at least one skill"),
-  aadhar: z.object({
-    number: z.string().regex(/^\d{12}$/, "Aadhar must be 12 digits"),
-  }),
 });
 
 const editWorkerSchema = z.object({
   name: z.string().min(2, "Name is required"),
   phone: z.string().regex(/^\d{10}$/, "Enter valid 10-digit phone number"),
-  serviceCategories: z.array(z.string()).min(1, "Select at least one category"),
-  skills: z.array(z.string()).min(1, "Select at least one skill"),
 });
 
 const AddEditDriver = () => {
@@ -272,9 +266,6 @@ const AddEditDriver = () => {
     const validationData = {
       name: formData.name,
       phone: formData.phone,
-      serviceCategories: formData.serviceCategories,
-      skills: formData.skills,
-      ...(isEdit ? {} : { aadhar: { number: formData.aadhar.number } })
     };
 
     const validationResult = schema.safeParse(validationData);
@@ -282,11 +273,7 @@ const AddEditDriver = () => {
       toast.error(validationResult.error?.issues?.[0]?.message || 'Please check your inputs');
       return;
     }
-
-    if (!isEdit && !formData.aadhar.document && !aadharFile) {
-      toast.error("Aadhar document is required");
-      return;
-    }
+    // Removed aadhar check
 
     try {
       setLoading(true);
@@ -432,9 +419,8 @@ const AddEditDriver = () => {
               <p className="text-gray-400 text-[10px] mt-2 font-medium">Add Profile Photo</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide">Driver Details</h4>
-              <div className="space-y-3">
+            <FormContainer>
+              <FormSection subtitle="Driver Details" spacing="space-y-3">
                 <input type="text" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Full Name *" className={`w-full px-4 py-3 bg-gray-50 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-100 ${errors.name ? 'border-red-500' : 'border-gray-100'}`} />
                 <input type="tel" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} placeholder="Mobile Number *" className={`w-full px-4 py-3 bg-gray-50 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-100 ${errors.phone ? 'border-red-500' : 'border-gray-100'}`} maxLength={10} />
                 <div className="space-y-1">
@@ -451,115 +437,13 @@ const AddEditDriver = () => {
                     <p className="text-[10px] text-red-500 font-bold px-1">{errors.email}</p>
                   )}
                 </div>
-              </div>
-            </div>
+              </FormSection>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide">Current Address</h4>
-              <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                <p className="text-sm font-medium text-gray-700">{formData.address?.fullAddress || (formData.address?.addressLine1 ? `${formData.address.addressLine1}, ${formData.address.city}` : 'No address set')}</p>
-              </div>
-              <button onClick={() => setIsAddressModalOpen(true)} className="w-full py-3 bg-blue-50 text-blue-600 rounded-xl font-bold text-sm border border-blue-100 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2">
-                <FiMapPin className="w-4 h-4" />
-                Select Address on Map
-              </button>
-            </div>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-2">
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Operation Profile</h4>
-              <div>
-                <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">Equipment Category</label>
-                <div className="relative">
-                  <button onClick={() => setIsCategoryOpen(!isCategoryOpen)} className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-100">
-                    <span className={`font-medium truncate ${formData.serviceCategories.length > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {formData.serviceCategories.length > 0 ? `${formData.serviceCategories.length} Selected` : 'Select Equipment Types'}
-                    </span>
-                    <FiChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {isCategoryOpen && (
-                    <>
-                      <div className="fixed inset-0 z-10 bg-transparent" onClick={() => setIsCategoryOpen(false)} />
-                      <div className="absolute z-20 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto">
-                        {categories.map(cat => (
-                          <button key={cat._id} onClick={() => toggleCategory(cat.title)} className="w-full text-left px-4 py-3 hover:bg-gray-50 font-medium text-gray-700 border-b border-gray-50 last:border-0 flex items-center justify-between">
-                            {cat.title}
-                            {formData.serviceCategories.includes(cat.title) && <div className="w-2 h-2 rounded-full bg-green-500" />}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-                {formData.serviceCategories.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.serviceCategories.map((cat, idx) => (
-                      <span key={idx} className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-100">
-                        {cat}
-                        <button onClick={(e) => { e.stopPropagation(); toggleCategory(cat); }} className="ml-2 text-blue-500 hover:text-red-500 focus:outline-none"><FiX className="w-3 h-3" /></button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {formData.serviceCategories.length > 0 && (
-                <div className="mt-4">
-                  <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">Expertise / Skills</label>
-                  <div className="relative">
-                    <button onClick={() => setIsServicesOpen(!isServicesOpen)} className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-100">
-                      <span className={`font-medium truncate ${formData.skills.length > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
-                        {formData.skills.length > 0 ? `${formData.skills.length} Selected` : 'Select Skills'}
-                      </span>
-                      <FiChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${isServicesOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {isServicesOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10 bg-transparent" onClick={() => setIsServicesOpen(false)} />
-                        <div className="absolute z-20 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto">
-                          {allAvailableSkills.map((sName, idx) => (
-                            <button key={idx} onClick={() => toggleSkill(sName)} className="w-full text-left px-4 py-3 hover:bg-gray-50 font-medium text-gray-700 border-b border-gray-50 last:border-0 flex items-center justify-between">
-                              {sName}
-                              {formData.skills.includes(sName) && <div className="w-2 h-2 rounded-full" style={{ background: themeColors.button }} />}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  {formData.skills.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {formData.skills.map((skill, idx) => (
-                        <span key={idx} className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700">
-                          {skill}
-                          <button onClick={(e) => { e.stopPropagation(); toggleSkill(skill); }} className="ml-2 text-gray-500 hover:text-red-500 focus:outline-none"><FiX className="w-3 h-3" /></button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
 
-            {!isEdit && (
-              <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide">Identity Proof (Driver's Aadhar)</h4>
-                <input type="text" value={formData.aadhar.number} onChange={(e) => handleInputChange('aadhar.number', e.target.value)} placeholder="Aadhar Number *" className={`w-full px-4 py-3 bg-gray-50 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-100 ${errors['aadhar.number'] ? 'border-red-500' : 'border-gray-100'}`} maxLength={12} />
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center transition-colors hover:border-blue-300 bg-gray-50">
-                  <input id="worker-aadhar-upload" type="file" accept="image/*,.pdf" className="hidden" onChange={handleAadharChange} />
-                  <label htmlFor="worker-aadhar-upload" className="cursor-pointer flex flex-col items-center">
-                    {aadharFile ? (
-                      <div className="flex items-center gap-2 text-green-600 font-medium"><FiUpload className="w-5 h-5" /><span className="truncate max-w-[200px]">{aadharFile.name}</span></div>
-                    ) : (
-                      <>
-                        <FiUpload className="w-8 h-8 text-gray-400 mb-2" />
-                        <span className="text-sm text-gray-500 font-medium">Click to upload Driver's Aadhar</span>
-                        <span className="text-xs text-gray-400 mt-1">First Page Only (Max 5MB)</span>
-                      </>
-                    )}
-                  </label>
-                </div>
-              </div>
-            )}
+
+            </FormContainer>
 
             <button onClick={handleSubmit} disabled={loading} className="w-full py-4 text-white rounded-xl font-bold uppercase tracking-wider shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2" style={{ background: themeColors.button, boxShadow: `0 8px 24px ${themeColors.button}40` }}>
               {loading ? 'Saving...' : (isEdit ? 'Update Details' : 'Save Driver Details')}

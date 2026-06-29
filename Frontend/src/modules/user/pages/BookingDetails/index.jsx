@@ -11,7 +11,6 @@ import {
   FiXCircle,
   FiLoader,
   FiCalendar,
-  FiDollarSign,
   FiPackage,
   FiEdit2,
   FiPhone,
@@ -29,6 +28,7 @@ import {
   FiAlertTriangle,
   FiCheckSquare
 } from 'react-icons/fi';
+import { FaRupeeSign } from 'react-icons/fa';
 import { bookingService } from '../../../../services/bookingService';
 import { paymentService } from '../../../../services/paymentService';
 import { cartService } from '../../../../services/cartService';
@@ -816,8 +816,8 @@ const BookingDetails = () => {
             </div>
           )}
 
-          {/* Arrival OTP Card - Show during early stages until verified */}
-          {(booking.arrivalOTP || booking.visitOtp || booking.driver_start_otp || (['confirmed', 'accepted'].includes(booking.status?.toLowerCase()) && (booking.requiresDriver === false || booking.categoryId?.requiresDriver === false))) && ['confirmed', 'accepted', 'assigned', 'journey_started'].includes(booking.status?.toLowerCase()) && (
+          {/* Arrival/Start OTP Card - Show during early stages until verified */}
+          {(booking.arrivalOTP || booking.visitOtp || booking.driver_start_otp || (['confirmed', 'accepted'].includes(booking.status?.toLowerCase()) && (booking.requiresDriver === false || booking.categoryId?.requiresDriver === false))) && ['confirmed', 'accepted', 'assigned', 'journey_started', 'visited'].includes(booking.status?.toLowerCase()) && (
             <div className="relative overflow-hidden rounded-3xl shadow-lg border border-blue-100 mb-6 active:scale-[0.99] transition-all">
               {/* Animated gradient background */}
               <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 opacity-95"></div>
@@ -827,6 +827,25 @@ const BookingDetails = () => {
                 {(() => {
                   const isAgri = ['agriculture', 'agri', 'equipment', 'machinery', 'tractor'].includes(booking.serviceCategory?.toLowerCase()) ||
                     ['agriculture', 'agri', 'equipment', 'machinery', 'tractor'].includes(booking.categoryTitle?.toLowerCase());
+                  
+                  // Logic to prioritize correct OTP
+                  let otpValue = null;
+                  let otpTitle = '';
+                  let otpDesc = '';
+
+                  if (booking.status?.toLowerCase() === 'journey_started' && booking.visitOtp) {
+                    otpValue = booking.visitOtp;
+                    otpTitle = 'Arrival OTP';
+                    otpDesc = 'Share when professional arrives';
+                  } else if (booking.driver_start_otp && ['visited', 'confirmed', 'accepted', 'assigned'].includes(booking.status?.toLowerCase())) {
+                    otpValue = booking.driver_start_otp;
+                    otpTitle = (booking.requiresDriver === false || booking.categoryId?.requiresDriver === false) ? 'Handover OTP' : (isAgri ? 'Start Trip OTP' : 'Verification OTP');
+                    otpDesc = (booking.requiresDriver === false || booking.categoryId?.requiresDriver === false) ? 'Share for equipment handover' : (isAgri ? 'Share to start engine' : 'Share to start work');
+                  } else {
+                    otpValue = booking.arrivalOTP || booking.visitOtp || booking.driver_start_otp;
+                    otpTitle = 'Verification OTP';
+                    otpDesc = 'Share when professional reaches';
+                  }
 
                   return (
                     <>
@@ -836,10 +855,10 @@ const BookingDetails = () => {
                         </div>
                         <div>
                           <h3 className="text-lg font-bold text-white tracking-tight">
-                            {(booking.requiresDriver === false || booking.categoryId?.requiresDriver === false) ? 'Handover OTP' : (isAgri ? 'Start Trip OTP' : 'Verification OTP')}
+                            {otpTitle}
                           </h3>
                           <p className="text-xs text-blue-100 font-medium">
-                            {(booking.requiresDriver === false || booking.categoryId?.requiresDriver === false) ? 'Share for equipment handover' : (isAgri ? 'Share when equipment arrives' : 'Share when professional reaches')}
+                            {otpDesc}
                           </p>
                         </div>
                       </div>
@@ -847,9 +866,6 @@ const BookingDetails = () => {
                       {/* OTP Display */}
                       <div className="flex justify-center gap-3 mb-5">
                         {(() => {
-                          // Priority: driver_start_otp if it exists, else fallback to others
-                          const otpValue = booking.driver_start_otp || booking.arrivalOTP || booking.visitOtp;
-                          
                           if (!otpValue) return (
                             <div className="py-2 px-4 bg-white/10 rounded-xl border border-white/20">
                               <p className="text-sm text-white font-bold animate-pulse">Generating code...</p>
@@ -976,7 +992,7 @@ const BookingDetails = () => {
                     {booking.paymentStatus === 'success' ? (
                       <FiCheckCircle className="w-6 h-6 text-white" />
                     ) : (
-                      <FiDollarSign className="w-6 h-6 text-white" />
+                      <FaRupeeSign className="w-5 h-5 text-white" />
                     )}
                   </div>
                   <div>
@@ -996,7 +1012,7 @@ const BookingDetails = () => {
                       onClick={handleOnlinePayment}
                       className="w-full py-4 mb-4 bg-white text-orange-600 rounded-2xl font-black text-sm shadow-xl hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-2 group"
                     >
-                      <FiDollarSign className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                      <FaRupeeSign className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
                       Pay Online Now
                       <FiChevronRight className="w-4 h-4" />
                     </button>
@@ -1337,7 +1353,7 @@ const BookingDetails = () => {
                   {booking.paymentMethod === 'plan_benefit' ? (
                     <FiAward className="w-5 h-5 text-amber-600" />
                   ) : (
-                    <FiDollarSign className="w-5 h-5 text-green-600" />
+                    <FaRupeeSign className="w-5 h-5 text-green-600" />
                   )}
                 </div>
                 <div className="flex-1">
@@ -1479,7 +1495,11 @@ const BookingDetails = () => {
 
                     {(booking.tax > 0 || booking.paymentMethod === 'plan_benefit') && (
                       <div className="flex justify-between items-center text-gray-600">
-                        <span>GST (18%)</span>
+                        <span>
+                          GST ({booking.basePrice - booking.discount > 0 
+                            ? Math.round((booking.tax * 100) / (booking.basePrice - booking.discount)) 
+                            : 18}%)
+                        </span>
                         {booking.paymentMethod === 'plan_benefit' ? (
                           <div className="flex items-center gap-2">
                             <span className="line-through text-gray-400 text-xs">₹{(booking.tax || 0).toLocaleString('en-IN')}</span>
@@ -1491,19 +1511,21 @@ const BookingDetails = () => {
                       </div>
                     )}
 
-                    {(booking.visitingCharges > 0 || booking.visitationFee > 0 || booking.paymentMethod === 'plan_benefit') && (
-                      <div className="flex justify-between items-center text-gray-600">
-                        <span>Convenience Fee</span>
-                        {booking.paymentMethod === 'plan_benefit' ? (
-                          <div className="flex items-center gap-2">
-                            <span className="line-through text-gray-400 text-xs">₹{(booking.visitingCharges || booking.visitationFee || 0).toLocaleString('en-IN')}</span>
-                            <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
-                          </div>
-                        ) : (
-                          <span className="font-medium text-gray-900">₹{(booking.visitingCharges || booking.visitationFee || 0).toLocaleString('en-IN')}</span>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex justify-between items-center text-gray-600">
+                      <span>Convenience Fee</span>
+                      {booking.paymentMethod === 'plan_benefit' ? (
+                        <div className="flex items-center gap-2">
+                          <span className="line-through text-gray-400 text-xs">₹{(booking.visitingCharges || booking.visitationFee || 0).toLocaleString('en-IN')}</span>
+                          <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
+                        </div>
+                      ) : (
+                        <span className={`font-medium ${(booking.visitingCharges || booking.visitationFee || 0) === 0 ? 'text-gray-400 font-normal italic' : 'text-gray-900'}`}>
+                          {(booking.visitingCharges || booking.visitationFee || 0) === 0 
+                            ? 'Not Added' 
+                            : `₹${(booking.visitingCharges || booking.visitationFee || 0).toLocaleString('en-IN')}`}
+                        </span>
+                      )}
+                    </div>
 
                     {booking.paymentMethod !== 'plan_benefit' && booking.discount > 0 && (
                       <div className="flex justify-between text-sm">

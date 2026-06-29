@@ -18,14 +18,42 @@ const TimeSlotModal = ({
   isTimeSelected,
   rentalType,
   landUnit = 'acre',
+  estimatedDuration = 1,
+  landSize = 1,
+  localDays: localDaysProp = 1,
+  cropType = '',
+  chemicalUsed = '',
 }) => {
   const [isClosing, setIsClosing] = useState(false);
   const [localEndDate, setLocalEndDate] = useState(null);
-  const [localHours, setLocalHours] = useState('');
-  const [localAcres, setLocalAcres] = useState('');
-  const [localDays, setLocalDays] = useState('');
-  const [localCropType, setLocalCropType] = useState('');
-  const [localChemicalUsed, setLocalChemicalUsed] = useState('');
+  const [localHours, setLocalHours] = useState(estimatedDuration);
+  const [localAcres, setLocalAcres] = useState(landSize);
+  const [localDays, setLocalDays] = useState(localDaysProp);
+  const [localCropType, setLocalCropType] = useState(cropType);
+  const [localChemicalUsed, setLocalChemicalUsed] = useState(chemicalUsed);
+
+  // Sync state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setLocalHours(estimatedDuration || 1);
+      setLocalAcres(landSize || 1);
+      setLocalDays(localDaysProp || 1);
+      setLocalCropType(cropType || '');
+      setLocalChemicalUsed(chemicalUsed || '');
+    }
+  }, [isOpen, estimatedDuration, landSize, localDaysProp, cropType, chemicalUsed]);
+
+  // Sync and cap localHours if selectedTime changes
+  useEffect(() => {
+    if (selectedTime && rentalType === 'hourly') {
+      const startHour = parseInt(selectedTime.split(':')[0], 10);
+      const maxH = Math.max(1, 19 - startHour); // End of work limit at 7:00 PM (19:00)
+      if (localHours > maxH) {
+        setLocalHours(maxH);
+        onQuantityChange?.({ estimatedDuration: maxH });
+      }
+    }
+  }, [selectedTime, rentalType, localHours]);
 
   useEffect(() => {
     if (isOpen) {
@@ -205,7 +233,12 @@ const TimeSlotModal = ({
                      </button>
                      <span className="text-base font-black text-gray-900 min-w-[20px] text-center">{localHours || 0}</span>
                      <button 
-                       onClick={() => { const n = (Number(localHours)||0)+1; setLocalHours(n); onQuantityChange?.({ estimatedDuration: n }); }}
+                       onClick={() => { 
+                         const maxH = selectedTime ? Math.max(1, 19 - parseInt(selectedTime.split(':')[0], 10)) : 12;
+                         const n = Math.min(maxH, (Number(localHours)||0)+1); 
+                         setLocalHours(n); 
+                         onQuantityChange?.({ estimatedDuration: n }); 
+                       }}
                        className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-gray-600 active:scale-90 transition-transform"
                      >
                        <FiPlus className="w-4 h-4" />

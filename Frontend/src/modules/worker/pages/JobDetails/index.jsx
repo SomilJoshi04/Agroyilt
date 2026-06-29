@@ -547,19 +547,21 @@ const JobDetails = () => {
               </div>
             )}
 
-            {(job.visitingCharges > 0 || job.paymentMethod === 'plan_benefit') && (
-              <div className="flex justify-between items-center text-gray-600">
-                <span>Convenience Fee</span>
-                {job.paymentMethod === 'plan_benefit' ? (
-                  <div className="flex items-center gap-2">
-                    <span className="line-through text-gray-400 text-xs">₹{(job.visitingCharges || 0).toFixed(2)}</span>
-                    <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
-                  </div>
-                ) : (
-                  <span>+₹{(job.visitingCharges || 0).toFixed(2)}</span>
-                )}
-              </div>
-            )}
+            <div className="flex justify-between items-center text-gray-600">
+              <span>Convenience Fee</span>
+              {job.paymentMethod === 'plan_benefit' ? (
+                <div className="flex items-center gap-2">
+                  <span className="line-through text-gray-400 text-xs">₹{(job.visitingCharges || 0).toFixed(2)}</span>
+                  <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
+                </div>
+              ) : (
+                <span className={`font-medium ${(job.visitingCharges || 0) === 0 ? 'text-gray-400 font-normal italic' : 'text-gray-900'}`}>
+                  {(job.visitingCharges || 0) === 0 
+                    ? 'Not Added' 
+                    : `+₹${(job.visitingCharges || 0).toFixed(2)}`}
+                </span>
+              )}
+            </div>
 
             {job.paymentMethod !== 'plan_benefit' && job.discount > 0 && (
               <div className="flex justify-between text-green-600 font-medium">

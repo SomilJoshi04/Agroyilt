@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { FiAlertCircle, FiX, FiCheck, FiInfo } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { vendorTheme as themeColors } from '../../../../theme';
@@ -43,66 +44,52 @@ const ConfirmDialog = ({
     onClose();
   };
 
-  return (
+  const modalContent = (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          {/* Backdrop with Blur */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          />
-
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-6 bg-black/50 backdrop-blur-sm" style={{ minHeight: '100dvh' }}>
           {/* Modal Container */}
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="bg-white rounded-[24px] shadow-2xl max-w-sm w-full p-8 relative z-10 overflow-hidden"
+            className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 sm:p-8 relative z-10 flex flex-col items-center text-center overflow-hidden"
           >
-            {/* Top Shine Effect */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-30" />
-
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
             >
               <FiX className="w-5 h-5" />
             </button>
 
             {/* Icon Container */}
             <div
-              className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 rotate-3"
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
               style={{
-                background: config.bg,
-                color: config.color,
-                boxShadow: `0 8px 16px ${config.color}20`
+                background: config.bg || '#FEF3C7',
+                color: config.color || '#F59E0B',
+                boxShadow: `0 8px 16px ${(config.color || '#F59E0B')}20`
               }}
             >
-              {config.icon}
+              {config.icon || <FiAlertCircle className="w-8 h-8" />}
             </div>
 
             {/* Content */}
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">{title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed font-medium">
-                {message}
-              </p>
-            </div>
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{title}</h3>
+            <p className="text-sm text-gray-500 font-medium mb-6">
+              {message}
+            </p>
 
             {/* Actions */}
-            <div className="flex flex-col gap-3">
+            <div className="w-full flex flex-col gap-3 mt-auto">
               <button
                 onClick={handleConfirm}
-                className="w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-[0.98]"
+                className="w-full py-3.5 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-95"
                 style={{
-                  background: type === 'danger' ? 'linear-gradient(135deg, #EF4444, #DC2626)' : `linear-gradient(135deg, ${themeColors.button}, ${themeColors.button}dd)`,
-                  boxShadow: `0 10px 20px ${type === 'danger' ? '#EF444430' : themeColors.button + '30'}`
+                  background: type === 'danger' ? '#EF4444' : themeColors.button,
+                  boxShadow: `0 8px 16px ${type === 'danger' ? '#EF444440' : themeColors.button + '40'}`
                 }}
               >
                 {confirmLabel}
@@ -110,7 +97,7 @@ const ConfirmDialog = ({
 
               <button
                 onClick={onClose}
-                className="w-full py-4 rounded-2xl font-bold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all active:scale-[0.98]"
+                className="w-full py-3.5 rounded-2xl font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-all active:scale-95"
               >
                 {cancelLabel}
               </button>
@@ -120,6 +107,8 @@ const ConfirmDialog = ({
       )}
     </AnimatePresence>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 };
 
 export default ConfirmDialog;

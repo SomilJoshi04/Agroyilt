@@ -106,6 +106,8 @@ const AllOwners = () => {
           approvalStatus: owner.approvalStatus,
           aadhar: owner.aadhar?.number,
           pan: owner.pan?.number,
+          address: owner.address,       // ← address field add kiya
+          cityId: owner.cityId,         // ← cityId add kiya
           documents: {
             aadhar: owner.aadhar?.document,
             aadharBack: owner.aadhar?.backDocument,
@@ -519,6 +521,7 @@ const AllOwners = () => {
                 <tr className="border-b border-gray-100 bg-gray-50/50">
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Owner Details</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Business Info</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Location</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -526,11 +529,11 @@ const AllOwners = () => {
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
                   <tr>
-                    <td colSpan="4" className="px-4 py-8 text-center text-xs text-gray-500">Loading equipment owners...</td>
+                    <td colSpan="5" className="px-4 py-8 text-center text-xs text-gray-500">Loading equipment owners...</td>
                   </tr>
                 ) : filteredOwners.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-4 py-8 text-center text-xs text-gray-500">No equipment owners found</td>
+                    <td colSpan="5" className="px-4 py-8 text-center text-xs text-gray-500">No equipment owners found</td>
                   </tr>
                 ) : (
                   filteredOwners.map((owner) => (
@@ -549,6 +552,30 @@ const AllOwners = () => {
                             {Array.isArray(owner.service) ? owner.service.join(', ') : (owner.service || 'No equipment')}
                           </p>
                         </div>
+                      </td>
+                      <td className="px-4 py-3 max-w-[200px]">
+                        {owner.address?.city || owner.address?.fullAddress ? (
+                          <div>
+                            <p className="font-bold text-gray-800 text-xs flex items-center gap-1">
+                              📍 {owner.address?.city || '—'}
+                            </p>
+                            {(owner.address?.addressLine1 || owner.address?.fullAddress) && (
+                              <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">
+                                {owner.address?.addressLine1 || owner.address?.fullAddress}
+                              </p>
+                            )}
+                            {owner.address?.addressLine2 && (
+                              <p className="text-[10px] text-gray-500 leading-tight">
+                                {owner.address.addressLine2}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                              {[owner.address?.state, owner.address?.pincode].filter(Boolean).join(' – ')}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 italic">Not set</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${owner.approvalStatus === 'approved' ? 'bg-green-50 text-green-700 border-green-100' :

@@ -208,8 +208,8 @@ const createBooking = async (req, res) => {
       usedRadius = radius;
       nearbyVendors = await findNearbyVendors(bookingLocation, radius, vendorFilters);
       
-      // OPTIONAL BUT RECOMMENDED: Pre-filter for online vendors so we don't assign offline ones to the top wave
-      nearbyVendors = nearbyVendors.filter(v => v.isOnline === true && v.availability === 'AVAILABLE');
+      // We allow isOnline to be false so that we can send FCM background pushes to wake them up.
+      nearbyVendors = nearbyVendors.filter(v => v.availability === 'AVAILABLE');
 
       if (nearbyVendors && nearbyVendors.length > 0) {
         break; // Stop expanding radius if we found available vendors
@@ -323,7 +323,7 @@ const createBooking = async (req, res) => {
         discount = Math.round(rentalDiscountAmount + totalProductDiscount);
 
         // 5. Free Transport/Delivery Check
-        visitingCharges = (reqVisitingCharges !== undefined) ? reqVisitingCharges : (visitingCharges || 49);
+        visitingCharges = (reqVisitingCharges !== undefined) ? reqVisitingCharges : (visitingCharges !== undefined ? visitingCharges : 49);
         if (userPlan.freeTransport) {
             visitingCharges = 0; // Waive transport fee
         }
@@ -344,7 +344,7 @@ const createBooking = async (req, res) => {
         // Use amount from frontend logic
         if (reqBasePrice !== undefined && reqTax !== undefined) {
           // Use breakdown provided by frontend
-          visitingCharges = (reqVisitingCharges !== undefined) ? reqVisitingCharges : (visitingCharges || 49);
+          visitingCharges = (reqVisitingCharges !== undefined) ? reqVisitingCharges : (visitingCharges !== undefined ? visitingCharges : 49);
           discount = reqDiscount || 0;
           tax = reqTax || 0;
           
@@ -360,7 +360,7 @@ const createBooking = async (req, res) => {
           finalAmount = (basePrice - discount + tax + visitingCharges) + pendingPenalty;
         } else {
           // Backward compatibility: Reverse calculate
-          if (!visitingCharges) visitingCharges = 49;
+          if (visitingCharges === undefined || visitingCharges === null) visitingCharges = 49;
           
           if (isAgriService) {
             basePrice = totalServiceValue;
@@ -375,7 +375,7 @@ const createBooking = async (req, res) => {
         }
       } else {
         // Fallback to service pricing (if no amount sent)
-        if (!visitingCharges) visitingCharges = 49;
+        if (visitingCharges === undefined || visitingCharges === null) visitingCharges = 49;
         basePrice = service.basePrice || 500;
         discount = service.discountPrice ? (basePrice - service.discountPrice) : 0;
         tax = Math.round(basePrice * 0.18);
@@ -559,8 +559,40 @@ const createBooking = async (req, res) => {
       console.warn(`[CreateBooking] NO VENDORS FOUND nearby! Push notifications will not be sent.`);
     }
 
-    // Send notifications to Wave 1 vendors ONLY
-    const vendorNotifications = wave1Vendors.map(vendor =>
+    // Emit Socket.IO event to Wave 1 vendors IMMEDIATELY (before DB notifications)
+    // This ensures instant popup without waiting for notification DB save
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Socket.IO instance found, emitting Wave 1 events...');
+      wave1Vendors.forEach(vendor => {
+        console.log(`[Wave 1] Emitting to vendor_${vendor._id} (dist: ${vendor.distance?.toFixed(1)}km)`);
+        io.to(`vendor_${vendor._id}`).emit('new_booking_request', {
+          bookingId: booking._id,
+          serviceName: service.title,
+          serviceCategory: category ? category.title : 'Category',
+          customerName: user.name,
+          customerPhone: user.phone,
+          scheduledDate: scheduledDate,
+          scheduledTime: scheduledTime,
+          price: finalAmount,
+          basePrice: basePrice,
+          address: address,
+          distance: vendor.distance,
+          brandName: service.brand || '',
+          brandIcon: service.brandIcon || '',
+          rental_type: service.pricingType || '',
+          estimatedDuration: booking.estimatedDuration || '',
+          landSize: address.landSize || '',
+          playSound: true,
+          message: `New booking request within ${vendor.distance?.toFixed(1) || '?'}km!`
+        });
+      });
+    } else {
+      console.error('CRITICAL: Socket.IO instance NOT found on req.app!');
+    }
+
+    // Save notifications to DB in background (don't await — don't block response)
+    Promise.all(wave1Vendors.map(vendor =>
       createNotification({
         vendorId: vendor._id,
         type: 'booking_request',
@@ -576,43 +608,16 @@ const createBooking = async (req, res) => {
           scheduledDate: scheduledDate,
           scheduledTime: scheduledTime,
           location: address,
-          price: finalAmount, // Keep price for info
-          distance: vendor.distance // Distance in km
+          price: finalAmount,
+          distance: vendor.distance
         },
-        // Ensure proper push notification style for booking request
         pushData: {
-          type: 'new_booking', // Triggers "Accept/Reject" buttons in SW
+          type: 'new_booking',
           dataOnly: false,
           link: `/vendor/bookings/${booking._id}`
         }
       })
-    );
-
-    await Promise.all(vendorNotifications);
-
-    // Emit Socket.IO event to Wave 1 vendors for real-time notification with sound
-    const io = req.app.get('io');
-    if (io) {
-      console.log('Socket.IO instance found, emitting Wave 1 events...');
-      wave1Vendors.forEach(vendor => {
-        console.log(`[Wave 1] Emitting to vendor_${vendor._id} (dist: ${vendor.distance?.toFixed(1)}km)`);
-        io.to(`vendor_${vendor._id}`).emit('new_booking_request', {
-          bookingId: booking._id,
-          serviceName: service.title,
-          customerName: user.name,
-          customerPhone: user.phone,
-          scheduledDate: scheduledDate,
-          scheduledTime: scheduledTime,
-          price: finalAmount,
-          address: address, // Add this
-          distance: vendor.distance,
-          playSound: true,
-          message: `New booking request within ${vendor.distance?.toFixed(1) || '?'}km!`
-        });
-      });
-    } else {
-      console.error('CRITICAL: Socket.IO instance NOT found on req.app!');
-    }
+    )).catch(err => console.error('[Notification] Background save error:', err));
 
     // Populate booking details
     const populatedBooking = await Booking.findById(booking._id)

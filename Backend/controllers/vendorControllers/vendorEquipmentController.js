@@ -42,6 +42,7 @@ exports.addEquipment = async (req, res) => {
     const vendorId = req.user.id;
     const { 
       categoryId, 
+      requestedCategoryName,
       subCategoryIds,
       implements: implementsList,
       listingType,
@@ -56,30 +57,40 @@ exports.addEquipment = async (req, res) => {
       workerId
     } = req.body;
 
-    // 1. Verify Category exists and is a "Main Category"
-    const mainCategory = await Category.findById(categoryId);
-    if (!mainCategory || mainCategory.parentCategory) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid main category selected'
-      });
-    }
-
-    // 2. Verify sub-categories belong to this main category
-    if (subCategoryIds && subCategoryIds.length > 0) {
-      const children = await Category.find({ _id: { $in: subCategoryIds }, parentCategory: categoryId });
-      if (children.length !== subCategoryIds.length) {
+    // 1. Verify Category exists and is a "Main Category" (if categoryId is provided)
+    if (categoryId) {
+      const mainCategory = await Category.findById(categoryId);
+      if (!mainCategory || mainCategory.parentCategory) {
         return res.status(400).json({
           success: false,
-          message: 'One or more implements (sub-categories) do not belong to the selected machine type'
+          message: 'Invalid main category selected'
         });
+      }
+
+      // 2. Verify sub-categories belong to this main category
+      if (subCategoryIds && subCategoryIds.length > 0) {
+        const children = await Category.find({ _id: { $in: subCategoryIds }, parentCategory: categoryId });
+        if (children.length !== subCategoryIds.length) {
+          return res.status(400).json({
+            success: false,
+            message: 'One or more implements (sub-categories) do not belong to the selected machine type'
+          });
+        }
       }
     }
 
-    // 3. Create equipment
+    // 3. Retrieve vendor cityId for listing location
+    const Vendor = require('../../models/Vendor');
+    const vendor = await Vendor.findById(vendorId);
+    const cityIds = (vendor && (vendor.cityId || vendor.address?.cityId))
+      ? [vendor.cityId || vendor.address.cityId]
+      : [];
+
+    // 4. Create equipment
     const equipment = await VendorEquipment.create({
       vendorId,
-      categoryId,
+      categoryId: categoryId || null,
+      requestedCategoryName: requestedCategoryName || null,
       listingType: listingType || 'service',
       implements: implementsList || [],
       subCategoryIds: subCategoryIds || [],
@@ -92,6 +103,7 @@ exports.addEquipment = async (req, res) => {
       includesDriver,
       driver,
       workerId,
+      cityIds,
       status: 'pending'
     });
 

@@ -158,6 +158,10 @@ export const playAlertRing = (loop = false) => {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('audio-play-blocked'));
         }
+      } else if (e.name === 'AbortError') {
+        // This is a harmless error that occurs if audio.pause() is called before audio.play() finishes loading.
+        // It happens when modals are quickly opened and closed, or alerts are replaced rapidly.
+        console.warn('Audio play was aborted normally (play request interrupted by pause).');
       } else {
         console.error('Error playing alert file:', e);
       }

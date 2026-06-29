@@ -15,7 +15,12 @@ const {
 
 // Validation rules
 const addEquipmentValidation = [
-  body('categoryId').notEmpty().withMessage('Category ID is required'),
+  body('categoryId').custom((value, { req }) => {
+    if (!value && !req.body.requestedCategoryName) {
+      throw new Error('Please select a machine category or request a new one');
+    }
+    return true;
+  }),
   body('name').notEmpty().withMessage('Equipment name is required').trim(),
   body('pricing').notEmpty().withMessage('At least one pricing type should be configured'),
 ];

@@ -35,7 +35,10 @@ const createOrUpdateBill = async (req, res) => {
 
     // ── Fetch Settings (frozen snapshot) ──
     const settings = await Settings.findOne({ type: 'global' });
-    const serviceSplitPct = settings?.servicePayoutPercentage ?? 70;
+    
+    // Use the new bookingCommissionPercentage (default 10%), or fallback to 100 - servicePayoutPercentage
+    const commissionPct = settings?.bookingCommissionPercentage ?? (100 - (settings?.servicePayoutPercentage ?? 90));
+    const serviceSplitPct = 100 - commissionPct;
     const partsSplitPct = settings?.partsPayoutPercentage ?? 10;
     const serviceGstPct = settings?.serviceGstPercentage ?? 18;
     const partsGstPct = settings?.partsGstPercentage ?? 18;

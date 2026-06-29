@@ -15,8 +15,12 @@ const vendorEquipmentSchema = new mongoose.Schema({
   categoryId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
-    required: [true, 'Main Category (Machine Type) is required'],
+    required: false,
     index: true
+  },
+  requestedCategoryName: {
+    type: String,
+    default: null
   },
   // ============================================================
   // LISTING TYPE: Drives the tracking & driver flow
@@ -84,10 +88,15 @@ const vendorEquipmentSchema = new mongoose.Schema({
       isEnabled: { type: Boolean, default: false }
     }
   },
+  cityIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'City',
+    index: true
+  }],
   // Machine Verification & Status
   status: {
     type: String,
-    enum: ['pending', 'active', 'inactive', 'rejected'],
+    enum: ['pending', 'approved', 'active', 'inactive', 'rejected'],
     default: 'pending',
     index: true
   },

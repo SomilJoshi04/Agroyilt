@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiSave, FiUploadCloud, FiCheckCircle, FiMapPin, FiCamera, FiUpload, FiClock, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
+import { FormContainer, FormSection } from '../../../../components/common';
 import { vendorAuthService } from '../../../../services/authService';
 import api from '../../../../services/api';
 import AddressSelectionModal from '../../../user/pages/Checkout/components/AddressSelectionModal';
@@ -291,175 +292,165 @@ const BusinessDetails = () => {
         <h1 className="text-xl font-bold text-gray-800 flex-1">Business & Registrations</h1>
       </div>
 
-      <main className="p-4 space-y-6">
-        
-        {/* Intro */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <h2 className="text-sm font-bold text-gray-800 mb-2">Service Opt-ins</h2>
-          <p className="text-xs text-gray-500 mb-5">
-            Manage additional services you offer. Registrations will require admin verification.
-          </p>
+      <main className="p-4">
+        <FormContainer>
+          {/* Intro / Service Opt-ins */}
+          <FormSection subtitle="Services" title="Service Opt-ins">
+            <p className="text-xs text-gray-500 mb-2">
+              Manage additional services you offer. Registrations will require admin verification.
+            </p>
 
-          <div className="space-y-3">
-              {/* Toggle Soil Lab */}
-              <div className="flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-300"
-                  style={{ borderColor: isSoilLab ? themeColors.button : '#e5e7eb', backgroundColor: isSoilLab ? `${themeColors.button}10` : 'white' }}>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-800">Operate as Soil Testing Lab</h3>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Accept soil samples for testing</p>
-                </div>
-                <button 
-                  onClick={() => setIsSoilLab(!isSoilLab)}
-                  className="relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-                  style={{ backgroundColor: isSoilLab ? themeColors.button : '#d1d5db' }}
-                >
-                  <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isSoilLab ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-
-              {/* Toggle Agri Store */}
-              <div className="flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-300"
-                  style={{ borderColor: isAgriStore ? themeColors.button : '#e5e7eb', backgroundColor: isAgriStore ? `${themeColors.button}10` : 'white' }}>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-800">Operate as Agri-Store</h3>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Sell Seeds & Fertilizers</p>
-                </div>
-                <button 
-                  onClick={() => setIsAgriStore(!isAgriStore)}
-                  className="relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-                  style={{ backgroundColor: isAgriStore ? themeColors.button : '#d1d5db' }}
-                >
-                  <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isAgriStore ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-          </div>
-        </div>
-
-        {/* Soil Lab Details Form */}
-        {isSoilLab && (
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <FiCheckCircle className="w-5 h-5" style={{ color: themeColors.button }} />
-              <h2 className="text-base font-bold text-gray-800">Lab Details</h2>
-            </div>
-            
-            <div>
-              <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.labName ? 'text-red-500' : 'text-gray-700'}`}>Lab Name *</label>
-              <input 
-                type="text" 
-                value={labName}
-                onChange={(e) => {
-                  let val = e.target.value.replace(/[^A-Za-z0-9\s&*.,-]/g, '');
-                  setLabName(val);
-                  if (errors.labName && val.length >= 3) setErrors({ ...errors, labName: null });
-                }}
-                placeholder="Enter Registered Lab Name"
-                className={`w-full px-4 py-3 rounded-xl border-2 transition-all text-sm focus:outline-none text-gray-800 ${
-                  errors.labName ? 'border-red-300 bg-red-50 focus:border-red-400' : 'bg-gray-50 border-transparent focus:border-teal-100 focus:bg-white'
-                }`}
-              />
-              {errors.labName && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.labName}</p>}
-            </div>
-
-            <div>
-              <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.labLicenseNumber ? 'text-red-500' : 'text-gray-700'}`}>License/Registration Number *</label>
-              <input 
-                type="text" 
-                value={labLicenseNumber}
-                onChange={(e) => {
-                  let val = e.target.value.replace(/[^A-Za-z0-9-\s]/g, '').toUpperCase();
-                  setLabLicenseNumber(val);
-                  if (errors.labLicenseNumber && val.length >= 4) setErrors({ ...errors, labLicenseNumber: null });
-                }}
-                placeholder="e.g. LAB-2023-XXXX"
-                className={`w-full px-4 py-3 rounded-xl border-2 transition-all text-sm focus:outline-none text-gray-800 ${
-                  errors.labLicenseNumber ? 'border-red-300 bg-red-50 focus:border-red-400' : 'bg-gray-50 border-transparent focus:border-teal-100 focus:bg-white'
-                }`}
-              />
-              {errors.labLicenseNumber && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.labLicenseNumber}</p>}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5 ml-1">Certification Document (Image/PDF)</label>
-              <div className="relative">
-                <input
-                  type="file"
-                  id="certUpload"
-                  className="hidden"
-                  onChange={handleLabFileChange}
-                  accept="image/*,application/pdf"
-                />
-                
-                {certPreview ? (
-                  <div className="relative w-full rounded-xl overflow-hidden border-2 border-gray-100" style={{ height: '140px' }}>
-                    {certPreview.includes('application/pdf') ? (
-                       <div className="w-full h-full flex items-center justify-center bg-gray-50 flex-col gap-2">
-                         <FiUploadCloud className="w-8 h-8 text-gray-400" />
-                         <span className="text-xs text-gray-500">PDF Uploaded</span>
-                       </div>
-                    ) : (
-                      <img src={certPreview} alt="Certification" className="w-full h-full object-cover" />
-                    )}
-                    <label 
-                      htmlFor="certUpload" 
-                      className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
-                    >
-                      <span className="text-white text-xs font-bold px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur-sm">Change File</span>
-                    </label>
+            <div className="space-y-3 pt-2">
+                {/* Toggle Soil Lab */}
+                <div className="flex items-center justify-between p-4 rounded-xl border transition-all duration-300"
+                    style={{ borderColor: isSoilLab ? themeColors.button : '#f1f5f9', backgroundColor: isSoilLab ? `${themeColors.button}05` : '#f8fafc' }}>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-800">Operate as Soil Testing Lab</h3>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Accept soil samples for testing</p>
                   </div>
-                ) : (
-                  <label 
-                    htmlFor="certUpload"
-                    className="w-full flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer hover:bg-gray-50 transition-colors"
+                  <button 
+                    onClick={() => setIsSoilLab(!isSoilLab)}
+                    className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                    style={{ backgroundColor: isSoilLab ? themeColors.button : '#cbd5e1' }}
                   >
-                    <div className="space-y-1 text-center">
-                      <FiUploadCloud className="mx-auto h-8 w-8 text-gray-400" />
-                      <div className="text-xs text-gray-600">
-                        <span className="font-semibold text-teal-600">Upload a file</span> or drag and drop
-                      </div>
-                      <p className="text-[10px] text-gray-500">PNG, JPG, PDF up to 5MB</p>
-                    </div>
-                  </label>
-                )}
-              </div>
-            </div>
-            
-            <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 mt-2">
-              <p className="text-[11px] text-blue-700 leading-relaxed">
-                <span className="font-bold">Note:</span> Enabling Soil Testing mode requires admin verification.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Shop Registration Form */}
-        {isAgriStore && (
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <FiCheckCircle className="w-5 h-5" style={{ color: themeColors.button }} />
-                  <h2 className="text-base font-bold text-gray-800">Shop Details</h2>
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isSoilLab ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
                 </div>
 
-                {shopStatus?.storeApprovalStatus === 'pending' && (
-                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4 flex items-start gap-3">
-                        <FiClock className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
-                        <div>
-                            <p className="text-sm font-bold text-amber-800">Review in Progress</p>
-                            <p className="text-[11px] text-amber-700 mt-0.5">Your application is currently being verified.</p>
-                        </div>
-                    </div>
-                )}
+                {/* Toggle Agri Store */}
+                <div className="flex items-center justify-between p-4 rounded-xl border transition-all duration-300"
+                    style={{ borderColor: isAgriStore ? themeColors.button : '#f1f5f9', backgroundColor: isAgriStore ? `${themeColors.button}05` : '#f8fafc' }}>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-800">Operate as Agri-Store</h3>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Sell Seeds & Fertilizers</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsAgriStore(!isAgriStore)}
+                    className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                    style={{ backgroundColor: isAgriStore ? themeColors.button : '#cbd5e1' }}
+                  >
+                    <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isAgriStore ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+            </div>
+          </FormSection>
 
-                {shopStatus?.storeApprovalStatus === 'rejected' && (
-                    <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 mb-4 flex items-start gap-3">
-                        <FiAlertCircle className="w-5 h-5 text-rose-500 mt-0.5 shrink-0" />
-                        <div>
-                            <p className="text-sm font-bold text-rose-800">Application Rejected</p>
-                            <p className="text-[11px] text-rose-700 mt-0.5">{shopStatus.remarks || 'Please check your details and re-submit for approval.'}</p>
-                        </div>
-                    </div>
-                )}
+          {/* Soil Lab Details Form */}
+          {isSoilLab && (
+            <FormSection subtitle="Soil testing" title="Lab Details" icon={FiCheckCircle}>
+              <div>
+                <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.labName ? 'text-red-500' : 'text-gray-700'}`}>Lab Name *</label>
+                <input 
+                  type="text" 
+                  value={labName}
+                  onChange={(e) => {
+                    let val = e.target.value.replace(/[^A-Za-z0-9\s&*.,-]/g, '');
+                    setLabName(val);
+                    if (errors.labName && val.length >= 3) setErrors({ ...errors, labName: null });
+                  }}
+                  placeholder="Enter Registered Lab Name"
+                  className={`w-full px-4 py-3 rounded-xl border-2 transition-all text-sm focus:outline-none text-gray-800 ${
+                    errors.labName ? 'border-red-300 bg-red-50 focus:border-red-400' : 'bg-gray-50 border-transparent focus:border-teal-100 focus:bg-white'
+                  }`}
+                />
+                {errors.labName && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.labName}</p>}
+              </div>
 
+              <div>
+                <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.labLicenseNumber ? 'text-red-500' : 'text-gray-700'}`}>License/Registration Number *</label>
+                <input 
+                  type="text" 
+                  value={labLicenseNumber}
+                  onChange={(e) => {
+                    let val = e.target.value.replace(/[^A-Za-z0-9-\s]/g, '').toUpperCase();
+                    setLabLicenseNumber(val);
+                    if (errors.labLicenseNumber && val.length >= 4) setErrors({ ...errors, labLicenseNumber: null });
+                  }}
+                  placeholder="e.g. LAB-2023-XXXX"
+                  className={`w-full px-4 py-3 rounded-xl border-2 transition-all text-sm focus:outline-none text-gray-800 ${
+                    errors.labLicenseNumber ? 'border-red-300 bg-red-50 focus:border-red-400' : 'bg-gray-50 border-transparent focus:border-teal-100 focus:bg-white'
+                  }`}
+                />
+                {errors.labLicenseNumber && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.labLicenseNumber}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5 ml-1">Certification Document (Image/PDF)</label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="certUpload"
+                    className="hidden"
+                    onChange={handleLabFileChange}
+                    accept="image/*,application/pdf"
+                  />
+                  
+                  {certPreview ? (
+                    <div className="relative w-full rounded-xl overflow-hidden border border-gray-100 animate-fade-in" style={{ height: '140px' }}>
+                      {certPreview.includes('application/pdf') ? (
+                         <div className="w-full h-full flex items-center justify-center bg-gray-50 flex-col gap-2">
+                           <FiUploadCloud className="w-8 h-8 text-gray-400" />
+                           <span className="text-xs text-gray-500">PDF Uploaded</span>
+                         </div>
+                      ) : (
+                        <img src={certPreview} alt="Certification" className="w-full h-full object-cover" />
+                      )}
+                      <label 
+                        htmlFor="certUpload" 
+                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                      >
+                        <span className="text-white text-xs font-bold px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur-sm">Change File</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <label 
+                      htmlFor="certUpload"
+                      className="w-full flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="space-y-1 text-center">
+                        <FiUploadCloud className="mx-auto h-8 w-8 text-gray-400" />
+                        <div className="text-xs text-gray-600">
+                          <span className="font-semibold text-teal-600">Upload a file</span> or drag and drop
+                        </div>
+                        <p className="text-[10px] text-gray-500">PNG, JPG, PDF up to 5MB</p>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+              
+              <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 mt-2">
+                <p className="text-[11px] text-blue-700 leading-relaxed">
+                  <span className="font-bold">Note:</span> Enabling Soil Testing mode requires admin verification.
+                </p>
+              </div>
+            </FormSection>
+          )}
+
+          {/* Shop Registration Form */}
+          {isAgriStore && (
+            <FormSection subtitle="Seeds & Fertilizer" title="Shop Details" icon={FiCheckCircle}>
+              {shopStatus?.storeApprovalStatus === 'pending' && (
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4 flex items-start gap-3">
+                      <FiClock className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+                      <div>
+                          <p className="text-sm font-bold text-amber-800">Review in Progress</p>
+                          <p className="text-[11px] text-amber-700 mt-0.5">Your application is currently being verified.</p>
+                      </div>
+                  </div>
+              )}
+
+              {shopStatus?.storeApprovalStatus === 'rejected' && (
+                  <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 mb-4 flex items-start gap-3">
+                      <FiAlertCircle className="w-5 h-5 text-rose-500 mt-0.5 shrink-0" />
+                      <div>
+                          <p className="text-sm font-bold text-rose-800">Application Rejected</p>
+                          <p className="text-[11px] text-rose-700 mt-0.5">{shopStatus.remarks || 'Please check your details and re-submit for approval.'}</p>
+                      </div>
+                  </div>
+              )}
+
+              <div className="space-y-4">
                 <div>
                     <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.shopName ? 'text-red-500' : 'text-gray-700'}`}>Shop Name *</label>
                     <input
@@ -480,7 +471,7 @@ const BusinessDetails = () => {
 
                 <div>
                     <label className={`block text-xs font-semibold mb-1.5 ml-1 ${errors.shopAddress ? 'text-red-500' : 'text-gray-700'}`}>Business Location *</label>
-                    <div className={`w-full px-4 py-3 bg-gray-50 border-2 ${errors.shopAddress ? 'border-red-300' : 'border-transparent'} rounded-xl mb-2 flex items-center min-h-[50px]`}>
+                    <div className={`w-full px-4 py-3 bg-gray-50 border border-slate-100 rounded-xl mb-2 flex items-center min-h-[50px]`}>
                         <p className="text-xs text-gray-700 leading-normal font-medium">
                             {shopFormData.shopAddress || <span className="text-gray-400 italic">No location selected yet.</span>}
                         </p>
@@ -544,7 +535,7 @@ const BusinessDetails = () => {
                             </div>
                         ) : shopFormData.licenseDocument ? (
                             <div className="relative group">
-                                <img src={shopFormData.licenseDocument} alt="License" className="h-28 w-auto rounded-xl shadow-md border-4 border-white" />
+                                <img src={shopFormData.licenseDocument} alt="License" className="h-28 w-auto rounded-xl shadow-md border-4 border-white animate-fade-in" />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-xl transition-opacity flex items-center justify-center">
                                     <FiUpload className="text-white w-5 h-5" />
                                 </div>
@@ -561,9 +552,10 @@ const BusinessDetails = () => {
                     </div>
                     {errors.licenseDocument && <p className="text-[10px] text-red-500 mt-1 ml-1 font-semibold">{errors.licenseDocument}</p>}
                 </div>
-            </div>
-        )}
-
+              </div>
+            </FormSection>
+          )}
+        </FormContainer>
       </main>
 
       <AddressSelectionModal

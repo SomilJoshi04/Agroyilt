@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, OverlayView, PolylineF } from '@react-google-maps/api';
-import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiUser, FiStar, FiShield, FiKey, FiCheckCircle, FiLoader, FiDollarSign, FiMaximize, FiMinimize, FiClock } from 'react-icons/fi';
+import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiUser, FiStar, FiShield, FiKey, FiCheckCircle, FiLoader, FiMaximize, FiMinimize, FiClock } from 'react-icons/fi';
+import { FaRupeeSign } from 'react-icons/fa';
 import { bookingService } from '../../../../services/bookingService';
 import { paymentService } from '../../../../services/paymentService';
 import { toast } from 'react-hot-toast';
@@ -858,7 +859,7 @@ const BookingTrack = () => {
                   {booking.paymentStatus === 'success' ? (
                     <FiCheckCircle className="w-5 h-5 text-white" />
                   ) : (
-                    <FiDollarSign className="w-5 h-5 text-white" />
+                    <FaRupeeSign className="w-4 h-4 text-white" />
                   )}
                 </div>
                 <div>
@@ -877,7 +878,7 @@ const BookingTrack = () => {
                     onClick={handleOnlinePayment}
                     className="w-full py-4 bg-white text-orange-600 rounded-xl font-black text-sm shadow-xl hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
-                    <FiDollarSign className="w-4 h-4" />
+                    <FaRupeeSign className="w-3.5 h-3.5" />
                     Pay Online Now
                   </button>
 

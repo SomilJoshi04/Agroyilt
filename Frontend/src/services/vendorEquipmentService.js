@@ -35,10 +35,22 @@ export const vendorEquipmentService = {
       params: cityId ? { cityId } : {}
     });
     if (response.data.success && Array.isArray(response.data.categories)) {
+      const excludeSlugs = [
+        'lab-soil-testing',
+        'shops-seedfertilizer-etc',
+        'soil-testing',
+        'seed-selling',
+        'labour-service',
+        'others'
+      ];
       return {
         success: true,
         data: response.data.categories
-          .filter(c => !c.parentCategory)
+          .filter(c => {
+            if (c.parentCategory) return false;
+            const slug = (c.slug || '').trim().toLowerCase();
+            return !excludeSlugs.includes(slug);
+          })
           .map(c => ({
             ...c,
             id: c.id || (c._id?.$oid || c._id)?.toString() || ""

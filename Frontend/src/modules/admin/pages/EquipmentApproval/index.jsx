@@ -142,8 +142,9 @@ const EquipmentApproval = () => {
                       </div>
                     </td>
                     <td className="px-6 py-6">
-                      <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-wider">
-                        {item.categoryId?.title}
+                      <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider
+                        ${item.categoryId ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                        {item.categoryId ? item.categoryId.title : `Req: ${item.requestedCategoryName}`}
                       </span>
                     </td>
                     <td className="px-6 py-6 font-bold text-slate-600 text-sm">
@@ -257,8 +258,9 @@ const EquipmentApproval = () => {
               <div className="w-full md:w-[60%] p-8 md:p-14 overflow-y-auto bg-white">
                 <div className="flex justify-between items-start mb-8">
                   <div>
-                    <span className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 inline-block shadow-sm">
-                      {selectedItem.categoryId?.title}
+                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 inline-block shadow-sm
+                      ${selectedItem.categoryId ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                      {selectedItem.categoryId ? selectedItem.categoryId.title : `Requested Type: ${selectedItem.requestedCategoryName}`}
                     </span>
                     <h2 className="text-4xl font-black text-slate-900 leading-none">{selectedItem.name}</h2>
                     <div className="flex flex-wrap gap-2 mt-4">

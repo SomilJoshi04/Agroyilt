@@ -135,6 +135,36 @@ const generateInvoicePDF = (bill, booking, res) => {
         .fillColor('#00a6a6')
         .text(`Rs. ${bill.grandTotal.toFixed(2)}`, 480, subtotalOver + 50, { align: 'right' });
 
+    // --- Vendor Settlement Summary ---
+    if (bill.vendorTotalEarning !== undefined) {
+        let vsY = subtotalOver + 85;
+        
+        // Reset color
+        doc.fillColor('#000000');
+        
+        // Divider
+        doc.strokeColor('#e5e7eb').lineWidth(1).moveTo(50, vsY).lineTo(550, vsY).stroke();
+        
+        vsY += 15;
+        doc.font('Helvetica-Bold').fontSize(11).fillColor('#374151')
+           .text('Vendor Settlement Summary', 50, vsY);
+           
+        vsY += 20;
+        doc.font('Helvetica').fontSize(9).fillColor('#4b5563')
+           .text('Total Service & Parts Base (excl. GST):', 50, vsY)
+           .text(`Rs. ${(bill.totalServiceBase + bill.totalPartsBase).toFixed(2)}`, 480, vsY, { align: 'right' });
+           
+        vsY += 15;
+        const totalDeductions = (bill.totalServiceBase + bill.totalPartsBase) - bill.vendorTotalEarning;
+        doc.text('Platform Commission Deducted:', 50, vsY)
+           .fillColor('#ef4444').text(`- Rs. ${totalDeductions.toFixed(2)}`, 480, vsY, { align: 'right' });
+           
+        vsY += 20;
+        doc.font('Helvetica-Bold').fontSize(10).fillColor('#10b981')
+           .text('Total Net Earnings:', 50, vsY)
+           .text(`Rs. ${bill.vendorTotalEarning.toFixed(2)}`, 480, vsY, { align: 'right' });
+    }
+
     // --- Footer ---
     doc.fillColor('#888888')
         .fontSize(8)

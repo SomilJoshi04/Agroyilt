@@ -507,7 +507,11 @@ const BookingConfirmation = () => {
               {/* Tax */}
               {(booking.tax > 0 || booking.paymentMethod === 'plan_benefit') && (
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">GST (18%)</span>
+                  <span className="text-slate-500">
+                    GST ({booking.basePrice - booking.discount > 0 
+                      ? Math.round((booking.tax * 100) / (booking.basePrice - booking.discount)) 
+                      : 18}%)
+                  </span>
                   {booking.paymentMethod === 'plan_benefit' ? (
                     <div className="flex items-center gap-2">
                       <span className="line-through text-slate-400 text-xs">₹{(booking.tax || 0).toLocaleString('en-IN')}</span>
@@ -520,19 +524,21 @@ const BookingConfirmation = () => {
               )}
 
               {/* Convenience Fee */}
-              {(booking.visitingCharges > 0 || booking.visitationFee > 0 || booking.paymentMethod === 'plan_benefit') && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Convenience Fee</span>
-                  {booking.paymentMethod === 'plan_benefit' ? (
-                    <div className="flex items-center gap-2">
-                      <span className="line-through text-slate-400 text-xs">₹{(booking.visitingCharges || booking.visitationFee || 0).toLocaleString('en-IN')}</span>
-                      <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
-                    </div>
-                  ) : (
-                    <span className="font-medium text-slate-700">₹{(booking.visitingCharges || booking.visitationFee || 0).toLocaleString('en-IN')}</span>
-                  )}
-                </div>
-              )}
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-500">Convenience Fee</span>
+                {booking.paymentMethod === 'plan_benefit' ? (
+                  <div className="flex items-center gap-2">
+                    <span className="line-through text-slate-400 text-xs">₹{(booking.visitingCharges || booking.visitationFee || 0).toLocaleString('en-IN')}</span>
+                    <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
+                  </div>
+                ) : (
+                  <span className={`font-medium ${(booking.visitingCharges || booking.visitationFee || 0) === 0 ? 'text-slate-400 font-normal italic' : 'text-slate-700'}`}>
+                    {(booking.visitingCharges || booking.visitationFee || 0) === 0 
+                      ? 'Not Added' 
+                      : `₹${(booking.visitingCharges || booking.visitationFee || 0).toLocaleString('en-IN')}`}
+                  </span>
+                )}
+              </div>
 
               {/* Total */}
               <div className="border-t border-slate-200 pt-4 mt-2">

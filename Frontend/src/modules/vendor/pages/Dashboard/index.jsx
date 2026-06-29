@@ -601,6 +601,7 @@ const Dashboard = memo(() => {
         onReject={handleRejectAlert}
         onAssign={handleAssignAlert}
         onMinimize={() => setActiveAlertBookings([])}
+        servicePayoutPct={stats?.servicePayoutPercentage || 70}
       />
     </div>
   );

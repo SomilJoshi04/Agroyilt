@@ -175,8 +175,8 @@ const BillingPage = () => {
       // Fallback settings logic (existing)
       if (!billRes.success || !billRes.bill?.payoutConfig) {
         try {
-          const token = localStorage.getItem('vendorToken');
-          const res = await fetch('/api/vendors/settings', { headers: { Authorization: `Bearer ${token}` } });
+          const token = localStorage.getItem('vendorAccessToken');
+          const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/vendors/settings`, { headers: { Authorization: `Bearer ${token}` } });
           const data = await res.json();
           if (data.success && data.data?.global) {
             const g = data.data.global;

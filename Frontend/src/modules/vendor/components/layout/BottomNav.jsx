@@ -9,6 +9,26 @@ const BottomNav = memo(({ isGlobal = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingJobsCount, setPendingJobsCount] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const originalHeight = window.innerHeight;
+    const handleResize = () => {
+      const activeEl = document.activeElement;
+      const isInputFocused = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.hasAttribute('contenteditable')
+      );
+      if (isInputFocused && window.innerHeight < originalHeight - 150) {
+        setIsKeyboardVisible(true);
+      } else {
+        setIsKeyboardVisible(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (isGlobal) {
     window.__hasGlobalBottomNav = true;
@@ -73,7 +93,7 @@ const BottomNav = memo(({ isGlobal = false }) => {
     (location.pathname.includes('/map') || location.pathname.includes('/alert/'))
   );
 
-  if (shouldHideNav) {
+  if (shouldHideNav || isKeyboardVisible) {
     return null;
   }
 

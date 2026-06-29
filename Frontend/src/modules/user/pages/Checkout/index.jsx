@@ -59,8 +59,9 @@ const Checkout = () => {
   const [selectedDate, setSelectedDate] = useState(null);
 
   const [selectedTime, setSelectedTime] = useState(null);
-  const [visitedFee, setVisitedFee] = useState(29);
+  const [visitedFee, setVisitedFee] = useState(0);
   const [gstPercentage, setGstPercentage] = useState(18);
+  const [rentalGstPercentage, setRentalGstPercentage] = useState(5);
   const [bookingType, setBookingType] = useState('instant'); // 'instant' | 'scheduled'
   // ── Agriculture: Rental Type State (pre-filled from Cart navigation state) ──
   const [rentalType, setRentalType] = useState(location.state?.rentalType || 'hourly'); // 'hourly' | 'land_based' | 'daily'
@@ -145,9 +146,10 @@ const Checkout = () => {
         // Apply config
         if (configRes.status === 'fulfilled' && configRes.value.success) {
           const settings = configRes.value.settings;
-          if (!plan) setVisitedFee(settings.visitedCharges || 29);
+          if (!plan) setVisitedFee(settings.visitedCharges !== undefined ? settings.visitedCharges : 0);
           else setVisitedFee(0);
           setGstPercentage(settings.serviceGstPercentage || 18);
+          setRentalGstPercentage(settings.rentalGstPercentage !== undefined ? settings.rentalGstPercentage : 5);
         }
 
         // Apply profile / addresses
@@ -1108,7 +1110,7 @@ const Checkout = () => {
       item.hourly_price || item.land_price || item.daily_price ||
       item.categoryTitle === 'Agriculture' || item.category === 'Agriculture');
   });
-  const currentGst = hasAgriItems ? 5 : gstPercentage;
+  const currentGst = gstPercentage;
   const taxesAndFee = Math.round((itemTotal * currentGst) / 100);
   // Visited fee logic: if Total is 0 (All free), user might still pay visited fee?
   // User says "no payemtn". So maybe visited fee also waived? Or user pays visited fee?
@@ -1142,7 +1144,9 @@ const Checkout = () => {
   const getTimeSlots = () => {
     // ── Agriculture: Different Time Slots for Equipment ──
     const isAgri = cartItems.some(item => item.categoryTitle === 'Agriculture' || item.category === 'Agriculture');
-    if (isAgri) {
+    
+    // Shift slots apply only for Daily or Land-based Agricultural rentals (not Hourly)
+    if (isAgri && rentalType !== 'hourly') {
       return [
         { value: '06:00', end: '18:00', display: 'Full Day (6 AM - 6 PM)' },
         { value: '06:00', end: '12:00', display: 'Morning Shift (6 AM - 12 PM)' },
@@ -1151,34 +1155,53 @@ const Checkout = () => {
     }
     // ──────────────────────────────────────────────────────
 
-    const allSlots = [
-      { value: '09:00', end: '10:00', display: '9:00 AM' },
-      { value: '10:00', end: '11:00', display: '10:00 AM' },
-      { value: '11:00', end: '12:00', display: '11:00 AM' },
-      { value: '12:00', end: '13:00', display: '12:00 PM' },
-      { value: '13:00', end: '14:00', display: '1:00 PM' },
-      { value: '14:00', end: '15:00', display: '2:00 PM' },
-      { value: '15:00', end: '16:00', display: '3:00 PM' },
-      { value: '16:00', end: '17:00', display: '4:00 PM' },
-      { value: '17:00', end: '18:00', display: '5:00 PM' },
-      { value: '18:00', end: '19:00', display: '6:00 PM' },
-      { value: '19:00', end: '20:00', display: '7:00 PM' },
-      { value: '20:00', end: '21:00', display: '8:00 PM' },
-    ];
+    let slotsToUse = [];
+    if (rentalType === 'hourly' || isAgri) {
+      // Restrict to daytime hours only (7:00 AM to 5:00 PM) for machinery work
+      slotsToUse = [
+        { value: '07:00', end: '08:00', display: '7:00 AM' },
+        { value: '08:00', end: '09:00', display: '8:00 AM' },
+        { value: '09:00', end: '10:00', display: '9:00 AM' },
+        { value: '10:00', end: '11:00', display: '10:00 AM' },
+        { value: '11:00', end: '12:00', display: '11:00 AM' },
+        { value: '12:00', end: '13:00', display: '12:00 PM' },
+        { value: '13:00', end: '14:00', display: '1:00 PM' },
+        { value: '14:00', end: '15:00', display: '2:00 PM' },
+        { value: '15:00', end: '16:00', display: '3:00 PM' },
+        { value: '16:00', end: '17:00', display: '4:00 PM' },
+        { value: '17:00', end: '18:00', display: '5:00 PM' },
+      ];
+    } else {
+      // General non-agriculture hourly slots (9:00 AM to 8:00 PM)
+      slotsToUse = [
+        { value: '09:00', end: '10:00', display: '9:00 AM' },
+        { value: '10:00', end: '11:00', display: '10:00 AM' },
+        { value: '11:00', end: '12:00', display: '11:00 AM' },
+        { value: '12:00', end: '13:00', display: '12:00 PM' },
+        { value: '13:00', end: '14:00', display: '1:00 PM' },
+        { value: '14:00', end: '15:00', display: '2:00 PM' },
+        { value: '15:00', end: '16:00', display: '3:00 PM' },
+        { value: '16:00', end: '17:00', display: '4:00 PM' },
+        { value: '17:00', end: '18:00', display: '5:00 PM' },
+        { value: '18:00', end: '19:00', display: '6:00 PM' },
+        { value: '19:00', end: '20:00', display: '7:00 PM' },
+        { value: '20:00', end: '21:00', display: '8:00 PM' },
+      ];
+    }
 
     // If today is selected, filter out past time slots
     const now = new Date();
     const isToday = selectedDate && selectedDate.toDateString() === now.toDateString();
 
     if (!isToday) {
-      return allSlots;
+      return slotsToUse;
     }
 
     // Get current hour + 1 (minimum 1 hour buffer for vendors to accept)
     const currentHour = now.getHours();
     const minHour = currentHour + 1;
 
-    return allSlots.filter(slot => {
+    return slotsToUse.filter(slot => {
       const slotHour = parseInt(slot.value.split(':')[0], 10);
       return slotHour >= minHour;
     });
@@ -1529,18 +1552,18 @@ const Checkout = () => {
             {/* Taxes */}
             {displayTax > 0 && (
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">GST ({gstPercentage}%)</span>
+                <span className="text-sm text-slate-500">GST ({currentGst}%)</span>
                 <span className="text-sm font-medium text-slate-700">₹{displayTax.toLocaleString('en-IN')}</span>
               </div>
             )}
 
             {/* Visited Fee */}
-            {displayFee > 0 && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">Convenience Fee</span>
-                <span className="text-sm font-medium text-slate-700">₹{displayFee.toLocaleString('en-IN')}</span>
-              </div>
-            )}
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-500">Convenience Fee</span>
+              <span className={`text-sm font-medium ${displayFee === 0 ? 'text-slate-400 font-normal italic' : 'text-slate-700'}`}>
+                {displayFee === 0 ? 'Not Added' : `₹${displayFee.toLocaleString('en-IN')}`}
+              </span>
+            </div>
 
             {/* Divider */}
             <div className="border-t border-slate-200 pt-4 mt-2">
@@ -1633,11 +1656,6 @@ const Checkout = () => {
               <span>📅</span> {rentalType === 'monthly' ? 'Schedule' : 'Slot'}
             </button>
           </div>
-          {bookingType === 'instant' && (
-            <p className="text-xs text-center text-green-600 font-medium mt-1 mb-1">
-              <span className="font-bold">⚡ Priority Service:</span> Vendor arrives in ~45 mins
-            </p>
-          )}
         </div>
 
         {/* Address and Slot Display */}
@@ -1877,6 +1895,11 @@ const Checkout = () => {
               : cartItems[0].land_unit)
             : cartItems[0]?.land_unit || 'acre'
         }
+        estimatedDuration={estimatedDuration}
+        landSize={landSize}
+        localDays={localDays}
+        cropType={cropType}
+        chemicalUsed={chemicalUsed}
       />
     </div>
   );

@@ -162,6 +162,12 @@ const vendorSchema = new mongoose.Schema({
     addressLine1: String,
     addressLine2: String,
     city: String,
+    cityId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'City',
+      default: null,
+      index: true
+    },
     state: String,
     pincode: String,
     landmark: String,
@@ -173,6 +179,12 @@ const vendorSchema = new mongoose.Schema({
       type: Number,
       default: null
     }
+  },
+  cityId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'City',
+    default: null,
+    index: true
   },
   wallet: {
     dues: {

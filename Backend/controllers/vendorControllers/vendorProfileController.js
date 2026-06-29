@@ -15,6 +15,37 @@ const getProfile = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Vendor not found' });
     }
 
+    // Dynamic resolution of cityId for auto-migration
+    let hasUpdatedCityId = false;
+    if (vendor.address?.city && (!vendor.address?.cityId || !vendor.cityId)) {
+      const City = require('../../models/City');
+      const cityMatch = await City.findOne({ 
+        name: { $regex: new RegExp(`^${vendor.address.city.trim()}$`, 'i') } 
+      });
+      if (cityMatch) {
+        vendor.address.cityId = cityMatch._id;
+        vendor.cityId = cityMatch._id;
+        hasUpdatedCityId = true;
+      } else {
+        const slug = vendor.address.city.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const citySlugMatch = await City.findOne({ slug: { $regex: new RegExp(slug, 'i') } });
+        if (citySlugMatch) {
+          vendor.address.cityId = citySlugMatch._id;
+          vendor.cityId = citySlugMatch._id;
+          hasUpdatedCityId = true;
+        }
+      }
+      if (hasUpdatedCityId) {
+        await vendor.save();
+        // Sync equipment cityIds
+        const VendorEquipment = require('../../models/VendorEquipment');
+        await VendorEquipment.updateMany(
+          { vendorId: vendor._id },
+          { cityIds: [vendor.cityId] }
+        );
+      }
+    }
+
     // Use stored rating if available (and > 0), otherwise calculate
     let rating = vendor.rating || 0;
 
@@ -43,6 +74,7 @@ const getProfile = async (req, res) => {
         service: vendor.service,
         skills: vendor.skills || [],
         address: vendor.address || null,
+        cityId: vendor.cityId || null,
         rating: rating > 0 ? parseFloat(rating.toFixed(1)) : 0,
         totalJobs,
         completionRate,
@@ -117,6 +149,28 @@ const updateProfile = async (req, res) => {
           lng: address.lng !== undefined ? address.lng : vendor.address?.lng
         };
       }
+
+      // Resolve cityId!
+      if (vendor.address?.city) {
+        const City = require('../../models/City');
+        const cityMatch = await City.findOne({ 
+          name: { $regex: new RegExp(`^${vendor.address.city.trim()}$`, 'i') } 
+        });
+        if (cityMatch) {
+          vendor.address.cityId = cityMatch._id;
+          vendor.cityId = cityMatch._id;
+        } else {
+          const slug = vendor.address.city.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const citySlugMatch = await City.findOne({ slug: { $regex: new RegExp(slug, 'i') } });
+          if (citySlugMatch) {
+            vendor.address.cityId = citySlugMatch._id;
+            vendor.cityId = citySlugMatch._id;
+          } else {
+            vendor.address.cityId = null;
+            vendor.cityId = null;
+          }
+        }
+      }
     }
 
     // Update profile photo - upload to Cloudinary if it's a base64 string
@@ -187,6 +241,13 @@ const updateProfile = async (req, res) => {
 
     await vendor.save();
 
+    // Sync equipment cityIds if vendor updated city
+    const VendorEquipment = require('../../models/VendorEquipment');
+    await VendorEquipment.updateMany(
+      { vendorId: vendor._id },
+      { cityIds: vendor.cityId ? [vendor.cityId] : [] }
+    );
+
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
@@ -198,6 +259,7 @@ const updateProfile = async (req, res) => {
         phone: vendor.phone,
         service: vendor.service,
         address: vendor.address,
+        cityId: vendor.cityId || null,
         approvalStatus: vendor.approvalStatus,
         isPhoneVerified: vendor.isPhoneVerified,
         isEmailVerified: vendor.isEmailVerified,

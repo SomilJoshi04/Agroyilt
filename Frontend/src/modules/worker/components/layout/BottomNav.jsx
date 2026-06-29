@@ -14,6 +14,26 @@ const BottomNav = memo(() => {
   const activeAnimations = useRef({});
   const [pendingJobsCount, setPendingJobsCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const originalHeight = window.innerHeight;
+    const handleResize = () => {
+      const activeEl = document.activeElement;
+      const isInputFocused = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.hasAttribute('contenteditable')
+      );
+      if (isInputFocused && window.innerHeight < originalHeight - 150) {
+        setIsKeyboardVisible(true);
+      } else {
+        setIsKeyboardVisible(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load counts
   useEffect(() => {
@@ -73,6 +93,10 @@ const BottomNav = memo(() => {
   };
 
 
+
+  if (isKeyboardVisible) {
+    return null;
+  }
 
   return (
     <nav

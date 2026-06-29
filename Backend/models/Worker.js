@@ -34,16 +34,16 @@ const workerSchema = new mongoose.Schema({
   aadhar: {
     number: {
       type: String,
-      required: [true, 'Please provide Aadhar number'],
-      trim: true
+      trim: true,
+      default: null
     },
     document: {
       type: String, // Cloudinary URL (Front)
-      required: [true, 'Please upload Aadhar Front document']
+      default: null
     },
     backDocument: {
       type: String, // Cloudinary URL (Back)
-      required: [true, 'Please upload Aadhar Back document']
+      default: null
     }
   },
   vendorId: {

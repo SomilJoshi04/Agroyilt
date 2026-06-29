@@ -31,7 +31,8 @@ const getSettings = async (req, res) => {
           serviceGstPercentage: globalSettings?.serviceGstPercentage ?? 18,
           partsGstPercentage: globalSettings?.partsGstPercentage ?? 18,
           servicePayoutPercentage: globalSettings?.servicePayoutPercentage ?? 70,
-          partsPayoutPercentage: globalSettings?.partsPayoutPercentage ?? 10
+          partsPayoutPercentage: globalSettings?.partsPayoutPercentage ?? 10,
+          bookingCommissionPercentage: globalSettings?.bookingCommissionPercentage ?? 10
         }
       }
     });
