@@ -130,7 +130,21 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
             <div className="text-xl font-black text-emerald-600 tracking-tight flex items-center gap-1 justify-center">
               <FiMapPin className="w-4 h-4 shrink-0" />
               <span className="truncate max-w-[110px]">
-                {booking.location?.distance || (booking.distance ? (String(booking.distance).includes('km') ? booking.distance : `${booking.distance} km`) : 'Near You')}
+                {(() => {
+                  const distVal = booking.location?.distance || booking.distance;
+                  if (distVal === undefined || distVal === null) return 'Near You';
+                  if (typeof distVal === 'string') {
+                    if (distVal.includes('km') || distVal.includes('m') || distVal.toLowerCase().includes('near')) {
+                      return distVal;
+                    }
+                  }
+                  const numDist = Number(distVal);
+                  if (isNaN(numDist)) return 'Near You';
+                  if (numDist < 1) {
+                    return `${Math.round(numDist * 1000)} m`;
+                  }
+                  return `${numDist.toFixed(1)} km`;
+                })()}
               </span>
             </div>
           </div>

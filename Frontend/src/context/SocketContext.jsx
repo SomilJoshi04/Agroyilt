@@ -84,15 +84,9 @@ export const SocketProvider = ({ children }) => {
 
   const userType = getUserType(location.pathname);
 
-  useEffect(() => {
-    if (!userType) {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-      }
-      return;
-    }
-
+  // Compute token to reactively trigger socket connection/disconnection on auth state change
+  const token = (() => {
+    if (!userType) return null;
     let tokenKey = 'accessToken';
     switch (userType) {
       case 'vendor':
@@ -109,8 +103,18 @@ export const SocketProvider = ({ children }) => {
         tokenKey = 'accessToken';
         break;
     }
+    return localStorage.getItem(tokenKey);
+  })();
 
-    const token = localStorage.getItem(tokenKey);
+  useEffect(() => {
+    if (!userType) {
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
+      return;
+    }
+
     // If no token, we don't connect
     if (!token) {
       if (socket) {
@@ -253,7 +257,11 @@ export const SocketProvider = ({ children }) => {
           serviceType: data.serviceName,
           location: {
             address: data.address?.addressLine1 || 'Location shared',
-            distance: data.distance ? `${Number(data.distance).toFixed(1)} km` : 'Near you'
+            distance: (data.distance !== undefined && data.distance !== null && !isNaN(Number(data.distance)))
+              ? (Number(data.distance) < 1
+                ? `${Math.round(Number(data.distance) * 1000)} m`
+                : `${Number(data.distance).toFixed(1)} km`)
+              : (data.distance || 'Near you')
           },
           timeSlot: {
             date: new Date(data.scheduledDate).toLocaleDateString(),
@@ -280,7 +288,8 @@ export const SocketProvider = ({ children }) => {
         window.dispatchEvent(new Event('vendorNotificationsUpdated'));
 
         // If on Dashboard, show modal there instead of navigating
-        if (window.location.pathname === '/vendor/dashboard') {
+        const isDashboard = window.location.pathname.replace(/\/$/, '') === '/vendor/dashboard';
+        if (isDashboard) {
           const event = new CustomEvent('showDashboardBookingAlert', { detail: newJob });
           window.dispatchEvent(event);
         } else {
@@ -324,7 +333,7 @@ export const SocketProvider = ({ children }) => {
     return () => {
       newSocket.disconnect();
     };
-  }, [userType]); // Only re-run if userType changes. Navigate is stable.
+  }, [userType, token]); // Re-run if userType or token changes. Navigate is stable.
 
   return (
     <SocketContext.Provider value={socket}>

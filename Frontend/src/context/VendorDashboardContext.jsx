@@ -138,7 +138,8 @@ export const VendorDashboardProvider = ({ children }) => {
           String(pv.vendorId?._id || pv.vendorId) === vendorId
         );
         if (potentialVendor && potentialVendor.distance != null) {
-          distance = `${Number(potentialVendor.distance).toFixed(1)} km`;
+          const numDist = Number(potentialVendor.distance);
+          distance = numDist < 1 ? `${Math.round(numDist * 1000)} m` : `${numDist.toFixed(1)} km`;
         }
       }
 

@@ -318,6 +318,12 @@ const updateAddress = async (req, res) => {
       lng: parseFloat(lng)
     };
 
+    // Update geoLocation for GeoJSON searches
+    vendor.geoLocation = {
+      type: 'Point',
+      coordinates: [parseFloat(lng), parseFloat(lat)]
+    };
+
     await vendor.save();
 
     res.status(200).json({
