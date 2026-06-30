@@ -190,7 +190,7 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
       },
       body: JSON.stringify({
         token: token,
-        platform: 'web'
+        platform: getPlatformType()
       })
     });
 
