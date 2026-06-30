@@ -9,7 +9,7 @@
 
 import { messaging, getToken, onMessage } from '../firebase';
 
-const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+const VAPID_KEY = "BDhzn_g9ilMnVa2DuhfMoFxqXLZJhGv7NB2tWpQrdzRYlRoiU9ptryralC6IHuZ24AIm5CNP91AxePRf0GZw6Z8";
 
 /**
  * Check if running on iOS (iPhone, iPad, iPod)

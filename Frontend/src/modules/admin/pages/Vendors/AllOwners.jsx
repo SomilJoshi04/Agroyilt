@@ -138,9 +138,9 @@ const AllOwners = () => {
       const matchesStatus = filterStatus === 'all' || owner.approvalStatus === filterStatus;
 
       const matchesSearch =
-        owner.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-        owner.email.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-        owner.phone.includes(searchQuery.trim()) ||
+        (owner.name || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+        (owner.email || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+        (owner.phone || '').includes(searchQuery.trim()) ||
         serviceString.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
         (owner.businessName && owner.businessName.toLowerCase().includes(searchQuery.trim().toLowerCase()));
       return matchesStatus && matchesSearch;
