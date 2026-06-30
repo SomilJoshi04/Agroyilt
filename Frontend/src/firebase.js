@@ -46,7 +46,7 @@ try {
     // console.log('ℹ️ iOS device detected — Firebase Messaging skipped (not supported)');
   }
 } catch (error) {
-  // console.error('❌ Firebase initialization failed:', error);
+  console.error('❌ Firebase initialization failed:', error);
   messaging = null; // Ensure messaging is null on failure
 }
 
