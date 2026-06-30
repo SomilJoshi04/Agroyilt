@@ -20,6 +20,19 @@ function App() {
     // On iOS, messaging is null because FCM is not supported
     try {
       setupForegroundNotificationHandler((payload) => {
+        // Show in-app toast notification
+        const title = payload.notification?.title || payload.data?.title || 'New Notification';
+        const body = payload.notification?.body || payload.data?.body || '';
+        toast((t) => (
+          <div className="flex flex-col">
+            <span className="font-semibold text-green-600">{title}</span>
+            <span className="text-xs text-gray-500 mt-1">{body}</span>
+          </div>
+        ), {
+          icon: '🔔',
+          duration: 4000
+        });
+
         // Dispatch update events for listening components to refresh UI
         window.dispatchEvent(new Event('vendorJobsUpdated'));
         window.dispatchEvent(new Event('vendorStatsUpdated'));
