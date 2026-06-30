@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { vendorAuthService } from '../../../../services/authService';
 import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
+import api from '../../../../services/api';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 
@@ -12,11 +13,29 @@ const Settings = () => {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const [settings, setSettings] = useState({
     notifications: true,
     soundAlerts: true,
     language: 'en',
   });
+
+  const handleSendTestNotification = async () => {
+    setSendingTest(true);
+    try {
+      const response = await api.post('/vendors/fcm-tokens/test');
+      if (response.data.success) {
+        toast.success('Test push notification sent successfully!');
+      } else {
+        toast.error(response.data.error || 'Failed to send test notification');
+      }
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      toast.error(error.response?.data?.error || 'Failed to send test notification');
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -156,6 +175,23 @@ const Settings = () => {
                   className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${settings.soundAlerts ? 'transform translate-x-6' : ''
                     }`}
                 />
+              </button>
+            </div>
+
+            <div className="pt-4 border-t border-gray-100 flex justify-center">
+              <button
+                type="button"
+                onClick={handleSendTestNotification}
+                disabled={sendingTest}
+                className="w-full py-2.5 px-4 rounded-xl font-semibold text-white text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 hover:opacity-90"
+                style={{
+                  background: themeColors.button,
+                  boxShadow: `0 2px 8px ${themeColors.button}30`,
+                  cursor: 'pointer'
+                }}
+              >
+                <FiBell className="w-4 h-4" />
+                {sendingTest ? 'Sending...' : 'Test Push Notification'}
               </button>
             </div>
           </div>
