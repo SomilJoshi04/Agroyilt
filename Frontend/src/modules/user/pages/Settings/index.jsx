@@ -53,9 +53,14 @@ const Settings = () => {
       try {
         if (newState) {
           // Enable
+          const { isFlutterWebView } = await import('../../../../services/pushNotificationService');
           const token = await registerFCMToken('user', true);
           if (!token) {
-            toast.error('Failed to enable. Check permissions.', { id: toastId });
+            if (isFlutterWebView()) {
+              toast.error('Failed to enable. Please check mobile app notification permissions in your phone settings.', { id: toastId, duration: 5000 });
+            } else {
+              toast.error('Failed to enable. Check browser permissions.', { id: toastId });
+            }
             // Revert state
             setNotifications(prev => ({ ...prev, push: false }));
             return;
@@ -265,13 +270,17 @@ const Settings = () => {
           <button
             onClick={async () => {
               try {
-                const { registerFCMToken } = await import('../../../../services/pushNotificationService');
+                const { registerFCMToken, isFlutterWebView } = await import('../../../../services/pushNotificationService');
                 const toastId = toast.loading('Attempting to register for notifications...');
 
                 // 1. Register Token
                 const token = await registerFCMToken('user', true);
                 if (!token) {
-                  toast.error('Could not register. Check browser permissions.', { id: toastId });
+                  if (isFlutterWebView()) {
+                    toast.error('Could not register. Please check mobile app notification permissions in your phone settings.', { id: toastId, duration: 5000 });
+                  } else {
+                    toast.error('Could not register. Check browser permissions.', { id: toastId });
+                  }
                   return;
                 }
 

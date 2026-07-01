@@ -374,5 +374,6 @@ export {
   removeFCMToken,
   setupForegroundNotificationHandler,
   requestNotificationPermission,
-  getFCMToken
+  getFCMToken,
+  isFlutterWebView
 };
