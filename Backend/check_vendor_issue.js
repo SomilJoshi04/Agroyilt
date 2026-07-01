@@ -17,7 +17,7 @@ mongoose.connect(MONGO_URI).then(async () => {
   console.log('---');
 
   // Find vendor
-  const vendor = await Vendor.findOne({ phone: '9301988718' });
+  const vendor = await Vendor.findOne({ phone: '6268455485' });
   
   // Now simulate what findNearbyVendors does:
   // Filter 1: categories field (vendor.categories)

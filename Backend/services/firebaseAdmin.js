@@ -168,7 +168,8 @@ async function sendPushNotification(tokens, payload) {
           console.log(`❌ Failed token[${idx}]: ${errorCode} - ${resp.error?.message}`);
 
           if (errorCode === 'messaging/registration-token-not-registered' ||
-            errorCode === 'messaging/invalid-registration-token') {
+            errorCode === 'messaging/invalid-registration-token' ||
+            errorCode === 'messaging/invalid-argument') {
             invalidTokens.push(uniqueTokens[idx]);
           }
         }
