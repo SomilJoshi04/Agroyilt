@@ -272,15 +272,18 @@ const Settings = () => {
               try {
                 const { registerFCMToken, isFlutterWebView } = await import('../../../../services/pushNotificationService');
                 const toastId = toast.loading('Attempting to register for notifications...');
+                const inWebView = isFlutterWebView();
 
-                // 1. Register Token
-                const token = await registerFCMToken('user', true);
-                if (!token) {
-                  if (isFlutterWebView()) {
-                    toast.error('Could not register. Please check mobile app notification permissions in your phone settings.', { id: toastId, duration: 5000 });
-                  } else {
-                    toast.error('Could not register. Check browser permissions.', { id: toastId });
-                  }
+                // 1. Register Token (Optional inside WebView)
+                let token = null;
+                try {
+                  token = await registerFCMToken('user', true);
+                } catch (e) {
+                  console.warn('FCM registration skipped or failed:', e);
+                }
+
+                if (!token && !inWebView) {
+                  toast.error('Could not register. Check browser permissions.', { id: toastId });
                   return;
                 }
 
