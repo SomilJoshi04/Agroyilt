@@ -124,6 +124,25 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
   try {
     console.log(`[FCM] Starting registration for ${userType}, forceUpdate: ${forceUpdate}`);
 
+    const platform = getPlatformType();
+
+    // Check if running in Flutter WebView
+    if (isFlutterWebView()) {
+      console.log('[FCM] Running inside Flutter WebView. Checking for native FCM token bridge...');
+      try {
+        const result = await window.flutter_inappwebview.callHandler('getFCMToken');
+        if (result && result.success && result.token) {
+          console.log('[FCM] ✅ Got native FCM token from Flutter Bridge:', result.token.substring(0, 20) + '...');
+          return await saveTokenToBackend(result.token, userType, 'mobile');
+        }
+      } catch (err) {
+        console.warn('[FCM] Native getFCMToken bridge call failed or not implemented:', err);
+      }
+      
+      console.log('[FCM] ℹ️ Skipping Web FCM registration in WebView. Native app will handle notifications.');
+      return null;
+    }
+
     // Check if already registered
     const storageKey = `fcm_token_${userType}_web`;
     const savedToken = localStorage.getItem(storageKey);
@@ -149,7 +168,21 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
     }
     console.log('[FCM] ✅ Got FCM token:', token.substring(0, 30) + '...');
 
-    // Determine API endpoint based on user type
+    return await saveTokenToBackend(token, userType, 'web');
+  } catch (error) {
+    console.error('[FCM] ❌ Error registering FCM token:', error);
+    return null;
+  }
+}
+
+/**
+ * Helper to save FCM token to the backend
+ * @param {string} token 
+ * @param {string} userType 
+ * @param {'web'|'mobile'} platform 
+ */
+async function saveTokenToBackend(token, userType, platform) {
+  try {
     let endpoint;
     let authTokenKey;
     switch (userType) {
@@ -166,7 +199,6 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
         authTokenKey = 'accessToken';
         break;
       default:
-        // console.warn(`[FCM] Unknown userType: ${userType}, defaulting to user`);
         endpoint = '/users/fcm-tokens/save';
         authTokenKey = 'accessToken';
     }
@@ -180,7 +212,7 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
 
     // Save to backend
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-    console.log(`[FCM] Saving to backend: ${baseUrl}${endpoint}`);
+    console.log(`[FCM] Saving token (${platform}) to backend: ${baseUrl}${endpoint}`);
 
     const response = await fetch(`${baseUrl}${endpoint}`, {
       method: 'POST',
@@ -190,15 +222,14 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
       },
       body: JSON.stringify({
         token: token,
-        platform: getPlatformType()
+        platform: platform
       })
     });
 
-    // console.log(`[FCM] Backend response status: ${response.status}`);
-
     if (response.ok) {
+      const storageKey = `fcm_token_${userType}_${platform}`;
       localStorage.setItem(storageKey, token);
-      console.log('[FCM] ✅ FCM token registered with backend successfully!');
+      console.log(`[FCM] ✅ FCM token registered with backend successfully for platform: ${platform}`);
       return token;
     } else {
       const error = await response.json();
@@ -206,7 +237,7 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
       return null;
     }
   } catch (error) {
-    console.error('[FCM] ❌ Error registering FCM token:', error);
+    console.error('[FCM] ❌ Error in saveTokenToBackend:', error);
     return null;
   }
 }
