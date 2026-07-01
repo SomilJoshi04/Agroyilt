@@ -209,7 +209,7 @@ const createBooking = async (req, res) => {
       nearbyVendors = await findNearbyVendors(bookingLocation, radius, vendorFilters);
       
       // We allow isOnline to be false so that we can send FCM background pushes to wake them up.
-      nearbyVendors = nearbyVendors.filter(v => v.availability === 'AVAILABLE');
+      nearbyVendors = nearbyVendors.filter(v => v.availability === 'AVAILABLE' || v.availability === 'OFFLINE');
 
       if (nearbyVendors && nearbyVendors.length > 0) {
         break; // Stop expanding radius if we found available vendors

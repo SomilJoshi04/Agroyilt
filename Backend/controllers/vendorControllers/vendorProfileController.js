@@ -352,9 +352,13 @@ const updateLocation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Latitude and Longitude are required' });
     }
 
-    // Update only the location field
+    // Update both location and geoLocation fields
     await Vendor.findByIdAndUpdate(vendorId, {
-      location: { lat, lng, updatedAt: new Date() }
+      location: { lat, lng, updatedAt: new Date() },
+      geoLocation: {
+        type: 'Point',
+        coordinates: [parseFloat(lng), parseFloat(lat)]
+      }
     });
 
     res.status(200).json({ success: true, message: 'Location updated' });

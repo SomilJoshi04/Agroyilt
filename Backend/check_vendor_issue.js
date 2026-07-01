@@ -17,7 +17,7 @@ mongoose.connect(MONGO_URI).then(async () => {
   console.log('---');
 
   // Find vendor
-  const vendor = await Vendor.findOne({ phone: '7033857798' });
+  const vendor = await Vendor.findOne({ phone: '9301988718' });
   
   // Now simulate what findNearbyVendors does:
   // Filter 1: categories field (vendor.categories)
@@ -28,6 +28,9 @@ mongoose.connect(MONGO_URI).then(async () => {
   console.log('Booking looks for category (serviceCategory):', booking?.serviceCategory);
   console.log('Vendor.categories array:', vendor?.categories); // ← EMPTY!
   console.log('Vendor.service array:', vendor?.service);
+  console.log('Vendor fcmTokens:', vendor?.fcmTokens);
+  console.log('Vendor fcmTokenMobile:', vendor?.fcmTokenMobile);
+  console.log('Vendor geoLocation:', JSON.stringify(vendor?.geoLocation));
   console.log('---');
   console.log('FILTER 1 FAIL? categories is EMPTY []:', vendor?.categories?.length === 0 ? 'YES - No categories set!' : 'NO');
   console.log('FILTER 2 FAIL? isOnline:', vendor?.isOnline, '→ Must be true');

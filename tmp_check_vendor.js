@@ -9,14 +9,19 @@ async function run() {
         
         const Vendor = mongoose.model('Vendor', new mongoose.Schema({}, { strict: false }), 'vendors');
 
-        const vendor = await Vendor.findOne({ phone: '6268455485' });
+        const vendor = await Vendor.findOne({ phone: '9301988718' });
         if (vendor) {
             console.log("Vendor Found: " + vendor.name);
             console.log("isActive: " + vendor.isActive);
             console.log("approvalStatus: " + vendor.approvalStatus);
             console.log("service: " + JSON.stringify(vendor.service));
+            console.log("categories: " + JSON.stringify(vendor.categories));
+            console.log("fcmTokens: " + JSON.stringify(vendor.fcmTokens));
+            console.log("fcmTokenMobile: " + JSON.stringify(vendor.fcmTokenMobile));
+            console.log("isOnline: " + (vendor.geoLocation?.isOnline ?? vendor.isOnline));
+            console.log("availability: " + (vendor.geoLocation?.availability ?? vendor.availability));
         } else {
-            console.log("Vendor not found with phone: 6268455485");
+            console.log("Vendor not found with phone: 9301988718");
         }
         
         const totalVendors = await Vendor.countDocuments({});
