@@ -20,9 +20,11 @@ function App() {
     // On iOS, messaging is null because FCM is not supported
     try {
       setupForegroundNotificationHandler((payload) => {
-        // Show in-app toast notification
+        console.log('🔔 [App.jsx] Foreground notification received in callback:', payload);
         const title = payload.notification?.title || payload.data?.title || 'New Notification';
         const body = payload.notification?.body || payload.data?.body || '';
+
+        console.log(`🔔 [App.jsx] Attempting to display in-app toast for: "${title}"`);
         toast((t) => (
           <div className="flex flex-col">
             <span className="font-semibold text-green-600">{title}</span>
@@ -32,6 +34,21 @@ function App() {
           icon: '🔔',
           duration: 4000
         });
+
+        // Show native browser notification in foreground if permission is granted
+        if ('Notification' in window && Notification.permission === 'granted') {
+          console.log('🔔 [App.jsx] Displaying native browser notification...');
+          try {
+            new Notification(title, {
+              body: body,
+              icon: payload.notification?.icon || payload.data?.icon || '/grooAgri-logo.png'
+            });
+          } catch (e) {
+            console.error('🔔 [App.jsx] Error showing native notification in foreground:', e);
+          }
+        } else {
+          console.log('🔔 [App.jsx] Native browser notifications skipped. Permission status:', 'Notification' in window ? Notification.permission : 'Not supported');
+        }
 
         // Dispatch update events for listening components to refresh UI
         window.dispatchEvent(new Event('vendorJobsUpdated'));

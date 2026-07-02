@@ -21,19 +21,34 @@ const Settings = () => {
   });
 
   const handleSendTestNotification = async () => {
+    console.log('[Test Notification] Send button clicked');
+    console.log('[Test Notification] Current settings state:', settings);
+    console.log('[Test Notification] Stored FCM token (web):', localStorage.getItem('fcm_token_vendor_web'));
+    console.log('[Test Notification] Stored FCM token (mobile):', localStorage.getItem('fcm_token_vendor_mobile'));
+    console.log('[Test Notification] Notification.permission:', typeof Notification !== 'undefined' ? Notification.permission : 'Not supported');
+    console.log('[Test Notification] Vendor Access Token:', localStorage.getItem('vendorAccessToken') ? 'Present (Hidden for security)' : 'Missing');
+
     setSendingTest(true);
     try {
+      console.log('[Test Notification] Sending API request to /vendors/fcm-tokens/test...');
       const response = await api.post('/vendors/fcm-tokens/test');
+      console.log('[Test Notification] API response:', response.data);
       if (response.data.success) {
         toast.success('Test push notification sent successfully!');
       } else {
+        console.warn('[Test Notification] Backend returned success false:', response.data.error);
         toast.error(response.data.error || 'Failed to send test notification');
       }
     } catch (error) {
-      console.error('Error sending test notification:', error);
+      console.error('[Test Notification] Error sending test notification:', error);
+      if (error.response) {
+        console.error('[Test Notification] Error response status:', error.response.status);
+        console.error('[Test Notification] Error response data:', error.response.data);
+      }
       toast.error(error.response?.data?.error || 'Failed to send test notification');
     } finally {
       setSendingTest(false);
+      console.log('[Test Notification] Finished flow');
     }
   };
 

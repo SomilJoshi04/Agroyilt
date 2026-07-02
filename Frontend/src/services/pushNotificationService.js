@@ -320,7 +320,7 @@ function setupForegroundNotificationHandler(handler) {
   }
 
   onMessage(messaging, (payload) => {
-    // console.log('📬 Foreground message received:', payload);
+    console.log('📬 [FCM Service] Foreground message received:', payload);
 
     const data = payload.data || {};
     const notification = payload.notification || {};
@@ -330,6 +330,8 @@ function setupForegroundNotificationHandler(handler) {
     const body = notification.body || data.body || '';
     const icon = notification.icon || data.icon || '/HomeBuddy-header-logo.png';
     const type = data.type || data.notificationType || 'default';
+
+    console.log(`[FCM Service] Parsed Notification -> Title: "${title}", Body: "${body}", Type: "${type}"`);
 
     // Call custom handler (e.g. for toast)
     if (handler) {

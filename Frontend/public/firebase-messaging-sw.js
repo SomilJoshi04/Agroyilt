@@ -286,6 +286,16 @@ self.addEventListener('notificationclose', (event) => {
 // Handle push events for additional processing
 self.addEventListener('push', (event) => {
   console.log('[SW] 📨 Push event received:', event);
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      console.log('[SW] 📨 Push event data (JSON):', JSON.stringify(data, null, 2));
+    } catch (e) {
+      console.log('[SW] 📨 Push event data (Text):', event.data.text());
+    }
+  } else {
+    console.log('[SW] 📨 Push event has no data');
+  }
 });
 
 // Install event
