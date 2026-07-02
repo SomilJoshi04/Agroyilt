@@ -129,7 +129,7 @@ async function sendPushNotification(tokens, payload) {
       message.android.notification = {
         title: payload.title || 'App Notification',
         body: payload.body || 'New Update',
-        icon: 'stock_ticker_update',
+        icon: 'ic_launcher',
         color: '#14B8A6',
         clickAction: 'FLUTTER_NOTIFICATION_CLICK',
       };
