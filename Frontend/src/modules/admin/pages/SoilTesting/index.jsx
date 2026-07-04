@@ -64,6 +64,18 @@ const ManageSoilTests = () => {
         return () => clearInterval(interval);
     }, []);
 
+    // Prevent background scrolling when a modal is open
+    useEffect(() => {
+        if (assignModal || approveModal) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [assignModal, approveModal]);
+
     const fetchRequests = async (isPolling = false) => {
         try {
             if (!isPolling) setLoading(true);
