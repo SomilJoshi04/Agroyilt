@@ -539,7 +539,7 @@ const ManageSoilTests = () => {
                                         }).map(v => (
                                             <div key={v._id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-200 hover:bg-white hover:shadow-md transition-all group">
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="font-black text-slate-800 text-xs truncate">{v.businessName || v.name}</p>
+                                                    <p className="font-black text-slate-800 text-xs truncate">{v.name}</p>
                                                     <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
                                                         <FiMapPin className="text-[9px]" /> {v.address?.city || '—'}, {v.address?.state || '—'}
                                                     </p>
