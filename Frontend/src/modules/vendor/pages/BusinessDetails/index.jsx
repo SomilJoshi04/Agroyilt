@@ -106,8 +106,8 @@ const BusinessDetails = () => {
   const handleLabFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should not exceed 5MB');
+      if (file.size > 15 * 1024 * 1024) {
+        toast.error('File size should not exceed 15MB');
         return;
       }
       const reader = new FileReader();
@@ -412,7 +412,7 @@ const BusinessDetails = () => {
                         <div className="text-xs text-gray-600">
                           <span className="font-semibold text-teal-600">Upload a file</span> or drag and drop
                         </div>
-                        <p className="text-[10px] text-gray-500">PNG, JPG, PDF up to 5MB</p>
+                        <p className="text-[10px] text-gray-500">PNG, JPG, PDF up to 15MB</p>
                       </div>
                     </label>
                   )}
