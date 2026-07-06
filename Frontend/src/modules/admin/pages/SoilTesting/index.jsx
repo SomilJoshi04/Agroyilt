@@ -312,11 +312,17 @@ const ManageSoilTests = () => {
                                             Reason: {req.rejectionReason}
                                         </p>
                                     )}
-                                    {req.vendorId && req.status !== 'cancelled' && (
-                                        <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                                            <FiUserCheck className="text-teal-500" /> Vendor Assigned
-                                        </p>
-                                    )}
+                                    {req.vendorId && req.status !== 'cancelled' && (() => {
+                                        const vId = typeof req.vendorId === 'object' ? req.vendorId._id || req.vendorId.id : req.vendorId;
+                                        const assignedV = vendors.find(v => v._id === vId);
+                                        const vName = assignedV ? (assignedV.labDetails?.labName || assignedV.name) : 
+                                            (typeof req.vendorId === 'object' && req.vendorId.name ? req.vendorId.name : 'Vendor Assigned');
+                                        return (
+                                            <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1 font-bold">
+                                                <FiUserCheck className="text-teal-500 flex-shrink-0" /> <span className="truncate">{vName}</span>
+                                            </p>
+                                        );
+                                    })()}
                                 </td>
                                 <td className="p-6">
                                     <div className="flex flex-col gap-2 items-start">
@@ -335,7 +341,7 @@ const ManageSoilTests = () => {
                                         {['pending', 'assigned'].includes(req.status) && (
                                             <button onClick={() => { setAssignModal(req); setSelectedVendorId(req.vendorId || ''); }}
                                                 className="px-3 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                                <FiUserCheck className="text-xs" /> Assign Lab
+                                                <FiUserCheck className="text-xs" /> {req.status === 'assigned' ? 'Re-assign Lab' : 'Assign Lab'}
                                             </button>
                                         )}
                                         {req.reportStatus === 'uploaded' && (
