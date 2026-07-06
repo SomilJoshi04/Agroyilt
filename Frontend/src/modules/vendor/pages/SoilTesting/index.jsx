@@ -388,8 +388,8 @@ const VendorSoilTests = () => {
                             onClick={closeModal} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
                         <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative bg-white w-full rounded-t-[48px] shadow-2xl p-8 pb-24">
-                            <div className="flex justify-between items-center mb-6">
+                            className="relative bg-white w-full max-h-[90vh] overflow-y-auto custom-scrollbar rounded-t-[48px] shadow-2xl p-8 pb-32">
+                            <div className="flex justify-between items-center mb-6 sticky top-0 bg-white z-10 py-2">
                                 <h2 className="text-xl font-black text-slate-800">Lab Report Upload</h2>
                                 <button onClick={closeModal} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">
                                     <FiX />
@@ -470,8 +470,8 @@ const VendorSoilTests = () => {
                             onClick={closeModal} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
                         <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative bg-white w-full rounded-t-[48px] shadow-2xl p-8 pb-24">
-                            <div className="flex justify-between items-center mb-6">
+                            className="relative bg-white w-full max-h-[90vh] overflow-y-auto custom-scrollbar rounded-t-[48px] shadow-2xl p-8 pb-32">
+                            <div className="flex justify-between items-center mb-6 sticky top-0 bg-white z-10 py-2">
                                 <h2 className="text-xl font-black text-slate-800">Reject Request</h2>
                                 <button onClick={closeModal} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">
                                     <FiX />
