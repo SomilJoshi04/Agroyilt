@@ -383,7 +383,7 @@ const VendorSoilTests = () => {
             {/* ── Upload Report Modal ── */}
             <AnimatePresence>
                 {modalType === 'report' && activeRequest && (
-                    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+                    <div className="fixed inset-0 z-[100] flex items-end justify-center pb-[80px]">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={closeModal} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
                         <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
@@ -465,7 +465,7 @@ const VendorSoilTests = () => {
             {/* ── Reject Reason Modal ── */}
             <AnimatePresence>
                 {modalType === 'reject' && activeRequest && (
-                    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+                    <div className="fixed inset-0 z-[100] flex items-end justify-center pb-[80px]">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={closeModal} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
                         <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
