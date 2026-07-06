@@ -338,10 +338,10 @@ const ManageSoilTests = () => {
                                 </td>
                                 <td className="p-6">
                                     <div className="flex flex-col gap-2">
-                                        {['pending', 'assigned'].includes(req.status) && (
+                                        {['pending', 'assigned', 'cancelled'].includes(req.status) && (
                                             <button onClick={() => { setAssignModal(req); setSelectedVendorId(req.vendorId || ''); }}
                                                 className="px-3 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                                <FiUserCheck className="text-xs" /> {req.status === 'assigned' ? 'Re-assign Lab' : 'Assign Lab'}
+                                                <FiUserCheck className="text-xs" /> {['assigned', 'cancelled'].includes(req.status) ? 'Re-assign Lab' : 'Assign Lab'}
                                             </button>
                                         )}
                                         {req.reportStatus === 'uploaded' && (

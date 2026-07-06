@@ -127,7 +127,7 @@ const Notifications = () => {
     }
 
     if (filter === 'jobs') { // Mapped to 'Bookings' in UI
-      return ['booking_', 'job_', 'worker_', 'visit_', 'work_', 'journey_', 'vendor_'].some(prefix => type.includes(prefix));
+      return ['booking_', 'job_', 'worker_', 'visit_', 'work_', 'journey_', 'vendor_', 'soil_test_'].some(prefix => type.includes(prefix));
     }
 
     if (filter === 'alerts') {
@@ -141,7 +141,7 @@ const Notifications = () => {
     const type = (originalType || '').toLowerCase();
 
     if (['payment', 'refund', 'wallet'].some(t => type.includes(t))) return '💰';
-    if (['booking', 'job', 'work', 'visit', 'journey', 'vendor', 'scrap'].some(t => type.includes(t))) return '📋';
+    if (['booking', 'job', 'work', 'visit', 'journey', 'vendor', 'scrap', 'soil_test'].some(t => type.includes(t))) return '📋';
     if (['alert', 'general'].some(t => type.includes(t))) return '🔔';
 
     return '📢';
@@ -151,7 +151,7 @@ const Notifications = () => {
     const type = (originalType || '').toLowerCase();
 
     if (['payment', 'refund', 'wallet'].some(t => type.includes(t))) return '#10B981'; // Green
-    if (['booking', 'job', 'work', 'visit', 'journey', 'vendor', 'scrap'].some(t => type.includes(t))) return '#3B82F6'; // Blue
+    if (['booking', 'job', 'work', 'visit', 'journey', 'vendor', 'scrap', 'soil_test'].some(t => type.includes(t))) return '#3B82F6'; // Blue
     if (['alert', 'general'].some(t => type.includes(t))) return themeColors.button;
 
     return '#6B7280'; // Gray

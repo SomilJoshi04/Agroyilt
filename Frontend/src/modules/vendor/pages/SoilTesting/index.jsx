@@ -383,12 +383,12 @@ const VendorSoilTests = () => {
             {/* ── Upload Report Modal ── */}
             <AnimatePresence>
                 {modalType === 'report' && activeRequest && (
-                    <div className="fixed inset-0 z-[100] flex items-end justify-center pb-[80px]">
+                    <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 pt-16 sm:pt-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={closeModal} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-                        <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative bg-white w-full max-h-[90vh] overflow-y-auto custom-scrollbar rounded-t-[48px] shadow-2xl p-8 pb-32">
+                            className="relative bg-white w-full max-w-md max-h-[85vh] overflow-y-auto custom-scrollbar rounded-[32px] shadow-2xl p-6 pb-8">
                             <div className="flex justify-between items-center mb-6 sticky top-0 bg-white z-10 py-2">
                                 <h2 className="text-xl font-black text-slate-800">Lab Report Upload</h2>
                                 <button onClick={closeModal} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">
@@ -465,20 +465,20 @@ const VendorSoilTests = () => {
             {/* ── Reject Reason Modal ── */}
             <AnimatePresence>
                 {modalType === 'reject' && activeRequest && (
-                    <div className="fixed inset-0 z-[100] flex items-end justify-center pb-[80px]">
+                    <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 pt-8 sm:pt-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={closeModal} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-                        <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative bg-white w-full max-h-[90vh] overflow-y-auto custom-scrollbar rounded-t-[48px] shadow-2xl p-8 pb-32">
-                            <div className="flex justify-between items-center mb-6 sticky top-0 bg-white z-10 py-2">
+                            className="relative bg-white w-full max-w-md max-h-[85vh] overflow-y-auto custom-scrollbar rounded-[32px] shadow-2xl p-6 pb-6">
+                            <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 py-2">
                                 <h2 className="text-xl font-black text-slate-800">Reject Request</h2>
                                 <button onClick={closeModal} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">
                                     <FiX />
                                 </button>
                             </div>
-                            <div className="bg-red-50 rounded-2xl p-4 border border-red-100 mb-6">
-                                <p className="text-xs font-bold text-red-700 leading-relaxed">
+                            <div className="bg-red-50 rounded-2xl p-3 border border-red-100 mb-4">
+                                <p className="text-[11px] font-bold text-red-700 leading-relaxed">
                                     ⚠️ If you cannot fulfill this request, please provide a reason. The request will be sent back to the Admin for re-assignment.
                                 </p>
                             </div>
@@ -486,7 +486,7 @@ const VendorSoilTests = () => {
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Reason for rejection</label>
                                     <textarea 
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-3xl p-4 text-sm font-medium focus:ring-2 focus:ring-red-500 outline-none min-h-[120px]"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-3xl p-4 text-sm font-medium focus:ring-2 focus:ring-red-500 outline-none min-h-[100px]"
                                         placeholder="e.g. Too far from my location, Schedule already full, etc."
                                         value={rejectionReason}
                                         onChange={(e) => setRejectionReason(e.target.value)}
