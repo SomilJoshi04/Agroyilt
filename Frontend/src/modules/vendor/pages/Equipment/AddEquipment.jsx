@@ -578,9 +578,12 @@ const AddEquipment = () => {
                               <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden">
                                 {w.profilePhoto ? <img src={w.profilePhoto} className="w-full h-full object-cover" /> : <FiUser className="m-auto text-slate-400" />}
                               </div>
-                              <div className="text-left">
+                              <div className="flex-1 text-left">
                                 <p className={`text-xs font-black ${form.workerId === w._id ? 'text-purple-700' : 'text-slate-800'}`}>{w.name}</p>
                                 <p className={`text-[9px] font-bold ${form.workerId === w._id ? 'text-purple-400' : 'text-slate-400'}`}>{w.phone}</p>
+                              </div>
+                              <div className="text-[9px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-md uppercase tracking-wider">
+                                Select
                               </div>
                             </button>
                           ))}

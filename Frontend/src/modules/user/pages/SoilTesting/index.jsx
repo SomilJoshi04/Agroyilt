@@ -365,6 +365,17 @@ const SoilTesting = () => {
                                     {/* Real-time Tracking Bar */}
                                     {req.status !== 'cancelled' && <TrackingBar status={req.status} />}
 
+                                    {/* Rejection Reason */}
+                                    {req.status === 'cancelled' && req.rejectionReason && (
+                                        <div className="mt-4 bg-red-50 border border-red-100 rounded-2xl p-4 flex gap-3">
+                                            <FiAlertCircle className="text-red-600 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="text-xs font-black text-red-800 mb-1">Request Rejected</p>
+                                                <p className="text-[10px] font-bold text-red-600 leading-relaxed">{req.rejectionReason}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Approved — Verified Report Badge + Download */}
                                     {req.status === 'completed' && req.reportStatus === 'approved' && req.reportUrl && (
                                         <div className="mt-4 space-y-3">
