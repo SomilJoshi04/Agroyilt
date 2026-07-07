@@ -127,7 +127,7 @@ const OrderPayment = () => {
                 </div>
             </div>
 
-            <div className="p-8 pb-40 space-y-6">
+            <div className="p-8 pb-72 space-y-6">
                 {/* Order Summary */}
                 <div className="bg-white rounded-[40px] p-6 shadow-sm border border-slate-100 space-y-4 overflow-hidden relative">
                     <div className="w-32 h-32 bg-slate-50 absolute -right-8 -top-8 rounded-full opacity-50" />
@@ -157,19 +157,27 @@ const OrderPayment = () => {
                             <p className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Grand Total</p>
                             <p className="text-lg font-black text-slate-800 font-sans">₹{order.pricing.orderTotal || (order.pricing.itemsTotal + order.pricing.platformFee)}</p>
                         </div>
-                        {order.paymentType === 'online_full' ? (
-                            <div className="p-4 mt-2 bg-teal-50 rounded-3xl border border-teal-100/50 flex items-center justify-between">
-                                 <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest leading-none">Total Payment</p>
-                                 <p className="text-2xl font-black text-teal-700 font-sans">₹{order.pricing.orderTotal || (order.pricing.itemsTotal + order.pricing.gstAmount)}</p>
-                            </div>
-                        ) : (
-                            <div className="p-4 mt-2 bg-teal-50 rounded-3xl border border-teal-100/50 flex items-center justify-between">
-                                 <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest leading-none">Upfront Platform Fee</p>
-                                 <p className="text-2xl font-black text-teal-700 font-sans">₹{order.pricing.platformFee}</p>
-                            </div>
-                        )}
                     </div>
                 </div>
+
+                {/* Upfront Platform Fee / Total Payment Banner (Rendered Out of the Box) */}
+                {order.paymentType === 'online_full' ? (
+                    <div className="p-6 bg-teal-50/50 rounded-[28px] border border-teal-100/50 flex items-center justify-between shadow-sm">
+                         <div>
+                             <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest leading-none">Total Payment</p>
+                             <p className="text-[9px] font-bold text-teal-600 mt-1.5 leading-none">Pay full amount online securely</p>
+                         </div>
+                         <p className="text-3xl font-black text-teal-700 font-sans">₹{order.pricing.orderTotal || (order.pricing.itemsTotal + order.pricing.gstAmount)}</p>
+                    </div>
+                ) : (
+                    <div className="p-6 bg-teal-50/50 rounded-[28px] border border-teal-100/50 flex items-center justify-between shadow-sm">
+                         <div>
+                             <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest leading-none">Upfront Platform Fee</p>
+                             <p className="text-[9px] font-bold text-teal-600 mt-1.5 leading-none">Pay now to confirm your order</p>
+                         </div>
+                         <p className="text-3xl font-black text-teal-700 font-sans">₹{order.pricing.platformFee}</p>
+                    </div>
+                )}
 
                 {/* Important Instructions */}
                 <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">

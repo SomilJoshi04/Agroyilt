@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
-import { FiCrosshair } from 'react-icons/fi';
+import { GoogleMap, useJsApiLoader, Marker, Autocomplete } from '@react-google-maps/api';
+import { FiCrosshair, FiSearch } from 'react-icons/fi';
 
 export const GOOGLE_MAPS_LIBRARIES = ['places', 'geometry'];
 
@@ -18,6 +18,36 @@ const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
   const [map, setMap] = useState(null);
   const [marker, setMarker] = useState(initialPosition || defaultCenter);
   const [loading, setLoading] = useState(false);
+  const [autocomplete, setAutocomplete] = useState(null);
+
+  const handleAutocompleteLoad = (autocompleteInstance) => {
+    setAutocomplete(autocompleteInstance);
+  };
+
+  const handlePlaceChanged = () => {
+    if (autocomplete !== null) {
+      const place = autocomplete.getPlace();
+      if (place.geometry && place.geometry.location) {
+        const newPos = {
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng()
+        };
+        setMarker(newPos);
+        if (map) {
+          map.panTo(newPos);
+          map.setZoom(17);
+        }
+        if (onLocationSelect) {
+          onLocationSelect({
+            lat: newPos.lat,
+            lng: newPos.lng,
+            address: place.formatted_address || '',
+            components: place.address_components || []
+          });
+        }
+      }
+    }
+  };
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -142,7 +172,26 @@ const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
 
   return (
     <div className="w-full relative shadow-sm rounded-3xl overflow-hidden border border-slate-200">
+      <style>{`
+        .pac-container {
+          z-index: 100000 !important;
+        }
+      `}</style>
       <div className="relative h-64 bg-slate-100">
+        {/* Search Bar Overlay */}
+        <div className="absolute top-4 left-4 right-4 z-10">
+          <Autocomplete onLoad={handleAutocompleteLoad} onPlaceChanged={handlePlaceChanged}>
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search location..."
+                className="w-full bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-xl py-2 pl-9 pr-3 font-semibold outline-none text-xs text-slate-800 placeholder:text-slate-400 shadow-md focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+              />
+            </div>
+          </Autocomplete>
+        </div>
+
         <GoogleMap
           mapContainerStyle={{ width: '100%', height: '100%' }}
           center={marker}

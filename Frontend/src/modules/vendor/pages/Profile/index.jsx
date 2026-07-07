@@ -8,6 +8,7 @@ import { vendorAuthService } from '../../../../services/authService';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import LogoLoader from '../../../../components/common/LogoLoader';
+import vendorProductService from '../../services/vendorProductService';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ const Profile = () => {
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [hasOutOfStockProducts, setHasOutOfStockProducts] = useState(false);
 
   const menuItems = React.useMemo(() => [
     { id: 12, label: 'My Agri-Store (Supplies)', icon: FaTractor, path: '/vendor/store' },
@@ -36,7 +38,7 @@ const Profile = () => {
     { id: 11, label: 'Legal Compliance', icon: FiCheckCircle, path: '/vendor/compliance' },
     { id: 13, label: 'Soil Test Requests', icon: FiActivity, path: '/vendor/soil-tests' },
     { id: 9, label: 'About GrooAgri', icon: null, customIcon: 'G', path: '/vendor/about-groo' },
-  ], [profile]);
+  ], [profile, hasOutOfStockProducts]);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -113,7 +115,6 @@ const Profile = () => {
           });
           localStorage.setItem('vendorData', JSON.stringify(vendorData));
         } else {
-          // If API fails but we have local data, stick with it?
           if (!storedVendorData || Object.keys(storedVendorData).length === 0) {
             setError(response.message || 'Failed to fetch profile');
             toast.error(response.message || 'Failed to fetch profile');
@@ -269,6 +270,22 @@ const Profile = () => {
           </div>
         </div>
 
+        {/* Out of Stock Alert Banner */}
+        {hasOutOfStockProducts && (
+          <div className="mx-4 mb-5 p-4 bg-rose-50 rounded-3xl border border-rose-100 flex items-center gap-3 shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0">
+              <FiPackage className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-[11px] font-black text-rose-800 uppercase tracking-wider">Product Out of Stock</h4>
+              <p className="text-[10px] font-bold text-rose-500 mt-0.5 leading-snug">One or more items in your store are out of stock.</p>
+            </div>
+            <button onClick={() => navigate('/vendor/store')} className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-[9px] font-black rounded-xl uppercase tracking-wider transition-all flex-shrink-0">
+              Update
+            </button>
+          </div>
+        )}
+
         {/* Three Cards Section - Horizontal */}
         <div className="px-4 mb-5">
           <div className="grid grid-cols-3 gap-3">
@@ -366,15 +383,26 @@ const Profile = () => {
                   ) : (
                     IconComponent && (
                       <div
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors"
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors relative"
                         style={{ backgroundColor: hexToRgba(themeColors.button, 0.1) }}
                       >
                         <IconComponent className="w-6 h-6" style={{ color: themeColors.button }} />
+                        {item.id === 12 && hasOutOfStockProducts && (
+                          <>
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-white shadow-sm animate-ping" style={{ animationDuration: '1.5s' }} />
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-white shadow-sm" />
+                          </>
+                        )}
                       </div>
                     )
                   )}
-                  <span className="text-[15px] font-bold text-gray-800 text-left">
+                  <span className="text-[15px] font-bold text-gray-800 text-left flex items-center gap-2">
                     {item.label}
+                    {item.id === 12 && hasOutOfStockProducts && (
+                      <span className="animate-pulse bg-rose-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm shadow-rose-500/20">
+                        Out of Stock
+                      </span>
+                    )}
                   </span>
                 </div>
                 <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center">

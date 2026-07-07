@@ -125,6 +125,29 @@ const Wallet = () => {
     });
   };
 
+  const getOrderCategory = (txn) => {
+    const desc = (txn.description || '').toLowerCase();
+    const type = (txn.type || '').toLowerCase();
+    const metaType = (txn.metadata?.type || '').toLowerCase();
+
+    // 1. Soil Testing check
+    if (desc.includes('soil test') || desc.includes('soiltesting') || type.includes('soil') || metaType.includes('soil')) {
+      return { label: 'Soil Testing', bgColor: 'bg-amber-50 text-amber-700 border-amber-200' };
+    }
+
+    // 2. Ecommerce check
+    if (desc.includes('order #') || desc.includes('split order') || desc.includes('cod order') || desc.includes('ecommerce') || txn.metadata?.orderId) {
+      return { label: 'Agri Order', bgColor: 'bg-teal-50 text-teal-700 border-teal-200' };
+    }
+
+    // 3. Rental check
+    if (desc.includes('booking') || desc.includes('job') || desc.includes('rental') || desc.includes('machinery') || txn.metadata?.bookingId || type.includes('booking') || type.includes('worker_payment')) {
+      return { label: 'Rental', bgColor: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+    }
+
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen pb-24" style={{ background: themeColors.backgroundGradient }}>
@@ -206,7 +229,12 @@ const Wallet = () => {
         {/* Summary Cards */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           {/* Cash Collected */}
-          <div className="bg-white rounded-2xl p-4 shadow-lg border border-red-100">
+          <div 
+            onClick={() => setFilter(filter === 'cash_collected' ? 'all' : 'cash_collected')}
+            className={`rounded-2xl p-4 shadow-lg border cursor-pointer active:scale-95 transition-all ${
+              filter === 'cash_collected' ? 'border-red-500 bg-red-50/50' : 'bg-white border-red-100'
+            }`}
+          >
             <div className="flex items-center gap-2 mb-2">
               <div className="p-2 rounded-lg bg-red-50">
                 <FiArrowDown className="w-4 h-4 text-red-500" />
@@ -219,7 +247,12 @@ const Wallet = () => {
           </div>
 
           {/* Total Settled */}
-          <div className="bg-white rounded-2xl p-4 shadow-lg border border-green-100">
+          <div 
+            onClick={() => setFilter(filter === 'settlement' ? 'all' : 'settlement')}
+            className={`rounded-2xl p-4 shadow-lg border cursor-pointer active:scale-95 transition-all ${
+              filter === 'settlement' ? 'border-green-500 bg-green-50/50' : 'bg-white border-green-100'
+            }`}
+          >
             <div className="flex items-center gap-2 mb-2">
               <div className="p-2 rounded-lg bg-green-50">
                 <FiArrowUp className="w-4 h-4 text-green-500" />
@@ -352,18 +385,28 @@ const Wallet = () => {
                         <p className="font-bold text-gray-900 text-sm">
                           {getTransactionLabel(txn.type)}
                         </p>
-                        <p className={`text-lg font-bold ${['cash_collected', 'tds_deduction', 'withdrawal', 'platform_fee'].includes(txn.type)
+                        <p className={`text-lg font-bold ${['tds_deduction', 'withdrawal', 'platform_fee'].includes(txn.type)
                           ? 'text-red-600'
                           : 'text-green-600'
                           }`}>
-                          {['cash_collected', 'tds_deduction', 'withdrawal', 'platform_fee'].includes(txn.type) ? '-' : '+'}₹{Math.abs(txn.amount).toLocaleString()}
+                          {['tds_deduction', 'withdrawal', 'platform_fee'].includes(txn.type) ? '-' : '+'}₹{Math.abs(txn.amount).toLocaleString()}
                         </p>
                       </div>
 
-                      <p className="text-xs text-gray-600 truncate mb-1">{txn.description}</p>
+                      <p className="text-xs text-gray-600 mb-1 break-words leading-relaxed">{txn.description}</p>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center flex-wrap gap-2 mt-1.5">
                         <span className="text-xs text-gray-400">{formatDate(txn.createdAt)}</span>
+                        
+                        {(() => {
+                          const cat = getOrderCategory(txn);
+                          return cat ? (
+                            <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border ${cat.bgColor}`}>
+                              {cat.label}
+                            </span>
+                          ) : null;
+                        })()}
+
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${txn.status === 'completed' ? 'bg-green-100 text-green-700' :
                           txn.status === 'pending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
                           }`}>

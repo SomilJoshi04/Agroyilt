@@ -5,6 +5,24 @@ const User = require('../../models/User');
 const { createOrder, verifyPayment } = require('../../services/razorpayService');
 const { createNotification } = require('../notificationControllers/notificationController');
 
+const checkAndNotifyOutOfStock = async (productId) => {
+    try {
+        const prod = await Product.findById(productId);
+        if (prod && prod.vendorId && prod.stock <= 0) {
+            await createNotification({
+                recipientId: prod.vendorId,
+                recipientModel: 'Vendor',
+                title: '🚨 Out of Stock Alert!',
+                message: `Your product "${prod.title}" is now out of stock. Please update your inventory to continue receiving orders.`,
+                type: 'ecommerce_out_of_stock',
+                metadata: { productId: prod._id }
+            });
+        }
+    } catch (err) {
+        console.error('Out of stock check/notify error:', err);
+    }
+};
+
 /**
  * User: Get all approved products (Marketplace)
  */
@@ -13,8 +31,7 @@ const getApprovedProducts = async (req, res) => {
         const { categoryId, query, lat, lng, radius } = req.query;
         let filter = { 
             approvalStatus: 'approved', 
-            status: 'active', 
-            stock: { $gt: 0 } 
+            status: 'active'
         };
 
         if (categoryId) filter.categoryId = categoryId;
@@ -154,6 +171,7 @@ const placeOrder = async (req, res) => {
             
             // Reduce Stock
             await Product.findByIdAndUpdate(product._id, { $inc: { stock: -quantity } });
+            await checkAndNotifyOutOfStock(product._id);
 
             // Notify Vendor
             try {
@@ -281,6 +299,7 @@ const payPlatformFee = async (req, res) => {
              // Reduce Stock
              for (const item of order.items) {
                  await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
+                 await checkAndNotifyOutOfStock(item.productId);
              }
 
              // Notify Vendor
@@ -337,6 +356,7 @@ const payPlatformFee = async (req, res) => {
 
         for (const item of order.items) {
             await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
+            await checkAndNotifyOutOfStock(item.productId);
         }
 
         // Notify Vendor

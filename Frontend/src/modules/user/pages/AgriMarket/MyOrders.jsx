@@ -6,7 +6,8 @@ import {
     FiClock,
     FiTruck,
     FiExternalLink,
-    FiAlertCircle
+    FiAlertCircle,
+    FiSearch
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import ecommerceService from '../../../../services/ecommerceService';
@@ -18,6 +19,7 @@ const MyAgriOrders = () => {
     const navigate = useNavigate();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         fetchOrders();
@@ -51,6 +53,16 @@ const MyAgriOrders = () => {
         }
     };
 
+    const filteredOrders = orders.filter(order => {
+        if (!searchQuery.trim()) return true;
+        const query = searchQuery.toLowerCase();
+        
+        const matchesId = order._id?.toLowerCase().includes(query);
+        const matchesName = order.items?.some(item => item.name?.toLowerCase().includes(query));
+        
+        return matchesId || matchesName;
+    });
+
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Header */}
@@ -65,15 +77,33 @@ const MyAgriOrders = () => {
             </div>
 
             <div className="p-6 space-y-4">
+                {/* Search Bar */}
+                {(!loading || orders.length > 0) && (
+                    <div className="max-w-md">
+                        <div className="relative">
+                            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search orders (ID, item name)..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-11 pr-4 py-3 bg-white rounded-2xl border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 transition-all text-xs font-bold text-slate-800 placeholder-slate-400"
+                            />
+                        </div>
+                    </div>
+                )}
+
                 {loading ? (
                     <div className="py-20 flex justify-center"><div className="w-8 h-8 border-4 border-slate-200 border-t-teal-600 rounded-full animate-spin" /></div>
-                ) : orders.length === 0 ? (
+                ) : filteredOrders.length === 0 ? (
                     <div className="bg-white p-12 rounded-[40px] text-center border border-slate-100 shadow-sm">
                         <FiPackage className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                        <p className="font-black text-slate-400 uppercase text-[10px] tracking-widest">No orders yet</p>
+                        <p className="font-black text-slate-400 uppercase text-[10px] tracking-widest">
+                            {searchQuery.trim() ? `No orders matching "${searchQuery}"` : "No orders yet"}
+                        </p>
                     </div>
                 ) : (
-                    orders.map(order => (
+                    filteredOrders.map(order => (
                         <div key={order._id} className="bg-white rounded-[32px] p-5 shadow-sm border border-slate-100 space-y-4">
                             <div className="flex justify-between items-start">
                                 <div>

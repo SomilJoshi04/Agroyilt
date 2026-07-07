@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
     FiPlus,
     FiEdit2,
@@ -49,6 +50,18 @@ const MyStore = () => {
         fetchData();
     }, []);
 
+    // Lock background scroll when any modal is open
+    useEffect(() => {
+        if (showModal || showDocModal) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [showModal, showDocModal]);
+
     const fetchData = async () => {
         try {
             setLoading(true);
@@ -64,6 +77,27 @@ const MyStore = () => {
             toast.error("Data load karne mein dikkat hui");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleQuickStockUpdate = async (product) => {
+        const newStock = prompt(`Enter new stock quantity for "${product.title}":`, product.stock);
+        if (newStock === null) return;
+        const stockVal = parseInt(newStock, 10);
+        if (isNaN(stockVal) || stockVal < 0) {
+            toast.error("Please enter a valid stock number");
+            return;
+        }
+        try {
+            const res = await vendorProductService.updateProduct(product._id, { ...product, stock: stockVal });
+            if (res.success) {
+                toast.success("Stock updated successfully");
+                fetchData();
+            } else {
+                toast.error(res.message || "Failed to update stock");
+            }
+        } catch (err) {
+            toast.error("Error updating stock");
         }
     };
 
@@ -125,7 +159,7 @@ const MyStore = () => {
             }
 
             if (res.success) {
-                toast.success(res.message);
+                toast.success(res.message || (editMode ? "Product updated successfully" : "Product submitted for review"));
                 setShowModal(false);
                 fetchData();
             }
@@ -350,18 +384,25 @@ const MyStore = () => {
                                         <div className="flex flex-col items-end gap-1">
                                             <p className="font-black text-slate-800 text-base">₹{product.price}</p>
                                             <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter border ${
-                                                product.approvalStatus === 'approved' ? 'bg-green-50 text-green-600 border-green-100' :
+                                                product.approvalStatus === 'approved' ? (product.stock <= 0 ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-green-50 text-green-600 border-green-100') :
                                                 product.approvalStatus === 'rejected' ? 'bg-rose-50 text-rose-600 border-rose-100' :
                                                 'bg-amber-50 text-amber-600 border-amber-100'
                                             }`}>
-                                                {product.approvalStatus === 'approved' ? 'Live' : product.approvalStatus === 'rejected' ? 'Rejected' : 'Pending'}
+                                                {product.approvalStatus === 'approved' ? (product.stock <= 0 ? 'Out of Stock' : 'Live') : product.approvalStatus === 'rejected' ? 'Rejected' : 'Pending'}
                                             </span>
                                         </div>
                                     </div>
                                     
                                     <div className="flex items-center justify-between mt-3">
                                         <div className="flex flex-wrap gap-2 text-[9px] font-black uppercase text-slate-400 tracking-tighter">
-                                            <span className="bg-slate-50 px-2 py-1 rounded-lg">Stock: {product.stock} {product.unit}s</span>
+                                            <span 
+                                                onClick={() => handleQuickStockUpdate(product)}
+                                                className="bg-slate-50 hover:bg-slate-100 hover:text-teal-700 px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-colors border border-slate-100"
+                                                title="Click to quickly update stock"
+                                            >
+                                                Stock: {product.stock} {product.unit}s
+                                                <FiEdit2 className="w-2.5 h-2.5" />
+                                            </span>
                                             <span className="bg-slate-50 px-2 py-1 rounded-lg">Weight: {product.bagWeight} KG</span>
                                         </div>
                                         <div className="flex items-center gap-1">
@@ -384,155 +425,166 @@ const MyStore = () => {
             </div>
 
             {/* Add/Edit Modal */}
-            <AnimatePresence>
-                {showModal && (
-                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModal(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
-                        <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            className="relative bg-white w-full h-full sm:h-auto sm:max-w-xl sm:max-h-[90vh] rounded-none sm:rounded-[48px] shadow-2xl overflow-hidden flex flex-col"
-                        >
-                            <div className="p-6 sm:p-8 pb-4 sm:pb-4 flex items-center justify-between sticky top-0 bg-white z-10 border-b border-slate-50">
-                                <div>
-                                    <h2 className="text-2xl font-black text-slate-800">{editMode ? 'Edit Product' : 'Add New Product'}</h2>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Seeds & Fertilizers details</p>
+            {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {showModal && (
+                        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4">
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModal(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+                            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                                className="relative bg-white w-full h-full sm:h-auto sm:max-w-xl sm:max-h-[90vh] rounded-none sm:rounded-[48px] shadow-2xl overflow-hidden flex flex-col"
+                            >
+                                <div className="p-6 sm:p-8 pb-4 sm:pb-4 flex items-center justify-between sticky top-0 bg-white z-10 border-b border-slate-50">
+                                    <div>
+                                        <h2 className="text-2xl font-black text-slate-800">{editMode ? 'Edit Product' : 'Add New Product'}</h2>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Seeds & Fertilizers details</p>
+                                    </div>
+                                    <button onClick={() => setShowModal(false)} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold">✕</button>
                                 </div>
-                                <button onClick={() => setShowModal(false)} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold">✕</button>
-                            </div>
 
-                            <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6 overflow-y-auto scrollbar-hide pb-8">
-                                {/* Image Upload */}
-                                <div className="space-y-4">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-slate-400">Product Photos</label>
-                                    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                                        {(formData.images || []).map((img, idx) => (
-                                            <div key={idx} className="relative w-24 h-24 flex-shrink-0 rounded-[28px] bg-slate-50 border border-slate-100 overflow-hidden group">
-                                                <img src={img} alt="" className="w-full h-full object-cover" />
-                                                <button type="button" onClick={() => setFormData({...formData, images: formData.images.filter((_, i) => i !== idx)})}
-                                                    className="absolute inset-0 bg-rose-500/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <FiTrash2 className="text-white w-5 h-5" />
-                                                </button>
+                                <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                                    <div className="p-6 sm:p-8 space-y-6 overflow-y-auto scrollbar-hide flex-1">
+                                        {/* Image Upload */}
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-slate-400">Product Photos</label>
+                                            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+                                                {(formData.images || []).map((img, idx) => (
+                                                    <div key={idx} className="relative w-24 h-24 flex-shrink-0 rounded-[28px] bg-slate-50 border border-slate-100 overflow-hidden group">
+                                                        <img src={img} alt="" className="w-full h-full object-cover" />
+                                                        <button type="button" onClick={() => setFormData({...formData, images: formData.images.filter((_, i) => i !== idx)})}
+                                                            className="absolute inset-0 bg-rose-500/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <FiTrash2 className="text-white w-5 h-5" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                <div className="w-24 h-24 flex-shrink-0 rounded-[28px] bg-slate-50 border-2 border-dashed border-slate-200 relative flex flex-col items-center justify-center">
+                                                    <FiImage className="w-6 h-6 text-slate-300" />
+                                                    {uploading ? (
+                                                        <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div></div>
+                                                    ) : (
+                                                        <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} accept="image/*" multiple />
+                                                    )}
+                                                </div>
                                             </div>
-                                        ))}
-                                        <div className="w-24 h-24 flex-shrink-0 rounded-[28px] bg-slate-50 border-2 border-dashed border-slate-200 relative flex flex-col items-center justify-center">
-                                            <FiImage className="w-6 h-6 text-slate-300" />
-                                            {uploading ? (
-                                                <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div></div>
-                                            ) : (
-                                                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} accept="image/*" multiple />
-                                            )}
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Title</label>
+                                                <input required type="text" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none" placeholder="e.g. Zinc Phosphide, Wheat Seeds" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-1 md:col-span-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Brand Name</label>
+                                                    <input type="text" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none" placeholder="e.g. IFFCO, Bayer" value={formData.brandName} onChange={e => setFormData({ ...formData, brandName: e.target.value })} />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Base Price (₹)</label>
+                                                    <input required type="number" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none font-sans" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit Type</label>
+                                                    <select required className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
+                                                        <option value="bag">Bag</option>
+                                                        <option value="packet">Packet</option>
+                                                        <option value="kg">KG</option>
+                                                        <option value="litre">Litre</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bag Weight (KG)</label>
+                                                    <input required type="number" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none" value={formData.bagWeight} onChange={e => setFormData({ ...formData, bagWeight: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Available Stock (Bags)</label>
+                                                    <input required type="number" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Description</label>
+                                                <textarea rows="3" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-medium outline-none" placeholder="Product details..." value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
+                                            </div>
+                                            
+                                            <div className="p-4 bg-teal-50/50 rounded-2xl flex gap-3 border border-teal-100/50">
+                                                <FiInfo className="text-teal-600 mt-1 flex-shrink-0" />
+                                                <p className="text-[10px] font-bold text-teal-800 leading-relaxed">Admin will add GST and Commission to your base price before making the product live for farmers.</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="space-y-4">
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Title</label>
-                                        <input required type="text" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none" placeholder="e.g. Zinc Phosphide, Wheat Seeds" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
+                                    <div className="p-6 sm:p-8 bg-slate-50 border-t border-slate-100 flex gap-4 flex-shrink-0">
+                                        <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-100 transition-all">Cancel</button>
+                                        <button type="submit" className="flex-[2] py-4 bg-[#2E7D32] hover:bg-[#1B5E20] text-white rounded-2xl font-black uppercase tracking-widest text-xs active:scale-95 transition-all shadow-xl shadow-green-900/10">
+                                            {editMode ? 'Update Product' : 'Add Product for Review'}
+                                        </button>
                                     </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-1 md:col-span-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Brand Name</label>
-                                            <input type="text" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none" placeholder="e.g. IFFCO, Bayer" value={formData.brandName} onChange={e => setFormData({ ...formData, brandName: e.target.value })} />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Base Price (₹)</label>
-                                            <input required type="number" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none font-sans" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit Type</label>
-                                            <select required className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
-                                                <option value="bag">Bag</option>
-                                                <option value="packet">Packet</option>
-                                                <option value="kg">KG</option>
-                                                <option value="litre">Litre</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bag Weight (KG)</label>
-                                            <input required type="number" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none" value={formData.bagWeight} onChange={e => setFormData({ ...formData, bagWeight: e.target.value })} />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Available Stock (Bags)</label>
-                                            <input required type="number" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-bold outline-none" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Description</label>
-                                        <textarea rows="3" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 font-medium outline-none" placeholder="Product details..." value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
-                                    </div>
-                                    
-                                    <div className="p-4 bg-teal-50/50 rounded-2xl flex gap-3 border border-teal-100/50">
-                                        <FiInfo className="text-teal-600 mt-1 flex-shrink-0" />
-                                        <p className="text-[10px] font-bold text-teal-800 leading-relaxed">Admin will add GST and Commission to your base price before making the product live for farmers.</p>
-                                    </div>
-                                </div>
-
-                                <button type="submit" className="w-full bg-[#2E7D32] py-5 rounded-[28px] font-black text-white shadow-xl shadow-green-900/20 active:scale-95 transition-all text-lg mt-6">
-                                    {editMode ? 'Update Product' : 'Add Product for Review'}
-                                </button>
-                            </form>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                                </form>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
             {/* Document Viewer Modal */}
-            <AnimatePresence>
-                {showDocModal && shopStatus?.licenseDocument && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                        <motion.div 
-                            initial={{ opacity: 0 }} 
-                            animate={{ opacity: 1 }} 
-                            exit={{ opacity: 0 }} 
-                            onClick={() => setShowDocModal(false)} 
-                            className="absolute inset-0 bg-slate-900/90 backdrop-blur-md" 
-                        />
-                        <motion.div 
-                            initial={{ scale: 0.9, opacity: 0 }} 
-                            animate={{ scale: 1, opacity: 1 }} 
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="relative w-full max-w-lg bg-white rounded-[40px] overflow-hidden shadow-2xl"
-                        >
-                            <div className="p-6 flex items-center justify-between border-b border-slate-50">
-                                <div>
-                                    <h3 className="text-lg font-black text-slate-800">Shop License</h3>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Verified Document</p>
+            {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {showDocModal && shopStatus?.licenseDocument && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                            <motion.div 
+                                initial={{ opacity: 0 }} 
+                                animate={{ opacity: 1 }} 
+                                exit={{ opacity: 0 }} 
+                                onClick={() => setShowDocModal(false)} 
+                                className="absolute inset-0 bg-slate-900/90 backdrop-blur-md" 
+                            />
+                            <motion.div 
+                                initial={{ scale: 0.9, opacity: 0 }} 
+                                animate={{ scale: 1, opacity: 1 }} 
+                                exit={{ scale: 0.9, opacity: 0 }}
+                                className="relative w-full max-w-lg bg-white rounded-[40px] overflow-hidden shadow-2xl"
+                            >
+                                <div className="p-6 flex items-center justify-between border-b border-slate-50">
+                                    <div>
+                                        <h3 className="text-lg font-black text-slate-800">Shop License</h3>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Verified Document</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => setShowDocModal(false)}
+                                        className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold text-slate-400 hover:text-slate-800 transition-colors"
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
-                                <button 
-                                    onClick={() => setShowDocModal(false)}
-                                    className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold text-slate-400 hover:text-slate-800 transition-colors"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-                            <div className="p-4 bg-slate-50">
-                                <div className="rounded-3xl overflow-hidden border border-slate-200 shadow-inner bg-white min-h-[300px] flex items-center justify-center">
-                                    <img 
-                                        src={shopStatus.licenseDocument} 
-                                        alt="License" 
-                                        className="max-w-full max-h-[60vh] object-contain"
-                                    />
+                                <div className="p-4 bg-slate-50">
+                                    <div className="rounded-3xl overflow-hidden border border-slate-200 shadow-inner bg-white min-h-[300px] flex items-center justify-center">
+                                        <img 
+                                            src={shopStatus.licenseDocument} 
+                                            alt="License" 
+                                            className="max-w-full max-h-[60vh] object-contain"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="p-6">
-                                <button 
-                                    onClick={() => setShowDocModal(false)}
-                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[11px]"
-                                >
-                                    Close Viewer
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                                <div className="p-6">
+                                    <button 
+                                        onClick={() => setShowDocModal(false)}
+                                        className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[11px]"
+                                    >
+                                        Close Viewer
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 };

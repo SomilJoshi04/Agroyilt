@@ -8,7 +8,8 @@ import {
     FiInfo,
     FiUser,
     FiPhone,
-    FiMapPin
+    FiMapPin,
+    FiSearch
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import vendorProductService from '../../services/vendorProductService';
@@ -23,11 +24,12 @@ const StoreOrders = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('all'); // all, ordered, packed, shipped, delivered
     const [currentPage, setCurrentPage] = useState(1);
+    const [searchQuery, setSearchQuery] = useState('');
     const ITEMS_PER_PAGE = 10;
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [activeTab]);
+    }, [activeTab, searchQuery]);
 
     useEffect(() => {
         fetchOrders();
@@ -63,7 +65,21 @@ const StoreOrders = () => {
         }
     };
 
-    const filteredOrders = activeTab === 'all' ? orders : orders.filter(o => o.deliveryStatus === activeTab);
+    const filteredOrders = orders.filter(o => {
+        const matchesTab = activeTab === 'all' || o.deliveryStatus === activeTab;
+        if (!matchesTab) return false;
+
+        if (!searchQuery.trim()) return true;
+        const query = searchQuery.toLowerCase();
+        
+        const matchesId = o._id?.toLowerCase().includes(query);
+        const matchesName = o.userId?.name?.toLowerCase().includes(query);
+        const matchesPhone = o.userId?.phone?.toLowerCase().includes(query);
+        const matchesItems = o.items?.some(item => item.name?.toLowerCase().includes(query));
+
+        return matchesId || matchesName || matchesPhone || matchesItems;
+    });
+
     const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
     const paginatedOrders = filteredOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
@@ -101,12 +117,30 @@ const StoreOrders = () => {
             </div>
 
             <div className="p-4 md:p-6 pb-24">
+                {/* Search Bar */}
+                {(!loading || orders.length > 0) && (
+                    <div className="mb-6 max-w-md">
+                        <div className="relative">
+                            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search orders (ID, customer name, phone, item)..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-11 pr-4 py-3 bg-white rounded-2xl border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/20 focus:border-[#2E7D32] transition-all text-xs font-bold text-slate-800 placeholder-slate-400"
+                            />
+                        </div>
+                    </div>
+                )}
+
                 {loading ? (
                     <div className="py-20 flex justify-center"><div className="w-8 h-8 border-4 border-slate-200 border-t-[#2E7D32] rounded-full animate-spin" /></div>
                 ) : filteredOrders.length === 0 ? (
                     <div className="bg-white p-12 rounded-[40px] text-center border-2 border-dashed border-slate-100">
                         <FiPackage className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                        <p className="font-black text-slate-400 uppercase text-xs tracking-widest">No {activeTab} orders</p>
+                        <p className="font-black text-slate-400 uppercase text-xs tracking-widest">
+                            {searchQuery.trim() ? `No orders matching "${searchQuery}"` : `No ${activeTab} orders`}
+                        </p>
                     </div>
                 ) : (
                     <div className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-slate-100 overflow-x-auto">

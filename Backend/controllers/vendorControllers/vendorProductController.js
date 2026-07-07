@@ -48,8 +48,12 @@ const updateMyProduct = async (req, res) => {
     try {
         const updateData = { ...req.body };
         
-        // Sanitize categoryId to prevent Mongoose conversion errors if arriving as empty string
-        if (updateData.categoryId === "") delete updateData.categoryId;
+        // Sanitize categoryId to prevent Mongoose conversion errors if arriving as empty string or object
+        if (updateData.categoryId === "") {
+            delete updateData.categoryId;
+        } else if (updateData.categoryId && typeof updateData.categoryId === 'object') {
+            updateData.categoryId = updateData.categoryId._id || updateData.categoryId;
+        }
 
         const product = await Product.findOneAndUpdate(
             { _id: req.params.id, vendorId: req.user._id, type: 'physical_good' },
@@ -57,8 +61,9 @@ const updateMyProduct = async (req, res) => {
             { new: true, runValidators: true }
         );
         if (!product) return res.status(404).json({ success: false, message: 'Product not found or not an ecommerce item' });
-        res.status(200).json({ success: true, data: product });
+        res.status(200).json({ success: true, data: product, message: 'Product updated successfully' });
     } catch (error) {
+        console.error('Error updating product:', error);
         res.status(500).json({ success: false, message: 'Failed to update product' });
     }
 };

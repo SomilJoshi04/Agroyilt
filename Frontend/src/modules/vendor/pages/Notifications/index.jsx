@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiCheck, FiX, FiFilter, FiTrash2 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -323,32 +324,33 @@ const Notifications = () => {
       <BottomNav />
 
       {/* Confirmation Modal */}
-      {showClearConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-xl animate-scale-in">
+      {showClearConfirm && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl animate-scale-in">
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-4">
+              <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mb-4">
                 <FiTrash2 className="w-6 h-6 text-red-500" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900">Clear All Notifications?</h3>
-              <p className="text-sm text-gray-500 mt-2">This action cannot be undone.</p>
+              <h3 className="text-xl font-black text-slate-800">Clear All Notifications?</h3>
+              <p className="text-xs font-bold text-slate-400 mt-2">This action cannot be undone.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-50 transition-colors"
+                className="py-3.5 rounded-2xl font-black text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors uppercase tracking-widest text-[10px]"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmClearAll}
-                className="py-3 rounded-xl font-bold text-white bg-red-500 shadow-lg shadow-red-500/30 active:scale-95 transition-all"
+                className="py-3.5 rounded-2xl font-black text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 active:scale-95 transition-all uppercase tracking-widest text-[10px]"
               >
                 Yes, Clear All
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

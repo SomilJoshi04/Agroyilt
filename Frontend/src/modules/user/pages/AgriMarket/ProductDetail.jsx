@@ -36,6 +36,17 @@ const ProductDetail = () => {
     };
 
     useEffect(() => {
+        if (showCheckout) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [showCheckout]);
+
+    useEffect(() => {
         fetchProduct();
     }, [id]);
 
@@ -99,7 +110,7 @@ const ProductDetail = () => {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Gallery Section */}
-            <div className="relative aspect-square bg-white rounded-b-[64px] overflow-hidden shadow-sm">
+            <div className="relative aspect-[4/3] bg-white rounded-b-[48px] overflow-hidden shadow-sm">
                 <div className="absolute top-12 left-6 z-10">
                     <button onClick={() => navigate(-1)} className="p-3 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl shadow-slate-900/10 active:scale-95 transition-all">
                         <FiChevronLeft className="w-6 h-6 text-slate-800" />
@@ -150,7 +161,7 @@ const ProductDetail = () => {
                 )}
             </div>
 
-            <div className="p-8 space-y-8 pb-40">
+            <div className="p-8 space-y-8 pb-72">
                 {/* Title & Price */}
                 <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -260,22 +271,27 @@ const ProductDetail = () => {
             </div>
 
             {/* Sticky Action Footer */}
-            <div className="fixed bottom-0 left-0 right-0 p-6 pt-2 bg-slate-50 border-t border-slate-100 z-50">
-                <div className="flex items-center justify-between mb-4 px-2">
+            <div className="fixed bottom-0 left-0 right-0 p-4 pb-3 pt-2 bg-slate-50 border-t border-slate-100 z-50">
+                <div className="flex items-center justify-between mb-2 px-2">
                     <div>
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Value</p>
-                        <p className="text-2xl font-black text-slate-800">₹{totalPayable}</p>
+                        <p className="text-xl font-black text-slate-800">₹{totalPayable}</p>
                     </div>
                     <div className="text-right">
                         <p className="text-[9px] font-black text-teal-500 uppercase tracking-widest">Pay Now</p>
-                        <p className="text-2xl font-black text-teal-600">₹{adminFee}</p>
+                        <p className="text-xl font-black text-teal-600">₹{adminFee}</p>
                     </div>
                 </div>
                 <button 
+                    disabled={product.stock <= 0}
                     onClick={() => setShowCheckout(true)}
-                    className="w-full bg-[#2E7D32] hover:bg-[#1B5E20] py-5 rounded-[28px] font-black text-white shadow-2xl shadow-green-900/20 active:scale-95 transition-all text-lg uppercase tracking-wider"
+                    className={`w-full py-3.5 rounded-2xl font-black text-white transition-all text-sm uppercase tracking-wider ${
+                        product.stock <= 0 
+                            ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' 
+                            : 'bg-[#2E7D32] hover:bg-[#1B5E20] shadow-xl shadow-green-900/10 active:scale-95'
+                    }`}
                 >
-                    Order Now
+                    {product.stock <= 0 ? 'Out of Stock' : 'Order Now'}
                 </button>
             </div>
 

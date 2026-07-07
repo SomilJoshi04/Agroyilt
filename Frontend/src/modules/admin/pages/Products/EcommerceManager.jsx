@@ -10,7 +10,8 @@ import {
     FiMoreVertical,
     FiUploadCloud,
     FiUser,
-    FiImage
+    FiImage,
+    FiEye
 } from 'react-icons/fi';
 import adminProductService from '../../../../services/adminProductService';
 import { publicCatalogService } from '../../../../services/catalogService';
@@ -43,7 +44,9 @@ const EcommerceManager = () => {
         imageUrl: '',
         images: [],
         isFeatured: false,
-        specifications: []
+        specifications: [],
+        gstPercentage: 18,
+        commissionPercentage: 10
     });
 
     useEffect(() => {
@@ -215,7 +218,9 @@ const EcommerceManager = () => {
             imageUrl: '',
             images: [],
             isFeatured: false,
-            specifications: []
+            specifications: [],
+            gstPercentage: 18,
+            commissionPercentage: 10
         });
         setEditMode(false);
         setCurrentProduct(null);
@@ -235,7 +240,9 @@ const EcommerceManager = () => {
             imageUrl: product.imageUrl || '',
             images: product.images || (product.imageUrl ? [product.imageUrl] : []),
             isFeatured: product.isFeatured || false,
-            specifications: product.specifications || []
+            specifications: product.specifications || [],
+            gstPercentage: product.gstPercentage ?? 18,
+            commissionPercentage: product.commissionPercentage ?? 10
         });
         setEditMode(true);
         setShowModal(true);
@@ -393,6 +400,10 @@ const EcommerceManager = () => {
                                          {product.discountPrice > 0 && (
                                             <p className="text-[10px] text-slate-300 line-through font-bold">₹{product.price}</p>
                                          )}
+                                         <div className="flex gap-1.5 mt-1 text-[9px] font-black uppercase text-slate-400">
+                                             <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">GST: {product.gstPercentage ?? 18}%</span>
+                                             <span className="bg-slate-100 px-1.5 py-0.5 rounded text-teal-600">COM: {product.commissionPercentage ?? 10}%</span>
+                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <p className={`font-black text-sm ${product.stock > 10 ? 'text-slate-700' : product.stock > 0 ? 'text-amber-600' : 'text-rose-600'}`}>
@@ -406,16 +417,17 @@ const EcommerceManager = () => {
                                         <div className="flex items-center justify-end gap-2">
                                             {activeTab === 'pending' ? (
                                                 <>
-                                                    <button onClick={() => openEdit(product)} className="px-3 py-2 bg-blue-50 text-blue-600 font-bold text-xs rounded-xl transition-all">View</button>
-                                                    <button onClick={() => handleApproveClick(product)} className="px-4 py-2 bg-emerald-50 text-emerald-600 font-bold text-xs rounded-xl transition-all">Approve</button>
-                                                    <button onClick={() => handleReject(product._id)} className="px-4 py-2 bg-rose-50 text-rose-600 font-bold text-xs rounded-xl transition-all">Reject</button>
+                                                    <button type="button" onClick={() => openEdit(product)} className="px-3 py-2 bg-blue-50 text-blue-600 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5"><FiEye className="w-3.5 h-3.5" /> View</button>
+                                                    <button type="button" onClick={() => handleApproveClick(product)} className="px-4 py-2 bg-emerald-50 text-emerald-600 font-bold text-xs rounded-xl transition-all">Approve</button>
+                                                    <button type="button" onClick={() => handleReject(product._id)} className="px-4 py-2 bg-rose-50 text-rose-600 font-bold text-xs rounded-xl transition-all">Reject</button>
                                                 </>
                                             ) : (
                                                 <>
+                                                    <button type="button" onClick={() => openEdit(product)} className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all" title="View Details"><FiEye className="w-4 h-4" /></button>
                                                     {!product.vendorId && (
-                                                        <button onClick={() => openEdit(product)} className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"><FiEdit2 className="w-4 h-4" /></button>
+                                                        <button type="button" onClick={() => openEdit(product)} className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
                                                     )}
-                                                    <button onClick={() => handleDelete(product._id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><FiTrash2 className="w-4 h-4" /></button>
+                                                    <button type="button" onClick={() => handleDelete(product._id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                                                 </>
                                             )}
                                         </div>
@@ -443,6 +455,18 @@ const EcommerceManager = () => {
 
                             <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
                                 <div className="p-8 overflow-y-auto flex-1 custom-scrollbar space-y-6">
+                                    {/* Vendor Info Banner */}
+                                    {currentProduct?.vendorId && (
+                                        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-4 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[9px] font-black text-teal-600 uppercase tracking-widest leading-none">Submitted By Vendor</p>
+                                                <p className="text-sm font-black text-slate-800 mt-2">{currentProduct.vendorId.businessName || currentProduct.vendorId.name}</p>
+                                                <p className="text-[10px] font-bold text-slate-400 mt-1">{currentProduct.vendorId.phoneNumber || currentProduct.vendorId.email}</p>
+                                            </div>
+                                            <span className="px-3 py-1 bg-teal-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider">Vendor Product</span>
+                                        </div>
+                                    )}
+
                                     {/* Image Upload */}
                                     <div className="space-y-4">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-slate-400">Product Photos</label>
@@ -490,6 +514,14 @@ const EcommerceManager = () => {
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit (e.g. bag, kg)</label>
                                             <input className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">GST Percentage (%)</label>
+                                            <input type="number" min="0" className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none" value={formData.gstPercentage} onChange={e => setFormData({...formData, gstPercentage: e.target.value})} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Admin Commission (%)</label>
+                                            <input type="number" min="0" className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none" value={formData.commissionPercentage} onChange={e => setFormData({...formData, commissionPercentage: e.target.value})} />
                                         </div>
                                     </div>
                                     <div className="space-y-1">
