@@ -6,7 +6,8 @@ import {
     FiCheckCircle, 
     FiSearch,
     FiFilter,
-    FiChevronLeft
+    FiChevronLeft,
+    FiX
 } from 'react-icons/fi';
 import adminProductService from '../../../../services/adminProductService';
 import { toast } from 'react-hot-toast';
@@ -20,6 +21,7 @@ const EcommerceOrders = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [selectedOrder, setSelectedOrder] = useState(null);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -92,20 +94,37 @@ const EcommerceOrders = () => {
                         <thead>
                             <tr className="bg-slate-50/50 border-b border-slate-100">
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Order / Date</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Items / Qty</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Farmer & Address</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor / Shop</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Value (Split)</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {loading ? (
-                                [1, 2, 3].map(i => <tr key={i} className="animate-pulse"><td colSpan="5" className="px-6 py-10 bg-slate-50/30"></td></tr>)
+                                [1, 2, 3].map(i => <tr key={i} className="animate-pulse"><td colSpan="7" className="px-6 py-10 bg-slate-50/30"></td></tr>)
                             ) : currentOrders.map(order => (
                                 <tr key={order._id} className="hover:bg-slate-50/50 transition-colors">
                                     <td className="px-6 py-5">
                                         <p className="font-black text-slate-800 text-sm">#{order._id.slice(-6).toUpperCase()}</p>
                                         <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{format(new Date(order.createdAt), 'dd MMM yyyy')}</p>
+                                    </td>
+                                    <td className="px-6 py-5">
+                                        {order.items && order.items.length > 0 && (
+                                            <div className="text-[11px] font-bold text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100/80 max-w-[200px] space-y-1">
+                                                {order.items.map((item, idx) => {
+                                                    const unitStr = item.productId?.unit || 'bag';
+                                                    const weightStr = item.bagWeight ? ` (${item.bagWeight}kg)` : '';
+                                                    return (
+                                                        <div key={idx} className="line-clamp-2">
+                                                            {item.name} <span className="text-teal-600 font-extrabold">x{item.quantity} {unitStr}{item.quantity > 1 ? 's' : ''}{weightStr}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-5">
                                         <p className="font-black text-slate-800 text-sm">{order.userId?.name || 'Unknown'}</p>
@@ -149,6 +168,14 @@ const EcommerceOrders = () => {
                                                 {order.trackingDetails.courierName}
                                             </p>
                                         )}
+                                    </td>
+                                    <td className="px-6 py-5 text-center">
+                                        <button 
+                                            onClick={() => setSelectedOrder(order)}
+                                            className="px-4 py-2 bg-[#2E7D32]/10 hover:bg-[#2E7D32]/25 text-[#2E7D32] rounded-xl font-bold text-xs active:scale-95 transition-all whitespace-nowrap"
+                                        >
+                                            View Details
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -197,6 +224,130 @@ const EcommerceOrders = () => {
                     </div>
                 )}
             </div>
+
+            {/* Order Details Modal */}
+            {selectedOrder && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
+                        {/* Modal Header */}
+                        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                            <div>
+                                <h3 className="font-black text-slate-800 text-base">
+                                    Order Details
+                                </h3>
+                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">
+                                    #{selectedOrder._id}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedOrder(null)}
+                                className="p-2 bg-white rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors shadow-sm"
+                            >
+                                <FiX className="w-5 h-5 text-slate-600" />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6 overflow-y-auto space-y-6">
+                            {/* Status Section */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100/50">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Delivery Status</p>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2.5 h-2.5 rounded-full ${
+                                            selectedOrder.deliveryStatus === 'delivered' ? 'bg-green-500' :
+                                            selectedOrder.deliveryStatus === 'shipped' ? 'bg-blue-500' : 'bg-orange-500'
+                                        }`} />
+                                        <p className="font-extrabold text-slate-800 uppercase text-xs">{selectedOrder.deliveryStatus}</p>
+                                    </div>
+                                </div>
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100/50">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Payment Status</p>
+                                    <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                                        selectedOrder.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                                    }`}>
+                                        {selectedOrder.paymentStatus} ({selectedOrder.paymentMethod || 'wallet'})
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Farmer & Vendor Details */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Farmer info */}
+                                <div className="space-y-3">
+                                    <h4 className="font-black text-slate-800 text-xs border-b border-slate-100 pb-1 uppercase tracking-wider">Farmer (Buyer)</h4>
+                                    <p className="text-sm font-bold text-slate-800">{selectedOrder.userId?.name || 'Unknown'}</p>
+                                    <p className="text-xs font-bold text-slate-500">Phone: {selectedOrder.userId?.phone || 'No Phone'}</p>
+                                    <div className="text-xs font-bold text-slate-500">
+                                        <p className="text-slate-400 uppercase text-[9px] font-black mb-1">Shipping Address</p>
+                                        <p className="leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100/50 font-semibold text-slate-600">
+                                            {typeof selectedOrder.shippingAddress === 'object' && selectedOrder.shippingAddress ? (() => {
+                                                const a = selectedOrder.shippingAddress;
+                                                return [a.addressLine1, a.city, a.state, a.pincode].filter(Boolean).join(', ');
+                                            })() : (selectedOrder.shippingAddress || 'No Address')}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Vendor info */}
+                                <div className="space-y-3">
+                                    <h4 className="font-black text-slate-800 text-xs border-b border-slate-100 pb-1 uppercase tracking-wider">Vendor (Seller)</h4>
+                                    <p className="text-sm font-bold text-slate-800">{selectedOrder.vendorId?.businessName || 'N/A'}</p>
+                                    <p className="text-xs font-bold text-slate-500">Seller: {selectedOrder.vendorId?.name || 'N/A'}</p>
+                                    <p className="text-xs font-bold text-slate-500">Phone: {selectedOrder.vendorId?.phone || 'N/A'}</p>
+                                </div>
+                            </div>
+
+                            {/* Order Items */}
+                            <div className="space-y-3">
+                                <h4 className="font-black text-slate-800 text-xs border-b border-slate-100 pb-1 uppercase tracking-wider">Ordered Products</h4>
+                                <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/20">
+                                    {selectedOrder.items?.map((item, idx) => (
+                                        <div key={idx} className="p-4 flex items-center justify-between text-xs font-bold">
+                                            <div>
+                                                <p className="text-slate-800 font-extrabold text-sm">{item.name}</p>
+                                                <p className="text-slate-400 mt-0.5 font-bold">
+                                                    {item.productId?.unit || 'bag'}
+                                                    {item.bagWeight ? ` • ${item.bagWeight}kg` : ''}
+                                                    {` • ₹${item.price} per unit`}
+                                                </p>
+                                            </div>
+                                            <p className="text-slate-800 font-black text-sm text-right">
+                                                x{item.quantity} = ₹{(item.price * item.quantity).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Pricing summary */}
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2 text-xs font-bold text-slate-600">
+                                <h4 className="font-black text-slate-800 text-xs border-b border-slate-100 pb-1.5 uppercase tracking-wider mb-2">Pricing Breakdown</h4>
+                                <div className="flex justify-between">
+                                    <span>Items Total:</span>
+                                    <span className="text-slate-800 font-black">₹{selectedOrder.pricing?.itemsTotal?.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>Admin Commission:</span>
+                                    <span className="text-slate-800 font-black">₹{selectedOrder.pricing?.adminCommission?.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>GST Amount:</span>
+                                    <span className="text-slate-800 font-black">₹{selectedOrder.pricing?.gstAmount?.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between border-t border-slate-200/50 pt-2 font-black text-slate-800">
+                                    <span>Platform Fee Paid:</span>
+                                    <span className="text-teal-600 font-black">₹{selectedOrder.pricing?.platformFee?.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between border-t border-slate-200/50 pt-2 font-black text-slate-800">
+                                    <span>Vendor Balance Due:</span>
+                                    <span className="text-blue-600 font-black">₹{selectedOrder.pricing?.vendorBalance?.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

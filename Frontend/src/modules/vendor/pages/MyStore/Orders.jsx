@@ -161,7 +161,7 @@ const StoreOrders = () => {
                                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">#{order._id.slice(-6)}</p>
                                             <p className="font-bold text-slate-800 text-sm">{order.items[0]?.name || 'Item'} {order.items.length > 1 && `(+${order.items.length - 1})`}</p>
                                             <p className="text-xs text-slate-500 font-medium my-0.5">
-                                                Qty: {order.items[0]?.quantity || 1}
+                                                Qty: {order.items[0]?.quantity || 1} {order.items[0]?.productId?.unit || 'bag'}{order.items[0]?.quantity > 1 ? 's' : ''}
                                                 {order.items[0]?.bagWeight ? ` • ${order.items[0]?.bagWeight}kg` : ''}
                                             </p>
                                             <p className="text-[10px] text-teal-600 font-bold">{format(new Date(order.createdAt), 'dd MMM, hh:mm a')}</p>

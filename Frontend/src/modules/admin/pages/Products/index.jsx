@@ -37,6 +37,8 @@ const ManageProducts = () => {
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectTarget, setRejectTarget] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [viewEquipment, setViewEquipment] = useState(null);
+    const [activeMenuId, setActiveMenuId] = useState(null);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -68,6 +70,12 @@ const ManageProducts = () => {
                 setRentalGst(res.settings.rentalGstPercentage);
             }
         }).catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        const handleOutsideClick = () => setActiveMenuId(null);
+        document.addEventListener('click', handleOutsideClick);
+        return () => document.removeEventListener('click', handleOutsideClick);
     }, []);
 
     const fetchData = async () => {
@@ -300,7 +308,7 @@ const ManageProducts = () => {
             </div>
 
             <div className="bg-white border-t border-slate-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto pb-28">
                 <table className="w-full text-left">
                     <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-100">
@@ -323,15 +331,11 @@ const ManageProducts = () => {
                             // Support both VendorEquipment shape and Product shape
                             const isVendorEq = p._source === 'vendorEquipment';
                             const displayName = isVendorEq ? p.name : p.title;
-                            const displaySubtitle = isVendorEq ? (p.modelNumber || p.year || '') : p.brandName;
+                            const displaySubtitle = isVendorEq ? (p.modelNumber || p.year || 'Standard') : p.brandName;
                             const displayImage = isVendorEq ? p.images?.[0] : p.imageUrl;
-                            const displayCategory = p.categoryId?.title || (isVendorEq ? p.requestedCategoryName : 'Machine');
+                            const displayCategory = p.categoryId?.title || p.requestedCategoryName || 'Machine';
                             const vendorName = p.vendorId?.businessName || p.vendorId?.name || 'Vendor';
                             const vendorPhone = p.vendorId?.phone || '';
-                            // Pricing display for VendorEquipment
-                            const pricingText = isVendorEq
-                                ? Object.entries(p.pricing || {}).filter(([, v]) => v?.isEnabled).map(([k, v]) => `₹${v.price}/${k === 'land_based' ? 'acre' : k === 'hourly' ? 'hr' : 'day'}`).join(' · ')
-                                : `₹${p.price}/${p.unit}`;
 
                             return (
                             <tr key={p._id} className="hover:bg-slate-50 transition-colors">
@@ -390,21 +394,80 @@ const ManageProducts = () => {
                                         )}
                                     </td>
                                 )}
-                                <td className="px-6 py-4 font-black text-slate-800 text-sm">{pricingText}</td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex gap-2 justify-end">
-                                        {activeTab === 'pending' ? (
-                                            <>
-                                                <button onClick={() => handleApprove(p)} className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-xs flex items-center gap-1"><FiCheck className="w-3 h-3" /> Approve</button>
-                                                <button onClick={() => openRejectModal(p)} className="px-4 py-2 bg-rose-50 text-rose-600 rounded-xl font-bold text-xs flex items-center gap-1"><FiX className="w-3 h-3" /> Reject</button>
-                                            </>
+                                <td className="px-6 py-4">
+                                    <div className="flex flex-col gap-1">
+                                        {isVendorEq ? (
+                                            Object.entries(p.pricing || {}).filter(([, v]) => v?.isEnabled).map(([k, v]) => {
+                                                const label = k === 'land_based' ? 'acre' : k === 'hourly' ? 'hr' : 'day';
+                                                return (
+                                                    <span key={k} className="inline-block text-[11px] font-extrabold text-slate-700 bg-slate-50 border border-slate-100 rounded px-2 py-0.5 whitespace-nowrap w-fit">
+                                                        ₹{v.price}/{label}
+                                                    </span>
+                                                );
+                                            })
                                         ) : (
-                                            <>
-                                                {!p.vendorId && (
-                                                    <button onClick={() => openEdit(p)} className="p-2 text-slate-400 hover:text-slate-800 transition-all"><FiEdit2 /></button>
+                                            <span className="inline-block text-[11px] font-extrabold text-slate-700 bg-slate-50 border border-slate-100 rounded px-2 py-0.5 whitespace-nowrap w-fit">
+                                                ₹{p.price}/{p.unit}
+                                            </span>
+                                        )}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <div className="relative inline-block text-left" onClick={(e) => e.stopPropagation()}>
+                                        <button 
+                                            onClick={() => setActiveMenuId(activeMenuId === p._id ? null : p._id)}
+                                            className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-500 hover:text-slate-800"
+                                        >
+                                            <FiMoreVertical className="w-5 h-5" />
+                                        </button>
+                                        {activeMenuId === p._id && (
+                                            <div className="absolute right-0 mt-2 w-44 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 p-1.5 space-y-0.5 text-left animate-in fade-in slide-in-from-top-2 duration-150">
+                                                <button 
+                                                    onClick={() => { setViewEquipment(p); setActiveMenuId(null); }}
+                                                    className="w-full text-left px-3.5 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all flex items-center gap-2"
+                                                >
+                                                    <FiSearch className="w-3.5 h-3.5 text-slate-400" />
+                                                    View Details
+                                                </button>
+                                                
+                                                {activeTab === 'pending' ? (
+                                                    <>
+                                                        <button 
+                                                            onClick={() => { handleApprove(p); setActiveMenuId(null); }}
+                                                            className="w-full text-left px-3.5 py-2 text-xs font-black text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-all flex items-center gap-2"
+                                                        >
+                                                            <FiCheck className="w-3.5 h-3.5" />
+                                                            Approve
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => { openRejectModal(p); setActiveMenuId(null); }}
+                                                            className="w-full text-left px-3.5 py-2 text-xs font-black text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all flex items-center gap-2"
+                                                        >
+                                                            <FiX className="w-3.5 h-3.5" />
+                                                            Reject
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        {!p.vendorId && (
+                                                            <button 
+                                                                onClick={() => { openEdit(p); setActiveMenuId(null); }}
+                                                                className="w-full text-left px-3.5 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all flex items-center gap-2"
+                                                            >
+                                                                <FiEdit2 className="w-3.5 h-3.5 text-slate-400" />
+                                                                Edit
+                                                            </button>
+                                                        )}
+                                                        <button 
+                                                            onClick={() => { adminProductService.delete(p._id).then(fetchData); setActiveMenuId(null); }}
+                                                            className="w-full text-left px-3.5 py-2 text-xs font-black text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all flex items-center gap-2"
+                                                        >
+                                                            <FiTrash2 className="w-3.5 h-3.5" />
+                                                            Delete
+                                                        </button>
+                                                    </>
                                                 )}
-                                                <button onClick={() => adminProductService.delete(p._id).then(fetchData)} className="p-2 text-slate-400 hover:text-rose-600 transition-all"><FiTrash2 /></button>
-                                            </>
+                                            </div>
                                         )}
                                     </div>
                                 </td>
@@ -505,6 +568,160 @@ const ManageProducts = () => {
                                 <button onClick={handleRejectConfirm} className="flex-[2] py-3.5 bg-rose-600 text-white rounded-2xl font-black text-xs uppercase shadow-lg shadow-rose-200 hover:bg-rose-700 transition-all">Confirm Rejection</button>
                             </div>
                         </motion.div>
+                    </div>
+                )}
+
+                {/* View Equipment Details Modal */}
+                {viewEquipment && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                        <div className="bg-white rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
+                            {/* Modal Header */}
+                            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <div>
+                                    <h3 className="font-black text-slate-800 text-lg">
+                                        Machinery / Equipment Details
+                                    </h3>
+                                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase">
+                                        Status: <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                                            viewEquipment.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                            viewEquipment.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                                        }`}>{viewEquipment.status}</span>
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setViewEquipment(null)}
+                                    className="p-2 bg-white rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors shadow-sm font-black"
+                                >
+                                    <FiX className="w-5 h-5 text-slate-600" />
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="p-8 overflow-y-auto space-y-6">
+                                {/* Images Gallery */}
+                                {viewEquipment.images && viewEquipment.images.length > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Machine Photos</p>
+                                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                                            {viewEquipment.images.map((img, idx) => (
+                                                <div key={idx} className="w-40 h-28 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0">
+                                                    <img src={img} className="w-full h-full object-cover" alt="" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Core Details */}
+                                <div className="grid grid-cols-2 gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-100/80">
+                                    <div>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Machine Name</p>
+                                        <p className="text-sm font-black text-slate-800">{viewEquipment.name || viewEquipment.title}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Brand / Model</p>
+                                        <p className="text-sm font-black text-slate-800">{viewEquipment.brandName || viewEquipment.modelNumber || 'N/A'}</p>
+                                    </div>
+                                    {viewEquipment.year && (
+                                        <div>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Manufacturing Year</p>
+                                            <p className="text-sm font-black text-slate-800">{viewEquipment.year}</p>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Category</p>
+                                        <p className="text-sm font-black text-slate-800">
+                                            {viewEquipment.categoryId?.title || viewEquipment.requestedCategoryName || 'Machine'}
+                                        </p>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Description</p>
+                                        <p className="text-xs font-semibold text-slate-600 leading-relaxed mt-1">
+                                            {viewEquipment.description || 'No description provided.'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Pricing Details */}
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pricing Configuration</p>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        {viewEquipment._source === 'vendorEquipment' ? (
+                                            Object.entries(viewEquipment.pricing || {}).map(([key, val]) => {
+                                                if (!val?.isEnabled) return null;
+                                                const label = key === 'land_based' ? 'Acre-based' : key === 'hourly' ? 'Hourly' : 'Daily';
+                                                return (
+                                                    <div key={key} className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center">
+                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">{label}</p>
+                                                        <p className="text-base font-black text-[#2E7D32] mt-1">₹{val.price}</p>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center col-span-3">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Standard Price</p>
+                                                <p className="text-base font-black text-[#2E7D32] mt-1">₹{viewEquipment.price} / {viewEquipment.unit}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Operator / Driver details */}
+                                {viewEquipment.includesDriver && viewEquipment.driver && (
+                                    <div className="space-y-3">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assigned Operator / Driver</p>
+                                        <div className="flex gap-4 items-center bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                                            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center p-1">
+                                                {viewEquipment.driver.photo ? (
+                                                    <img src={viewEquipment.driver.photo} className="w-full h-full object-cover rounded-xl" alt="" />
+                                                ) : (
+                                                    <FiUser className="w-6 h-6 text-slate-300" />
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-x-6 gap-y-2 flex-1 text-xs font-bold text-slate-600">
+                                                <div>
+                                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Operator Name</span>
+                                                    <span className="text-sm font-black text-slate-800">{viewEquipment.driver.name || 'N/A'}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Phone Number</span>
+                                                    <span className="text-sm font-black text-slate-800">{viewEquipment.driver.phone || 'N/A'}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Aadhar Card</span>
+                                                    <span className="text-xs font-black text-slate-800">{viewEquipment.driver.aadharNumber || 'N/A'}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Driving License</span>
+                                                    <span className="text-xs font-black text-slate-800">{viewEquipment.driver.licenseNumber || 'N/A'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Owner / Vendor info */}
+                                {viewEquipment.vendorId && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor Information</p>
+                                        <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600">
+                                            <div>
+                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Business / Shop Name</span>
+                                                <span className="text-sm font-black text-slate-800">{viewEquipment.vendorId.businessName || 'N/A'}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Contact Person</span>
+                                                <span className="text-sm font-black text-slate-800">{viewEquipment.vendorId.name}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Phone</span>
+                                                <span className="text-sm font-black text-orange-600">{viewEquipment.vendorId.phone}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
             </AnimatePresence>

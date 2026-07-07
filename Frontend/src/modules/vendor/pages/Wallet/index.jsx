@@ -421,12 +421,12 @@ const Wallet = () => {
           )}
         </div>
 
-        {/* View Settlements Link */}
+        {/* View Complete History Link */}
         <button
           onClick={() => navigate('/vendor/wallet/settlements')}
           className="w-full mt-6 py-3 rounded-xl font-semibold text-gray-700 bg-white border border-gray-200 flex items-center justify-center gap-2 transition-all active:scale-95"
         >
-          View Settlement History
+          View Complete History
           <FiArrowRight className="w-4 h-4" />
         </button>
       </main>

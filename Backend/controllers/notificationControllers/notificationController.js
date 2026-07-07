@@ -10,17 +10,33 @@ const createNotification = async ({
   vendorId = null,
   workerId = null,
   adminId = null,
+  recipientId = null,
+  recipientModel = null,
   type,
   title,
   message,
   relatedId = null,
   relatedType = null,
   data = {},
+  metadata = null,
   skipPush = false,
   pushData = {},
   priority = null
 }) => {
   try {
+    // If metadata is provided, assign or merge it into data
+    if (metadata && Object.keys(data).length === 0) {
+      data = metadata;
+    }
+
+    // Map legacy recipientId and recipientModel to standard fields
+    if (recipientId && recipientModel) {
+      const model = recipientModel.toLowerCase();
+      if (model === 'user') userId = recipientId;
+      else if (model === 'vendor') vendorId = recipientId;
+      else if (model === 'worker') workerId = recipientId;
+      else if (model === 'admin') adminId = recipientId;
+    }
     // Check for duplicate notification within short window (5 seconds) to prevent spam
     const duplicateQuery = {
       type,

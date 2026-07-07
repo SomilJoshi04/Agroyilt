@@ -143,6 +143,7 @@ const Notifications = () => {
     if (['payment', 'refund', 'wallet'].some(t => type.includes(t))) return '💰';
     if (['booking', 'job', 'work', 'visit', 'journey', 'vendor', 'scrap', 'soil_test'].some(t => type.includes(t))) return '📋';
     if (['alert', 'general'].some(t => type.includes(t))) return '🔔';
+    if (['ecommerce', 'order'].some(t => type.includes(t))) return '🛍️';
 
     return '📢';
   };
@@ -153,6 +154,7 @@ const Notifications = () => {
     if (['payment', 'refund', 'wallet'].some(t => type.includes(t))) return '#10B981'; // Green
     if (['booking', 'job', 'work', 'visit', 'journey', 'vendor', 'scrap', 'soil_test'].some(t => type.includes(t))) return '#3B82F6'; // Blue
     if (['alert', 'general'].some(t => type.includes(t))) return themeColors.button;
+    if (['ecommerce', 'order'].some(t => type.includes(t))) return '#8B5CF6'; // Purple
 
     return '#6B7280'; // Gray
   };
@@ -307,6 +309,18 @@ const Notifications = () => {
                         onClick={() => {
                           const bId = notif.data?.bookingId || notif.bookingId;
                           if (bId) navigate(`/user/booking/${bId}`);
+                        }}
+                        className="mt-3 text-sm font-bold flex items-center gap-1"
+                        style={{ color: themeColors.button }}
+                      >
+                        View Details
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                    )}
+                    {!notif.action && (notif.type?.includes('ecommerce') || notif.type?.includes('order')) && (
+                      <button
+                        onClick={() => {
+                          navigate('/user/my-agri-orders');
                         }}
                         className="mt-3 text-sm font-bold flex items-center gap-1"
                         style={{ color: themeColors.button }}

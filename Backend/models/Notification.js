@@ -80,6 +80,9 @@ const notificationSchema = new mongoose.Schema({
       'soil_test_status_updated',
       'weather_update',
       'weather_critical',
+      'ecommerce_order',
+      'ecommerce_order_update',
+      'ecommerce_out_of_stock',
       'general'
     ],
     index: true

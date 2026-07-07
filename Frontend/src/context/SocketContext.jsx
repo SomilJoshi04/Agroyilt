@@ -208,10 +208,22 @@ export const SocketProvider = ({ children }) => {
           onClick={() => {
             toast.dismiss(t.id);
             // Optional: navigate based on relatedId
-            if (data.relatedId) {
-              if (userType === 'vendor') navigate(`/vendor/booking/${data.relatedId}`);
-              else if (userType === 'worker') navigate(`/worker/job/${data.relatedId}`);
-              else navigate(`/user/booking/${data.relatedId}`);
+            if (data.relatedId || data.type?.includes('ecommerce') || data.type?.includes('order')) {
+              if (userType === 'vendor') {
+                if (data.type?.includes('ecommerce') || data.type?.includes('order')) {
+                  navigate('/vendor/store/orders');
+                } else {
+                  navigate(`/vendor/booking/${data.relatedId}`);
+                }
+              } else if (userType === 'worker') {
+                navigate(`/worker/job/${data.relatedId}`);
+              } else {
+                if (data.type?.includes('ecommerce') || data.type?.includes('order')) {
+                  navigate('/user/my-agri-orders');
+                } else {
+                  navigate(`/user/booking/${data.relatedId}`);
+                }
+              }
             }
           }}
         />

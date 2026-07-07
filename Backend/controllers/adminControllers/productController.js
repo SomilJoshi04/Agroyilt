@@ -131,6 +131,7 @@ const getAllEcommerceOrders = async (req, res) => {
         const orders = await EcommerceOrder.find()
             .populate('userId', 'name phone')
             .populate('vendorId', 'businessName name phone')
+            .populate('items.productId', 'unit bagWeight')
             .sort({ createdAt: -1 });
         res.status(200).json({ success: true, data: orders });
     } catch (error) {

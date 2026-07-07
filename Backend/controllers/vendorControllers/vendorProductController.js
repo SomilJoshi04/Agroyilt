@@ -89,6 +89,7 @@ const getMyOrders = async (req, res) => {
     try {
         const orders = await EcommerceOrder.find({ vendorId: req.user._id })
             .populate('userId', 'name phone')
+            .populate('items.productId', 'unit bagWeight')
             .sort({ createdAt: -1 })
             .lean();
         res.status(200).json({ success: true, data: orders });
@@ -115,6 +116,9 @@ const getMyOrders = async (req, res) => {
             if (status === 'delivered') {
                 if (order.deliveryOtp && order.deliveryOtp !== deliveryOtp) {
                     return res.status(400).json({ success: false, message: 'Invalid Verification OTP' });
+                }
+                if (order.paymentType === 'cod') {
+                    order.paymentStatus = 'paid';
                 }
             }
 

@@ -207,15 +207,28 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
   // Auto-expand menu items when their route is active
   useEffect(() => {
-    const activeItem = filteredMenu.find((item) => {
-      if (item.route === "/admin/dashboard") {
-        return location.pathname === "/admin/dashboard";
-      }
-      const isChildRoute =
-        location.pathname.startsWith(item.route) &&
-        location.pathname !== item.route;
-      return isChildRoute;
+    // 1. Try to find parent by explicit child route match first
+    let activeItem = filteredMenu.find((item) => {
+      return item.children?.some(child => {
+        const childRoute = getChildRoute(item.route, child);
+        return location.pathname === childRoute || 
+               (childRoute !== item.route && location.pathname.startsWith(childRoute + '/'));
+      });
     });
+
+    // 2. Fall back to prefix matching if no explicit child route matched
+    if (!activeItem) {
+      activeItem = filteredMenu.find((item) => {
+        if (item.route === "/admin/dashboard") {
+          return location.pathname === "/admin/dashboard";
+        }
+        const isChildRoute =
+          location.pathname.startsWith(item.route) &&
+          location.pathname !== item.route;
+        return isChildRoute;
+      });
+    }
+
     if (activeItem && activeItem.children && activeItem.children.length > 0) {
       setExpandedItems((prev) => {
         if (prev[activeItem.title]) {
@@ -229,9 +242,19 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   }, [location.pathname, filteredMenu]);
 
   // Check if a menu item is active
-  const isActive = (route) => {
+  const isActive = (item) => {
+    const route = item.route;
     if (route === "/admin/dashboard") {
       return location.pathname === "/admin/dashboard";
+    }
+
+    // If item has children, check if any child is active
+    if (item.children && item.children.length > 0) {
+      return item.children.some(child => {
+        const childRoute = getChildRoute(item.route, child);
+        return location.pathname === childRoute || 
+               (childRoute !== item.route && location.pathname.startsWith(childRoute + '/'));
+      });
     }
 
     // Special case for Equipment Catalog to prevent false active state on sub-routes
@@ -281,7 +304,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     const Icon = iconMap[item.title] || FiHome;
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems[item.title];
-    const active = isActive(item.route);
+    const active = isActive(item);
 
     return (
       <div key={item.route} className="mb-1">

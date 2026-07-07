@@ -138,6 +138,8 @@ const Notifications = () => {
       navigate('/vendor/compliance');
     } else if (type.includes('profile')) {
       navigate('/vendor/profile/details');
+    } else if (type.includes('ecommerce') || type.includes('order')) {
+      navigate('/vendor/store/orders');
     } else if (type.includes('dispute') || relatedType === 'dispute') {
       const bId = notif.data?.bookingId || notif.bookingId;
       if (bId) navigate(`/vendor/booking/${bId}`);
@@ -172,6 +174,7 @@ const Notifications = () => {
     if (['booking', 'job', 'work', 'visit', 'journey', 'vendor'].some(t => type.includes(t))) return '📋';
     if (type.includes('dispute')) return '⚖️';
     if (['alert', 'general'].some(t => type.includes(t))) return '🔔';
+    if (['ecommerce', 'order'].some(t => type.includes(t))) return '🛍️';
 
     return '📢';
   };
@@ -182,6 +185,7 @@ const Notifications = () => {
     if (['payment', 'refund', 'wallet', 'payout'].some(t => type.includes(t))) return '#10B981'; // Green
     if (['booking', 'job', 'work', 'visit', 'journey', 'vendor'].some(t => type.includes(t))) return '#3B82F6'; // Blue
     if (['alert', 'general'].some(t => type.includes(t))) return themeColors.button;
+    if (['ecommerce', 'order'].some(t => type.includes(t))) return '#8B5CF6'; // Purple
 
     return '#6B7280'; // Gray
   };
