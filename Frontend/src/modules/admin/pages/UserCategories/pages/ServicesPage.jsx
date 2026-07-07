@@ -491,23 +491,6 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
             </div>
           </div>
 
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-bold text-gray-700 mb-1 text-blue-600">GST Percentage (%)</label>
-              <input
-                type="number"
-                value={form.gstPercentage}
-                onChange={e => setForm({ ...form, gstPercentage: e.target.value })}
-                placeholder="18"
-                className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-primary-500 bg-blue-50/20 font-bold"
-                min="0"
-                max="100"
-              />
-            </div>
-            <div className="flex-1 invisible">
-              {/* Spacer */}
-            </div>
-          </div>
 
           <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-4">
             <div className="flex items-center gap-2 mb-1">

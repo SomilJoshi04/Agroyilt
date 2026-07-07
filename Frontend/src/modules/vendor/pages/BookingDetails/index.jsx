@@ -1046,10 +1046,19 @@ export default function BookingDetails() {
                 )}
 
                 {/* Service GST */}
-                <div className="flex justify-between text-xs text-gray-500 border-t border-dashed border-gray-100 pt-1 mt-1">
-                  <span>Service GST (18%)</span>
-                  <span className="font-mono">₹{(bill ? (originalGST + extraServiceGST) : (booking.tax || originalGST)).toFixed(2)}</span>
-                </div>
+                {(() => {
+                  const activeGST = bill ? (originalGST + extraServiceGST) : (booking.tax || originalGST);
+                  const activeBase = bill ? (originalBase - (booking.discount || 0) + extraServiceBase) : (originalBase - (booking.discount || 0));
+                  const dynamicGstPct = (activeGST > 0 && activeBase > 0)
+                    ? Math.round((activeGST * 100) / activeBase)
+                    : 18;
+                  return (
+                    <div className="flex justify-between text-xs text-gray-500 border-t border-dashed border-gray-100 pt-1 mt-1">
+                      <span>Service GST ({dynamicGstPct}%)</span>
+                      <span className="font-mono">₹{activeGST.toFixed(2)}</span>
+                    </div>
+                  );
+                })()}
 
                 {/* Service Subtotal */}
                 <div className="flex justify-between font-bold text-gray-800 pt-1">
