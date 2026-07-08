@@ -1547,42 +1547,7 @@ export default function BookingDetails() {
         </div>
 
         {/* ══════ EQUIPMENT TRIP FLOW (New - agriculture feature) ══════ */}
-        {/* Show Start Trip button when booking is confirmed/in_progress and trip not started yet */}
-        {!booking.start_kilometer_photo &&
-          ['confirmed', 'accepted', 'assigned', 'in_progress', 'journey_started', 'visited'].includes(booking.status) && (
-            <div className="bg-white rounded-2xl mb-4 overflow-hidden shadow-lg border-t-4 border-green-500">
-              <div className="p-5">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Equipment Trip</p>
-                <button
-                  onClick={() => openTripModal('start')}
-                  className="w-full py-4 rounded-xl font-extrabold text-white text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-green-200"
-                  style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
-                >
-                  {booking.categoryId?.requiresDriver === false ? '📦 Handover Equipment' : '🚜 Equipment Arrived (KM Photo + OTP)'}
-                </button>
-              </div>
-            </div>
-          )}
-
-        {/* Show End Trip button when trip is started (KM photo uploaded) and end not done yet */}
-        {booking.start_kilometer_photo && !booking.end_kilometer_photo &&
-          ['confirmed', 'assigned', 'in_progress', 'journey_started', 'visited', 'work_done'].includes(booking.status) && (
-            <div className="bg-white rounded-2xl mb-4 overflow-hidden shadow-lg border-t-4 border-red-500">
-              <div className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-bold text-green-600">✅ Trip Started</span>
-                  <span className="text-[10px] text-gray-400">KM Photo uploaded</span>
-                </div>
-                <button
-                  onClick={() => openTripModal('end')}
-                  className="w-full py-4 rounded-xl font-extrabold text-white text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-red-200"
-                  style={{ background: 'linear-gradient(135deg, #dc2626, #b91c1c)' }}
-                >
-                  {booking.categoryId?.requiresDriver === false ? '✅ Collect Equipment' : '🏁 End Trip (KM Photo + OTP)'}
-                </button>
-              </div>
-            </div>
-          )}
+        {/* Note: Equipment trip start/end actions are handled inside the Booking Timeline page */}
 
         {/* Trip Completed Badge */}
         {booking.start_kilometer_photo && booking.end_kilometer_photo && (

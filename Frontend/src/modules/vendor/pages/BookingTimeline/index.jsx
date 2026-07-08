@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiCheck, FiClock, FiUser, FiUsers, FiMapPin, FiTool, FiDollarSign, FiFileText, FiCheckCircle, FiX, FiNavigation } from 'react-icons/fi';
+import { FiCheck, FiClock, FiUser, FiUsers, FiMapPin, FiTool, FiDollarSign, FiFileText, FiCheckCircle, FiX, FiNavigation, FiPackage } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
@@ -100,7 +100,7 @@ const BookingTimeline = () => {
           'assigned': 3,
           'journey_started': 4,
           'visited': 6,
-          'in_progress': 6,
+          'in_progress': 6.5,
           'work_done': 7,
           'completed': 8,
         };
@@ -346,14 +346,11 @@ const BookingTimeline = () => {
     {
       id: 6,
       title: isAgriBooking 
-        ? (requiresDriver === false ? 'Handover Equipment' : 'Start Engine') 
+        ? (requiresDriver === false ? 'Handover to Farmer' : 'Start Engine') 
         : 'Work Done',
       icon: FiTool,
       action: (() => {
-          if (booking?.status === 'in_progress') {
-              return () => { setTripModalMode('end'); setIsTripModalOpen(true); };
-          }
-          if (['completed', 'work_done'].includes(booking?.status?.toLowerCase())) return null;
+          if (['completed', 'work_done', 'in_progress'].includes(booking?.status?.toLowerCase())) return null;
 
           if (requiresDriver === false && isAgriBooking) {
               if (['confirmed', 'accepted', 'visited', 'assigned'].includes(booking?.status?.toLowerCase())) {
@@ -369,8 +366,24 @@ const BookingTimeline = () => {
           return null;
       })(),
       description: isAgriBooking 
-        ? (requiresDriver === false ? 'Confirm delivery to farmer' : 'Tractor operating on field') 
-        : 'Service work completed',
+        ? (requiresDriver === false ? 'Confirm delivery of equipment to farmer' : 'Verify OTP and start engine') 
+        : 'Service work in progress',
+    },
+    {
+      id: 6.5,
+      title: isAgriBooking 
+        ? (requiresDriver === false ? 'Collect Equipment' : 'End Trip') 
+        : 'Work Completion',
+      icon: FiPackage,
+      action: (() => {
+          if (booking?.status === 'in_progress') {
+              return () => { setTripModalMode('end'); setIsTripModalOpen(true); };
+          }
+          return null;
+      })(),
+      description: isAgriBooking 
+        ? (requiresDriver === false ? 'Confirm return/collection of equipment from farmer' : 'Submit ending KM and verify OTP') 
+        : 'Complete the service work',
     },
     {
       id: 7,
@@ -410,6 +423,9 @@ const BookingTimeline = () => {
     
     // Standalone: Hide Assigned (3), Journey (4), and Visited (5)
     if (!requiresDriver && [3, 4, 5].includes(stage.id)) return false;
+    
+    // Hide stage 6.5 (End Trip / Collect Equipment) if not an agriculture booking
+    if (stage.id === 6.5 && !isAgriBooking) return false;
     
     return true;
   });
@@ -549,13 +565,14 @@ const BookingTimeline = () => {
                           {stage.id === 3 ? 'Assign Operator' :
                             stage.id === 4 ? 'Start Journey' :
                               stage.id === 5 ? 'Mark Arrived' :
-                                stage.id === 6 ? (isAgriBooking ? (booking?.status === 'in_progress' ? 'End Trip / Collection' : (requiresDriver === false ? 'Handover Equipment' : 'Start Engine')) : 'Mark Workdone') :
-                                  stage.id === 7 ? (
-                                    (booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid')
-                                      ? 'Online Payment Done'
-                                      : 'Collect Payment'
-                                  ) :
-                                    stage.id === 9 ? 'Final Settlement' : 'Continue'}
+                                stage.id === 6 ? (isAgriBooking ? (requiresDriver === false ? 'Handover Equipment' : 'Start Engine') : 'Mark Workdone') :
+                                  stage.id === 6.5 ? (isAgriBooking ? (requiresDriver === false ? 'Collect Equipment' : 'End Trip / Collection') : 'Mark Workdone') :
+                                    stage.id === 7 ? (
+                                      (booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid')
+                                        ? 'Online Payment Done'
+                                        : 'Collect Payment'
+                                    ) :
+                                      stage.id === 9 ? 'Final Settlement' : 'Continue'}
                         </button>
                       )}
 
