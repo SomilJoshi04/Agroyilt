@@ -20,12 +20,17 @@ const getPublicCategories = async (req, res) => {
     // Build query - Keep it simple to ensure all active categories load
     const query = { status: 'active' };
     if (cityId) {
-      // Cast to ObjectId so string from URL matches ObjectId stored in cityIds array
+      let cityObjectId;
       try {
-        query.cityIds = new mongoose.Types.ObjectId(cityId);
+        cityObjectId = new mongoose.Types.ObjectId(cityId);
       } catch (e) {
-        query.cityIds = cityId; // fallback if invalid ObjectId format
+        cityObjectId = cityId; // fallback if invalid ObjectId format
       }
+      query.$or = [
+        { cityIds: cityObjectId },
+        { cityIds: { $size: 0 } },
+        { cityIds: { $exists: false } }
+      ];
     }
 
     let categories = await Category.find(query)
@@ -113,7 +118,19 @@ const getPublicBrands = async (req, res) => {
     // Build query
     const query = { status: 'active' };
     if (categoryId) query.categoryIds = categoryId;
-    if (cityId) query.cityIds = cityId;
+    if (cityId) {
+      let cityObjectId;
+      try {
+        cityObjectId = new mongoose.Types.ObjectId(cityId);
+      } catch (e) {
+        cityObjectId = cityId; // fallback if invalid ObjectId format
+      }
+      query.$or = [
+        { cityIds: cityObjectId },
+        { cityIds: { $size: 0 } },
+        { cityIds: { $exists: false } }
+      ];
+    }
 
     if (search) {
       const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

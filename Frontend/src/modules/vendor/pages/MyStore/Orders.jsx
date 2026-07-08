@@ -5,7 +5,6 @@ import {
     FiPackage, 
     FiTruck, 
     FiCheckCircle, 
-    FiInfo,
     FiUser,
     FiPhone,
     FiMapPin,
@@ -13,9 +12,8 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import vendorProductService from '../../services/vendorProductService';
-import { vendorTheme as themeColors } from '../../../../theme';
 import { toast } from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { format } from 'date-fns';
 
 const StoreOrders = () => {
@@ -40,7 +38,7 @@ const StoreOrders = () => {
             setLoading(true);
             const res = await vendorProductService.getMyOrders();
             if (res.success) setOrders(res.data || []);
-        } catch (err) {
+        } catch {
             toast.error("Failed to load orders");
         } finally {
             setLoading(false);
@@ -159,7 +157,7 @@ const StoreOrders = () => {
                                     <tr key={order._id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-5">
                                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">#{order._id.slice(-6)}</p>
-                                            <p className="font-bold text-slate-800 text-sm">{order.items[0]?.name || 'Item'} {order.items.length > 1 && `(+${order.items.length - 1})`}</p>
+                                            <p className="font-bold text-slate-800 text-sm">{order.items[0]?.name || 'Item'} {order.items?.length > 1 && `(+${order.items.length - 1})`}</p>
                                             <p className="text-xs text-slate-500 font-medium my-0.5">
                                                 Qty: {order.items[0]?.quantity || 1} {order.items[0]?.productId?.unit || 'bag'}{order.items[0]?.quantity > 1 ? 's' : ''}
                                                 {order.items[0]?.bagWeight ? ` • ${order.items[0]?.bagWeight}kg` : ''}

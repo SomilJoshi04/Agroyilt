@@ -234,62 +234,6 @@ export default function BookingDetails() {
     }
   }, [socket, id]);
 
-  const handleVerifyVisit = async () => {
-    const otp = otpInput.join('');
-    if (otp.length !== 4) return toast.error('Enter 4-digit OTP');
-
-    setActionLoading(true);
-
-    if (!navigator.geolocation) {
-      toast.error('Geolocation required for verification');
-      setActionLoading(false);
-      return;
-    }
-
-    // Robust Geolocation Helper - PERMISSIVE MODE
-    const getPosition = () => {
-      return new Promise((resolve, reject) => {
-        // FASTEST STRATEGY: Prefer Wi-Fi/Cell (Low Accuracy) + Cached Positions
-        // Detailed GPS is often blocked indoors where vendors verify arrival
-        const options = {
-          enableHighAccuracy: false, // Critical fix: Disable GPS requirement
-          timeout: 30000,            // 30s timeout
-          maximumAge: Infinity       // Accept any valid cached position
-        };
-
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          (error) => {
-            console.warn("Standard geo failed, trying high accuracy as last resort...", error);
-            // Emergency fallback: Try GPS if Wi-Fi location fails (rare)
-            navigator.geolocation.getCurrentPosition(
-              resolve,
-              reject,
-              { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-            );
-          },
-          options
-        );
-      });
-    };
-
-    try {
-      const position = await getPosition();
-      const location = { lat: position.coords.latitude, lng: position.coords.longitude };
-      await verifySelfVisit(id, otp, location);
-      toast.success('Visit Verified');
-      setIsVisitModalOpen(false);
-      window.location.reload();
-    } catch (error) {
-      console.error("Geo Error:", error);
-      if (error.code === 1) toast.error('Location permission denied');
-      else if (error.code === 2) toast.error('Location unavailable. Check GPS.');
-      else if (error.code === 3) toast.error('Location timeout. Move to better signal area.');
-      else toast.error('Failed to get location');
-    } finally {
-      setActionLoading(false);
-    }
-  };
   const getAvailableStatuses = (currentStatus, booking) => {
     // Check payment status
     const workerPaymentDone = booking?.workerPaymentStatus === 'PAID';

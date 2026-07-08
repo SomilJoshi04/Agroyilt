@@ -1,7 +1,8 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { motion, useMotionValue, useTransform } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { toast } from 'react-hot-toast';
 import { playNotificationSound, isSoundEnabled, playAlertRing } from '../utils/notificationSound';
 import { registerFCMToken } from '../services/pushNotificationService';
@@ -15,8 +16,7 @@ const SwipeableNotification = ({ t, data, onClick }) => {
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
       style={{ x, opacity }}
-      onDragEnd={(e, { offset, velocity }) => {
-        const swipe = Math.abs(offset.x) * velocity.x;
+      onDragEnd={(e, { offset }) => {
         if (Math.abs(offset.x) > 80) { // Threshold
           toast.dismiss(t.id);
         }
@@ -168,9 +168,7 @@ export const SocketProvider = ({ children }) => {
           } else {
             // console.log(`[SocketContext] ⚠️ FCM token registration returned null for ${userType}`);
           }
-        }).catch((err) => {
-          // console.error(`[SocketContext] ❌ FCM token registration failed for ${userType}:`, err);
-        });
+        }).catch(() => {});
       }
 
       // If vendor, join vendor-specific room just in case backend expects it
@@ -187,10 +185,7 @@ export const SocketProvider = ({ children }) => {
       // console.log(`❌ ${userType.toUpperCase()} App Socket disconnected`);
     });
 
-    newSocket.on('connect_error', (err) => {
-      // Silently handle typical connection errors to avoid spam, or log only critical ones
-      // console.error(`Socket connection error (${userType}):`, err);
-    });
+    newSocket.on('connect_error', () => {});
 
     // Listen for generic notifications
     newSocket.on('notification', (data) => {
@@ -246,7 +241,7 @@ export const SocketProvider = ({ children }) => {
     });
 
     // Listen for real-time booking updates
-    newSocket.on('booking_updated', (data) => {
+    newSocket.on('booking_updated', () => {
       // console.log('Booking Updated:', data);
       if (userType === 'user') window.dispatchEvent(new Event('userBookingsUpdated'));
       if (userType === 'vendor') window.dispatchEvent(new Event('vendorJobsUpdated'));
@@ -354,4 +349,5 @@ export const SocketProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSocket = () => useContext(SocketContext);
