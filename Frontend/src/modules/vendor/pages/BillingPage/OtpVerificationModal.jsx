@@ -71,7 +71,7 @@ const OtpVerificationModal = ({ isOpen, onClose, onVerify, loading }) => {
           {/* Body */}
           <div className="px-6 py-8">
             <div className="text-center mb-6">
-              <p className="text-gray-500 text-sm font-medium">
+              <p className="text-slate-500 text-sm font-medium">
                 Enter the 4-digit code sent to the customer
               </p>
             </div>
@@ -84,7 +84,7 @@ const OtpVerificationModal = ({ isOpen, onClose, onVerify, loading }) => {
                 onChange={handleChange}
                 disabled={loading}
                 placeholder="0000"
-                className="w-full text-center bg-gray-50 border border-gray-200 rounded-2xl py-4 text-4xl font-black tracking-[0.5em] text-gray-900 outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all placeholder:text-gray-200"
+                className="w-full text-center bg-slate-50 border border-slate-300 rounded-2xl py-4 text-4xl font-black tracking-[0.5em] text-slate-900 outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all placeholder:text-slate-300"
               />
             </div>
 
@@ -92,7 +92,7 @@ const OtpVerificationModal = ({ isOpen, onClose, onVerify, loading }) => {
               {loading ? (
                 <div className="text-blue-600 font-bold animate-pulse">Verifying...</div>
               ) : (
-                <div className="text-xs text-center text-gray-400">
+                <div className="text-xs text-center text-slate-400">
                   Auto-verifying on entry
                 </div>
               )}

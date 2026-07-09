@@ -76,7 +76,17 @@ const BookingAlerts = () => {
           const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
           const currentVendorId = String(vendorData._id || vendorData.id || '');
 
+          const ignoredIds = (() => {
+            try {
+              const stored = JSON.parse(localStorage.getItem('vendorIgnoredBookingIds') || '[]');
+              return new Set(stored.map(entry => entry.id));
+            } catch { return new Set(); }
+          })();
+
           bookings = response.data.filter(b => {
+            const bookingId = String(b._id || b.id);
+            if (ignoredIds.has(bookingId)) return false;
+
             const status = b.status?.toLowerCase();
             const isRelevantStatus = status === 'searching' || status === 'requested';
             const bVendorId = b.vendorId?._id || b.vendorId;
@@ -116,55 +126,31 @@ const BookingAlerts = () => {
 
     fetchAlerts();
 
-    const handleUpdate = () => fetchAlerts();
+    let timeoutId;
+    const handleUpdate = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        fetchAlerts();
+      }, 500);
+    };
     window.addEventListener('vendorJobsUpdated', handleUpdate);
 
+    const handleRemove = (e) => {
+      if (e.detail?.id) {
+        const idToRemove = String(e.detail.id);
+        setAlerts(prev => prev.filter(a => String(a._id || a.id) !== idToRemove));
+      }
+    };
+    window.addEventListener('removeVendorBooking', handleRemove);
+
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener('vendorJobsUpdated', handleUpdate);
+      window.removeEventListener('removeVendorBooking', handleRemove);
     };
   }, []);
 
-  // Socket listener for booking_taken (using shared socket from context)
-  useEffect(() => {
-    if (!socket) {
-      console.log('[BookingAlerts] Socket not available yet');
-      return;
-    }
 
-    console.log('[BookingAlerts] Setting up booking_taken listener on socket:', socket.id);
-
-    const handleBookingTaken = (data) => {
-      console.log('[BookingAlerts] booking_taken event received:', data);
-      const takenBookingId = String(data.bookingId);
-
-      // Remove from state immediately
-      setAlerts(prev => prev.filter(a => {
-        const alertId = String(a._id || a.id);
-        return alertId !== takenBookingId;
-      }));
-
-      // Remove from localStorage
-      const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-      const updatedPending = pendingJobs.filter(job => {
-        const jobId = String(job.id || job._id);
-        return jobId !== takenBookingId;
-      });
-      localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
-
-      // Show toast
-      toast.error(data.message || 'This job was accepted by another vendor.', { icon: '⚡' });
-
-      // Trigger global update
-      window.dispatchEvent(new Event('vendorStatsUpdated'));
-      window.dispatchEvent(new Event('vendorJobsUpdated'));
-    };
-
-    socket.on('booking_taken', handleBookingTaken);
-
-    return () => {
-      socket.off('booking_taken', handleBookingTaken);
-    };
-  }, [socket]);
 
   const handleAccept = async (bookingId) => {
     try {
@@ -177,6 +163,8 @@ const BookingAlerts = () => {
       const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
       const updatedPending = pendingJobs.filter(job => job.id !== bookingId && job._id !== bookingId);
       localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
+
+      window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: bookingId } }));
 
       // Trigger global update
       window.dispatchEvent(new Event('vendorStatsUpdated'));
@@ -197,6 +185,8 @@ const BookingAlerts = () => {
       const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
       const updatedPending = pendingJobs.filter(job => job.id !== bookingId && job._id !== bookingId);
       localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
+
+      window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: bookingId } }));
 
       window.dispatchEvent(new Event('vendorStatsUpdated'));
       window.dispatchEvent(new Event('vendorJobsUpdated'));

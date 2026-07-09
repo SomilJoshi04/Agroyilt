@@ -95,6 +95,7 @@ export const VendorDashboardProvider = ({ children }) => {
     })()
   ));
   const lastFetchedVendorId = useRef(null);
+  const updateTimeoutRef = useRef(null);
 
   // Helper to get current vendor ID
   const getCurrentVendorId = () => {
@@ -345,8 +346,13 @@ export const VendorDashboardProvider = ({ children }) => {
 
   // Handle socket / background updates
   const handleUpdate = useCallback(() => {
-    console.log('🔄 Dashboard Context: Refreshing data due to real-time update event');
-    loadDashboardData(false, true); // Don't show spinner, but do a background force-refresh
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    updateTimeoutRef.current = setTimeout(() => {
+      console.log('🔄 Dashboard Context: Refreshing data due to real-time update event');
+      loadDashboardData(false, true); // Don't show spinner, but do a background force-refresh
+    }, 500);
   }, [loadDashboardData]);
 
   // Initial load when context mounts

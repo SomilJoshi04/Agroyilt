@@ -1731,7 +1731,7 @@ const endTrip = async (req, res) => {
       { upsert: true, new: true, runValidators: true }
     );
 
-    // 4. AUTOMATIC WALLET SETTLEMENT
+    // 4. AUTOMATIC WALLET SETTLEMENT (Only for online/prepaid/plan benefit, cash is settled during collectSelfCash)
     const Vendor = require('../../models/Vendor');
     const Transaction = require('../../models/Transaction');
     const vendorDoc = await Vendor.findById(vendorId);
@@ -1739,55 +1739,9 @@ const endTrip = async (req, res) => {
     if (vendorDoc) {
       if (!vendorDoc.wallet) vendorDoc.wallet = {};
       const isCashPayment = booking.paymentMethod === 'cash' || booking.paymentMethod === 'pay_at_home';
+      const isPrepaid = booking.paymentStatus === 'SUCCESS' || booking.paymentStatus === 'success' || booking.paymentStatus === 'paid' || booking.paymentStatus === 'PAID' || booking.paymentMethod === 'plan_benefit';
 
-      if (isCashPayment) {
-        const currentDues = (vendorDoc.wallet.dues || 0) + finalAmount;
-        const cashLimit = vendorDoc.wallet.cashLimit || 10000;
-        const netOwed = currentDues - ((vendorDoc.wallet.earnings || 0) + vendorEarning);
-        const shouldBlock = netOwed > cashLimit;
-
-        const updateQuery = {
-          $inc: {
-            'wallet.dues': finalAmount,
-            'wallet.earnings': vendorEarning,
-            'wallet.totalCashCollected': finalAmount
-          }
-        };
-
-        if (shouldBlock) {
-          updateQuery.$set = {
-            'wallet.isBlocked': true,
-            'wallet.blockedAt': new Date(),
-            'wallet.blockReason': `Cash limit exceeded. Net owed: ₹${netOwed.toFixed(2)}`
-          };
-        }
-
-        await Vendor.findByIdAndUpdate(vendorId, updateQuery);
-
-        // Transaction 1: Cash Collected
-        await Transaction.create({
-          vendorId,
-          bookingId: booking._id,
-          type: 'cash_collected',
-          amount: finalAmount,
-          status: 'completed',
-          paymentMethod: 'cash',
-          description: `Cash ₹${finalAmount} collected for trip #${booking.bookingNumber || booking._id}.`,
-          metadata: { type: 'agriculture_trip', billId: vendorBill._id.toString() }
-        });
-
-        // Transaction 2: Earnings Credit
-        await Transaction.create({
-          vendorId,
-          bookingId: booking._id,
-          type: 'earnings_credit',
-          amount: vendorEarning,
-          status: 'completed',
-          paymentMethod: 'wallet',
-          description: `Earnings ₹${vendorEarning} credited for trip #${booking.bookingNumber || booking._id}.`,
-          metadata: { type: 'agriculture_trip', billId: vendorBill._id.toString() }
-        });
-      } else {
+      if (isPrepaid && !isCashPayment) {
         // For online/prepaid, credit earnings directly
         await Vendor.findByIdAndUpdate(vendorId, {
           $inc: { 'wallet.earnings': vendorEarning }
@@ -1809,14 +1763,29 @@ const endTrip = async (req, res) => {
     // 5. UPDATE BOOKING
     booking.end_kilometer_photo = end_kilometer_photo;
     booking.driver_end_otp = driver_end_otp;
-    booking.status = BOOKING_STATUS.COMPLETED;
     const isCashPayment = booking.paymentMethod === 'cash' || booking.paymentMethod === 'pay_at_home';
-    booking.paymentStatus = isCashPayment ? PAYMENT_STATUS.SUCCESS : booking.paymentStatus;
-    booking.cashCollected = isCashPayment;
+    const isPrepaid = booking.paymentStatus === 'SUCCESS' || booking.paymentStatus === 'success' || booking.paymentStatus === 'paid' || booking.paymentStatus === 'PAID' || booking.paymentMethod === 'plan_benefit';
+    
+    if (isPrepaid) {
+      booking.status = BOOKING_STATUS.COMPLETED;
+      booking.cashCollected = false;
+      booking.completedAt = now;
+    } else {
+      booking.status = BOOKING_STATUS.WORK_DONE;
+      booking.paymentStatus = PAYMENT_STATUS.PENDING;
+      booking.cashCollected = false;
+      
+      if (isCashPayment) {
+        // Generate Payment OTP for manual cash collection step
+        const payOtp = Math.floor(1000 + Math.random() * 9000).toString();
+        booking.paymentOtp = payOtp;
+        booking.customerConfirmationOTP = payOtp;
+      }
+    }
+    
     booking.finalAmount = finalAmount;
     booking.userPayableAmount = finalAmount;
     booking.vendorBillId = vendorBill._id;
-    booking.completedAt = now;
 
     await booking.save();
 

@@ -17,8 +17,9 @@ export const getWalletBalance = async () => {
     const response = await api.get('/vendors/wallet');
     return response.data.data;
   } catch (error) {
-    console.error('Error fetching wallet balance:', error);
-    throw error;
+    // Silently fail - used by background polling (CashLimitModal), don't spam console
+    console.warn('Error fetching wallet balance:', error?.response?.status || error?.message);
+    return null;
   }
 };
 

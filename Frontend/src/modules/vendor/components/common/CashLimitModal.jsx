@@ -17,11 +17,14 @@ const CashLimitModal = () => {
 
       const wallet = await getWalletBalance();
       if (wallet) {
-        setWalletData(wallet);
+        // Only update state if values actually changed to avoid unnecessary re-renders
+        setWalletData(prev => {
+          if (prev?.dues === wallet.dues && prev?.cashLimit === wallet.cashLimit) return prev;
+          return wallet;
+        });
       }
     } catch (error) {
-      // Silent fail
-      console.warn('CashLimitModal: Failed to fetch wallet balance', error.message);
+      // Silent fail - getWalletBalance already returns null on error, this is a safety net
     }
   };
 

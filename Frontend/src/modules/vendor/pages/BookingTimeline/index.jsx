@@ -21,6 +21,16 @@ import { WorkCompletionModal } from '../../../worker/components/common';
 import vendorWalletService from '../../../../services/vendorWalletService';
 import { toast } from 'react-hot-toast';
 
+// Kill orphaned GSAP ScrollTriggers before a page reload to prevent removeChild crash
+const safeReload = () => {
+  try {
+    import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
+      ScrollTrigger.getAll().forEach(t => t.kill());
+    }).catch(() => {});
+  } catch (_) {}
+  window.location.reload();
+};
+
 const BookingTimeline = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -115,9 +125,7 @@ const BookingTimeline = () => {
         if (!requiresDriver && (apiData.status === 'confirmed' || apiData.status === 'accepted')) {
           stage = 6; // Directly jump to Handover stage
         }
-        if (apiData.status === 'work_done' && isSelfJob) {
-          stage = 9; // Skip approve/pay for self job
-        }
+
 
         if (apiData.status === 'completed') {
           if (isSettled) stage = 10; // Booking Complete
@@ -173,7 +181,7 @@ const BookingTimeline = () => {
           setActionLoading(true);
           await updateBookingStatus(id, 'completed');
           toast.success('Work approved successfully');
-          window.location.reload();
+          safeReload();
         } catch (e) {
           toast.error(e.response?.data?.message || 'Approval failed');
         } finally {
@@ -195,7 +203,7 @@ const BookingTimeline = () => {
           // Using existing updateBookingStatus to mark settlement
           await updateBookingStatus(id, booking.status, { finalSettlementStatus: 'DONE' });
           toast.success('Final settlement completed!');
-          window.location.reload();
+          safeReload();
         } catch (e) {
           toast.error(e.response?.data?.message || 'Final settlement failed');
         } finally {
@@ -235,7 +243,7 @@ const BookingTimeline = () => {
         await verifySelfVisit(id, otp, location);
         toast.success('Visit Verified');
         setIsVisitModalOpen(false);
-        window.location.reload();
+        safeReload();
       } catch (err) {
         toast.error(err.response?.data?.message || 'Verification failed');
         setActionLoading(false);
@@ -253,7 +261,7 @@ const BookingTimeline = () => {
       await completeSelfJob(id, { workPhotos: photos });
       toast.success('Work marked done');
       setIsWorkDoneModalOpen(false);
-      window.location.reload();
+      safeReload();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed');
     } finally {
@@ -296,7 +304,7 @@ const BookingTimeline = () => {
       
       setIsTripModalOpen(false);
       // Delay reload to let UI catch up
-      setTimeout(() => window.location.reload(), 1000);
+      setTimeout(() => safeReload(), 1000);
     } catch (e) {
       console.error('Trip Submit Error:', e);
       toast.error(e?.response?.data?.message || e?.message || 'Failed to capture trip status');
@@ -392,11 +400,11 @@ const BookingTimeline = () => {
       action: (() => {
         if (booking?.status === 'completed' || booking?.status === 'COMPLETED' || booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid') return null;
 
-        if (booking?.isSelfJob && currentStage === 7) {
+        if ((booking?.isSelfJob || requiresDriver === false) && currentStage === 7) {
           return () => navigate(`/vendor/booking/${id}/billing`);
         }
 
-        if (!booking?.isSelfJob && currentStage === 7) {
+        if (!booking?.isSelfJob && requiresDriver !== false && currentStage === 7) {
           return handleApproveWork;
         }
         return null;
@@ -418,8 +426,7 @@ const BookingTimeline = () => {
       description: 'Booking successfully finalized',
     },
   ].filter(stage => {
-    // Hide worker-specific stages for self jobs
-    if (booking?.isSelfJob && stage.id === 7) return false;
+
     
     // Standalone: Hide Assigned (3), Journey (4), and Visited (5)
     if (!requiresDriver && [3, 4, 5].includes(stage.id)) return false;
@@ -465,7 +472,7 @@ const BookingTimeline = () => {
     try {
       await updateBookingStatus(id, 'work_done');
       setCurrentStage(7); 
-      window.location.reload();
+      safeReload();
     } catch (error) {
       console.error('Error updating status to work done:', error);
       toast.error('Failed to update status. Please follow valid status flow.');
@@ -488,7 +495,7 @@ const BookingTimeline = () => {
 
       <main className="px-4 py-6">
         <div
-          className="bg-white rounded-xl p-6 shadow-md"
+          className="bg-white rounded-[2rem] p-8 shadow-lg border border-slate-100"
           style={{
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
           }}
@@ -604,18 +611,18 @@ const BookingTimeline = () => {
       {/* Visit OTP Modal */}
       {isVisitModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-6">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-8 shadow-2xl">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold">Verify Self Visit</h3>
+              <h3 className="font-black text-slate-800 text-lg">Verify Self Visit</h3>
               <button onClick={() => setIsVisitModalOpen(false)}><FiX /></button>
             </div>
-            <p className="text-sm text-gray-500 mb-4">Enter user OTP to verify arrival.</p>
+            <p className="text-sm text-slate-500 mb-6">Enter user OTP to verify arrival.</p>
             <div className="flex gap-2 justify-center mb-4">
               {[0, 1, 2, 3].map((i) => (
-                <input key={i} id={`otp-${i}`} type="number" value={otpInput[i]} onChange={(e) => handleOtpChange(i, e.target.value)} className="w-10 h-10 border rounded text-center" maxLength={1} />
+                <input key={i} id={`otp-${i}`} type="number" value={otpInput[i]} onChange={(e) => handleOtpChange(i, e.target.value)} className="w-14 h-14 border border-slate-300 rounded-2xl text-center text-xl font-black bg-slate-50 focus:bg-white focus:border-blue-500/20 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" maxLength={1} />
               ))}
             </div>
-            <button onClick={handleVerifyVisit} disabled={actionLoading} className="w-full bg-blue-600 text-white py-2 rounded-lg">{actionLoading ? 'Verifying...' : 'Verify'}</button>
+            <button onClick={handleVerifyVisit} disabled={actionLoading} className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition-all mt-4">{actionLoading ? 'Verifying...' : 'Verify'}</button>
           </div>
         </div>
       )}
