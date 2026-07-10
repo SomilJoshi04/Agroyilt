@@ -51,6 +51,95 @@ const toAssetUrl = (url) => {
 };
 
 
+// Dynamic Countdown Timer & Alert for active machinery rentals (Customer side)
+const RentalTimer = ({ booking }) => {
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [isExpired, setIsExpired] = useState(false);
+
+  useEffect(() => {
+    if (!booking) return;
+    const isTimeBased = booking.rental_type === 'hourly' || booking.rental_type === 'daily' || booking.rental_type === 'monthly';
+    const isActive = booking.status?.toLowerCase() === 'in_progress';
+
+    if (!isTimeBased || !isActive || !booking.startedAt) return;
+
+    const startedTime = new Date(booking.startedAt).getTime();
+    const duration = booking.estimatedDuration || 1;
+    // Calculate total duration in milliseconds
+    const durationMs = booking.rental_type === 'hourly'
+      ? duration * 60 * 60 * 1000
+      : duration * 24 * 60 * 60 * 1000;
+
+    const targetMs = startedTime + durationMs;
+
+    const updateTimer = () => {
+      const remaining = targetMs - Date.now();
+      if (remaining <= 0) {
+        setTimeLeft(0);
+        setIsExpired(true);
+      } else {
+        setTimeLeft(remaining);
+        setIsExpired(false);
+      }
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(timer);
+  }, [booking]);
+
+  if (!booking) return null;
+  const isTimeBased = booking.rental_type === 'hourly' || booking.rental_type === 'daily' || booking.rental_type === 'monthly';
+  const isActive = booking.status?.toLowerCase() === 'in_progress';
+
+  if (!isTimeBased || !isActive || !booking.startedAt) return null;
+
+  // Format timeLeft in HH:MM:SS or Days Hours Mins
+  const formatTime = () => {
+    const totalSecs = Math.floor(timeLeft / 1000);
+    const secs = totalSecs % 60;
+    const totalMins = Math.floor(totalSecs / 60);
+    const mins = totalMins % 60;
+    const hours = Math.floor(totalMins / 60);
+
+    if (booking.rental_type === 'hourly') {
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    } else {
+      const days = Math.floor(hours / 24);
+      const remainingHours = hours % 24;
+      if (days > 0) {
+        return `${days} Day(s) ${remainingHours} Hour(s) ${mins} Min(s)`;
+      }
+      return `${remainingHours} Hour(s) ${mins} Min(s) ${secs} Sec(s)`;
+    }
+  };
+
+  return (
+    <div className={`p-4 rounded-2xl border flex items-center gap-3.5 shadow-sm transition-all duration-300 ${
+      isExpired
+        ? 'bg-orange-50 border-orange-200 text-orange-700 animate-pulse'
+        : 'bg-teal-50 border-teal-100 text-teal-700'
+    }`}>
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+        isExpired ? 'bg-orange-500 text-white' : 'bg-teal-500 text-white'
+      }`}>
+        <FiClock className="w-5 h-5 animate-spin" style={{ animationDuration: isExpired ? '1.5s' : '8s' }} />
+      </div>
+      <div className="flex-1">
+        <h4 className="text-sm font-black uppercase tracking-wider mb-0.5">
+          {isExpired ? 'Rental Time Completed' : 'Rental In-Progress'}
+        </h4>
+        <p className="text-xs font-semibold opacity-95">
+          {isExpired
+            ? 'Your rental duration has ended. The driver will collect the equipment soon.'
+            : `Time Remaining: ${formatTime()}`}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 const BookingDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -344,7 +433,7 @@ const BookingDetails = () => {
             setPaying(false);
           }
         },
-        prefill: { name: 'User', contact: '' },
+        prefill: { name: booking.userId?.name || 'User', contact: booking.userId?.phone || '' },
         theme: { color: themeColors.button }
       };
       setPaying(true);
@@ -396,8 +485,8 @@ const BookingDetails = () => {
           }
         },
         prefill: {
-          name: 'User',
-          contact: ''
+          name: booking.userId?.name || 'User',
+          contact: booking.userId?.phone || ''
         },
         theme: {
           color: themeColors.button
@@ -583,6 +672,13 @@ const BookingDetails = () => {
   const originalGST = bill ? (bill.originalGST || bill.totalGST || 0) : (originalBase * 0.18);
   const totalGST = originalGST + extraServiceGST + partsGST;
 
+  const serviceGstPercent = bill
+    ? (bill.payoutConfig?.serviceGstPercentage ?? bill.services?.[0]?.gstPercentage ?? 18)
+    : 18;
+  const partsGstPercent = bill
+    ? (bill.payoutConfig?.partsGstPercentage ?? bill.parts?.[0]?.gstPercentage ?? bill.customItems?.[0]?.gstPercentage ?? 18)
+    : 18;
+
   // Final Total
   const hasBill = !!bill;
   const finalTotal = bill?.grandTotal || (booking.finalAmount || booking.totalAmount || 0);
@@ -637,6 +733,7 @@ const BookingDetails = () => {
         </header>
 
         <main className="max-w-xl mx-auto px-4 py-6 space-y-6">
+          <RentalTimer booking={booking} />
 
 
           {/* Visual Progress Stepper */}
@@ -917,7 +1014,7 @@ const BookingDetails = () => {
           )}
 
           {/* Waiting for Vendor to initiate Payment */}
-          {!booking.customerConfirmationOTP && ['work_done'].includes(booking.status?.toLowerCase()) && !booking.cashCollected && (
+          {!booking.vendorBillId && !booking.customerConfirmationOTP && ['work_done'].includes(booking.status?.toLowerCase()) && !booking.cashCollected && (
             <div className="bg-white rounded-3xl p-6 shadow-lg border border-teal-100 mb-6 flex items-center gap-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-teal-50 rounded-full -translate-y-12 translate-x-12 blur-2xl"></div>
               <div className="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center shrink-0 border border-teal-100">
@@ -974,7 +1071,7 @@ const BookingDetails = () => {
             )}
 
           {/* Payment Card - Show when work is done AND bill is finalized (OTP exists) or paid */}
-          {(booking.customerConfirmationOTP || booking.paymentStatus === 'success' || booking.status?.toLowerCase() === 'completed') && ['work_done', 'completed'].includes(booking.status?.toLowerCase()) && !booking.cashCollected && (
+          {(booking.vendorBillId || booking.customerConfirmationOTP || booking.paymentStatus === 'success' || booking.status?.toLowerCase() === 'completed') && ['work_done', 'completed'].includes(booking.status?.toLowerCase()) && !booking.cashCollected && (
             <div
               onClick={() => setShowPaymentModal(true)}
               className={`relative overflow-hidden rounded-3xl shadow-lg border cursor-pointer active:scale-[0.98] transition-all ${booking.paymentStatus === 'success' ? 'border-green-100' : 'border-orange-100'
@@ -1009,15 +1106,15 @@ const BookingDetails = () => {
                 {booking.paymentStatus !== 'success' && (
                   <>
                     <button
-                      onClick={handleOnlinePayment}
+                      onClick={(e) => { e.stopPropagation(); setShowPaymentModal(true); }}
                       className="w-full py-4 mb-4 bg-white text-orange-600 rounded-2xl font-black text-sm shadow-xl hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-2 group"
                     >
                       <FaRupeeSign className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
-                      Pay Online Now
+                      Pay Now
                       <FiChevronRight className="w-4 h-4" />
                     </button>
 
-                    { booking.status?.toLowerCase() !== 'completed' && (
+                    { booking.status?.toLowerCase() !== 'completed' && (booking.customerConfirmationOTP || booking.paymentOtp) && (
                       <div className="flex flex-col items-center mb-6">
                         <p className="text-[10px] font-bold text-orange-100 uppercase tracking-[0.2em] mb-3 opacity-90">Verification Code</p>
                         <div className="flex justify-center gap-2">
@@ -1396,7 +1493,7 @@ const BookingDetails = () => {
 
                         {/* Service GST */}
                         <div className="flex justify-between text-xs text-gray-500 border-t border-dashed border-gray-100 pt-1 mt-1">
-                          <span>GST (18%)</span>
+                          <span>GST ({serviceGstPercent}%)</span>
                           <span className="font-mono">₹{(originalGST + extraServiceGST).toFixed(2)}</span>
                         </div>
 
@@ -1433,7 +1530,7 @@ const BookingDetails = () => {
 
                           {/* Parts GST */}
                           <div className="flex justify-between text-xs text-gray-500 border-t border-dashed border-gray-100 pt-1 mt-1">
-                            <span>GST (18%)</span>
+                            <span>GST ({partsGstPercent}%)</span>
                             <span className="font-mono">₹{partsGST.toFixed(2)}</span>
                           </div>
 

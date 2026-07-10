@@ -187,7 +187,7 @@ const MachineryCheckout = () => {
                     <div className="grid grid-cols-1 gap-3">
                         <button 
                           onClick={() => setPaymentMethod('cash')}
-                          className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all
+                          className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all text-left
                             ${paymentMethod === 'cash' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50'}`}
                         >
                             <div className="flex items-center gap-3">
@@ -195,6 +195,20 @@ const MachineryCheckout = () => {
                                 <span className={`text-sm font-black ${paymentMethod === 'cash' ? 'text-emerald-800' : 'text-slate-400'}`}>Pay After Work (Cash)</span>
                             </div>
                             {paymentMethod === 'cash' && <FiCheckCircle className="text-emerald-500" />}
+                        </button>
+
+                        <button 
+                          onClick={() => setPaymentMethod('online')}
+                          className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all text-left
+                            ${paymentMethod === 'online' ? 'border-purple-500 bg-purple-50/50' : 'border-slate-50'}`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${paymentMethod === 'online' ? 'bg-purple-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                    <FiCreditCard className="w-4 h-4" />
+                                </div>
+                                <span className={`text-sm font-black ${paymentMethod === 'online' ? 'text-purple-800' : 'text-slate-400'}`}>Pay Online</span>
+                            </div>
+                            {paymentMethod === 'online' && <FiCheckCircle className="text-purple-500" />}
                         </button>
                     </div>
                 </div>

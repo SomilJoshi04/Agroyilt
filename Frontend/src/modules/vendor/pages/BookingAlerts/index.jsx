@@ -169,6 +169,9 @@ const BookingAlerts = () => {
       // Trigger global update
       window.dispatchEvent(new Event('vendorStatsUpdated'));
       window.dispatchEvent(new Event('vendorJobsUpdated'));
+
+      // Redirect directly to booking details to avoid confusion
+      navigate(`/vendor/booking/${bookingId}`);
     } catch (error) {
       console.error('Accept error:', error);
       toast.error('Failed to accept booking');

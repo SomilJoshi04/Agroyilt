@@ -13,7 +13,7 @@ const getVendorWorkers = async (req, res) => {
     const { status, page = 1, limit = 20 } = req.query;
 
     // Build query
-    const query = { vendorId };
+    const query = { vendorId, isTemporary: { $ne: true } };
     if (status) {
       query.status = status;
     }
@@ -72,7 +72,8 @@ const addWorker = async (req, res) => {
       aadhar,
       serviceCategories,
       skills,
-      address
+      address,
+      isTemporary
     } = req.body;
 
     // Upload Aadhar document to Cloudinary if it's a base64 string
@@ -86,11 +87,13 @@ const addWorker = async (req, res) => {
     let worker = await Worker.findOne({ phone });
 
     if (worker) {
-      // If worker exists but has no vendor, link them and update details
-      if (!worker.vendorId) {
+      // If worker exists but has no vendor, link them and update details.
+      // If worker already belongs to this vendor, update details and return success.
+      if (!worker.vendorId || worker.vendorId.toString() === vendorId.toString()) {
+        const isNewLink = !worker.vendorId;
         worker.vendorId = vendorId;
         worker.name = name;
-        worker.email = email;
+        if (email !== undefined) worker.email = email;
         if (aadhar) {
           worker.aadhar = {
             number: aadhar.number,
@@ -101,12 +104,15 @@ const addWorker = async (req, res) => {
         if (skills) worker.skills = skills;
         if (address) worker.address = address;
         worker.status = WORKER_STATUS.ACTIVE;
+        if (isTemporary !== undefined) worker.isTemporary = isTemporary;
 
         await worker.save();
 
         return res.status(200).json({
           success: true,
-          message: 'Existing worker successfully linked to your account',
+          message: isNewLink 
+            ? 'Existing worker successfully linked to your account'
+            : 'Driver details updated successfully',
           data: worker
         });
       }
@@ -120,7 +126,7 @@ const addWorker = async (req, res) => {
     // Create worker
     worker = await Worker.create({
       name,
-      email: email || null, // Handle empty string as null for sparse index
+      email: email || undefined, // Handle empty string as undefined for sparse index
       phone,
       aadhar: aadhar ? {
         number: aadhar.number,
@@ -130,7 +136,8 @@ const addWorker = async (req, res) => {
       serviceCategories: serviceCategories || [],
       skills: skills || [],
       address: address || {},
-      status: WORKER_STATUS.ACTIVE
+      status: WORKER_STATUS.ACTIVE,
+      isTemporary: isTemporary || false
     });
 
     res.status(201).json({

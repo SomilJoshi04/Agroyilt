@@ -1,9 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FiCheckCircle, FiShield, FiAlertCircle, FiPackage, FiX, FiInfo } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => {
   if (!isOpen || !booking) return null;
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
 
   // --- 1. Total & Breakdown Calculations ---
   const isPlanBenefit = booking.paymentMethod === 'plan_benefit';
@@ -58,6 +70,13 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
   // Use bill.originalGST if available
   const originalGST = bill ? (bill.originalGST || 0) : (originalBase * 0.18);
   const totalGST = originalGST + extraServiceGST + partsGST;
+
+  const serviceGstPercent = bill
+    ? (bill.payoutConfig?.serviceGstPercentage ?? bill.services?.[0]?.gstPercentage ?? 18)
+    : 18;
+  const partsGstPercent = bill
+    ? (bill.payoutConfig?.partsGstPercentage ?? bill.parts?.[0]?.gstPercentage ?? bill.customItems?.[0]?.gstPercentage ?? 18)
+    : 18;
 
   // Final Total
   // Ideally, use grandTotal from bill if available
@@ -171,7 +190,7 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
 
                   {/* Service GST */}
                   <div className="flex justify-between text-xs text-slate-500 border-t border-dashed border-slate-100 pt-1 mt-1">
-                    <span>GST (18%)</span>
+                    <span>GST ({serviceGstPercent}%)</span>
                     <span className="font-mono">₹{(originalGST + extraServiceGST).toFixed(2)}</span>
                   </div>
 
@@ -206,7 +225,7 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
 
                     {/* Parts GST */}
                     <div className="flex justify-between text-xs text-slate-500 border-t border-dashed border-slate-100 pt-1 mt-1">
-                      <span>GST (18%)</span>
+                      <span>GST ({partsGstPercent}%)</span>
                       <span className="font-mono">₹{partsGST.toFixed(2)}</span>
                     </div>
 
@@ -265,21 +284,25 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                     Pay Online Securely
                   </button>
 
-                  <div className="relative py-2 text-center">
-                    <span className="bg-white px-2 text-[10px] font-bold text-slate-400 relative z-10 uppercase tracking-wider">OR</span>
-                    <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-100 z-0"></div>
-                  </div>
+                  {/* Cash Code - ONLY show if an OTP actually exists! */}
+                  {(booking.customerConfirmationOTP || booking.paymentOtp) && (
+                    <>
+                      <div className="relative py-2 text-center">
+                        <span className="bg-white px-2 text-[10px] font-bold text-slate-400 relative z-10 uppercase tracking-wider">OR</span>
+                        <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-100 z-0"></div>
+                      </div>
 
-                  {/* Cash Code */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
-                    <p className="text-xs font-bold text-slate-700 mb-2">Paying Cash? Share Code</p>
-                    <div className="bg-white border-2 border-dashed border-slate-300 rounded-lg py-2 px-4 inline-block mb-1">
-                      <span className="text-2xl font-black font-mono text-slate-900 tracking-[0.2em]">
-                        {booking.customerConfirmationOTP || booking.paymentOtp || '....'}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-1">Share with professional to confirm cash payment</p>
-                  </div>
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                        <p className="text-xs font-bold text-slate-700 mb-2">Paying Cash? Share Code</p>
+                        <div className="bg-white border-2 border-dashed border-slate-300 rounded-lg py-2 px-4 inline-block mb-1">
+                          <span className="text-2xl font-black font-mono text-slate-900 tracking-[0.2em]">
+                            {booking.customerConfirmationOTP || booking.paymentOtp}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">Share with professional to confirm cash payment</p>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>

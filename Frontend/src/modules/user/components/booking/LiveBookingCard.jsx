@@ -16,6 +16,20 @@ const LiveBookingCard = ({ hasBottomNav }) => {
   const [loading, setLoading] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  // Trigger re-renders every second while searching to update the elapsed time radius
+  useEffect(() => {
+    if (!activeBooking) return;
+    const isSearching = ['SEARCHING', 'REQUESTED'].includes(activeBooking.status?.toUpperCase());
+    if (!isSearching) return;
+
+    const timer = setInterval(() => {
+      setTick(t => t + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeBooking]);
 
   // Reset dismissed state when location changes (page changes)
   useEffect(() => {
@@ -23,7 +37,8 @@ const LiveBookingCard = ({ hasBottomNav }) => {
   }, [location.pathname]);
 
   // Status mapping for UI
-  const getStatusInfo = (status) => {
+  const getStatusInfo = (booking) => {
+    const status = booking?.status;
     switch (status?.toUpperCase()) {
       case 'ASSIGNED':
         return { label: 'Worker Assigned', icon: FiCheckCircle, color: 'bg-blue-500', sub: 'Worker will start journey soon' };
@@ -38,8 +53,20 @@ const LiveBookingCard = ({ hasBottomNav }) => {
         return { label: 'Work Completed', icon: FiCheckCircle, color: 'bg-green-600', sub: 'Review payment details' };
       // New Finding Status
       case 'REQUESTED':
-      case 'SEARCHING':
-        return { label: 'Finding Nearby Vendors', icon: FiClock, color: 'bg-teal-500', sub: 'Scanning within 10km...', pulse: true };
+      case 'SEARCHING': {
+        const elapsedMs = Date.now() - new Date(booking.createdAt).getTime();
+        const seconds = Math.max(0, Math.floor(elapsedMs / 1000));
+        
+        let radius = 2;
+        if (seconds >= 42) radius = 30;
+        else if (seconds >= 35) radius = 20;
+        else if (seconds >= 28) radius = 15;
+        else if (seconds >= 21) radius = 10;
+        else if (seconds >= 14) radius = 8;
+        else if (seconds >= 7) radius = 5;
+
+        return { label: 'Finding Nearby Vendors', icon: FiClock, color: 'bg-teal-500', sub: `Scanning within ${radius}km...`, pulse: true };
+      }
       default:
         return null;
     }
@@ -122,7 +149,7 @@ const LiveBookingCard = ({ hasBottomNav }) => {
 
   if (!activeBooking || isDismissed) return null;
 
-  const statusInfo = getStatusInfo(activeBooking.status);
+  const statusInfo = getStatusInfo(activeBooking);
   if (!statusInfo) return null;
 
   const Icon = statusInfo.icon;

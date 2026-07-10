@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FiCamera, FiX, FiCheck, FiUpload, FiLoader, FiRefreshCw } from 'react-icons/fi';
+import { FiCamera, FiX, FiCheck, FiUpload, FiLoader, FiRefreshCw, FiArrowRight } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
 import { flutterBridge } from '../../../../utils/flutterBridge';
@@ -127,9 +127,6 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
     // Go to Step 2: Upload photo to Cloudinary
     const handleProceed = async () => {
         if (step === 1) {
-            // KM photo is mandatory ONLY if it's meter based. Else it's optional.
-            if (isMeterBased && !photoFile) return toast.error('Please take a KM photo first');
-            
             try {
                 setUploading(true);
                 let url = '';
@@ -156,11 +153,13 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
                 setSubmitting(false);
             }
         } else if (step === 2) {
-            if (!evidenceFile) return toast.error('Please take a Work Evidence photo');
             try {
-                setUploading(true);
-                const url = await uploadToCloudinary(evidenceFile);
-                setEvidenceFile(url); // store URL
+                let url = '';
+                if (evidenceFile) {
+                    setUploading(true);
+                    url = await uploadToCloudinary(evidenceFile);
+                    setEvidenceFile(url); // store URL
+                }
                 if (skipOtpStep) {
                     setSubmitting(true);
                     await onSubmit(photoFile, '', workUnits ? parseFloat(workUnits) : undefined, url);
@@ -178,8 +177,6 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
     };
 
     const handleSubmitSkippingOTP = async () => {
-        if (!photoFile) return toast.error('KM Photo not uploaded');
-        if (!isStart && !evidenceFile) return toast.error('Work Evidence photo not uploaded');
         if (!isStart && rentalType === 'land_based' && !workUnits) return toast.error('Please enter total area covered');
 
         try {
@@ -197,8 +194,6 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
     const handleSubmit = async () => {
         const otpStr = otp.join('');
         if (otpStr.length !== 4) return toast.error('Enter 4-digit OTP from farmer');
-        if (!photoFile) return toast.error('KM Photo not uploaded');
-        if (!isStart && !evidenceFile) return toast.error('Work Evidence photo not uploaded');
         if (!isStart && rentalType === 'land_based' && !workUnits) return toast.error('Please enter total area covered');
 
         try {
@@ -304,7 +299,7 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
 
                                     <button
                                         onClick={handleProceed}
-                                        disabled={(isMeterBased && !photoPreview) || uploading}
+                                        disabled={uploading}
                                         className="w-full py-4 mb-2 rounded-2xl font-extrabold text-white text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50"
                                         style={{ background: themeColor }}>
                                         {uploading
@@ -353,17 +348,19 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
 
                                     <div className="flex gap-3 pt-2">
                                         <button onClick={() => setStep(1)}
-                                            className="flex-1 py-3.5 rounded-2xl border-2 font-bold text-sm text-gray-600 border-gray-300 transition-all active:scale-95">
+                                            className="w-28 py-3.5 rounded-2xl border-2 font-bold text-sm text-gray-600 border-gray-300 transition-all active:scale-95 flex items-center justify-center flex-shrink-0">
                                             ← Back
                                         </button>
                                         <button
                                             onClick={handleProceed}
-                                            disabled={!evidencePreview || uploading}
-                                            className="flex-1 py-3.5 rounded-2xl font-extrabold text-white text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                                            disabled={uploading}
+                                            className="flex-1 py-3.5 rounded-2xl font-extrabold text-white text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50"
                                             style={{ background: themeColor }}>
                                             {uploading
                                                 ? <><FiLoader className="w-4 h-4 animate-spin" /> Uploading...</>
-                                                : <><FiCheck className="w-4 h-4" /> {skipOtpStep ? 'Confirm & End Trip' : 'Verify & Continue'}</>}
+                                                : !evidencePreview 
+                                                    ? <>{'Skip Photo & Continue'} <FiArrowRight className="w-4 h-4" /></>
+                                                    : <><FiCheck className="w-4 h-4" /> {skipOtpStep ? 'Confirm & End Trip' : 'Verify & Continue'}</>}
                                         </button>
                                     </div>
                                     <div className="h-20 sm:hidden" />

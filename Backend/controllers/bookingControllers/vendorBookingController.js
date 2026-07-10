@@ -566,8 +566,8 @@ const assignWorker = async (req, res) => {
     // If worker rejects, respondToJob logic reverts it to CONFIRMED.
     booking.status = BOOKING_STATUS.ASSIGNED;
 
-    booking.workerResponse = 'PENDING';
-    booking.workerAcceptedAt = undefined;
+    booking.workerResponse = 'ACCEPTED';
+    booking.workerAcceptedAt = new Date();
 
     await booking.save();
 
@@ -1624,12 +1624,7 @@ const startTrip = async (req, res) => {
     }
 
     // --- 3. KILOMETER VALIDATION ---
-    const isMeterBased = booking.categoryId?.trackingType === 'odometer';
-    if (isMeterBased && !start_kilometer_photo) {
-      return res.status(400).json({ success: false, message: 'Start kilometer photo is required to begin for this equipment.' });
-    }
-
-    booking.start_kilometer_photo = start_kilometer_photo;
+    booking.start_kilometer_photo = start_kilometer_photo || null;
     // OTP already verified, we can save the provided one if needed but usually it stays the same
     booking.status = BOOKING_STATUS.IN_PROGRESS;
     booking.startedAt = new Date();

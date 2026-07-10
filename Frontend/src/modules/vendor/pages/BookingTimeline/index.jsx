@@ -31,6 +31,95 @@ const safeReload = () => {
   window.location.reload();
 };
 
+// Dynamic Countdown Timer & Alert for active machinery rentals
+const RentalTimer = ({ booking }) => {
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [isExpired, setIsExpired] = useState(false);
+
+  useEffect(() => {
+    if (!booking) return;
+    const isTimeBased = booking.rental_type === 'hourly' || booking.rental_type === 'daily' || booking.rental_type === 'monthly';
+    const isActive = booking.status?.toLowerCase() === 'in_progress';
+
+    if (!isTimeBased || !isActive || !booking.startedAt) return;
+
+    const startedTime = new Date(booking.startedAt).getTime();
+    const duration = booking.estimatedDuration || 1;
+    // Calculate total duration in milliseconds
+    const durationMs = booking.rental_type === 'hourly'
+      ? duration * 60 * 60 * 1000
+      : duration * 24 * 60 * 60 * 1000;
+
+    const targetMs = startedTime + durationMs;
+
+    const updateTimer = () => {
+      const remaining = targetMs - Date.now();
+      if (remaining <= 0) {
+        setTimeLeft(0);
+        setIsExpired(true);
+      } else {
+        setTimeLeft(remaining);
+        setIsExpired(false);
+      }
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(timer);
+  }, [booking]);
+
+  if (!booking) return null;
+  const isTimeBased = booking.rental_type === 'hourly' || booking.rental_type === 'daily' || booking.rental_type === 'monthly';
+  const isActive = booking.status?.toLowerCase() === 'in_progress';
+
+  if (!isTimeBased || !isActive || !booking.startedAt) return null;
+
+  // Format timeLeft in HH:MM:SS or Days Hours Mins
+  const formatTime = () => {
+    const totalSecs = Math.floor(timeLeft / 1000);
+    const secs = totalSecs % 60;
+    const totalMins = Math.floor(totalSecs / 60);
+    const mins = totalMins % 60;
+    const hours = Math.floor(totalMins / 60);
+
+    if (booking.rental_type === 'hourly') {
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    } else {
+      const days = Math.floor(hours / 24);
+      const remainingHours = hours % 24;
+      if (days > 0) {
+        return `${days} Day(s) ${remainingHours} Hour(s) ${mins} Min(s)`;
+      }
+      return `${remainingHours} Hour(s) ${mins} Min(s) ${secs} Sec(s)`;
+    }
+  };
+
+  return (
+    <div className={`mb-6 p-4 rounded-2xl border flex items-center gap-3.5 shadow-sm transition-all duration-300 ${
+      isExpired
+        ? 'bg-red-50 border-red-200 text-red-700 animate-pulse'
+        : 'bg-green-50 border-green-100 text-green-700'
+    }`}>
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+        isExpired ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+      }`}>
+        <FiClock className="w-5 h-5 animate-spin" style={{ animationDuration: isExpired ? '1.5s' : '8s' }} />
+      </div>
+      <div className="flex-1">
+        <h4 className="text-sm font-black uppercase tracking-wider mb-0.5">
+          {isExpired ? 'Rental Duration Expired!' : 'Rental Period Active'}
+        </h4>
+        <p className="text-xs font-semibold opacity-95">
+          {isExpired
+            ? 'Please collect the equipment from the farmer & verify OTP to end trip.'
+            : `Time Remaining: ${formatTime()}`}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 const BookingTimeline = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -400,6 +489,11 @@ const BookingTimeline = () => {
       action: (() => {
         if (booking?.status === 'completed' || booking?.status === 'COMPLETED' || booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid') return null;
 
+        // If online payment and bill is already generated, let them click to view the bill on the billing page
+        if (booking?.vendorBillId && booking?.paymentMethod !== 'cash' && booking?.paymentMethod !== 'pay_at_home' && booking?.paymentMethod !== 'plan_benefit') {
+          return () => navigate(`/vendor/booking/${id}/billing`);
+        }
+
         if ((booking?.isSelfJob || requiresDriver === false) && currentStage === 7) {
           return () => navigate(`/vendor/booking/${id}/billing`);
         }
@@ -409,7 +503,7 @@ const BookingTimeline = () => {
         }
         return null;
       })(),
-      description: 'Collect cash or wait for online payment',
+      description: (booking?.vendorBillId && booking?.paymentMethod !== 'cash' && booking?.paymentMethod !== 'pay_at_home' && booking?.paymentMethod !== 'plan_benefit') ? 'Waiting for customer to pay online' : 'Collect cash or wait for online payment',
     },
     {
       id: 9,
@@ -494,6 +588,7 @@ const BookingTimeline = () => {
       <Header title="Booking Timeline" />
 
       <main className="px-4 py-6">
+        <RentalTimer booking={booking} />
         <div
           className="bg-white rounded-[2rem] p-8 shadow-lg border border-slate-100"
           style={{
@@ -577,7 +672,7 @@ const BookingTimeline = () => {
                                     stage.id === 7 ? (
                                       (booking?.paymentStatus === 'SUCCESS' || booking?.paymentStatus === 'paid')
                                         ? 'Online Payment Done'
-                                        : 'Collect Payment'
+                                        : (booking?.vendorBillId ? 'View Bill' : 'Collect Payment')
                                     ) :
                                       stage.id === 9 ? 'Final Settlement' : 'Continue'}
                         </button>

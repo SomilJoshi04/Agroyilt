@@ -824,13 +824,9 @@ const startMachineryWork = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid Start OTP. Please ask farmer for correct OTP.' });
     }
 
-    if (!startKmPhoto) {
-      return res.status(400).json({ success: false, message: 'Starting KM/Meter photo is required' });
-    }
-
     booking.status = BOOKING_STATUS.IN_PROGRESS;
     booking.startedAt = new Date();
-    booking.start_kilometer_photo = startKmPhoto;
+    booking.start_kilometer_photo = startKmPhoto || null;
     booking.driver_start_otp = undefined; // Clear OTP after use
 
     await booking.save();
@@ -870,15 +866,11 @@ const completeMachineryWork = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    if (!endKmPhoto) {
-      return res.status(400).json({ success: false, message: 'Ending KM/Meter photo is required to calculate usage' });
-    }
-
     // Generate End-Work OTP for Farmer to confirm completion
     const endOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
     booking.status = BOOKING_STATUS.WORK_DONE;
-    booking.end_kilometer_photo = endKmPhoto;
+    booking.end_kilometer_photo = endKmPhoto || null;
     booking.driver_end_otp = endOtp;
 
     await booking.save();

@@ -3,12 +3,30 @@ import { themeColors } from '../../../../../theme';
 
 const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRetry }) => {
   const [dots, setDots] = useState('.');
+  const [radius, setRadius] = useState(2);
 
   useEffect(() => {
     if (isOpen && (currentStep === 'searching' || currentStep === 'waiting')) {
       const interval = setInterval(() => {
         setDots(prev => prev.length >= 3 ? '.' : prev + '.');
       }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [isOpen, currentStep]);
+
+  useEffect(() => {
+    if (isOpen && (currentStep === 'searching' || currentStep === 'waiting')) {
+      setRadius(2);
+      const radii = [2, 5, 8, 10, 15, 20, 30];
+      let currentIdx = 0;
+
+      const interval = setInterval(() => {
+        if (currentIdx < radii.length - 1) {
+          currentIdx++;
+          setRadius(radii[currentIdx]);
+        }
+      }, 7000); // Expand radius every 7 seconds for dynamic UX
+
       return () => clearInterval(interval);
     }
   }, [isOpen, currentStep]);
@@ -30,7 +48,7 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
         </button>
 
         {(currentStep === 'searching' || currentStep === 'waiting') && (
-          <div className="flex flex-col items-center justify-center pt-12 pb-10 px-6 relative h-[450px]">
+          <div className="flex flex-col items-center justify-center pt-12 pb-8 px-6 relative min-h-[450px]">
 
             {/* Map-like Background (Subtle) */}
             <div className="absolute inset-0 opacity-5 pointer-events-none">
@@ -73,15 +91,15 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
             </div>
 
             {/* Status Text */}
-            <div className="text-center relative z-20 px-4">
+            <div className="text-center relative z-20 px-4 mb-4">
               <h3 className="text-xl font-black text-gray-900 mb-2">Finding nearby {currentStep === 'waiting' ? 'professionals' : 'experts'}</h3>
               <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
-                Searching within 10km{dots}
+                Searching within {radius}km{dots}
               </p>
             </div>
 
             {/* Bottom Pill */}
-            <div className="absolute bottom-10 left-0 right-0 flex justify-center">
+            <div className="flex justify-center mt-2 w-full relative z-20">
               <div className="px-4 py-2 bg-gray-50 rounded-full border border-gray-100 text-[10px] font-black uppercase tracking-tighter text-gray-400">
                 Searching for available providers
               </div>

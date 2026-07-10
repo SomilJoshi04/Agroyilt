@@ -9,10 +9,17 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 // ─── GSAP GLOBAL SAFETY CONFIG ───────────────────────────────────────────────
-// Must be set BEFORE any component renders to prevent the 100vh measurement div
-// from being injected into the DOM during React's commit phase, which causes:
-// "NotFoundError: Failed to execute 'removeChild' on 'Node'"
+// Safely patch Node.prototype.removeChild to prevent third-party library crashes
 if (typeof window !== 'undefined') {
+  const originalRemoveChild = Node.prototype.removeChild;
+  Node.prototype.removeChild = function (child) {
+    if (child && child.parentNode !== this) {
+      // Silently ignore to prevent the app from freezing on NotFoundError
+      return child;
+    }
+    return originalRemoveChild.apply(this, arguments);
+  };
+
   gsap.registerPlugin(ScrollTrigger);
   ScrollTrigger.config({
     ignoreMobileResize: true,         // Prevents 100vh div injection on mobile

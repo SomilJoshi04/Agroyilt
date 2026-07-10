@@ -96,7 +96,10 @@ const BookingTrack = () => {
             setPaying(false);
           }
         },
-        prefill: { name: 'User', contact: '' },
+        prefill: { 
+          name: JSON.parse(localStorage.getItem('userData') || '{}').name || 'User', 
+          contact: JSON.parse(localStorage.getItem('userData') || '{}').phone || '' 
+        },
         theme: { color: "#0F766E" }
       };
       setPaying(true);
@@ -148,8 +151,8 @@ const BookingTrack = () => {
           }
         },
         prefill: {
-          name: 'User',
-          contact: ''
+          name: JSON.parse(localStorage.getItem('userData') || '{}').name || 'User',
+          contact: JSON.parse(localStorage.getItem('userData') || '{}').phone || ''
         },
         theme: {
           color: "#0F766E"

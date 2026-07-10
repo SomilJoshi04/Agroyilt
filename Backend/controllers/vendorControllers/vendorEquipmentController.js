@@ -262,15 +262,11 @@ exports.startMachineryWork = async (req, res) => {
     const isRentalType = equipment?.listingType === 'rental';
 
     if (isRentalType) {
-      // Tool/Pump: only condition photo needed (no KM)
-      if (!conditionPhoto && !startKmPhoto) {
-        return res.status(400).json({ success: false, message: 'Condition verification photo is required' });
-      }
-      booking.start_kilometer_photo = conditionPhoto || startKmPhoto; // reuse existing field
+      // Tool/Pump: condition photo is optional
+      booking.start_kilometer_photo = conditionPhoto || startKmPhoto || null; // reuse existing field
     } else {
-      // Machine Service (Tractor): KM photo required
-      if (!startKmPhoto) return res.status(400).json({ success: false, message: 'Start KM photo is required' });
-      booking.start_kilometer_photo = startKmPhoto;
+      // Machine Service (Tractor): KM photo is optional
+      booking.start_kilometer_photo = startKmPhoto || null;
     }
 
     booking.status = BOOKING_STATUS.IN_PROGRESS;

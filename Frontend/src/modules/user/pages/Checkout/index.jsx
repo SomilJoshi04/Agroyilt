@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { FiArrowLeft, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiPhone, FiHome, FiClock, FiEdit2, FiCheckCircle, FiInfo } from 'react-icons/fi';
+import { FiArrowLeft, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiPhone, FiHome, FiClock, FiEdit2, FiCheckCircle, FiInfo, FiCreditCard, FiDollarSign } from 'react-icons/fi';
 import { MdStar } from 'react-icons/md';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
@@ -376,7 +376,7 @@ const Checkout = () => {
           phone: contactDetails.phone.length === 10 && !contactDetails.phone.includes('+') ? `+91${contactDetails.phone}` : contactDetails.phone
         },
 
-        paymentMethod: 'online',
+        paymentMethod: paymentMethod === 'online' ? 'online' : 'pay_at_home',
         rental_type: rentalType,
         bookedItems: bookedItemsData,
         
@@ -1513,6 +1513,53 @@ const Checkout = () => {
             </button>
           </div>
         </div>
+
+        {/* Payment Method Selection */}
+        {totalAmount > 0 && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 bg-teal-50 text-teal-600 rounded-lg flex items-center justify-center">💳</span>
+              Payment Method
+            </h3>
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('online')}
+                className={`p-3.5 rounded-xl border-2 flex items-center justify-between transition-all text-left
+                  ${paymentMethod === 'online' ? 'border-teal-500 bg-teal-50/20' : 'border-gray-100 hover:border-gray-200'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${paymentMethod === 'online' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                    <FiCreditCard className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-bold text-gray-800 block">Pay Online</span>
+                    <span className="text-[10px] text-gray-500 font-medium">UPI, Cards, Netbanking</span>
+                  </div>
+                </div>
+                {paymentMethod === 'online' && <FiCheckCircle className="text-teal-500" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('pay_at_home')}
+                className={`p-3.5 rounded-xl border-2 flex items-center justify-between transition-all text-left
+                  ${paymentMethod === 'pay_at_home' ? 'border-teal-500 bg-teal-50/20' : 'border-gray-100 hover:border-gray-200'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${paymentMethod === 'pay_at_home' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                    <FiDollarSign className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-bold text-gray-800 block">Pay After Work (Cash)</span>
+                    <span className="text-[10px] text-gray-500 font-medium">Pay cash directly to professional</span>
+                  </div>
+                </div>
+                {paymentMethod === 'pay_at_home' && <FiCheckCircle className="text-teal-500" />}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Payment Summary */}
         <div className="bg-white border-2 border-slate-100 rounded-2xl p-5 mb-6 shadow-sm overflow-hidden relative">

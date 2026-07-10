@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiUser, FiCheck, FiArrowRight } from 'react-icons/fi';
+import { FiUser, FiCheck, FiArrowRight, FiUserPlus, FiCamera } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import { getBookingById, assignWorker as assignWorkerApi } from '../../services/bookingService';
-import { getWorkers } from '../../services/workerService';
+import { createWorker } from '../../services/workerService';
 import maintenanceService from '../../services/maintenanceService';
 import { isWithinInterval, parseISO } from 'date-fns';
 
@@ -14,9 +14,11 @@ const AssignWorker = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [booking, setBooking] = useState(null);
-  const [workers, setWorkers] = useState([]);
-  const [selectedWorker, setSelectedWorker] = useState(null);
   const [assignToSelf, setAssignToSelf] = useState(false);
+  const [newDriverName, setNewDriverName] = useState('');
+  const [newDriverPhone, setNewDriverPhone] = useState('');
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
   const [maintenanceSchedules, setMaintenanceSchedules] = useState([]);
@@ -50,25 +52,12 @@ const AssignWorker = () => {
           throw new Error('Booking not found');
         }
 
-        // Load workers
-        const workersRes = await getWorkers();
-        
         // Load maintenance
         const maintRes = await maintenanceService.getSchedules();
         setMaintenanceSchedules(maintRes.data || []);
-
-        // Handle potentially different response structures
-        const workersList = Array.isArray(workersRes) ? workersRes : (workersRes.workers || workersRes.data || []);
-
-        // Filter available workers
-        const available = workersList.filter(w => {
-          const status = (w.status || w.availability || '').toUpperCase();
-          return (status === 'ONLINE' || status === 'ACTIVE') && !w.currentJob;
-        });
-        setWorkers(available);
       } catch (error) {
         console.error('Error loading data:', error);
-        toast.error('Failed to load booking or workers');
+        toast.error('Failed to load booking details');
       } finally {
         setLoading(false);
       }
@@ -79,16 +68,87 @@ const AssignWorker = () => {
     }
   }, [id]);
 
-  const handleAssign = async () => {
-    if (!assignToSelf && !selectedWorker) {
-      toast.error('Please select a worker or assign to yourself');
-      return;
-    }
+  const uploadFile = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
 
+    let baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    if (!baseUrl) {
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        baseUrl = 'http://localhost:5000';
+      } else {
+        baseUrl = window.location.origin;
+      }
+    }
+    baseUrl = baseUrl.replace(/\/api$/, '');
+    const response = await fetch(`${baseUrl}/api/image/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!data.success) throw new Error(data.message || 'Upload failed');
+    return data.imageUrl;
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size should be less than 5MB');
+        return;
+      }
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleAssign = async () => {
     try {
       setAssigning(true);
 
-      const workerId = assignToSelf ? 'SELF' : selectedWorker.id || selectedWorker._id;
+      let workerId;
+
+      if (assignToSelf) {
+        workerId = 'SELF';
+      } else {
+        if (!newDriverName.trim()) {
+          toast.error('Please enter driver name');
+          setAssigning(false);
+          return;
+        }
+        if (!newDriverPhone.trim() || !/^\d{10}$/.test(newDriverPhone)) {
+          toast.error('Please enter a valid 10-digit mobile number');
+          setAssigning(false);
+          return;
+        }
+
+        let profilePhotoUrl = null;
+        if (photoFile) {
+          try {
+            profilePhotoUrl = await uploadFile(photoFile);
+          } catch (uploadErr) {
+            console.error('Photo upload failed:', uploadErr);
+            toast.error('Failed to upload driver photo, continuing without photo.');
+          }
+        }
+
+        const workerPayload = {
+          name: newDriverName.trim(),
+          phone: newDriverPhone.trim(),
+          status: 'ONLINE',
+          isTemporary: true,
+          profilePhoto: profilePhotoUrl
+        };
+
+        const createRes = await createWorker(workerPayload);
+        if (createRes && createRes.success) {
+          const newWorker = createRes.data || createRes.worker;
+          workerId = newWorker._id || newWorker.id;
+        } else {
+          throw new Error(createRes?.message || 'Failed to create driver');
+        }
+      }
 
       const response = await assignWorkerApi(id, workerId);
 
@@ -102,7 +162,7 @@ const AssignWorker = () => {
       }
     } catch (error) {
       console.error('Error assigning worker:', error);
-      toast.error(error.message || 'Failed to assign worker. Please try again.');
+      toast.error(error.response?.data?.message || error.message || 'Failed to assign worker. Please try again.');
     } finally {
       setAssigning(false);
     }
@@ -169,7 +229,6 @@ const AssignWorker = () => {
           <button
             onClick={() => {
               setAssignToSelf(true);
-              setSelectedWorker(null);
             }}
             className={`w-full p-4 rounded-xl text-left transition-all ${assignToSelf
               ? 'border-2'
@@ -212,102 +271,96 @@ const AssignWorker = () => {
           </button>
         </div>
 
-        {/* Available Workers */}
-        <div>
-          <h3 className="font-bold text-gray-800 mb-4">Available Operators</h3>
-          {workers.length === 0 ? (
-            <div
-              className="bg-white rounded-xl p-6 text-center shadow-md"
-              style={{
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-              }}
-            >
-              <FiUser className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-gray-600 mb-2">No available operators</p>
-              <p className="text-sm text-gray-500 mb-4">All staff are currently assigned or offline</p>
-              <button
-                onClick={() => navigate('/vendor/workers/add')}
-                className="px-4 py-2 rounded-lg font-semibold text-white text-sm"
-                style={{
-                  background: themeColors.button,
-                  boxShadow: `0 2px 8px ${themeColors.button}40`,
-                }}
-              >
-                Add Operator
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {workers.map((worker) => {
-                const workerId = worker._id || worker.id;
-                const isSelected = (selectedWorker?._id || selectedWorker?.id) === workerId;
-                const status = worker.status || worker.availability || 'OFFLINE';
-
-                return (
-                  <button
-                    key={workerId}
-                    onClick={() => {
-                      setSelectedWorker(worker);
-                      setAssignToSelf(false);
-                    }}
-                    className={`w-full p-4 rounded-xl text-left transition-all ${isSelected
-                      ? 'border-2'
-                      : 'bg-white border border-gray-200'
-                      }`}
-                    style={
-                      isSelected
-                        ? {
-                          borderColor: themeColors.button,
-                          background: `${themeColors.button}10`,
-                        }
-                        : {
-                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                        }
+        {/* Current Operator Option */}
+        <div className="mb-6">
+          <button
+            onClick={() => {
+              setAssignToSelf(false);
+            }}
+            className={`w-full p-4 rounded-xl text-left transition-all ${!assignToSelf
+              ? 'border-2'
+              : 'bg-white border border-gray-200'
+              }`}
+            style={
+              !assignToSelf
+                ? {
+                  borderColor: themeColors.button,
+                  background: `${themeColors.button}10`,
+                }
+                : {
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                }
+            }
+          >
+            <div className="flex items-center gap-4">
+              <div
+                className={`w-12 h-12 rounded-full flex items-center justify-center ${!assignToSelf ? 'bg-white' : 'bg-gray-100'
+                  }`}
+                style={
+                  !assignToSelf
+                    ? {
+                      border: `3px solid ${themeColors.button}`,
                     }
-                  >
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center ${isSelected ? 'bg-white' : 'bg-gray-100'
-                          }`}
-                        style={
-                          isSelected
-                            ? {
-                              border: `3px solid ${themeColors.button}`,
-                            }
-                            : {}
-                        }
-                      >
-                        {isSelected ? (
-                          <FiCheck className="w-6 h-6" style={{ color: themeColors.button }} />
-                        ) : (
-                          <FiUser className="w-6 h-6 text-gray-400" />
-                        )}
+                    : {}
+                }
+              >
+                {!assignToSelf ? (
+                  <FiCheck className="w-6 h-6" style={{ color: themeColors.button }} />
+                ) : (
+                  <FiUserPlus className="w-6 h-6 text-gray-400" />
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-gray-800">Assign Current Operator</h3>
+                <p className="text-sm text-gray-600">Enter driver details for this booking</p>
+              </div>
+            </div>
+          </button>
+
+          {/* Form fields for new driver */}
+          {!assignToSelf && (
+            <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm space-y-4">
+              {/* Photo Upload Avatar */}
+              <div className="flex flex-col items-center justify-center mb-2">
+                <div className="relative group">
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md bg-gray-100 flex items-center justify-center">
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Driver Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                        <FiUser className="w-8 h-8" />
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-800">{worker.name}</h3>
-                        <p className="text-sm text-gray-600">{worker.phone}</p>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {worker.skills?.slice(0, 2).map((skill, index) => (
-                            <span
-                              key={index}
-                              className="px-2 py-1 rounded-lg text-xs font-medium"
-                              style={{
-                                background: `${themeColors.button}15`,
-                                color: themeColors.button,
-                              }}
-                            >
-                              {typeof skill === 'string' ? skill : skill.name || skill.title || 'Skill'}
-                            </span>
-                          ))}
-                          {worker.skills?.length > 2 && (
-                            <span className="text-xs text-gray-500">+{worker.skills.length - 2} more</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+                    )}
+                  </div>
+                  <label htmlFor="driver-photo-upload" className="absolute bottom-0 right-0 p-2 rounded-full cursor-pointer shadow-md transition-transform active:scale-95 hover:scale-105" style={{ background: themeColors.button }}>
+                    <FiCamera className="w-4 h-4 text-white" />
+                    <input id="driver-photo-upload" type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                  </label>
+                </div>
+                <p className="text-gray-400 text-[10px] mt-2 font-medium">Add Driver Photo</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Driver Name *</label>
+                <input
+                  type="text"
+                  value={newDriverName}
+                  onChange={(e) => setNewDriverName(e.target.value)}
+                  placeholder="Enter driver's full name"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Driver Phone *</label>
+                <input
+                  type="tel"
+                  value={newDriverPhone}
+                  onChange={(e) => setNewDriverPhone(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Enter 10-digit mobile number"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 text-sm"
+                  maxLength={10}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -316,7 +369,7 @@ const AssignWorker = () => {
         <div className="mt-8">
           <button
             onClick={handleAssign}
-            disabled={(!assignToSelf && !selectedWorker) || assigning}
+            disabled={assigning}
             className="w-full py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: themeColors.button,
@@ -344,4 +397,3 @@ const AssignWorker = () => {
 };
 
 export default AssignWorker;
-

@@ -388,6 +388,11 @@ export default function BookingDetails() {
       : booking?.status === 'completed';
 
     if (!validStatus) return false;
+    
+    // If online payment and bill is already generated, hide the button (no OTP required)
+    if (booking?.vendorBillId && booking?.paymentMethod !== 'cash' && booking?.paymentMethod !== 'pay_at_home' && booking?.paymentMethod !== 'plan_benefit') {
+      return false;
+    }
 
     // CRITICAL FIX: Allow bill preparation for Plan Benefit bookings
     // Even if base is pre-paid (SUCCESS), vendor must generate final bill (for extras etc.)
