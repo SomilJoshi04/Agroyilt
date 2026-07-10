@@ -220,8 +220,9 @@ const verifyPaymentWebhook = async (req, res) => {
     let vendorMsg = `Payment received for booking ${booking.bookingNumber}. The service is now confirmed.`;
 
     if (booking.status === BOOKING_STATUS.COMPLETED) {
+      const vendorEarning = bill ? bill.vendorTotalEarning : (booking.finalAmount * 0.8);
       vendorTitle = 'Payment Received (Online)';
-      vendorMsg = `User paid ₹${booking.finalAmount} online for booking ${booking.bookingNumber}. Job Completed!`;
+      vendorMsg = `User paid ₹${booking.finalAmount} online for booking ${booking.bookingNumber}. Earnings of ₹${vendorEarning} credited to your wallet. Job Completed!`;
     }
 
     if (booking.vendorId) {
@@ -410,8 +411,9 @@ const processWalletPayment = async (req, res) => {
     let vendorMsg = `Payment received for booking ${booking.bookingNumber}. The service is now confirmed.`;
 
     if (booking.status === BOOKING_STATUS.COMPLETED) {
+      const vendorEarning = bill ? bill.vendorTotalEarning : (booking.finalAmount * 0.8);
       vendorTitle = 'Payment Received (Wallet)';
-      vendorMsg = `User paid ₹${booking.finalAmount} via wallet for booking ${booking.bookingNumber}. Job Completed!`;
+      vendorMsg = `User paid ₹${booking.finalAmount} via wallet for booking ${booking.bookingNumber}. Earnings of ₹${vendorEarning} credited to your wallet. Job Completed!`;
     }
 
     if (booking.vendorId) {

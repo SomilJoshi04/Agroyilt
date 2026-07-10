@@ -311,9 +311,73 @@ const verifySoilTestPayment = async (req, res) => {
     }
 };
 
+const updateSoilTestRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { landSize, location, latitude, longitude, cropType, testType, phoneNumber } = req.body;
+
+        const request = await SoilTestRequest.findById(id);
+        if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
+        
+        if (request.userId.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        if (request.status !== 'pending' || request.vendorId) {
+            return res.status(400).json({ success: false, message: 'Cannot edit request as it has already been assigned to a lab.' });
+        }
+
+        request.landSize = landSize !== undefined ? landSize : request.landSize;
+        request.location = location !== undefined ? location : request.location;
+        request.latitude = latitude !== undefined ? latitude : request.latitude;
+        request.longitude = longitude !== undefined ? longitude : request.longitude;
+        request.cropType = cropType !== undefined ? cropType : request.cropType;
+        request.testType = testType !== undefined ? testType : request.testType;
+        request.phoneNumber = phoneNumber !== undefined ? phoneNumber : request.phoneNumber;
+
+        await request.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Soil test request updated successfully!',
+            data: request
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const deleteSoilTestRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const request = await SoilTestRequest.findById(id);
+        if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
+
+        if (request.userId.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        if (request.status !== 'pending' || request.vendorId) {
+            return res.status(400).json({ success: false, message: 'Cannot delete request as it has already been assigned to a lab.' });
+        }
+
+        await SoilTestRequest.findByIdAndDelete(id);
+
+        res.status(200).json({
+            success: true,
+            message: 'Soil test request deleted successfully!'
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     createSoilTestRequest,
     getMySoilTestRequests,
     payForSoilTestReport,
-    verifySoilTestPayment
+    verifySoilTestPayment,
+    updateSoilTestRequest,
+    deleteSoilTestRequest
 };

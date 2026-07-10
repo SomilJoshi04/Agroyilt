@@ -132,7 +132,7 @@ const placeOrder = async (req, res) => {
         }
 
         const itemsTotal = product.price * quantity;
-        const adminCommission = (itemsTotal * (product.commissionPercentage / 100));
+        const adminCommission = (product.price * (product.commissionPercentage / 100));
         const gstAmount = (itemsTotal * (product.gstPercentage / 100));
         const platformFee = adminCommission + gstAmount;
         const vendorBalance = itemsTotal;

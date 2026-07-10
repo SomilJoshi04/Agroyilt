@@ -142,7 +142,7 @@ const getDashboardStats = async (req, res) => {
     }
 
     const totalRevenue = earningsResult[0]?.totalRevenue || 0;
-    const vendorEarnings = earningsResult[0]?.vendorEarnings || 0;
+    const vendorEarnings = vendor?.wallet?.earnings || 0;
     const ecommerceEarnings = ecommerceEarningsResult[0]?.totalEcommerceEarnings || 0;
 
     // Compliance Alerts (New Agriculture Feature)

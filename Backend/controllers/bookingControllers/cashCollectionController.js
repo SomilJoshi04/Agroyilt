@@ -315,6 +315,22 @@ exports.confirmCashCollection = async (req, res) => {
       priority: 'high'
     });
 
+    if (vendorId) {
+      try {
+        await createNotification({
+          vendorId: vendorId,
+          type: 'payment_success',
+          title: '💰 Wallet Credited (Cash)',
+          message: `Earnings of ₹${vendorEarning} credited to your wallet for booking ${booking.bookingNumber || booking._id.toString().slice(-6)}.`,
+          relatedId: booking._id,
+          relatedType: 'booking',
+          priority: 'high'
+        });
+      } catch (vendorNoticeErr) {
+        console.error('Notification error (Vendor Credit Cash):', vendorNoticeErr);
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: 'Cash collection confirmed and recorded in ledger',
