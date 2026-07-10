@@ -28,19 +28,29 @@ const VendorSignup = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [step, setStep] = useState('details'); // 'details' or 'otp'
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phoneNumber: '',
-    businessName: '',
-    service: [],
-    aadhar: '',
-    pan: '',
-    documents: [],
-    isLabRegistration: false,
-    isShopRegistration: false,
-    labDetails: { labName: '', licenseNumber: '' },
-    shopDetails: { shopName: '', shopAddress: '', shopLicense: '' }
+  const [formData, setFormData] = useState(() => {
+    const saved = localStorage.getItem('vendor_signup_form_data');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing saved signup form data:', e);
+      }
+    }
+    return {
+      name: '',
+      email: '',
+      phoneNumber: '',
+      businessName: '',
+      service: [],
+      aadhar: '',
+      pan: '',
+      documents: [],
+      isLabRegistration: false,
+      isShopRegistration: false,
+      labDetails: { labName: '', licenseNumber: '' },
+      shopDetails: { shopName: '', shopAddress: '', shopLicense: '' }
+    };
   });
   const [categories, setCategories] = useState([]);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -82,6 +92,24 @@ const VendorSignup = () => {
     }
     return () => clearInterval(interval);
   }, [resendTimer]);
+
+  // Save form data to localStorage
+  useEffect(() => {
+    localStorage.setItem('vendor_signup_form_data', JSON.stringify(formData));
+  }, [formData]);
+
+  // Restore document previews on mount
+  useEffect(() => {
+    if (formData.documents && formData.documents.length > 0) {
+      const previews = {};
+      formData.documents.forEach(doc => {
+        if (doc.type && doc.url) {
+          previews[doc.type] = doc.url;
+        }
+      });
+      setDocumentPreview(previews);
+    }
+  }, []);
 
   // Load dynamic categories
   useEffect(() => {
@@ -332,6 +360,7 @@ const VendorSignup = () => {
         const response = await register(registerData);
 
         if (response.success) {
+          localStorage.removeItem('vendor_signup_form_data');
           toast.success(
             <div className="flex flex-col">
               <span className="font-bold">Successfully Registered!</span>
@@ -464,6 +493,7 @@ const VendorSignup = () => {
 
       if (response.success) {
         setIsLoading(false);
+        localStorage.removeItem('vendor_signup_form_data');
         toast.success('Successfully Registered! Pending admin approval.');
         navigate('/vendor/login');
       } else {
