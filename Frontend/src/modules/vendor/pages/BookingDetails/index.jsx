@@ -35,6 +35,80 @@ import LogoLoader from '../../../../components/common/LogoLoader'; // NEW
 import flutterBridge from '../../../../utils/flutterBridge';
 import { configService } from '../../../../services/configService'; // For commission %
 
+
+const getScheduledDateTime = (b) => {
+  if (!b?.scheduledDate || !b?.scheduledTime) return null;
+  try {
+    const datePart = new Date(b.scheduledDate).toISOString().split('T')[0]; // YYYY-MM-DD
+    const timeStr = b.scheduledTime;
+    const [time, modifier] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':');
+    hours = parseInt(hours, 10);
+    minutes = parseInt(minutes, 10);
+    if (hours === 12) {
+      hours = 0;
+    }
+    if (modifier === 'PM') {
+      hours += 12;
+    }
+    return new Date(`${datePart}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+  } catch (e) {
+    console.error('Error parsing scheduled date time:', e);
+    return null;
+  }
+};
+
+const isJourneyTooEarly = (b) => {
+  const scheduledDateTime = getScheduledDateTime(b);
+  if (!scheduledDateTime) return false;
+  const current = new Date();
+  // 2 hours in ms = 7200000
+  const difference = scheduledDateTime.getTime() - current.getTime();
+  return difference > 7200000;
+};
+
+const BookingCountdown = ({ booking }) => {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    const scheduledDateTime = getScheduledDateTime(booking);
+    if (!scheduledDateTime) return;
+
+    const updateTime = () => {
+      const diff = scheduledDateTime.getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft('');
+        return;
+      }
+      
+      const totalMins = Math.floor(diff / 60000);
+      const mins = totalMins % 60;
+      const totalHours = Math.floor(totalMins / 60);
+      const hours = totalHours % 24;
+      const days = Math.floor(totalHours / 24);
+
+      let timeStr = 'Scheduled in ';
+      if (days > 0) timeStr += `${days}d `;
+      if (hours > 0) timeStr += `${hours}h `;
+      timeStr += `${mins}m`;
+      setTimeLeft(timeStr);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 60000);
+    return () => clearInterval(interval);
+  }, [booking]);
+
+  if (!timeLeft) return null;
+
+  return (
+    <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 border border-blue-100 text-blue-700 text-[10px] font-bold">
+      <FiClock className="w-3 h-3 text-blue-600" />
+      <span>{timeLeft}</span>
+    </div>
+  );
+};
+
 export default function BookingDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -482,26 +556,43 @@ export default function BookingDetails() {
   };
 
   const handleStartJourney = async () => {
-    // If self-job, call the start API first
-    if (booking.assignedTo?.name === 'You (Self)') {
-      try {
-        setLoading(true);
-        await startSelfJob(id);
-        toast.success('Journey Started');
-        // Refresh to update status
-        const response = await getBookingById(id);
-        const apiData = response.data || response;
-        setBooking(prev => ({ ...prev, status: apiData.status }));
-      } catch (error) {
-        console.error('Error starting self journey:', error);
-        toast.error('Failed to start journey');
-        return;
-      } finally {
-        setLoading(false);
+    const executeStart = async () => {
+      // If self-job or worker assigned, call the start API first
+      if (booking.assignedTo?.name === 'You (Self)' || booking.workerId) {
+        try {
+          setLoading(true);
+          await startSelfJob(id);
+          toast.success('Journey Started');
+          // Refresh to update status
+          const response = await getBookingById(id);
+          const apiData = response.data || response;
+          setBooking(prev => ({ ...prev, status: apiData.status }));
+        } catch (error) {
+          console.error('Error starting self journey:', error);
+          toast.error('Failed to start journey');
+          return;
+        } finally {
+          setLoading(false);
+        }
       }
-    }
 
-    navigate(`/vendor/booking/${booking.id || id}/map`);
+      navigate(`/vendor/booking/${booking.id || id}/map`);
+    };
+
+    if (isJourneyTooEarly(booking)) {
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Start Journey Early?',
+        message: `This booking is scheduled for ${booking.scheduledTime} on ${new Date(booking.scheduledDate).toLocaleDateString()}. Are you sure you want to start the journey now?`,
+        type: 'warning',
+        onConfirm: () => {
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+          executeStart();
+        }
+      });
+    } else {
+      executeStart();
+    }
   };
 
   // ──────── TRIP FLOW HANDLERS (New - agriculture feature) ────────
@@ -1219,6 +1310,7 @@ export default function BookingDetails() {
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                   <span className="text-xs font-bold text-green-800 uppercase tracking-widest">Live Status</span>
+                  <BookingCountdown booking={booking} />
                 </div>
                 {booking.workerAcceptedAt && (
                   <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/60 border border-green-100/50 backdrop-blur-sm shadow-sm">

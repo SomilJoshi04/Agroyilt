@@ -120,6 +120,37 @@ const RentalTimer = ({ booking }) => {
   );
 };
 
+const getScheduledDateTime = (b) => {
+  if (!b?.scheduledDate || !b?.scheduledTime) return null;
+  try {
+    const datePart = new Date(b.scheduledDate).toISOString().split('T')[0]; // YYYY-MM-DD
+    const timeStr = b.scheduledTime;
+    const [time, modifier] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':');
+    hours = parseInt(hours, 10);
+    minutes = parseInt(minutes, 10);
+    if (hours === 12) {
+      hours = 0;
+    }
+    if (modifier === 'PM') {
+      hours += 12;
+    }
+    return new Date(`${datePart}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+  } catch (e) {
+    console.error('Error parsing scheduled date time:', e);
+    return null;
+  }
+};
+
+const isJourneyTooEarly = (b) => {
+  const scheduledDateTime = getScheduledDateTime(b);
+  if (!scheduledDateTime) return false;
+  const current = new Date();
+  // 2 hours in ms = 7200000
+  const difference = scheduledDateTime.getTime() - current.getTime();
+  return difference > 7200000;
+};
+
 const BookingTimeline = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -306,15 +337,32 @@ const BookingTimeline = () => {
 
   /* Handlers for Vendor Self-Job */
   const handleStartSelfJob = async () => {
-    try {
-      setActionLoading(true);
-      await startSelfJob(id);
-      toast.success('Journey Started');
-      navigate(`/vendor/booking/${id}/map`);
-    } catch (error) {
-      toast.error('Failed to start journey');
-    } finally {
-      setActionLoading(false);
+    const executeStart = async () => {
+      try {
+        setActionLoading(true);
+        await startSelfJob(id);
+        toast.success('Journey Started');
+        navigate(`/vendor/booking/${id}/map`);
+      } catch (error) {
+        toast.error('Failed to start journey');
+      } finally {
+        setActionLoading(false);
+      }
+    };
+
+    if (isJourneyTooEarly(booking)) {
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Start Journey Early?',
+        message: `This booking is scheduled for ${booking.scheduledTime} on ${new Date(booking.scheduledDate).toLocaleDateString()}. Are you sure you want to start the journey now?`,
+        type: 'warning',
+        onConfirm: () => {
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+          executeStart();
+        }
+      });
+    } else {
+      executeStart();
     }
   };
 
