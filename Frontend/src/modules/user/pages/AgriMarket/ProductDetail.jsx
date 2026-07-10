@@ -93,19 +93,12 @@ const ProductDetail = () => {
     const gstPercentage = product.gstPercentage || 5;
 
     const commission = basePrice * (commissionPercentage / 100);
-    const gst = basePrice * (gstPercentage / 100);
-    const calculatedPlatformFee = (commission + gst).toFixed(2);
-    const calculatedVendorPrice = basePrice.toFixed(2); // Vendor gets full base price
+    const gstTotal = (basePrice * quantity) * (gstPercentage / 100);
+    const calculatedPlatformFee = commission + gstTotal;
 
-    const pricing = product.calculatorPrice || { 
-        totalPrice: Number(calculatedPlatformFee) + Number(calculatedVendorPrice), 
-        platformFee: Number(calculatedPlatformFee), 
-        vendorPrice: Number(calculatedVendorPrice) 
-    };
-
-    const totalPayable = pricing.totalPrice * quantity;
-    const adminFee = pricing.platformFee * quantity;
-    const vendorBalance = pricing.vendorPrice * quantity;
+    const adminFee = calculatedPlatformFee;
+    const vendorBalance = basePrice * quantity;
+    const totalPayable = adminFee + vendorBalance;
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -172,7 +165,7 @@ const ProductDetail = () => {
                     <h1 className="text-3xl font-black text-slate-800 leading-tight">{product.title}</h1>
                     
                     <div className="flex items-baseline gap-2 pt-2">
-                        <p className="text-3xl font-black text-slate-800">₹{pricing.vendorPrice}</p>
+                        <p className="text-3xl font-black text-slate-800">₹{basePrice}</p>
                         <p className="text-xs font-black text-slate-400 uppercase tracking-widest">/ {product.unit}</p>
                         <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full ml-2">Base Price</p>
                     </div>
@@ -192,17 +185,17 @@ const ProductDetail = () => {
                                     <p className="text-xs font-black text-slate-800 uppercase tracking-widest leading-none">Booking Amount</p>
                                     <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">Pay now to confirm order</p>
                                 </div>
-                                <p className="text-3xl font-black text-teal-600 font-sans tracking-tight">₹{pricing.platformFee}</p>
+                                <p className="text-3xl font-black text-teal-600 font-sans tracking-tight">₹{adminFee.toFixed(2)}</p>
                             </div>
                             
                             <div className="pt-4 border-t border-dashed border-slate-200 space-y-3">
                                 <div className="flex justify-between items-center">
                                     <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Platform Commission <span className="text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-1">{commissionPercentage}%</span></p>
-                                    <p className="text-xs font-black text-slate-700 font-sans">₹{(commission * quantity).toFixed(2)}</p>
+                                    <p className="text-xs font-black text-slate-700 font-sans">₹{commission.toFixed(2)}</p>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">GST (Taxes) <span className="text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-1">{gstPercentage}%</span></p>
-                                    <p className="text-xs font-black text-slate-700 font-sans">₹{(gst * quantity).toFixed(2)}</p>
+                                    <p className="text-xs font-black text-slate-700 font-sans">₹{gstTotal.toFixed(2)}</p>
                                 </div>
                             </div>
                         </div>
@@ -212,7 +205,7 @@ const ProductDetail = () => {
                                 <p className="text-xs font-black text-slate-800 uppercase tracking-widest leading-none">Base Price</p>
                                 <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">Pay to vendor on delivery</p>
                             </div>
-                            <p className="text-3xl font-black text-slate-800 font-sans tracking-tight">₹{pricing.vendorPrice}</p>
+                            <p className="text-3xl font-black text-slate-800 font-sans tracking-tight">₹{vendorBalance.toFixed(2)}</p>
                         </div>
                     </div>
                 </div>

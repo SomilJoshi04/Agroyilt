@@ -29,6 +29,7 @@ const SoilTesting = () => {
     const [submitting, setSubmitting] = useState(false);
     const [requests, setRequests] = useState([]);
     const [showForm, setShowForm] = useState(false);
+    const [editingRequestId, setEditingRequestId] = useState(null);
     const [paymentModal, setPaymentModal] = useState(null);
     const [processingPayment, setProcessingPayment] = useState(false);
 
@@ -110,29 +111,66 @@ const SoilTesting = () => {
         );
     };
 
+    const closeForm = () => {
+        setShowForm(false);
+        setEditingRequestId(null);
+        setFormData({
+            landSize: '',
+            location: localStorage.getItem('currentAddress') || '',
+            latitude: null,
+            longitude: null,
+            cropType: '',
+            testType: 'Basic',
+            phoneNumber: JSON.parse(localStorage.getItem('userData') || '{}').phone || ''
+        });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
             setSubmitting(true);
-            const res = await soilTestService.request(formData);
+            let res;
+            if (editingRequestId) {
+                res = await soilTestService.update(editingRequestId, formData);
+            } else {
+                res = await soilTestService.request(formData);
+            }
             if (res.success) {
-                toast.success("Request submitted successfully! Our team will contact you soon.");
-                setShowForm(false);
+                toast.success(editingRequestId ? "Request updated successfully!" : "Request submitted successfully! Our team will contact you soon.");
+                closeForm();
                 fetchMyRequests(false);
-                setFormData({
-                    landSize: '',
-                    location: localStorage.getItem('currentAddress') || '',
-                    latitude: null,
-                    longitude: null,
-                    cropType: '',
-                    testType: 'Basic',
-                    phoneNumber: JSON.parse(localStorage.getItem('userData') || '{}').phone || ''
-                });
             }
         } catch (err) {
-            toast.error("Submission failed. Please try again.");
+            toast.error(editingRequestId ? "Update failed. Please try again." : "Submission failed. Please try again.");
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleEditRequest = (req) => {
+        setFormData({
+            landSize: req.landSize || '',
+            location: req.location || '',
+            latitude: req.latitude || null,
+            longitude: req.longitude || null,
+            cropType: req.cropType || '',
+            testType: req.testType || 'Basic',
+            phoneNumber: req.phoneNumber || ''
+        });
+        setEditingRequestId(req._id);
+        setShowForm(true);
+    };
+
+    const handleDeleteRequest = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this request?")) return;
+        try {
+            const res = await soilTestService.delete(id);
+            if (res.success) {
+                toast.success("Request deleted successfully!");
+                fetchMyRequests(false);
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Delete failed. Please try again.");
         }
     };
 
@@ -301,7 +339,7 @@ const SoilTesting = () => {
                         <h2 className="text-2xl font-black mb-2">Get your soil tested</h2>
                         <p className="text-white/80 text-sm font-medium leading-relaxed mb-6">Know your soil nutrients and use the right fertilizer.</p>
                         <button
-                            onClick={() => setShowForm(true)}
+                            onClick={() => { setEditingRequestId(null); setShowForm(true); }}
                             className="bg-white text-[#347989] px-6 py-3 rounded-2xl font-black text-sm shadow-lg active:scale-95 transition-all"
                         >
                             Request Testing Now
@@ -410,9 +448,24 @@ const SoilTesting = () => {
                                         </div>
                                     )}
 
-                                    <div className="pt-4 border-t border-slate-50 mt-4">
-                                        <p className="text-[10px] font-bold text-slate-400">{new Date(req.createdAt).toLocaleDateString()}</p>
-                                    </div>
+                                    {req.status === 'pending' && (
+                                        <div className="pt-3.5 border-t border-slate-50 mt-4 flex gap-3">
+                                            <button onClick={() => handleEditRequest(req)}
+                                                className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-1.5 border border-slate-200/50">
+                                                Edit Request
+                                            </button>
+                                            <button onClick={() => handleDeleteRequest(req._id)}
+                                                className="flex-1 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold text-xs hover:bg-red-100 active:scale-95 transition-all flex items-center justify-center gap-1.5 border border-red-100/50">
+                                                Delete Request
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {req.status !== 'pending' && (
+                                        <div className="pt-4 border-t border-slate-50 mt-4">
+                                            <p className="text-[10px] font-bold text-slate-400">{new Date(req.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -477,7 +530,7 @@ const SoilTesting = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => setShowForm(false)}
+                            onClick={closeForm}
                             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
                         />
                         <motion.div
@@ -489,10 +542,10 @@ const SoilTesting = () => {
                         >
                             <div className="p-8 pb-4 flex items-center justify-between sticky top-0 bg-white z-10 border-b border-slate-50">
                                 <div>
-                                    <h2 className="text-2xl font-black text-slate-800">Soil Test Form</h2>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fill in correct details</p>
+                                    <h2 className="text-2xl font-black text-slate-800">{editingRequestId ? 'Edit Soil Test Request' : 'Soil Test Form'}</h2>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{editingRequestId ? 'Update your request details' : 'Fill in correct details'}</p>
                                 </div>
-                                <button onClick={() => setShowForm(false)} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold">✕</button>
+                                <button type="button" onClick={closeForm} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold">✕</button>
                             </div>
 
                             <form onSubmit={handleSubmit} className="p-8 space-y-6">
@@ -632,7 +685,7 @@ const SoilTesting = () => {
                                     disabled={submitting}
                                     className="w-full bg-[#347989] py-5 rounded-[32px] font-black text-white shadow-xl shadow-teal-900/10 active:scale-95 transition-all text-lg flex items-center justify-center gap-3 disabled:opacity-50"
                                 >
-                                    {submitting ? 'Submitting...' : <><FiSend /> Submit Request</>}
+                                    {submitting ? 'Submitting...' : editingRequestId ? <><FiSend /> Update Request</> : <><FiSend /> Submit Request</>}
                                 </button>
                             </form>
                         </motion.div>

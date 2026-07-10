@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
     FiChevronLeft, FiMapPin, FiUser, FiActivity,
-    FiUpload, FiCheckCircle, FiClock, FiAlertCircle, FiX, FiFileText
+    FiUpload, FiCheckCircle, FiClock, FiAlertCircle, FiX, FiFileText, FiDownload
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import vendorSoilTestService from '../../../../services/vendorSoilTestService';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 
 // ─── Status Config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -94,6 +95,12 @@ const VendorSoilTests = () => {
 
         document.body.style.overflow = 'hidden';
 
+        if (modalType === 'details') {
+            return () => {
+                document.body.style.overflow = 'unset';
+            };
+        }
+
         const resetScroll = () => {
             if (window.scrollY > 0 || document.documentElement.scrollTop > 0) {
                 window.scrollTo(0, 0);
@@ -122,8 +129,10 @@ const VendorSoilTests = () => {
         if (!vp) return;
         const onResize = () => {
             setVpHeight(vp.height);
-            window.scrollTo(0, 0);
-            document.documentElement.scrollTop = 0;
+            if (modalType !== 'details') {
+                window.scrollTo(0, 0);
+                document.documentElement.scrollTop = 0;
+            }
         };
         setVpHeight(vp.height);
         vp.addEventListener('resize', onResize);
@@ -158,6 +167,10 @@ const VendorSoilTests = () => {
         setActive(req);
         setRejectionReason('');
         setModalType('reject');
+    };
+    const openDetailsModal = (req) => {
+        setActive(req);
+        setModalType('details');
     };
     const closeModal = () => { setActive(null); setModalType(''); setSelectedFile(null); setFilePreview(null); setRejectionReason(''); };
 
@@ -330,6 +343,16 @@ const VendorSoilTests = () => {
                                 </p>
                             </div>
 
+                            <div className="ml-5 mt-2 flex items-center gap-1.5">
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                    req.paymentStatus === 'paid'
+                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                        : 'bg-amber-50 text-amber-600 border border-amber-100'
+                                }`}>
+                                    💰 Payment: {req.paymentStatus === 'paid' ? 'Received (Wallet Credited)' : 'Pending'}
+                                </span>
+                            </div>
+
                             {!['cancelled'].includes(req.status) && (
                                 <TrackingBar status={req.status} />
                             )}
@@ -346,31 +369,160 @@ const VendorSoilTests = () => {
                             </div>
                         )}
 
-                        {!['completed', 'cancelled'].includes(req.status) && (
-                            <div className="px-5 pb-5 flex gap-3 border-t border-slate-50 pt-4">
-                                {req.status === 'assigned' && (
-                                    <button onClick={() => openRejectModal(req)}
-                                        className="flex-1 py-4 bg-red-600 text-white rounded-[32px] font-black text-[10px] uppercase tracking-wider hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-red-500/30">
-                                        <FiX className="w-4 h-4" /> Reject
-                                    </button>
-                                )}
-                                {getNextStatuses(req.status).length > 0 && (
-                                    <button onClick={() => openStatusModal(req)}
-                                        className="flex-1 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-[32px] font-black text-[10px] uppercase tracking-wider shadow-xl shadow-blue-500/30 active:scale-95 transition-all">
-                                        Update Status →
-                                    </button>
-                                )}
-                                {['at_lab', 'sample_collected'].includes(req.status) && req.reportStatus === 'pending' && (
-                                    <button onClick={() => openReportModal(req)}
-                                        className="flex-1 py-3 bg-teal-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-teal-600/20 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                        <FiUpload /> Report Upload
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                        <div className="px-5 pb-5 border-t border-slate-50 pt-4 space-y-3">
+                            <button onClick={() => openDetailsModal(req)}
+                                className="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-1.5 border border-slate-200/50">
+                                <FiFileText className="w-4 h-4" /> View Details
+                            </button>
+                            
+                            {!['completed', 'cancelled'].includes(req.status) && (
+                                <div className="flex gap-3">
+                                    {req.status === 'assigned' && (
+                                        <button onClick={() => openRejectModal(req)}
+                                            className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/10">
+                                            <FiX className="w-3.5 h-3.5" /> Reject
+                                        </button>
+                                    )}
+                                    {getNextStatuses(req.status).length > 0 && (
+                                        <button onClick={() => openStatusModal(req)}
+                                            className="flex-1 py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg shadow-blue-500/15 active:scale-95 transition-all">
+                                            Update Status →
+                                        </button>
+                                    )}
+                                    {['at_lab', 'sample_collected'].includes(req.status) && req.reportStatus === 'pending' && (
+                                        <button onClick={() => openReportModal(req)}
+                                            className="flex-1 py-3.5 bg-teal-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg shadow-teal-600/15 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+                                            <FiUpload className="w-3.5 h-3.5" /> Upload Report
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </motion.div>
                 ))}
             </div>
+
+            {/* ── Details Modal ── */}
+            {createPortal(
+                <AnimatePresence>
+                    {modalType === 'details' && activeRequest && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                onClick={closeModal} className="absolute inset-0" />
+                            <motion.div initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                className="relative bg-white w-full max-w-sm rounded-[32px] shadow-2xl p-6 overflow-hidden z-10">
+                                    
+                                    {/* Header */}
+                                    <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+                                        <h2 className="text-xl font-black text-slate-800">Request Details</h2>
+                                        <button onClick={closeModal} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">
+                                            <FiX />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                                        {/* ID and Status */}
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase">ID: {activeRequest._id.slice(-8)}</span>
+                                            <span className="text-[10px] font-black px-2.5 py-0.5 rounded bg-blue-50 text-blue-600 uppercase border border-blue-100">
+                                                {activeRequest.status}
+                                            </span>
+                                        </div>
+
+                                        {/* Farmer Info */}
+                                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Farmer Info</p>
+                                            <p className="font-black text-slate-800 text-sm">{activeRequest.userId?.name || 'Farmer'}</p>
+                                            <p className="text-xs text-slate-500 font-bold mt-0.5">{activeRequest.userId?.phoneNumber || activeRequest.phoneNumber}</p>
+                                            <p className="text-xs text-slate-500 font-medium mt-1 flex items-start gap-1">
+                                                <FiMapPin className="mt-0.5 flex-shrink-0 text-slate-400" />
+                                                <span>{activeRequest.location}</span>
+                                            </p>
+                                        </div>
+
+                                        {/* Land & Crop Info */}
+                                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Test details</p>
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div>
+                                                    <p className="text-slate-400 font-bold">Land Size</p>
+                                                    <p className="font-black text-slate-700">{activeRequest.landSize}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-slate-400 font-bold">Crop Type</p>
+                                                    <p className="font-black text-slate-700">{activeRequest.cropType || 'General Crop'}</p>
+                                                </div>
+                                                <div className="col-span-2 mt-1">
+                                                    <p className="text-slate-400 font-bold">Test Tier</p>
+                                                    <p className="font-black text-teal-600">{activeRequest.testType === 'Advanced' ? 'Advanced Test (12 Param)' : 'Basic Test (3 Param)'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Payment Ledger */}
+                                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Earnings Ledger</p>
+                                            
+                                            {(!activeRequest.totalAmount || activeRequest.totalAmount === 0) ? (
+                                                <div className="p-3 bg-amber-50 border border-amber-100 text-amber-800 rounded-xl text-xs font-semibold leading-relaxed">
+                                                    ⚠️ Earnings will be set by admin after the lab report is uploaded.
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-1.5 text-xs">
+                                                    <div className="flex justify-between text-slate-600">
+                                                        <span>Farmer Paid Amount</span>
+                                                        <span className="font-bold text-slate-700">₹{activeRequest.totalAmount || 0}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-slate-600">
+                                                        <span>Admin Commission ({activeRequest.commissionPercentage || 0}%)</span>
+                                                        <span className="font-bold text-red-600">-₹{activeRequest.adminCommission || 0}</span>
+                                                    </div>
+                                                    <div className="flex justify-between pt-1.5 border-t border-dashed border-slate-200 text-slate-800 font-bold">
+                                                        <span>Your Earnings</span>
+                                                        <span className="text-emerald-600 font-black">₹{activeRequest.vendorEarning || 0}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {activeRequest.paymentStatus && (
+                                                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                                                    <span className="text-slate-400 font-bold">Method: {activeRequest.paymentMethod?.toUpperCase() || 'N/A'}</span>
+                                                    <span className={`px-2 py-0.5 rounded font-black ${
+                                                        activeRequest.paymentStatus === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                                                    }`}>
+                                                        {activeRequest.paymentStatus === 'paid' ? 'Paid to Wallet' : 'Payment Pending'}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Report Details */}
+                                        {activeRequest.reportUrl && (
+                                            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Lab Report</p>
+                                                <p className="text-xs text-slate-500 font-bold">Uploaded on: {activeRequest.reportDate ? new Date(activeRequest.reportDate).toLocaleDateString() : 'N/A'}</p>
+                                                <a href={activeRequest.reportUrl} target="_blank" rel="noopener noreferrer" 
+                                                    className="mt-2.5 w-full py-2 bg-teal-600 text-white rounded-xl text-center font-bold text-xs hover:bg-teal-700 transition-all flex items-center justify-center gap-1.5 font-mono">
+                                                    <FiDownload className="w-3.5 h-3.5" /> View Report PDF
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        {/* Rejection Info */}
+                                        {activeRequest.rejectionReason && (
+                                            <div className="p-3 bg-red-50 text-red-700 rounded-2xl border border-red-100 text-xs">
+                                                <p className="font-bold uppercase text-[9px] mb-1">Rejection Reason</p>
+                                                <p>{activeRequest.rejectionReason}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
 
             {/* ── Status Update Modal ── */}
             <AnimatePresence>

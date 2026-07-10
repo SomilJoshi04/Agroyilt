@@ -20,20 +20,30 @@ const MyAgriOrders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     useEffect(() => {
         fetchOrders();
+
+        // Auto-refresh har 20 seconds mein - delivery OTP aur status update ke liye
+        const intervalId = setInterval(() => {
+            fetchOrders(true); // silent = true → no loading spinner
+        }, 20000); // 20 seconds
+
+        return () => clearInterval(intervalId); // Cleanup on unmount
     }, []);
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (silent = false) => {
         try {
-            setLoading(true);
+            if (!silent) setLoading(true);
+            else setIsRefreshing(true);
             const res = await ecommerceService.getMyOrders();
             if (res.success) setOrders(res.data || []);
         } catch (err) {
-            toast.error("Failed to load orders");
+            if (!silent) toast.error("Failed to load orders");
         } finally {
             setLoading(false);
+            setIsRefreshing(false);
         }
     };
 
@@ -70,9 +80,16 @@ const MyAgriOrders = () => {
                 <button onClick={() => navigate('/user/agri-marketplace')} className="p-3 bg-slate-50 rounded-2xl cursor-pointer pointer-events-auto active:scale-95 transition-all">
                     <FiChevronLeft className="w-6 h-6 text-slate-800" />
                 </button>
-                <div>
+                <div className="flex-1">
                     <h1 className="text-xl font-black text-slate-800 leading-tight">My Agri Orders</h1>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Physical Goods tracking</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Physical Goods tracking</p>
+                        {/* Live auto-refresh indicator */}
+                        <div className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[8px] font-black text-green-500 uppercase tracking-widest">Live</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 

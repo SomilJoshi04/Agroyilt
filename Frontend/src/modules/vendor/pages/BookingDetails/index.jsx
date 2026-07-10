@@ -1033,6 +1033,15 @@ export default function BookingDetails() {
           <div className="bg-gray-900 px-6 py-6 text-white text-center">
             <p className="text-gray-400 text-xs font-medium uppercase tracking-widest mb-1">TOTAL INVOICE AMOUNT</p>
             <h2 className="text-4xl font-black">₹{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h2>
+            <div className="mt-2.5">
+              <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                booking.paymentStatus === 'SUCCESS' || booking.paymentStatus === 'paid' || booking.paymentStatus === 'success' || booking.paymentStatus === 'PAID'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              }`}>
+                💰 Payment: {booking.paymentStatus === 'SUCCESS' || booking.paymentStatus === 'paid' || booking.paymentStatus === 'success' || booking.paymentStatus === 'PAID' ? 'Received (Wallet Credited)' : 'Pending'}
+              </span>
+            </div>
             {isPlanBenefit && (
               <span className="inline-block mt-2 bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">
                 Plan Benefit Applied

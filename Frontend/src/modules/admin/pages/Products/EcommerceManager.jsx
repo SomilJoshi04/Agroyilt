@@ -15,6 +15,7 @@ import {
 } from 'react-icons/fi';
 import adminProductService from '../../../../services/adminProductService';
 import { publicCatalogService } from '../../../../services/catalogService';
+import { configService } from '../../../../services/configService';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -31,6 +32,7 @@ const EcommerceManager = () => {
     const [editMode, setEditMode] = useState(false);
     const [currentProduct, setCurrentProduct] = useState(null);
     const [activeTab, setActiveTab] = useState('marketplace'); // 'marketplace' or 'pending'
+    const [platformGst, setPlatformGst] = useState(18); // Settings se aayegi GST
     
     const [formData, setFormData] = useState({
         title: '',
@@ -45,12 +47,21 @@ const EcommerceManager = () => {
         images: [],
         isFeatured: false,
         specifications: [],
-        gstPercentage: 18,
+        gstPercentage: platformGst, // Settings se aata hai
         commissionPercentage: 10
     });
 
     useEffect(() => {
         fetchData();
+        // Settings se platform GST fetch karo
+        configService.getSettings().then(res => {
+            if (res.success && res.settings?.serviceGstPercentage != null) {
+                const gst = res.settings.serviceGstPercentage;
+                setPlatformGst(gst);
+                // formData mein bhi update karo taaki naye product form mein sahi GST aaye
+                setFormData(prev => ({ ...prev, gstPercentage: gst }));
+            }
+        });
     }, []);
 
     const fetchData = async () => {
@@ -133,7 +144,8 @@ const EcommerceManager = () => {
     const [approvalData, setApprovalData] = useState({ id: null, commissionPercentage: 10, gstPercentage: 18 });
 
     const handleApproveClick = (product) => {
-        setApprovalData({ id: product._id, commissionPercentage: 10, gstPercentage: 18 });
+        // Settings se fetched platformGst use karo (default 18 nahi)
+        setApprovalData({ id: product._id, commissionPercentage: 10, gstPercentage: platformGst });
         setShowApprovalModal(true);
     };
 

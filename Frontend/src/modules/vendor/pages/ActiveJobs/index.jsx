@@ -58,6 +58,7 @@ const ActiveJobs = memo(() => {
         },
         price: (job.vendorEarnings || (job.finalAmount ? job.finalAmount * 0.9 : 0)).toFixed(2),
         status: job.status,
+        paymentStatus: job.paymentStatus,
         assignedTo: job.workerId ? { name: job.workerId.name } : (job.assignedAt ? { name: 'You (Self)' } : null),
         timeSlot: {
           date: job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'Date',
@@ -340,6 +341,16 @@ const ActiveJobs = memo(() => {
                         </div>
                         <span className="text-gray-700 font-medium">{job.timeSlot?.date} • {job.timeSlot?.time}</span>
                       </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-1.5 pl-8">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        job.paymentStatus === 'SUCCESS' || job.paymentStatus === 'paid' || job.paymentStatus === 'success' || job.paymentStatus === 'PAID'
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                          : 'bg-amber-50 text-amber-600 border border-amber-100'
+                      }`}>
+                        💰 Payment: {job.paymentStatus === 'SUCCESS' || job.paymentStatus === 'paid' || job.paymentStatus === 'success' || job.paymentStatus === 'PAID' ? 'Received (Wallet Credited)' : 'Pending'}
+                      </span>
                     </div>
 
                     {/* Quick Action Button for Unassigned Jobs */}
