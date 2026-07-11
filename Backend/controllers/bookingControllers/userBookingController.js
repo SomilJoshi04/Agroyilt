@@ -473,6 +473,7 @@ const createBooking = async (req, res) => {
       discount,
       tax,
       visitingCharges,
+      penalty: pendingPenalty || 0,
       finalAmount,
       userPayableAmount: finalAmount,
       address: {
@@ -975,17 +976,16 @@ const cancelBooking = async (req, res) => {
         booking.paymentStatus = PAYMENT_STATUS.REFUNDED;
       }
 
-      // 2. Process Cancellation Fee (Add to Penalty Bucket if Unpaid)
-      if (cancellationFee > 0 && !isPaid) {
-        // Use wallet.penalty bucket
-        user.wallet.penalty = (user.wallet.penalty || 0) + cancellationFee;
-        // Do NOT create a 'debit' transaction yet, as money hasn't left. 
-        // Or create a 'penalty_added' transaction?
-        // User didn't ask for transaction record logic, just functionality.
-        // We will skip transaction for penalty addition to keep it simple, 
-        // as the actual CHARGE happens on next booking creation.
-
-        console.log(`[CancelBooking] Added penalty of ₹${cancellationFee} to user ${userId}. Total Penalty: ${user.wallet.penalty}`);
+      // 2. Process Cancellation Fee and Restore Previous Unpaid Penalty
+      if (!isPaid) {
+        // If this booking had a previous unpaid penalty baked in, we must restore it to the user's bucket
+        const previousPenalty = booking.penalty || 0;
+        const totalNewPenalty = cancellationFee + previousPenalty;
+        
+        if (totalNewPenalty > 0) {
+          user.wallet.penalty = (user.wallet.penalty || 0) + totalNewPenalty;
+          console.log(`[CancelBooking] Restored previous penalty ₹${previousPenalty} and added new penalty ₹${cancellationFee} for user ${userId}. Total Penalty: ${user.wallet.penalty}`);
+        }
       }
 
       await user.save();
