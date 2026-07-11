@@ -286,9 +286,10 @@ const Checkout = () => {
         return;
       }
     } else {
-      if (!addressDetails || !selectedDate || !selectedTime) {
+      const needsTime = rentalType === 'hourly';
+      if (!addressDetails || !selectedDate || (needsTime && !selectedTime)) {
         if (!addressDetails) setShowAddressModal(true);
-        else if (!selectedDate || !selectedTime) setShowTimeSlotModal(true);
+        else if (!selectedDate || (needsTime && !selectedTime)) setShowTimeSlotModal(true);
         return;
       }
     }
@@ -339,6 +340,9 @@ const Checkout = () => {
         finalDate = now;
         finalTime = "ASAP";
         finalTimeSlot = { start: "Now", end: "45 mins" };
+      } else if (rentalType === 'daily' || rentalType === 'monthly' || rentalType === 'land_based') {
+        finalTime = 'Full Day';
+        finalTimeSlot = { start: '00:00', end: '23:59' };
       }
 
       const response = await bookingService.create({
@@ -475,8 +479,11 @@ const Checkout = () => {
     try {
       // Validate required fields
       if (bookingType === 'scheduled') {
-        if (!selectedDate || !selectedTime) {
-          toast.error('Please select time slot');
+        // daily/land_based/monthly: only date required (no time selection needed)
+        const needsTime = rentalType === 'hourly';
+        if (!selectedDate || (needsTime && !selectedTime)) {
+          toast.error('Please select date & time slot');
+          setShowTimeSlotModal(true);
           return;
         }
         if (!addressDetails) {
@@ -533,7 +540,7 @@ const Checkout = () => {
         end: getTimeSlots().find(slot => slot.value === selectedTime)?.end || selectedTime
       };
 
-      if (rentalType === 'daily' || rentalType === 'monthly') {
+      if (rentalType === 'daily' || rentalType === 'monthly' || rentalType === 'land_based') {
         finalTimeDisplay = 'Full Day';
         timeSlotObj = { 
           start: '00:00', 
@@ -593,7 +600,7 @@ const Checkout = () => {
         bookingType, // 'instant' or 'scheduled'
         serviceId: serviceId,
         address: addressObj,
-        scheduledDate: finalDate.toISOString(),
+        scheduledDate: (finalDate || new Date()).toISOString(),
         scheduledTime: finalTimeDisplay,
         timeSlot: timeSlotObj,
         paymentMethod: amountToPay === 0 ? 'plan_benefit' : (paymentMethod === 'online' ? 'online' : 'pay_at_home'),
@@ -1754,9 +1761,13 @@ const Checkout = () => {
                           const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
                           displayStr += ` • ${timeDisplay}`;
                           if (estimatedDuration) displayStr += ` (${estimatedDuration} Hours)`;
+                        } else if (rentalType === 'daily') {
+                          if (localDays) displayStr += ` (${localDays} Day${localDays > 1 ? 's' : ''})`;
+                        } else if (rentalType === 'land_based') {
+                          // No extra time display needed for land_based
                         } else {
                           const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
-                          if (timeDisplay) displayStr += ` • ${timeDisplay}`;
+                          if (timeDisplay && timeDisplay !== '00:00') displayStr += ` • ${timeDisplay}`;
                         }
                         
                         return displayStr;

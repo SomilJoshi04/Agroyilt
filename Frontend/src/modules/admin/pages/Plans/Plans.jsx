@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getPlans, createPlan, updatePlan, deletePlan } from '../../services/planService';
-import { categoryService, brandService, serviceService } from '../../../../services/catalogService';
-import { FiPlus, FiEdit2, FiTrash2, FiCheck, FiX, FiList, FiPackage, FiTool, FiChevronRight, FiBriefcase } from 'react-icons/fi';
+import { categoryService } from '../../../../services/catalogService';
+import { FiPlus, FiEdit2, FiTrash2, FiCheck, FiX, FiList, FiPackage } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 
 const Plans = () => {
@@ -15,8 +15,6 @@ const Plans = () => {
     highlights: [],
     validityDays: 30,
     freeCategories: [],
-    freeBrands: [],
-    freeServices: [],
     marketplaceDiscountPercentage: 0,
     rentalDiscountPercentage: 0
   });
@@ -74,13 +72,7 @@ const Plans = () => {
 
   // Catalog State
   const [categories, setCategories] = useState([]);
-  const [brandsList, setBrandsList] = useState([]); // All brands
-  const [servicesList, setServicesList] = useState([]); // All services
-  const [filteredBrands, setFilteredBrands] = useState([]); // Brands for selected category
-  const [filteredServices, setFilteredServices] = useState([]); // Services for selected brand
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState('');
-  const [selectedService, setSelectedService] = useState('');
 
   useEffect(() => {
     fetchInitialData();
@@ -89,39 +81,18 @@ const Plans = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [plansRes, catsRes, brandsRes, servsRes] = await Promise.all([
+      const [plansRes, catsRes] = await Promise.all([
         getPlans(),
-        categoryService.getAll(),
-        brandService.getAll(),
-        serviceService.getAll({ status: 'active' })
+        categoryService.getAll()
       ]);
-
-      console.log('DEBUG: catsRes', catsRes);
-      console.log('DEBUG: brandsRes', brandsRes);
-      console.log('DEBUG: servsRes', servsRes);
 
       if (plansRes.success) setPlans(plansRes.data);
 
-      // Robust data extraction for categories
       const categoriesData = catsRes.categories || catsRes.data || (Array.isArray(catsRes) ? catsRes : []);
-      const finalCats = Array.isArray(categoriesData) ? categoriesData : [];
-      console.log('DEBUG: finalCats', finalCats);
-      setCategories(finalCats);
-
-      // Robust data extraction for brands
-      const brandsData = brandsRes.brands || brandsRes.data || (Array.isArray(brandsRes) ? brandsRes : []);
-      const finalBrands = Array.isArray(brandsData) ? brandsData : [];
-      console.log('DEBUG: finalBrands', finalBrands);
-      setBrandsList(finalBrands);
-
-      // Robust data extraction for services
-      const servicesData = servsRes.services || servsRes.data || (Array.isArray(servsRes) ? servsRes : []);
-      const finalServices = Array.isArray(servicesData) ? servicesData : [];
-      console.log('DEBUG: finalServices', finalServices);
-      setServicesList(finalServices);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
 
     } catch (error) {
-      console.error('DEBUG: fetchInitialData error', error);
+      console.error('fetchInitialData error', error);
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
@@ -137,54 +108,6 @@ const Plans = () => {
     }
   };
 
-  // Filter brands when category changes
-  useEffect(() => {
-    if (!selectedCategory) {
-      setFilteredBrands([]);
-      return;
-    }
-    const filtered = brandsList.filter(b => {
-      if (!b) return false;
-      const bCatId = b.categoryId?._id || b.categoryId;
-      const directMatch = String(bCatId) === String(selectedCategory);
-      const idsMatch = Array.isArray(b.categoryIds) && b.categoryIds.some(cat => {
-        if (!cat) return false;
-        const catId = cat.id || cat._id || cat;
-        return String(catId) === String(selectedCategory);
-      });
-      return directMatch || idsMatch;
-    });
-    setFilteredBrands(filtered);
-    setSelectedBrand('');
-    setSelectedService('');
-  }, [selectedCategory, brandsList]);
-
-  // Filter services when brand (and category) changes
-  useEffect(() => {
-    if (!selectedBrand || !selectedCategory) {
-      setFilteredServices([]);
-      return;
-    }
-    const filtered = servicesList.filter(s => {
-      if (!s) return false;
-
-      // Check Brand Match
-      const bObj = s.brandId;
-      if (!bObj) return false;
-      const brandId = bObj._id || bObj.id || bObj;
-      const matchesBrand = String(brandId) === String(selectedBrand);
-
-      // Check Category Match
-      const cObj = s.categoryId;
-      if (!cObj) return false;
-      const categoryId = cObj._id || cObj.id || cObj;
-      const matchesCategory = String(categoryId) === String(selectedCategory);
-
-      return matchesBrand && matchesCategory;
-    });
-    setFilteredServices(filtered);
-    setSelectedService('');
-  }, [selectedBrand, selectedCategory, servicesList]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -201,8 +124,6 @@ const Plans = () => {
         marketplaceDiscountPercentage: Number(formData.marketplaceDiscountPercentage) || 0,
         rentalDiscountPercentage: Number(formData.rentalDiscountPercentage) || 0,
         freeCategories: formData.freeCategories.map(c => String(c?._id || c)),
-        freeBrands: formData.freeBrands.map(b => String(b?._id || b)),
-        freeServices: formData.freeServices.map(s => String(s?._id || s)),
         highlights: formData.highlights
       };
 
@@ -229,34 +150,17 @@ const Plans = () => {
       highlights: plan.highlights || plan.services || [],
       validityDays: plan.validityDays || 30,
       freeCategories: (plan.freeCategories || []).map(c => c._id || c),
-      freeBrands: (plan.freeBrands || []).map(b => b._id || b),
-      freeServices: (plan.freeServices || []).map(s => s._id || s),
       marketplaceDiscountPercentage: plan.marketplaceDiscountPercentage || 0,
       rentalDiscountPercentage: plan.rentalDiscountPercentage || 0
     });
     setFeatureInput('');
     setIsModalOpen(true);
 
-    // Auto-select first category/brand for easier editing
     if (plan.freeCategories?.length > 0) {
-      const firstCatId = plan.freeCategories[0]?._id || plan.freeCategories[0];
-      setSelectedCategory(String(firstCatId));
-    } else if (plan.freeBrands?.length > 0) {
-      const firstBrandObj = plan.freeBrands[0];
-      const bCatId = firstBrandObj?.categoryId?._id || firstBrandObj?.categoryId;
-      if (bCatId) setSelectedCategory(String(bCatId));
-      setSelectedBrand(String(firstBrandObj?._id || firstBrandObj));
-    } else if (plan.freeServices?.length > 0) {
-      const firstSvcObj = plan.freeServices[0];
-      const sCatId = firstSvcObj?.categoryId?._id || firstSvcObj?.categoryId;
-      const sBrandId = firstSvcObj?.brandId?._id || firstSvcObj?.brandId;
-      if (sCatId) setSelectedCategory(String(sCatId));
-      if (sBrandId) setSelectedBrand(String(sBrandId));
+      setSelectedCategory(String(plan.freeCategories[0]?._id || plan.freeCategories[0]));
     } else {
       setSelectedCategory('');
-      setSelectedBrand('');
     }
-    setSelectedService('');
   };
 
   const handleDelete = async (id) => {
@@ -279,7 +183,6 @@ const Plans = () => {
       highlights: [],
       validityDays: 30,
       freeCategories: [],
-      freeBrands: [],
       freeServices: [],
       marketplaceDiscountPercentage: 0,
       rentalDiscountPercentage: 0
@@ -287,7 +190,6 @@ const Plans = () => {
     setIsModalOpen(true);
     // Reset selections
     setSelectedCategory('');
-    setSelectedBrand('');
     setSelectedService('');
   };
 
@@ -344,22 +246,7 @@ const Plans = () => {
                         </div>
                       )}
 
-                      {/* Display Free Brands */}
-                      {plan.freeBrands && plan.freeBrands.length > 0 && (
-                        <div className={`flex flex-col gap-1 text-xs ${style.text}`}>
-                          {plan.freeBrands.map((brandRef, idx) => {
-                            const brandId = String(brandRef?._id || brandRef);
-                            const brand = brandsList.find(b => String(b.id || b._id) === brandId);
-                            const displayTitle = brand ? brand.title : (brandRef?.title || 'Unlimited Brand Coverage');
-                            return (
-                              <div key={`b-v-${idx}`} className="flex items-center gap-2">
-                                <FiCheck className={`w-3.5 h-3.5 ${style.check} rounded-full p-0.5`} />
-                                <span>{displayTitle === 'Unlimited Brand Coverage' ? 'Unlimited Brand Coverage' : `Unlimited ${displayTitle}`}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+
 
                       {/* Display Free Equipment Types */}
                       {plan.freeServices && plan.freeServices.length > 0 && (
@@ -387,7 +274,7 @@ const Plans = () => {
                         </div>
                       )}
 
-                      {(!plan.freeCategories?.length && !plan.freeBrands?.length && !plan.freeServices?.length && !plan.marketplaceDiscountPercentage && !plan.rentalDiscountPercentage) && (
+                      {(!plan.freeCategories?.length && !plan.freeServices?.length && !plan.marketplaceDiscountPercentage && !plan.rentalDiscountPercentage) && (
                         <span className={`text-xs italic ${style.subtext}`}>No benefits configured</span>
                       )}
 
@@ -610,7 +497,7 @@ const Plans = () => {
                 </div>
 
                 <div className="p-6 bg-white space-y-6">
-                  {/* Selector Row */}
+                  {/* Selector Row: Category → Add Benefit */}
                   <div className="flex flex-col md:flex-row gap-3 items-end">
                     <div className="flex-1 w-full space-y-1.5">
                       <label className="text-xs font-semibold text-gray-500 uppercase">Category</label>
@@ -626,73 +513,18 @@ const Plans = () => {
                       </select>
                     </div>
 
-                    <div className="flex-1 w-full space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-500 uppercase">Brand</label>
-                      <select
-                        value={selectedBrand}
-                        onChange={(e) => setSelectedBrand(e.target.value)}
-                        disabled={!selectedCategory}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100 disabled:text-gray-400"
-                      >
-                        <option value="">{selectedCategory ? 'All Brands / Select Brand...' : 'Select Category first'}</option>
-                        {filteredBrands.map(brand => (
-                          <option key={brand.id || brand._id} value={brand.id || brand._id}>{brand.title}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="flex items-center justify-center pb-3 text-gray-400">
-                      <FiChevronRight className="w-5 h-5 hidden md:block" />
-                    </div>
-
-                    <div className="flex-1 w-full space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-500 uppercase">Equipment Type</label>
-                      <select
-                        value={selectedService}
-                        onChange={(e) => setSelectedService(e.target.value)}
-                        disabled={!selectedBrand}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100 disabled:text-gray-400"
-                      >
-                        <option value="">{selectedBrand ? 'All Services / Select...' : 'Select Brand first'}</option>
-                        {filteredServices.map(service => (
-                          <option key={service.id || service._id} value={service.id || service._id}>{service.title}</option>
-                        ))}
-                      </select>
-                    </div>
-
                     <button
                       type="button"
                       disabled={!selectedCategory}
                       onClick={() => {
-                        let addedAny = false;
-
-                        // Most specific selection wins
-                        if (selectedService) {
-                          // Specific Service
-                          if (!formData.freeServices.some(s => String(s._id || s) === String(selectedService))) {
-                            setFormData(p => ({ ...p, freeServices: [...p.freeServices, selectedService] }));
-                            addedAny = true;
-                          }
-                        } else if (selectedBrand) {
-                          // All Services for a Brand
-                          if (!formData.freeBrands.some(b => String(b._id || b) === String(selectedBrand))) {
-                            setFormData(p => ({ ...p, freeBrands: [...p.freeBrands, selectedBrand] }));
-                            addedAny = true;
-                          }
-                        } else if (selectedCategory) {
-                          // All Services for a Category
+                        if (selectedCategory) {
                           if (!formData.freeCategories.some(c => String(c._id || c) === String(selectedCategory))) {
                             setFormData(p => ({ ...p, freeCategories: [...p.freeCategories, selectedCategory] }));
-                            addedAny = true;
+                            toast.success('Benefit added!');
+                            setSelectedCategory('');
+                          } else {
+                            toast.error('Already in list');
                           }
-                        }
-
-                        if (addedAny) {
-                          toast.success('Benefit added to list');
-                          setSelectedService('');
-                          // If we added a service, maybe keep brand/cat selected for adding next service
-                        } else {
-                          toast.error('Benefit already in list or nothing selected');
                         }
                       }}
                       className="h-[42px] px-6 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-500/20 active:scale-95 transition-all w-full md:w-auto"
@@ -730,57 +562,7 @@ const Plans = () => {
                         );
                       })}
 
-                      {/* Brands */}
-                      {formData.freeBrands.map((brandId, idx) => {
-                        const targetId = String(brandId?._id || brandId);
-                        const brand = brandsList.find(b => String(b.id || b._id) === targetId);
-                        const displayTitle = brand ? brand.title : (brandId?.title || 'Brand');
-                        return (
-                          <div key={`b-tag-${idx}`} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-sky-50 text-sky-700 border border-sky-100 rounded-full text-sm font-medium shadow-sm">
-                            <FiBriefcase className="w-4 h-4" />
-                            <span>{displayTitle}</span>
-                            <span className="bg-sky-200 text-sky-800 text-[10px] px-1.5 rounded-full uppercase">All Brand Free</span>
-                            <button
-                              type="button"
-                              onClick={() => setFormData(p => ({ ...p, freeBrands: p.freeBrands.filter(id => String(id?._id || id) !== targetId) }))}
-                              className="ml-1 p-0.5 hover:bg-white rounded-full transition-colors text-sky-400 hover:text-red-500"
-                            >
-                              <FiX className="w-4 h-4" />
-                            </button>
-                          </div>
-                        );
-                      })}
-
-                      {/* Equipment Types */}
-                      {formData.freeServices.map((svcId, idx) => {
-                        const targetId = String(svcId?._id || svcId);
-                        const svc = servicesList.find(s => String(s.id || s._id) === targetId);
-
-                        let displayTitle = 'Equipment';
-                        if (svc) {
-                          const brandTitle = svc.brandId?.title || '';
-                          const catTitle = svc.categoryId?.title || '';
-                          displayTitle = `${brandTitle} ${catTitle} ${svc.title}`.replace(/\s+/g, ' ').trim();
-                        } else if (svcId?.title) {
-                          displayTitle = svcId.title;
-                        }
-
-                        return (
-                          <div key={`s-tag-${idx}`} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-sm font-medium shadow-sm">
-                            <FiTool className="w-4 h-4" />
-                            <span>{displayTitle}</span>
-                            <button
-                              type="button"
-                              onClick={() => setFormData(p => ({ ...p, freeServices: p.freeServices.filter(id => String(id?._id || id) !== targetId) }))}
-                              className="ml-1 p-0.5 hover:bg-white rounded-full transition-colors text-emerald-400 hover:text-red-500"
-                            >
-                              <FiX className="w-4 h-4" />
-                            </button>
-                          </div>
-                        );
-                      })}
-
-                      {formData.freeCategories.length === 0 && formData.freeBrands.length === 0 && formData.freeServices.length === 0 && (
+                      {formData.freeCategories.length === 0 && (
                         <p className="text-gray-400 text-sm italic w-full">No benefits added yet. Select a category above to start.</p>
                       )}
                     </div>
