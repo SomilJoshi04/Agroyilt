@@ -212,7 +212,7 @@ export default function BookingDetails() {
 
           timeSlot: {
             date: apiData.scheduledDate ? new Date(apiData.scheduledDate).toLocaleDateString() : 'Today',
-            time: apiData.scheduledTime || apiData.timeSlot?.start ? `${apiData.timeSlot.start} - ${apiData.timeSlot.end}` : 'Flexible'
+            time: apiData.scheduledTime || apiData.timeSlot?.start ? `${apiData.timeSlot?.start} - ${apiData.timeSlot?.end}` : 'Flexible'
           },
           status: apiData.status,
           description: apiData.description || apiData.notes || 'No description provided',
@@ -222,7 +222,14 @@ export default function BookingDetails() {
           paymentMethod: apiData.paymentMethod,
           paymentStatus: apiData.paymentStatus,
           cashCollected: apiData.cashCollected || false,
-          categoryId: apiData.categoryId // Store whole object for trackingType/requiresDriver
+          categoryId: apiData.categoryId, // Store whole object for trackingType/requiresDriver
+          // Rental details
+          rental_type: apiData.rental_type,
+          estimatedDuration: apiData.estimatedDuration,
+          landSize: apiData.landSize,
+          cropType: apiData.cropType,
+          endDate: apiData.endDate,
+          scheduledDate: apiData.scheduledDate,
         };
 
         setBooking(mappedBooking);
@@ -1018,12 +1025,53 @@ export default function BookingDetails() {
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
           }}
         >
-          <div className="flex items-center gap-3">
-            <FiClock className="w-5 h-5" style={{ color: themeColors.icon }} />
-            <div>
+          <div className="flex items-start gap-3">
+            <FiClock className="w-5 h-5 mt-0.5" style={{ color: themeColors.icon }} />
+            <div className="flex-1">
               <p className="text-sm text-gray-600">Preferred Time</p>
               <p className="font-semibold text-gray-800">{booking.timeSlot.date}</p>
               <p className="text-sm text-gray-600">{booking.timeSlot.time}</p>
+
+              {/* Rental Details */}
+              {booking.rental_type && booking.rental_type !== 'hourly' && (
+                <div className="mt-2 space-y-1">
+                  <span
+                    className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full"
+                    style={{ background: `${themeColors.button}15`, color: themeColors.button }}
+                  >
+                    {booking.rental_type === 'daily' ? 'Daily Rental' : booking.rental_type === 'land_based' ? 'Land Based' : booking.rental_type === 'monthly' ? 'Monthly Rental' : booking.rental_type}
+                  </span>
+                  {booking.rental_type === 'daily' && booking.estimatedDuration && (
+                    <p className="text-sm font-semibold text-gray-700">
+                      📅 {booking.estimatedDuration} Day{booking.estimatedDuration > 1 ? 's' : ''}
+                      {booking.endDate ? (
+                        <span className="text-gray-500 font-normal"> · Ends {new Date(booking.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      ) : booking.scheduledDate && booking.estimatedDuration > 1 ? (() => {
+                        const end = new Date(booking.scheduledDate);
+                        end.setDate(end.getDate() + Number(booking.estimatedDuration) - 1);
+                        return <span className="text-gray-500 font-normal"> · Ends {end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>;
+                      })() : null}
+                    </p>
+                  )}
+                  {booking.rental_type === 'monthly' && (
+                    <p className="text-sm font-semibold text-gray-700">
+                      📅 1 Month
+                      {booking.endDate && (
+                        <span className="text-gray-500 font-normal"> · Ends {new Date(booking.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      )}
+                    </p>
+                  )}
+                  {booking.rental_type === 'land_based' && booking.landSize && (
+                    <p className="text-sm font-semibold text-gray-700">🗺️ Area: {booking.landSize}</p>
+                  )}
+                  {booking.cropType && (
+                    <p className="text-xs text-gray-500">🌾 Crop: {booking.cropType}</p>
+                  )}
+                </div>
+              )}
+              {booking.rental_type === 'hourly' && booking.estimatedDuration && (
+                <p className="text-sm font-semibold text-gray-700 mt-1">⏱ {booking.estimatedDuration} Hour{booking.estimatedDuration > 1 ? 's' : ''}</p>
+              )}
             </div>
           </div>
         </div>

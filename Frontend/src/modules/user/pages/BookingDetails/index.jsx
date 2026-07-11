@@ -1344,6 +1344,44 @@ const BookingDetails = () => {
                     {formatDate(booking.scheduledDate)}
                   </p>
                   <p className="text-sm text-gray-500">{booking.scheduledTime || booking.timeSlot?.start || 'N/A'}</p>
+
+                  {/* Rental Type Details */}
+                  {booking.rental_type && booking.rental_type !== 'hourly' && (
+                    <div className="mt-2 space-y-1">
+                      <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+                        {booking.rental_type === 'daily' ? 'Daily Rental' : booking.rental_type === 'land_based' ? 'Land Based' : booking.rental_type === 'monthly' ? 'Monthly Rental' : booking.rental_type}
+                      </span>
+                      {booking.rental_type === 'daily' && booking.estimatedDuration && (
+                        <p className="text-sm font-semibold text-gray-700">
+                          📅 {booking.estimatedDuration} Day{booking.estimatedDuration > 1 ? 's' : ''}
+                          {booking.endDate ? (
+                            <span className="text-gray-500"> · Ends {new Date(booking.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          ) : booking.scheduledDate && booking.estimatedDuration > 1 ? (() => {
+                            const end = new Date(booking.scheduledDate);
+                            end.setDate(end.getDate() + Number(booking.estimatedDuration) - 1);
+                            return <span className="text-gray-500"> · Ends {end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>;
+                          })() : null}
+                        </p>
+                      )}
+                      {booking.rental_type === 'monthly' && (
+                        <p className="text-sm font-semibold text-gray-700">
+                          📅 1 Month
+                          {booking.endDate && (
+                            <span className="text-gray-500"> · Ends {new Date(booking.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          )}
+                        </p>
+                      )}
+                      {booking.rental_type === 'land_based' && booking.landSize && (
+                        <p className="text-sm font-semibold text-gray-700">🗺️ Area: {booking.landSize}</p>
+                      )}
+                      {booking.cropType && (
+                        <p className="text-xs text-gray-500">🌾 Crop: {booking.cropType}</p>
+                      )}
+                    </div>
+                  )}
+                  {booking.rental_type === 'hourly' && booking.estimatedDuration && (
+                    <p className="text-sm font-semibold text-gray-700 mt-1">⏱ {booking.estimatedDuration} Hour{booking.estimatedDuration > 1 ? 's' : ''}</p>
+                  )}
                 </div>
               </div>
             </div>

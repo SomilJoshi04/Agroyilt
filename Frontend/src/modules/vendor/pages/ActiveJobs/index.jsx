@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBriefcase, FiMapPin, FiClock, FiUser, FiFilter, FiSearch, FiLoader } from 'react-icons/fi';
+import { FiBriefcase, FiMapPin, FiClock, FiUser, FiFilter, FiSearch, FiLoader, FiPackage } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -63,7 +63,14 @@ const ActiveJobs = memo(() => {
         timeSlot: {
           date: job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'Date',
           time: job.scheduledTime || 'Time'
-        }
+        },
+        // Rental details
+        rental_type: job.rental_type,
+        estimatedDuration: job.estimatedDuration,
+        landSize: job.landSize,
+        cropType: job.cropType,
+        endDate: job.endDate,
+        scheduledDate: job.scheduledDate,
       }));
       setJobs(mappedJobs);
     } catch (error) {
@@ -341,6 +348,58 @@ const ActiveJobs = memo(() => {
                         </div>
                         <span className="text-gray-700 font-medium">{job.timeSlot?.date} • {job.timeSlot?.time}</span>
                       </div>
+
+                      {/* Rental Details — daily/hourly/land_based */}
+                      {job.rental_type && job.rental_type !== 'hourly' && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <div className="p-1 rounded mt-0.5" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
+                            <FiPackage className="w-4 h-4" style={{ color: statusColor }} />
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span
+                              className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block w-fit"
+                              style={{ background: `${statusColor}15`, color: statusColor }}
+                            >
+                              {job.rental_type === 'daily' ? 'Daily Rental' : job.rental_type === 'land_based' ? 'Land Based' : job.rental_type === 'monthly' ? 'Monthly Rental' : job.rental_type}
+                            </span>
+                            {job.rental_type === 'daily' && job.estimatedDuration && (
+                              <span className="text-gray-600 font-semibold">
+                                📅 {job.estimatedDuration} Day{job.estimatedDuration > 1 ? 's' : ''}
+                                {job.endDate && (
+                                  <> · Ends {new Date(job.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</>
+                                )}
+                                {!job.endDate && job.scheduledDate && job.estimatedDuration > 1 && (() => {
+                                  const end = new Date(job.scheduledDate);
+                                  end.setDate(end.getDate() + Number(job.estimatedDuration) - 1);
+                                  return <> · Ends {end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</>;
+                                })()}
+                              </span>
+                            )}
+                            {job.rental_type === 'monthly' && (
+                              <span className="text-gray-600 font-semibold">
+                                📅 1 Month
+                                {job.endDate && (
+                                  <> · Ends {new Date(job.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</>
+                                )}
+                              </span>
+                            )}
+                            {job.rental_type === 'land_based' && job.landSize && (
+                              <span className="text-gray-600 font-semibold">🗺️ {job.landSize}</span>
+                            )}
+                            {job.cropType && (
+                              <span className="text-gray-500 text-xs">🌾 Crop: {job.cropType}</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {job.rental_type === 'hourly' && job.estimatedDuration && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
+                            <FiPackage className="w-4 h-4" style={{ color: statusColor }} />
+                          </div>
+                          <span className="text-gray-700 font-semibold">⏱ {job.estimatedDuration} Hour{job.estimatedDuration > 1 ? 's' : ''}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-3 flex items-center gap-1.5 pl-8">

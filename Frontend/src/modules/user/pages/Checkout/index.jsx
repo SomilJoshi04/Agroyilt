@@ -317,7 +317,13 @@ const Checkout = () => {
         card: {
           title: item.card?.title || item.title,
           subtitle: item.card?.subtitle || item.description || '',
-          price: item.card?.price || item.price || 0,
+          price: (() => {
+            const svcO = item.serviceId && typeof item.serviceId === 'object' ? item.serviceId : item;
+            if (rentalType === 'daily') return svcO.daily_price || item.daily_price || item.price || 0;
+            if (rentalType === 'land_based') return svcO.land_price || item.land_price || item.price || 0;
+            if (rentalType === 'monthly') return svcO.monthly_price || svcO.daily_price || item.monthly_price || item.daily_price || item.price || 0;
+            return svcO.hourly_price || item.hourly_price || item.price || 0;
+          })(),
           originalPrice: item.card?.originalPrice || item.originalPrice || null,
           duration: item.card?.duration || item.duration || '',
           description: item.card?.description || item.description || '',
@@ -571,7 +577,13 @@ const Checkout = () => {
         card: {
           title: item.title || 'Unknown Service',
           subtitle: item.description || '',
-          price: (item.hourly_price || item.land_price || item.daily_price || item.price || 0),
+          price: (() => {
+            const svcO = item.serviceId && typeof item.serviceId === 'object' ? item.serviceId : item;
+            if (rentalType === 'daily') return svcO.daily_price || item.daily_price || item.price || 0;
+            if (rentalType === 'land_based') return svcO.land_price || item.land_price || item.price || 0;
+            if (rentalType === 'monthly') return svcO.monthly_price || svcO.daily_price || item.monthly_price || item.daily_price || item.price || 0;
+            return svcO.hourly_price || item.hourly_price || item.price || 0;
+          })(),
           originalPrice: item.originalPrice || null,
           duration: item.duration || '',
           description: item.description || '',
