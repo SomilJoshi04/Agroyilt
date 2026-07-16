@@ -54,7 +54,8 @@ exports.addEquipment = async (req, res) => {
       pricing,
       includesDriver,
       driver,
-      workerId
+      workerId,
+      requestedCityName
     } = req.body;
 
     // 1. Verify Category exists and is a "Main Category" (if categoryId is provided)
@@ -82,9 +83,12 @@ exports.addEquipment = async (req, res) => {
     // 3. Retrieve vendor cityId for listing location
     const Vendor = require('../../models/Vendor');
     const vendor = await Vendor.findById(vendorId);
-    const cityIds = (vendor && (vendor.cityId || vendor.address?.cityId))
-      ? [vendor.cityId || vendor.address.cityId]
-      : [];
+    let cityIds = req.body.cityIds || [];
+    if (!cityIds.length && vendor) {
+      cityIds = (vendor.cityId || vendor.address?.cityId)
+        ? [vendor.cityId || vendor.address.cityId]
+        : [];
+    }
 
     // 4. Create equipment
     const equipment = await VendorEquipment.create({
@@ -104,6 +108,7 @@ exports.addEquipment = async (req, res) => {
       driver,
       workerId,
       cityIds,
+      requestedCityName: requestedCityName || null,
       status: 'pending'
     });
 

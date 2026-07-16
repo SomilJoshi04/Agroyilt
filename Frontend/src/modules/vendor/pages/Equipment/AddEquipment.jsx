@@ -12,6 +12,7 @@ import vendorService from '../../../../services/vendorService';
 import { getWorkers } from '../../services/workerService';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import { FormContainer, FormSection } from '../../../../components/common';
+import api from '../../../../services/api';
 
 const AddEquipment = () => {
   const navigate = useNavigate();
@@ -26,10 +27,14 @@ const AddEquipment = () => {
   const [vendorWorkers, setVendorWorkers] = useState([]);
   const [showWorkerLink, setShowWorkerLink] = useState(false);
   const [isRequestingCategory, setIsRequestingCategory] = useState(false);
+  const [isRequestingCity, setIsRequestingCity] = useState(false);
+  const [cities, setCities] = useState([]);
 
   const [form, setForm] = useState({
     categoryId: '',
+    cityIds: [],
     requestedCategoryName: '',
+    requestedCityName: '',
     listingType: 'service',
     implements: [],          // NEW: [{subCategoryId, pricing:{hourly,land_based,daily}}]
     subCategoryIds: [],      // legacy fallback
@@ -68,10 +73,13 @@ const AddEquipment = () => {
     try {
       // 1. Get Vendor Profile for City-based filtering
       const profileRes = await vendorService.getProfile();
-      const cityId = profileRes.data?.address?.cityId || profileRes.data?.cityId;
+      const vendorCityId = profileRes.data?.address?.cityId || profileRes.data?.cityId;
 
-      const res = await vendorEquipmentService.getMachineTypes(cityId);
+      const res = await vendorEquipmentService.getMachineTypes(vendorCityId);
       if (res.success) setMachineTypes(res.data);
+
+      const cityRes = await api.get('/public/cities');
+      if (cityRes.data?.success) setCities(cityRes.data.cities || []);
 
       const workerRes = await getWorkers();
       if (workerRes.success) setVendorWorkers(workerRes.data);
@@ -87,6 +95,8 @@ const AddEquipment = () => {
             ...item,
             categoryId: catId,
             requestedCategoryName: item.requestedCategoryName || '',
+            requestedCityName: item.requestedCityName || '',
+            cityIds: item.cityIds || [],
             subCategoryIds: item.subCategoryIds?.map(s => s._id || s) || [],
             driver: item.driver || {
               name: '',
@@ -107,13 +117,16 @@ const AddEquipment = () => {
         const savedDraft = localStorage.getItem('groo_add_machine_draft');
         if (savedDraft) {
           try {
-            const { draftForm, draftIsRequesting } = JSON.parse(savedDraft);
+            const { draftForm, draftIsRequesting, draftIsRequestingCity } = JSON.parse(savedDraft);
             if (draftForm) {
               setForm(prev => ({ ...prev, ...draftForm }));
               activeCategoryId = draftForm.categoryId || '';
             }
             if (typeof draftIsRequesting === 'boolean') {
               setIsRequestingCategory(draftIsRequesting);
+            }
+            if (typeof draftIsRequestingCity === 'boolean') {
+              setIsRequestingCity(draftIsRequestingCity);
             }
           } catch (e) {
             console.error('Failed to parse form draft', e);
@@ -147,10 +160,11 @@ const AddEquipment = () => {
     if (!isEdit && !loading) {
       localStorage.setItem('groo_add_machine_draft', JSON.stringify({
         draftForm: form,
-        draftIsRequesting: isRequestingCategory
+        draftIsRequesting: isRequestingCategory,
+        draftIsRequestingCity: isRequestingCity
       }));
     }
-  }, [form, isRequestingCategory, isEdit, loading]);
+  }, [form, isRequestingCategory, isRequestingCity, isEdit, loading]);
 
   const handleCategoryChange = async (categoryId) => {
     setForm(prev => ({ ...prev, categoryId, implements: [], subCategoryIds: [] }));
@@ -223,13 +237,20 @@ const AddEquipment = () => {
     e.preventDefault();
     
     // 1. Basic Identity Validation
-    if (!isRequestingCategory && !form.categoryId) {
+    const submissionData = { ...form };
+    if (!isRequestingCategory && !submissionData.categoryId) {
       return toast.error('Please select machine type');
     }
-    if (isRequestingCategory && (!form.requestedCategoryName || form.requestedCategoryName.trim().length < 3)) {
-      return toast.error('Please enter the machine type you want to request');
+    if (isRequestingCategory) {
+      if (!submissionData.requestedCategoryName || submissionData.requestedCategoryName.trim().length < 3) {
+        return toast.error('Please enter the machine type you want to request');
+      }
+      submissionData.categoryId = null; // Ensure it's null instead of empty string
+    } else {
+      submissionData.requestedCategoryName = null;
     }
-    if (!form.name || form.name.length < 3) return toast.error('Please enter a valid machine name');
+
+    if (!submissionData.name || submissionData.name.length < 3) return toast.error('Please enter a valid machine name');
     
     // 2. Pricing Validation
     const enabledModes = Object.keys(form.pricing).filter(k => form.pricing[k].isEnabled);
@@ -262,10 +283,10 @@ const AddEquipment = () => {
     try {
       setSubmitting(true);
       if (isEdit) {
-        await vendorEquipmentService.update(id, form);
+        await vendorEquipmentService.update(id, submissionData);
         toast.success('Updated');
       } else {
-        await vendorEquipmentService.add(form);
+        await vendorEquipmentService.add(submissionData);
         localStorage.removeItem('groo_add_machine_draft');
         toast.success('Listing created successfully!');
       }
@@ -356,6 +377,59 @@ const AddEquipment = () => {
                   </button>
                 </div>
               )}
+
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                {!isRequestingCity ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <label className="absolute left-4 top-2 text-[9px] font-bold text-slate-400 uppercase">Operating Zone (City)</label>
+                      <select 
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 pt-6 text-sm font-black text-slate-800 outline-none appearance-none"
+                        value={form.cityIds?.[0] || ''}
+                        onChange={(e) => setForm(p => ({ ...p, cityIds: [e.target.value] }))}
+                      >
+                        <option value="" className="text-slate-800">Use My Registered City</option>
+                        {cities.map(c => <option key={c._id || c.id} value={c._id || c.id} className="text-slate-800">{c.name}</option>)}
+                      </select>
+                      <FiChevronDown className="absolute right-5 bottom-4 text-slate-400 pointer-events-none" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRequestingCity(true);
+                        setForm(p => ({ ...p, cityIds: [] }));
+                      }}
+                      className="text-[10px] text-slate-400 hover:text-blue-600 font-bold transition-colors flex flex-wrap items-center gap-x-1.5 gap-y-1 ml-1"
+                    >
+                      <span>Can't find your city?</span>
+                      <span className="bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider border border-blue-100 shadow-sm">Request one</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <label className="absolute left-4 top-2 text-[9px] font-bold text-slate-400 uppercase">Request Operating Zone</label>
+                      <input 
+                        type="text"
+                        placeholder="e.g. Pune, Maharashtra"
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 pt-6 text-sm font-black text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500/20 focus:bg-slate-50/50 transition-all"
+                        value={form.requestedCityName}
+                        onChange={e => setForm(p => ({ ...p, requestedCityName: e.target.value }))}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRequestingCity(false);
+                        setForm(p => ({ ...p, requestedCityName: '' }));
+                      }}
+                      className="text-[10px] text-slate-400 hover:text-blue-600 font-bold transition-colors flex items-center gap-1 ml-1"
+                    >
+                      <span>← Back to city list</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <AnimatePresence>
                 {machineImplements.length > 0 && (

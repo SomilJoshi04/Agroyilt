@@ -13,7 +13,12 @@ exports.getAllEquipment = async (req, res) => {
     if (vendorId) query.vendorId = vendorId;
 
     const equipment = await VendorEquipment.find(query)
-      .populate('vendorId', 'name email phone avatar')
+      .populate({ 
+        path: 'vendorId', 
+        select: 'name email phone avatar businessName cityId address', 
+        populate: { path: 'cityId', select: 'name' } 
+      })
+      .populate('cityIds', 'name')
       .populate('categoryId', 'title slug')
       .populate('subCategoryIds', 'title')
       .populate('implements.subCategoryId', 'title')
@@ -74,6 +79,25 @@ exports.deleteEquipment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Not found' });
     }
     res.status(200).json({ success: true, message: 'Deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * Update Equipment (Admin Only)
+ */
+exports.updateEquipment = async (req, res) => {
+  try {
+    const equipment = await VendorEquipment.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!equipment) {
+      return res.status(404).json({ success: false, message: 'Not found' });
+    }
+    res.status(200).json({ success: true, message: 'Updated successfully', data: equipment });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }

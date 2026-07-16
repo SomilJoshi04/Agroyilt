@@ -698,11 +698,14 @@ module.exports = {
   },
   addVendor: async (req, res) => {
     try {
-      const { name, email, phone, businessName, service, aadhar, pan } = req.body;
+      const { name, email, phone, businessName, service, aadhar, pan, labDetails, shopDetails } = req.body;
       let aadharUrl = req.body.aadharDocument || null;
       let aadharBackUrl = req.body.aadharBackDocument || null;
       let panUrl = req.body.panDocument || null;
       let otherUrls = req.body.otherDocuments || [];
+
+      let parsedLabDetails = labDetails ? (typeof labDetails === 'string' ? JSON.parse(labDetails) : labDetails) : null;
+      let parsedShopDetails = shopDetails ? (typeof shopDetails === 'string' ? JSON.parse(shopDetails) : shopDetails) : null;
 
       // Check if vendor already exists
       const existingVendor = await Vendor.findOne({ $or: [{ phone }, { email }] });
@@ -740,15 +743,33 @@ module.exports = {
         otherUrls = uploadedOthers;
       }
 
+      // Upload lab certificate if base64
+      if (parsedLabDetails && parsedLabDetails.certificationDocument && parsedLabDetails.certificationDocument.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(parsedLabDetails.certificationDocument, { folder: 'vendors/documents/lab' });
+        if (uploadRes.success) parsedLabDetails.certificationDocument = uploadRes.url;
+      }
+
+      // Upload shop license if base64
+      if (parsedShopDetails && parsedShopDetails.licenseDocument && parsedShopDetails.licenseDocument.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(parsedShopDetails.licenseDocument, { folder: 'vendors/documents/shop' });
+        if (uploadRes.success) parsedShopDetails.licenseDocument = uploadRes.url;
+      }
+
+      // Automatically add soil_testing to service if registering as a lab
+      const serviceArray = Array.isArray(service) ? service : (service ? [service] : []);
+      if (parsedLabDetails && !serviceArray.includes('soil_testing')) {
+        serviceArray.push('soil_testing');
+      }
+
       // Create the vendor document.
       // Admin created vendors bypass the review process, so approvalStatus is APPROVED and isActive is true.
-      const vendor = await Vendor.create({
+      const vendorData = {
         name,
         email,
         phone,
         businessName,
-        service: Array.isArray(service) ? service : (service ? [service] : []),
-        categories: Array.isArray(service) ? service : (service ? [service] : []),
+        service: serviceArray,
+        categories: serviceArray,
         aadhar: {
           number: aadhar,
           document: aadharUrl,
@@ -763,7 +784,18 @@ module.exports = {
         approvalDate: new Date(),
         isActive: true,
         isPhoneVerified: true
-      });
+      };
+
+      if (parsedLabDetails) {
+        vendorData.labDetails = parsedLabDetails;
+      }
+      if (parsedShopDetails) {
+        parsedShopDetails.isStoreApproved = true;
+        parsedShopDetails.storeApprovalStatus = 'approved';
+        vendorData.shopDetails = parsedShopDetails;
+      }
+
+      const vendor = await Vendor.create(vendorData);
 
       res.status(201).json({
         success: true,

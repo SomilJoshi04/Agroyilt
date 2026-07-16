@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   FiMapPin, FiTruck, FiCalendar, FiClock, 
-  FiCheckCircle, FiShield, FiCreditCard, FiArrowLeft 
+  FiCheckCircle, FiShield, FiCreditCard, FiArrowLeft, FiDollarSign
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -19,6 +19,7 @@ const MachineryCheckout = () => {
     const [showAddressModal, setShowAddressModal] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState('cash'); // Defaulting to COD
     const [submitting, setSubmitting] = useState(false);
+    const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false); // Payment confirmation modal
 
     if (!equipment || !bookingData) {
         return (
@@ -222,7 +223,7 @@ const MachineryCheckout = () => {
                         <h4 className="text-2xl font-black text-slate-800 leading-none">₹{total}</h4>
                     </div>
                     <button
-                        onClick={handleConfirmBooking}
+                        onClick={() => setShowPaymentConfirmModal(true)}
                         disabled={submitting}
                         className={`px-12 py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl transition-all
                           ${submitting ? 'bg-slate-200 text-slate-400 scale-95' : 'bg-slate-800 text-white active:scale-95 shadow-slate-200'}`}
@@ -237,6 +238,141 @@ const MachineryCheckout = () => {
               onClose={() => setShowAddressModal(false)}
               onSelect={(addr) => setSelectedAddress(addr)}
             />
+
+            {/* ══════════ Payment Confirmation Modal ══════════ */}
+            {showPaymentConfirmModal && (
+              <div className="fixed inset-0 z-[9999] flex items-end justify-center">
+                {/* Backdrop */}
+                <div
+                  className="absolute inset-0 bg-black/50 backdrop-blur-[3px]"
+                  onClick={() => setShowPaymentConfirmModal(false)}
+                />
+
+                {/* Bottom Sheet */}
+                <div className="relative bg-white w-full rounded-t-[32px] shadow-2xl z-10 overflow-hidden" style={{ maxHeight: '90vh' }}>
+                  {/* Top accent strip */}
+                  <div className="h-1 w-full bg-gradient-to-r from-slate-700 to-slate-900" />
+
+                  {/* Drag pill */}
+                  <div className="flex justify-center pt-3 pb-1">
+                    <div className="w-10 h-1.5 bg-gray-200 rounded-full" />
+                  </div>
+
+                  <div className="px-6 pb-8 pt-2">
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-5">
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900">Confirm Payment</h3>
+                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Review or change your payment method</p>
+                      </div>
+                      <button
+                        onClick={() => setShowPaymentConfirmModal(false)}
+                        className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Amount Banner */}
+                    <div className="rounded-2xl px-5 py-4 mb-5 flex items-center justify-between bg-slate-50 border border-slate-200">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Amount</p>
+                        <p className="text-2xl font-black text-slate-800">₹{total}</p>
+                      </div>
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-slate-800">
+                        <FiTruck className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
+
+                    {/* Payment Options */}
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Select Payment Method</p>
+                    <div className="flex flex-col gap-3 mb-6">
+                      {/* Pay After Work (Cash) - shown first as default for machinery */}
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cash')}
+                        className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all text-left ${
+                          paymentMethod === 'cash'
+                            ? 'border-emerald-500 bg-emerald-50/50 shadow-sm shadow-emerald-100'
+                            : 'border-slate-100 hover:border-slate-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                            paymentMethod === 'cash' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'bg-slate-100 text-slate-400'
+                          }`}>
+                            <FiDollarSign className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className={`text-sm font-black block ${ paymentMethod === 'cash' ? 'text-emerald-800' : 'text-slate-600'}`}>Pay After Work (Cash)</span>
+                            <span className="text-[10px] font-medium text-slate-400">Pay cash directly to operator</span>
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          paymentMethod === 'cash' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-200'
+                        }`}>
+                          {paymentMethod === 'cash' && <div className="w-2 h-2 bg-white rounded-full" />}
+                        </div>
+                      </button>
+
+                      {/* Pay Online */}
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('online')}
+                        className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all text-left ${
+                          paymentMethod === 'online'
+                            ? 'border-purple-500 bg-purple-50/50 shadow-sm shadow-purple-100'
+                            : 'border-slate-100 hover:border-slate-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                            paymentMethod === 'online' ? 'bg-purple-500 text-white shadow-md shadow-purple-200' : 'bg-slate-100 text-slate-400'
+                          }`}>
+                            <FiCreditCard className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className={`text-sm font-black block ${ paymentMethod === 'online' ? 'text-purple-800' : 'text-slate-600'}`}>Pay Online</span>
+                            <span className="text-[10px] font-medium text-slate-400">UPI · Cards · Netbanking</span>
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          paymentMethod === 'online' ? 'border-purple-500 bg-purple-500' : 'border-slate-200'
+                        }`}>
+                          {paymentMethod === 'online' && <div className="w-2 h-2 bg-white rounded-full" />}
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Confirm Button */}
+                    <button
+                      onClick={() => {
+                        setShowPaymentConfirmModal(false);
+                        setTimeout(() => handleConfirmBooking(), 150);
+                      }}
+                      disabled={submitting}
+                      className="w-full py-4 rounded-2xl text-white font-black text-sm tracking-wide transition-all active:scale-95 shadow-lg"
+                      style={{
+                        background: paymentMethod === 'online'
+                          ? 'linear-gradient(135deg, #7c3aed, #9333ea)'
+                          : 'linear-gradient(135deg, #059669, #10b981)',
+                        boxShadow: paymentMethod === 'online'
+                          ? '0 8px 24px #7c3aed44'
+                          : '0 8px 24px #05966944'
+                      }}
+                    >
+                      {submitting ? 'Processing...' : paymentMethod === 'online'
+                        ? `✦ Proceed to Pay ₹${total}`
+                        : `✦ Confirm Rental (Cash) ₹${total}`}
+                    </button>
+
+                    <p className="text-center text-[10px] text-slate-400 font-medium mt-3">
+                      🔒 Your rental is secured & protected
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
         </div>
     );
 };

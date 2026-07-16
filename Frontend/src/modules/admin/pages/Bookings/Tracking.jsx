@@ -72,8 +72,8 @@ const Tracking = () => {
       case 'confirmed':
       case 'accepted':
       case 'pending': return 'bg-yellow-500';
-      case 'cancelled':
-      case 'rejected': return 'bg-red-500';
+      case 'cancelled': return 'bg-red-500';
+      case 'rejected': return 'bg-rose-500';
       default: return 'bg-gray-500';
     }
   };

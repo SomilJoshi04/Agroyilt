@@ -32,17 +32,27 @@ const AllOwners = () => {
     aadharDocument: '',
     aadharBackDocument: '',
     panDocument: '',
-    otherDocuments: []
+    otherDocuments: [],
+    isLabRegistration: false,
+    isShopRegistration: false,
+    labDetails: { labName: '', licenseNumber: '' },
+    shopDetails: { shopName: '', shopAddress: '', shopLicense: '' },
+    labCertDocument: '',
+    shopLicenseDocument: ''
   });
   const [documentPreviews, setDocumentPreviews] = useState({
     aadhar: '',
     aadharBack: '',
-    pan: ''
+    pan: '',
+    labCert: '',
+    shopLicense: ''
   });
   const [uploadingDocs, setUploadingDocs] = useState({
     aadhar: false,
     aadharBack: false,
-    pan: false
+    pan: false,
+    labCert: false,
+    shopLicense: false
   });
   
   // Add Shop states
@@ -373,30 +383,64 @@ const AllOwners = () => {
     // Validations
     if (!formData.name.trim()) return toast.error('Please enter owner name');
     if (!formData.businessName.trim()) return toast.error('Please enter business name');
-    if (formData.service.length === 0) return toast.error('Please select at least one category');
-    if (!formData.email.trim()) return toast.error('Please enter email address');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return toast.error('Please enter a valid email');
+    if (formData.service.length === 0 && !formData.isLabRegistration && !formData.isShopRegistration) {
+      return toast.error('Please select at least one service category or additional service');
+    }
+    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      return toast.error('Please enter a valid email');
+    }
     if (!formData.phone.trim()) return toast.error('Please enter phone number');
     if (!/^[6-9]\d{9}$/.test(formData.phone)) return toast.error('Please enter a valid 10-digit Indian phone number');
     if (!formData.aadhar.trim()) return toast.error('Please enter Aadhar number');
     if (!/^\d{12}$/.test(formData.aadhar)) return toast.error('Please enter a valid 12-digit Aadhar number');
-    if (!formData.pan.trim()) return toast.error('Please enter PAN number');
-    if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan.toUpperCase())) return toast.error('Please enter a valid PAN number');
+    if (formData.pan.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan.toUpperCase())) {
+      return toast.error('Please enter a valid PAN number');
+    }
 
     if (!formData.aadharDocument) return toast.error('Please upload Aadhar card front');
     if (!formData.aadharBackDocument) return toast.error('Please upload Aadhar card back');
-    if (!formData.panDocument) return toast.error('Please upload PAN card document');
+
+    // Additional Services Validations
+    if (formData.isLabRegistration) {
+      if (!formData.labDetails.labName.trim()) return toast.error('Please enter Lab Name');
+      if (!formData.labCertDocument) return toast.error('Please upload Lab Certification Document');
+    }
+    if (formData.isShopRegistration) {
+      if (!formData.shopDetails.shopName.trim()) return toast.error('Please enter Shop Name');
+      if (!formData.shopDetails.shopAddress.trim()) return toast.error('Please enter Shop Address');
+      if (!formData.shopLicenseDocument) return toast.error('Please upload Shop License Document');
+    }
 
     try {
       setIsAdding(true);
       const payload = {
-        ...formData,
-        pan: formData.pan.toUpperCase()
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        businessName: formData.businessName,
+        service: formData.service,
+        aadhar: formData.aadhar,
+        pan: formData.pan.toUpperCase(),
+        aadharDocument: formData.aadharDocument,
+        aadharBackDocument: formData.aadharBackDocument,
+        panDocument: formData.panDocument,
+        otherDocuments: formData.otherDocuments,
+        labDetails: formData.isLabRegistration ? {
+          labName: formData.labDetails.labName,
+          licenseNumber: formData.labDetails.licenseNumber,
+          certificationDocument: formData.labCertDocument
+        } : null,
+        shopDetails: formData.isShopRegistration ? {
+          shopName: formData.shopDetails.shopName,
+          shopAddress: formData.shopDetails.shopAddress,
+          shopLicense: formData.shopDetails.shopLicense,
+          licenseDocument: formData.shopLicenseDocument
+        } : null
       };
       
       const response = await adminVendorService.addVendor(payload);
       if (response.success) {
-        toast.success('Equipment Owner registered successfully!');
+        toast.success('Vendor registered successfully!');
         setIsAddModalOpen(false);
         // Reset form
         setFormData({
@@ -410,20 +454,28 @@ const AllOwners = () => {
           aadharDocument: '',
           aadharBackDocument: '',
           panDocument: '',
-          otherDocuments: []
+          otherDocuments: [],
+          isLabRegistration: false,
+          isShopRegistration: false,
+          labDetails: { labName: '', licenseNumber: '' },
+          shopDetails: { shopName: '', shopAddress: '', shopLicense: '' },
+          labCertDocument: '',
+          shopLicenseDocument: ''
         });
         setDocumentPreviews({
           aadhar: '',
           aadharBack: '',
-          pan: ''
+          pan: '',
+          labCert: '',
+          shopLicense: ''
         });
         loadOwners();
       } else {
-        toast.error(response.message || 'Failed to add equipment owner');
+        toast.error(response.message || 'Failed to register vendor');
       }
     } catch (error) {
-      console.error('Error adding equipment owner:', error);
-      toast.error(error.response?.data?.message || 'Failed to register equipment owner');
+      console.error('Error adding vendor:', error);
+      toast.error(error.response?.data?.message || 'Failed to register vendor');
     } finally {
       setIsAdding(false);
     }
@@ -912,12 +964,20 @@ const AllOwners = () => {
             aadharDocument: '',
             aadharBackDocument: '',
             panDocument: '',
-            otherDocuments: []
+            otherDocuments: [],
+            isLabRegistration: false,
+            isShopRegistration: false,
+            labDetails: { labName: '', licenseNumber: '' },
+            shopDetails: { shopName: '', shopAddress: '', shopLicense: '' },
+            labCertDocument: '',
+            shopLicenseDocument: ''
           });
           setDocumentPreviews({
             aadhar: '',
             aadharBack: '',
-            pan: ''
+            pan: '',
+            labCert: '',
+            shopLicense: ''
           });
         }}
         title="Add Equipment Owner"
@@ -992,10 +1052,9 @@ const AllOwners = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Email Address</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Email Address (Optional)</label>
                   <input
                     type="email"
-                    required
                     placeholder="email@example.com"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
@@ -1028,15 +1087,183 @@ const AllOwners = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">PAN Number</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">PAN Number (Optional)</label>
                   <input
                     type="text"
-                    required
                     placeholder="e.g. ABCDE1234F"
                     value={formData.pan}
                     onChange={(e) => setFormData(prev => ({ ...prev, pan: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) }))}
                     className="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#347989]/20 focus:border-[#347989] outline-none text-xs transition-all"
                   />
+                </div>
+              </div>
+
+              {/* Additional Services */}
+              <div className="space-y-3 pt-2">
+                <h3 className="text-sm font-bold text-gray-900 border-b pb-1.5 flex items-center gap-1.5">
+                  <span className="w-1.5 h-4 bg-[#347989] rounded-full"></span>
+                  Additional Services
+                </h3>
+                <div className="flex flex-col gap-3">
+                  
+                  {/* Lab Services Checkbox & Fields */}
+                  <div className="border border-gray-200 rounded-xl p-3 bg-white shadow-sm">
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isLabRegistration}
+                        onChange={(e) => setFormData(prev => ({ ...prev, isLabRegistration: e.target.checked }))}
+                        className="h-4 w-4 text-[#347989] border-gray-300 rounded focus:ring-[#347989]"
+                      />
+                      <span className="text-xs text-gray-700 font-bold">Register for Soil Testing Lab</span>
+                    </label>
+                    {formData.isLabRegistration && (
+                      <div className="mt-3 pl-7 space-y-3 border-t pt-3">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-gray-600 mb-1">Lab Name *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Lab Name"
+                            value={formData.labDetails.labName}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              labDetails: { ...prev.labDetails, labName: e.target.value }
+                            }))}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded-xl outline-none text-xs focus:ring-2 focus:ring-[#347989]/20 focus:border-[#347989]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-gray-600 mb-1">License Number</label>
+                          <input
+                            type="text"
+                            placeholder="License Number"
+                            value={formData.labDetails.licenseNumber}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              labDetails: { ...prev.labDetails, licenseNumber: e.target.value }
+                            }))}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded-xl outline-none text-xs focus:ring-2 focus:ring-[#347989]/20 focus:border-[#347989]"
+                          />
+                        </div>
+                        
+                        {/* Lab Cert Document Upload */}
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Lab Certificate *</p>
+                          {documentPreviews.labCert ? (
+                            <div className="relative group overflow-hidden rounded-xl border border-gray-200 max-w-[200px]">
+                              <img src={documentPreviews.labCert} className="w-full h-20 object-cover" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button type="button" onClick={() => removeDocument('labCert')} className="bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg">
+                                  <FiX size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-all hover:border-[#347989] bg-white relative max-w-[200px]">
+                              {uploadingDocs.labCert && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10 rounded-xl">
+                                  <FiLoader className="animate-spin h-4 w-4 text-[#347989]" />
+                                </div>
+                              )}
+                              <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
+                                <FiUpload className="w-4 h-4 text-gray-400 mb-0.5" />
+                                <span className="text-[9px] text-gray-500 font-bold">Upload Lab Cert</span>
+                                <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'labCert')} disabled={uploadingDocs.labCert} />
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Shop Services Checkbox & Fields */}
+                  <div className="border border-gray-200 rounded-xl p-3 bg-white shadow-sm">
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isShopRegistration}
+                        onChange={(e) => setFormData(prev => ({ ...prev, isShopRegistration: e.target.checked }))}
+                        className="h-4 w-4 text-[#347989] border-gray-300 rounded focus:ring-[#347989]"
+                      />
+                      <span className="text-xs text-gray-700 font-bold">Register for Agri Store / Shop</span>
+                    </label>
+                    {formData.isShopRegistration && (
+                      <div className="mt-3 pl-7 space-y-3 border-t pt-3">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-gray-600 mb-1">Shop Name *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Shop Name"
+                            value={formData.shopDetails.shopName}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              shopDetails: { ...prev.shopDetails, shopName: e.target.value }
+                            }))}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded-xl outline-none text-xs focus:ring-2 focus:ring-[#347989]/20 focus:border-[#347989]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-gray-600 mb-1">Shop Address *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Shop Address"
+                            value={formData.shopDetails.shopAddress}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              shopDetails: { ...prev.shopDetails, shopAddress: e.target.value }
+                            }))}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded-xl outline-none text-xs focus:ring-2 focus:ring-[#347989]/20 focus:border-[#347989]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-gray-600 mb-1">Shop License</label>
+                          <input
+                            type="text"
+                            placeholder="Shop License"
+                            value={formData.shopDetails.shopLicense}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              shopDetails: { ...prev.shopDetails, shopLicense: e.target.value }
+                            }))}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded-xl outline-none text-xs focus:ring-2 focus:ring-[#347989]/20 focus:border-[#347989]"
+                          />
+                        </div>
+                        
+                        {/* Shop License Document Upload */}
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Shop License Document *</p>
+                          {documentPreviews.shopLicense ? (
+                            <div className="relative group overflow-hidden rounded-xl border border-gray-200 max-w-[200px]">
+                              <img src={documentPreviews.shopLicense} className="w-full h-20 object-cover" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button type="button" onClick={() => removeDocument('shopLicense')} className="bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg">
+                                  <FiX size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-all hover:border-[#347989] bg-white relative max-w-[200px]">
+                              {uploadingDocs.shopLicense && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10 rounded-xl">
+                                  <FiLoader className="animate-spin h-4 w-4 text-[#347989]" />
+                                </div>
+                              )}
+                              <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
+                                <FiUpload className="w-4 h-4 text-gray-400 mb-0.5" />
+                                <span className="text-[9px] text-gray-500 font-bold">Upload Shop License</span>
+                                <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'shopLicense')} disabled={uploadingDocs.shopLicense} />
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               </div>
 
@@ -1109,7 +1336,7 @@ const AllOwners = () => {
 
                 {/* PAN Upload */}
                 <div className="space-y-1.5 col-span-2">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">PAN Card Front</p>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">PAN Card Front (Optional)</p>
                   {documentPreviews.pan ? (
                     <div className="relative group overflow-hidden rounded-xl border border-gray-200 max-w-xs mx-auto">
                       <img src={documentPreviews.pan} className="w-full h-24 object-cover" />
@@ -1163,12 +1390,20 @@ const AllOwners = () => {
                   aadharDocument: '',
                   aadharBackDocument: '',
                   panDocument: '',
-                  otherDocuments: []
+                  otherDocuments: [],
+                  isLabRegistration: false,
+                  isShopRegistration: false,
+                  labDetails: { labName: '', licenseNumber: '' },
+                  shopDetails: { shopName: '', shopAddress: '', shopLicense: '' },
+                  labCertDocument: '',
+                  shopLicenseDocument: ''
                 });
                 setDocumentPreviews({
                   aadhar: '',
                   aadharBack: '',
-                  pan: ''
+                  pan: '',
+                  labCert: '',
+                  shopLicense: ''
                 });
               }}
               className="px-4 py-2 border border-gray-300 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-all"
@@ -1177,7 +1412,7 @@ const AllOwners = () => {
             </button>
             <button
               type="submit"
-              disabled={isAdding || uploadingDocs.aadhar || uploadingDocs.aadharBack || uploadingDocs.pan}
+              disabled={isAdding || uploadingDocs.aadhar || uploadingDocs.aadharBack || uploadingDocs.pan || uploadingDocs.labCert || uploadingDocs.shopLicense}
               className="px-5 py-2 bg-[#347989] text-white rounded-xl text-xs font-bold hover:bg-[#28606c] disabled:opacity-50 transition-all flex items-center gap-1.5 shadow-sm shadow-[#347989]/10"
             >
               {isAdding ? (
@@ -1186,7 +1421,7 @@ const AllOwners = () => {
                   Creating...
                 </>
               ) : (
-                'Register Equipment Owner'
+                'Register Vendor'
               )}
             </button>
           </div>

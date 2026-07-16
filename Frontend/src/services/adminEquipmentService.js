@@ -16,6 +16,11 @@ const adminEquipmentService = {
     return response.data;
   },
 
+  update: async (id, data) => {
+    const response = await api.put(`/admin/equipment/${id}`, data);
+    return response.data;
+  },
+
   delete: async (id) => {
     const response = await api.delete(`/admin/equipment/${id}`);
     return response.data;

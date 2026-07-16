@@ -311,6 +311,15 @@ const BrandsPage = ({ catalog, setCatalog, selectedCity }) => {
     cityIds: brand.cityIds || [],
   });
 
+  if (fetching) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl shadow-sm border border-slate-100 min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-bold text-lg animate-pulse">Loading Brands...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <CardShell icon={FiGrid}>

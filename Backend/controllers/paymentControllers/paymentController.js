@@ -249,6 +249,25 @@ const verifyPaymentWebhook = async (req, res) => {
       });
     }
 
+    // Emit socket event to update vendor real-time
+    const io = req.app.get('io');
+    if (io) {
+      if (booking.vendorId) {
+        io.to(`vendor_${booking.vendorId}`).emit('booking_updated', {
+          bookingId: booking._id,
+          status: booking.status,
+          paymentStatus: booking.paymentStatus,
+          paymentMethod: booking.paymentMethod
+        });
+      }
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        paymentMethod: booking.paymentMethod
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: 'Payment verified successfully'

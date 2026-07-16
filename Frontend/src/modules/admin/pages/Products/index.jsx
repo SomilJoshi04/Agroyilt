@@ -17,7 +17,8 @@ import {
 } from 'react-icons/fi';
 import adminProductService from '../../../../services/adminProductService';
 import adminEquipmentService from '../../../../services/adminEquipmentService';
-import { publicCatalogService } from '../../../../services/catalogService';
+import { publicCatalogService, serviceService, homeContentService, categoryService } from '../../../../services/catalogService';
+import { cityService } from '../../services/cityService';
 import { getSettings } from '../../services/settingsService';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,8 +38,39 @@ const ManageProducts = () => {
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectTarget, setRejectTarget] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [premiumOfferings, setPremiumOfferings] = useState([]);
+    const [showAddTabModal, setShowAddTabModal] = useState(false);
+    const [tabFormData, setTabFormData] = useState({
+        title: '', subtitle: '', imageUrl: '', colorCode: '#3b82f6', actionType: 'navigate', route: ''
+    });
+    const [uploadingTabImage, setUploadingTabImage] = useState(false);
+    const [savingTab, setSavingTab] = useState(false);
     const [viewEquipment, setViewEquipment] = useState(null);
     const [activeMenuId, setActiveMenuId] = useState(null);
+
+    const [showCatalogModal, setShowCatalogModal] = useState(false);
+    const [catalogFormData, setCatalogFormData] = useState({
+        title: "",
+        gstPercentage: 18,
+        categoryId: "",
+        hourly_price: "",
+        land_price: "",
+        land_unit: "acre",
+        daily_price: "",
+        pricing_context: "any",
+        parentSourceId: ""
+    });
+    const [savingCatalog, setSavingCatalog] = useState(false);
+
+    const [showCityModal, setShowCityModal] = useState(false);
+    const [cityFormData, setCityFormData] = useState({
+        name: "",
+        state: "",
+        country: "India",
+        isActive: true,
+        parentSourceId: ""
+    });
+    const [savingCity, setSavingCity] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -104,6 +136,11 @@ const ManageProducts = () => {
             setPendingProducts([...vendorEqPending, ...productPending]);
 
             if (catRes.success) setCategories(catRes.categories || catRes.data || []);
+            
+            const homeContentRes = await homeContentService.get();
+            if (homeContentRes.success && homeContentRes.homeContent) {
+                setPremiumOfferings(homeContentRes.homeContent.premiumOfferings || []);
+            }
         } catch (err) {
             toast.error("Machinery data load karne mein dikkat hui");
         } finally {
@@ -216,6 +253,193 @@ const ManageProducts = () => {
             }
         } catch (err) {
             toast.error("Rejection failed");
+        }
+    };
+
+    const openCatalogModal = async (vendorEq) => {
+        const cityId = vendorEq.cityIds?.[0]?._id || vendorEq.cityIds?.[0] || vendorEq.vendorId?.cityId?._id || vendorEq.vendorId?.cityId || vendorEq.vendorId?.address?.city || null;
+        setViewEquipment(vendorEq);
+        setCatalogFormData({
+            title: vendorEq.requestedCategoryName || vendorEq.name || "",
+            categoryId: vendorEq.categoryId?._id || vendorEq.categoryId || "",
+            gstPercentage: 18,
+            hourly_price: vendorEq.pricing?.hourly?.price || "",
+            land_price: vendorEq.pricing?.land_based?.price || "",
+            land_unit: "acre",
+            daily_price: vendorEq.pricing?.daily?.price || "",
+            pricing_context: "any",
+            parentSourceId: vendorEq._id,
+            isAlwaysMain: false,
+            sectionType: "General",
+            homeIconUrl: vendorEq.images?.[0] || "",
+            trackingType: "none",
+            requiresDriver: false,
+            cityId: cityId,
+            vendorEqId: vendorEq._id
+        });
+        setShowCatalogModal(true);
+        
+        try {
+            const homeContentRes = await homeContentService.get(cityId ? { cityId } : {});
+            if (homeContentRes.success && homeContentRes.homeContent) {
+                setPremiumOfferings(homeContentRes.homeContent.premiumOfferings || []);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const openCityModal = (vendorEq) => {
+        setCityFormData({
+            name: vendorEq.requestedCityName || "",
+            state: vendorEq.vendorId?.address?.state || vendorEq.vendorId?.state || "",
+            country: "India",
+            isActive: true,
+            parentSourceId: vendorEq._id
+        });
+        setShowCityModal(true);
+    };
+
+    const handleSaveToCatalog = async (e) => {
+        e.preventDefault();
+        let finalCategoryId = catalogFormData.parentCategory;
+        try {
+            setSavingCatalog(true);
+            
+            // Auto-create category if vendor requested one and admin didn't explicitly select a parent
+            if (!finalCategoryId && viewEquipment?.requestedCategoryName) {
+                try {
+                    const newCatPayload = {
+                        title: viewEquipment.requestedCategoryName,
+                        slug: viewEquipment.requestedCategoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+                        status: 'active',
+                        showOnHome: catalogFormData.isAlwaysMain || false,
+                        isPopular: false,
+                        trackingType: catalogFormData.trackingType || 'none',
+                        requiresDriver: catalogFormData.requiresDriver || false,
+                        type: 'service', // Machinery categories are 'service'
+                        homeIconUrl: catalogFormData.homeIconUrl || viewEquipment.images?.[0] || null,
+                        cityIds: catalogFormData.cityId ? [catalogFormData.cityId] : [],
+                        isAlwaysMain: catalogFormData.isAlwaysMain || false
+                    };
+                    const newCatRes = await categoryService.create(newCatPayload);
+                    const createdCat = newCatRes.category || newCatRes.data;
+                    if (newCatRes.success && createdCat) {
+                        finalCategoryId = createdCat._id || createdCat.id;
+                    }
+                } catch (catErr) {
+                    console.error("Failed to auto-create category, it might already exist:", catErr);
+                    // If it already exists, try to find it in the categories list by title (case-insensitive)
+                    const existingCat = categories.find(c => c.title.toLowerCase() === viewEquipment.requestedCategoryName.toLowerCase());
+                    if (existingCat) {
+                        finalCategoryId = existingCat._id || existingCat.id;
+                    }
+                }
+            }
+
+            const payload = {
+                title: catalogFormData.title,
+                basePrice: parseFloat(catalogFormData.hourly_price) || parseFloat(catalogFormData.daily_price) || parseFloat(catalogFormData.land_price) || 0,
+                gstPercentage: parseFloat(catalogFormData.gstPercentage) || 18,
+                ...(finalCategoryId ? { categoryId: finalCategoryId } : {}),
+                hourly_price: parseFloat(catalogFormData.hourly_price) || 0,
+                land_price: parseFloat(catalogFormData.land_price) || 0,
+                land_unit: catalogFormData.land_unit,
+                daily_price: parseFloat(catalogFormData.daily_price) || 0,
+                pricing_context: catalogFormData.pricing_context,
+                parentSourceId: catalogFormData.parentSourceId || null,
+                isAlwaysMain: catalogFormData.isAlwaysMain,
+                sectionType: catalogFormData.sectionType,
+                homeIconUrl: catalogFormData.homeIconUrl,
+                trackingType: catalogFormData.trackingType,
+                requiresDriver: catalogFormData.requiresDriver,
+                cityIds: catalogFormData.cityId ? [catalogFormData.cityId] : []
+            };
+            const res = await serviceService.create(payload);
+            if (res.success) {
+                if (catalogFormData.vendorEqId) {
+                    const updatePayload = { requestedCategoryName: null, status: 'approved' };
+                    if (finalCategoryId) {
+                        updatePayload.categoryId = finalCategoryId;
+                    }
+                    await adminEquipmentService.update(catalogFormData.vendorEqId, updatePayload);
+                    fetchData(); // Refresh list to remove the button
+                }
+                toast.success("Added to Equipment Catalog successfully!");
+                setShowCatalogModal(false);
+            } else {
+                toast.error(res.message || "Failed to add to catalog");
+            }
+        } catch (err) {
+            const errorMsg = err.response?.data?.message;
+            if (errorMsg === 'A service with this name already exists for this brand.') {
+                if (catalogFormData.vendorEqId) {
+                    const updatePayload = { requestedCategoryName: null, status: 'approved' };
+                    if (finalCategoryId) {
+                        updatePayload.categoryId = finalCategoryId;
+                    }
+                    await adminEquipmentService.update(catalogFormData.vendorEqId, updatePayload);
+                    fetchData();
+                    setShowCatalogModal(false);
+                    return toast.success('Equipment linked to existing category in catalog');
+                }
+            } else {
+                toast.error(errorMsg || "Failed to add to catalog");
+            }
+        } finally {
+            setSavingCatalog(false);
+        }
+    };
+
+    const handleSaveCity = async (e) => {
+        e.preventDefault();
+        try {
+            setSavingCity(true);
+            const res = await cityService.create(cityFormData);
+            if (res.success) {
+                // Update VendorEquipment to link the new city
+                await adminEquipmentService.update(cityFormData.parentSourceId, {
+                    cityIds: [res.data?._id || res.city?._id],
+                    requestedCityName: null
+                });
+                toast.success('City Added Successfully!');
+                setShowCityModal(false);
+                fetchData();
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to add city');
+        } finally {
+            setSavingCity(false);
+        }
+    };
+
+    const handleSaveTab = async (e) => {
+        e.preventDefault();
+        try {
+            setSavingTab(true);
+            const cityId = catalogFormData.cityId;
+            const homeContentRes = await homeContentService.get({ cityId });
+            if (homeContentRes.success && homeContentRes.homeContent) {
+                const content = homeContentRes.homeContent;
+                const newTab = { 
+                    ...tabFormData, 
+                    actionPayload: tabFormData.route, 
+                    order: (content.premiumOfferings?.length || 0) 
+                };
+                content.premiumOfferings = [...(content.premiumOfferings || []), newTab];
+                
+                const res = await homeContentService.update(content, { cityId });
+                if (res.success) {
+                    toast.success("Tab added successfully!");
+                    setPremiumOfferings(content.premiumOfferings);
+                    setCatalogFormData({ ...catalogFormData, sectionType: newTab.title || newTab.actionPayload || "General" });
+                    setShowAddTabModal(false);
+                }
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to add tab');
+        } finally {
+            setSavingTab(false);
         }
     };
 
@@ -359,9 +583,15 @@ const ManageProducts = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase">
-                                        {displayCategory}
-                                    </span>
+                                    {isVendorEq && p.requestedCategoryName ? (
+                                        <span className="whitespace-nowrap inline-block px-3 py-1 bg-rose-50 border border-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase" title="Requested New Category">
+                                            New: {p.requestedCategoryName}
+                                        </span>
+                                    ) : (
+                                        <span className="whitespace-nowrap inline-block px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase">
+                                            {p.categoryId?.title || 'Machine'}
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4">
                                     {p.vendorId ? (
@@ -371,7 +601,18 @@ const ManageProducts = () => {
                                             </div>
                                             <div>
                                                 <p className="font-black text-slate-700 text-xs leading-tight">{vendorName}</p>
-                                                <p className="text-[9px] text-orange-600 font-bold">{vendorPhone}</p>
+                                                <div className="flex items-center gap-1 mt-0.5">
+                                                    <p className="text-[9px] text-orange-600 font-bold">{vendorPhone}</p>
+                                                    {p.requestedCityName ? (
+                                                        <span className="whitespace-nowrap inline-block text-[8px] px-1.5 py-0.5 bg-rose-50 border border-rose-100 text-rose-700 font-black uppercase rounded" title="Requested New City">
+                                                            New City: {p.requestedCityName}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="whitespace-nowrap inline-block text-[8px] px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 font-black uppercase rounded">
+                                                            {p.cityIds?.[0]?.name || p.vendorId?.cityId?.name || 'Global'}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     ) : (
@@ -381,9 +622,11 @@ const ManageProducts = () => {
                                 {activeTab === 'pending' && (
                                     <td className="px-6 py-4">
                                         {isVendorEq ? (
-                                            <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[9px] font-black uppercase">🚜 {p.listingType || 'service'}</span>
+                                            <span className="whitespace-nowrap inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[9px] font-black uppercase">
+                                                🚜 <span>{p.listingType || 'service'}</span>
+                                            </span>
                                         ) : (
-                                            <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${
+                                            <span className={`whitespace-nowrap inline-block px-2 py-1 rounded-lg text-[9px] font-black uppercase ${
                                                 p.rental_type === 'land_based' ? 'bg-green-50 text-green-700' :
                                                 p.rental_type === 'monthly' ? 'bg-purple-50 text-purple-700' :
                                                 'bg-blue-50 text-blue-700'
@@ -439,6 +682,32 @@ const ManageProducts = () => {
                                                             <FiCheck className="w-3.5 h-3.5" />
                                                             Approve
                                                         </button>
+                                                        {isVendorEq && p.requestedCategoryName && (
+                                                            <button 
+                                                                onClick={() => { 
+                                                                    if (p.requestedCityName) {
+                                                                        toast.error("Please process the New City request first before adding to catalog!");
+                                                                        return;
+                                                                    }
+                                                                    openCatalogModal(p); 
+                                                                    setActiveMenuId(null); 
+                                                                }}
+                                                                className={`w-full text-left px-3.5 py-2 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${p.requestedCityName ? 'text-slate-400 bg-slate-50 cursor-not-allowed opacity-60' : 'text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700'}`}
+                                                                title={p.requestedCityName ? "Please process the New City request first" : ""}
+                                                            >
+                                                                <FiPlus className="w-3.5 h-3.5" />
+                                                                Add to Catalog
+                                                            </button>
+                                                        )}
+                                                        {isVendorEq && p.requestedCityName && (
+                                                            <button 
+                                                                onClick={() => { openCityModal(p); setActiveMenuId(null); }}
+                                                                className="w-full text-left px-3.5 py-2 text-xs font-black text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-all flex items-center gap-2"
+                                                            >
+                                                                <FiPlus className="w-3.5 h-3.5" />
+                                                                Add New City
+                                                            </button>
+                                                        )}
                                                         <button 
                                                             onClick={() => { openRejectModal(p); setActiveMenuId(null); }}
                                                             className="w-full text-left px-3.5 py-2 text-xs font-black text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all flex items-center gap-2"
@@ -704,7 +973,7 @@ const ManageProducts = () => {
                                 {viewEquipment.vendorId && (
                                     <div className="space-y-2">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor Information</p>
-                                        <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600">
+                                        <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 grid grid-cols-4 gap-4 text-xs font-bold text-slate-600">
                                             <div>
                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Business / Shop Name</span>
                                                 <span className="text-sm font-black text-slate-800">{viewEquipment.vendorId.businessName || 'N/A'}</span>
@@ -717,11 +986,415 @@ const ManageProducts = () => {
                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Phone</span>
                                                 <span className="text-sm font-black text-orange-600">{viewEquipment.vendorId.phone}</span>
                                             </div>
+                                            <div>
+                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Zone / City</span>
+                                                <span className="text-sm font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded uppercase">{viewEquipment.cityIds?.[0]?.name || viewEquipment.vendorId?.cityId?.name || 'Global'}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* Add to Catalog Modal */}
+                {showCatalogModal && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setShowCatalogModal(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="relative bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                            <div className="p-8 border-b flex justify-between items-center bg-indigo-50/50">
+                                <h2 className="text-xl font-black text-indigo-900 flex items-center gap-2"><FiPlus className="w-5 h-5" /> Add Equipment to Global Catalog</h2>
+                                <button onClick={() => setShowCatalogModal(false)} className="p-2 hover:bg-indigo-100 rounded-full transition-colors"><FiX /></button>
+                            </div>
+                            <form id="catalogForm" onSubmit={handleSaveToCatalog} className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
+                                <div className="grid grid-cols-2 gap-6">
+
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase">Equipment Title</label>
+                                        <input 
+                                            className="w-full bg-slate-50 rounded-2xl p-4 font-bold outline-none" 
+                                            value={catalogFormData.title} 
+                                            onChange={e => setCatalogFormData({...catalogFormData, title: e.target.value})} 
+                                            placeholder="e.g. Tractor 50HP" 
+                                            required 
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase">Pricing Context</label>
+                                        <select
+                                            value={catalogFormData.pricing_context}
+                                            onChange={e => setCatalogFormData({ ...catalogFormData, pricing_context: e.target.value })}
+                                            className="w-full px-4 py-4 border border-blue-200 bg-blue-50/50 rounded-2xl font-bold outline-none"
+                                        >
+                                            <option value="any">Global (Applies everywhere)</option>
+                                            <option value="standalone">Standalone Rental (Direct Booking)</option>
+                                            <option value="sub-category">Sub-category (As an Implement)</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase">Parent Category <span className="text-xs font-normal text-slate-400">(Optional)</span></label>
+                                        <select
+                                            value={catalogFormData.categoryId || ""}
+                                            onChange={e => setCatalogFormData({ ...catalogFormData, categoryId: e.target.value })}
+                                            className="w-full px-4 py-4 border border-purple-200 bg-purple-50/50 rounded-2xl font-bold outline-none"
+                                            disabled={catalogFormData.pricing_context === 'standalone' || catalogFormData.pricing_context === 'any'}
+                                        >
+                                            <option value="">None (Global)</option>
+                                            {categories.map(cat => (
+                                                <option key={cat._id || cat.id} value={cat._id || cat.id}>{cat.title}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1 mt-4">
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            id="alwaysMain"
+                                            checked={catalogFormData.isAlwaysMain || false}
+                                            onChange={e => setCatalogFormData({ ...catalogFormData, isAlwaysMain: e.target.checked })}
+                                            className="h-4 w-4 accent-indigo-600"
+                                        />
+                                        <label htmlFor="alwaysMain" className="text-sm font-bold text-slate-800">Always show in Main List</label>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 pl-7">Useful for tools like "Rotavator" that should be visible even when they are sub-categories.</p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6 mt-4">
+                                    <div className="flex items-end gap-2">
+                                        <div className="flex-1 space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase">Home Page Tab Section</label>
+                                            <select
+                                                value={catalogFormData.sectionType || "General"}
+                                                onChange={e => setCatalogFormData({ ...catalogFormData, sectionType: e.target.value })}
+                                                className="w-full bg-slate-50 rounded-2xl p-4 font-bold outline-none border border-slate-200"
+                                            >
+                                                <option value="General">General (Default scrolling list)</option>
+                                                {premiumOfferings.filter(o => o.actionPayload || o.title).map((o, idx) => {
+                                                    const sectionName = o.actionPayload || o.title;
+                                                    return <option key={o._id || o.id || idx} value={sectionName}>{o.title} - ({sectionName})</option>
+                                                })}
+                                            </select>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                setTabFormData({ title: '', subtitle: '', imageUrl: '', colorCode: '#3b82f6', actionType: 'navigate', route: '' });
+                                                setShowAddTabModal(true);
+                                            }}
+                                            className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                                            title="Create New Tab"
+                                        >
+                                            <FiPlus className="w-5 h-5" />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase">Home Icon</label>
+                                        <div className="border border-dashed border-slate-200 rounded-2xl p-4 bg-slate-50 flex flex-col items-center gap-2">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={async e => {
+                                                    const f = e.target.files[0];
+                                                    if (!f) return;
+                                                    setUploading(true);
+                                                    const res = await serviceService.uploadImage(f, 'categories');
+                                                    if (res.success) setCatalogFormData({ ...catalogFormData, homeIconUrl: res.imageUrl });
+                                                    setUploading(false);
+                                                }}
+                                                className="w-full text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                            />
+                                            {catalogFormData.homeIconUrl && (
+                                                <div className="relative mt-2">
+                                                    <img src={catalogFormData.homeIconUrl} className="h-10 w-10 object-contain bg-white rounded-lg shadow-sm border border-slate-200 p-1" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-orange-50/50 p-5 rounded-3xl border border-orange-100 space-y-4 mt-6">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-black text-orange-700 uppercase tracking-wider">⚙ Machinery Classification</span>
+                                    </div>
+                                    <p className="text-[10px] text-orange-600 font-medium leading-tight">Only set this for Equipment Catalog categories. Leave as "None" for Soil Testing or E-commerce.</p>
+                                    <div className="flex flex-col sm:flex-row gap-4 items-center">
+                                        <div className="flex-1 w-full space-y-1">
+                                            <label className="text-[10px] font-black text-orange-700 uppercase">Tracking Type</label>
+                                            <select
+                                                value={catalogFormData.trackingType || "none"}
+                                                onChange={e => setCatalogFormData({ ...catalogFormData, trackingType: e.target.value })}
+                                                className="w-full text-sm font-bold p-4 rounded-2xl border border-orange-200 bg-white outline-none"
+                                            >
+                                                <option value="none">None (Default - Not a Machine)</option>
+                                                <option value="odometer">Odometer (Moving Machine)</option>
+                                                <option value="timestamp">Timestamp (Static Tool)</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center gap-2 pt-5">
+                                            <input
+                                                id="reqDriver"
+                                                type="checkbox"
+                                                checked={catalogFormData.requiresDriver || false}
+                                                onChange={e => setCatalogFormData({ ...catalogFormData, requiresDriver: e.target.checked })}
+                                                className="h-4 w-4 accent-orange-600"
+                                            />
+                                            <label htmlFor="reqDriver" className="text-[10px] font-black text-orange-800 uppercase cursor-pointer">Requires Driver/Operator</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-blue-50/50 p-5 rounded-3xl border border-blue-100 space-y-4 mt-6">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-xs font-black text-blue-600 uppercase tracking-wider">Equipment Rental Pricing (Guidelines)</span>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hourly (₹)</label>
+                                            <input
+                                                type="number"
+                                                value={catalogFormData.hourly_price}
+                                                onChange={e => setCatalogFormData({ ...catalogFormData, hourly_price: e.target.value })}
+                                                placeholder="e.g. 500"
+                                                className="w-full p-3 rounded-xl bg-white border border-blue-200 font-bold outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                                <span>Land (₹/{catalogFormData.land_unit?.toUpperCase() || 'ACRE'})</span>
+                                                <select
+                                                    value={catalogFormData.land_unit || 'acre'}
+                                                    onChange={e => setCatalogFormData({ ...catalogFormData, land_unit: e.target.value })}
+                                                    className="text-blue-600 lowercase bg-transparent outline-none font-black cursor-pointer border-b border-dashed border-blue-200 hover:border-blue-500 appearance-none text-right"
+                                                >
+                                                    <option value="acre">acre</option>
+                                                    <option value="bigha">bigha</option>
+                                                    <option value="hectare">hectare</option>
+                                                    <option value="sqft">sq.ft</option>
+                                                    <option value="gaj">gaj</option>
+                                                </select>
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={catalogFormData.land_price}
+                                                onChange={e => setCatalogFormData({ ...catalogFormData, land_price: e.target.value })}
+                                                placeholder="e.g. 1200"
+                                                className="w-full p-3 rounded-xl bg-white border border-blue-200 font-bold outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Daily (₹)</label>
+                                            <input
+                                                type="number"
+                                                value={catalogFormData.daily_price}
+                                                onChange={e => setCatalogFormData({ ...catalogFormData, daily_price: e.target.value })}
+                                                placeholder="e.g. 2500"
+                                                className="w-full p-3 rounded-xl bg-white border border-blue-200 font-bold outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </form>
+
+                            <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowCatalogModal(false)} className="flex-1 py-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl text-sm font-black hover:bg-slate-50 transition-colors">
+                                    Cancel
+                                </button>
+                                <button type="submit" form="catalogForm" disabled={savingCatalog} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-sm font-black hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 disabled:opacity-50">
+                                    {savingCatalog ? 'Saving...' : 'Add to Catalog'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {/* Add New City Modal */}
+                {showCityModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
+                        >
+                            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Add New Zone / City</h3>
+                                    <p className="text-sm font-bold text-slate-500 mt-1">Approve requested city to database.</p>
+                                </div>
+                                <button onClick={() => setShowCityModal(false)} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                                    <FiX className="w-5 h-5" />
+                                </button>
+                            </div>
+                            
+                            <div className="p-6">
+                                <form id="cityForm" onSubmit={handleSaveCity} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-wider">City Name</label>
+                                        <input 
+                                            required
+                                            value={cityFormData.name}
+                                            onChange={e => setCityFormData(p => ({ ...p, name: e.target.value }))}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold text-slate-800 outline-none focus:border-emerald-500/30 focus:bg-white transition-all"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-slate-400 uppercase tracking-wider">State</label>
+                                            <input 
+                                                value={cityFormData.state}
+                                                onChange={e => setCityFormData(p => ({ ...p, state: e.target.value }))}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold text-slate-800 outline-none"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-slate-400 uppercase tracking-wider">Country</label>
+                                            <input 
+                                                value={cityFormData.country}
+                                                onChange={e => setCityFormData(p => ({ ...p, country: e.target.value }))}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold text-slate-800 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowCityModal(false)} className="flex-1 py-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl text-sm font-black hover:bg-slate-50 transition-colors">
+                                    Cancel
+                                </button>
+                                <button type="submit" form="cityForm" disabled={savingCity} className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl text-sm font-black hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200 disabled:opacity-50">
+                                    {savingCity ? 'Saving...' : 'Save City'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Add Tab Modal */}
+            <AnimatePresence>
+                {showAddTabModal && (
+                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+                        >
+                            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                                <h3 className="text-xl font-black text-slate-800">Add Tab</h3>
+                                <button onClick={() => setShowAddTabModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                                    <FiX className="w-5 h-5" />
+                                </button>
+                            </div>
+                            
+                            <form onSubmit={handleSaveTab} className="flex flex-col overflow-hidden">
+                                <div className="p-6 space-y-6 overflow-y-auto">
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
+                                            <input
+                                                type="text"
+                                                value={tabFormData.title}
+                                                onChange={(e) => setTabFormData({ ...tabFormData, title: e.target.value })}
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                                                placeholder="e.g. Farming"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Subtitle</label>
+                                            <input
+                                                type="text"
+                                                value={tabFormData.subtitle}
+                                                onChange={(e) => setTabFormData({ ...tabFormData, subtitle: e.target.value })}
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                                                placeholder="e.g. Tools"
+                                            />
+                                        </div>
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Image URL / Upload</label>
+                                            <div className="space-y-3">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    disabled={uploadingTabImage}
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            setUploadingTabImage(true);
+                                                            try {
+                                                                const response = await serviceService.uploadImage(file, 'premium');
+                                                                if (response.success) {
+                                                                    setTabFormData((p) => ({ ...p, imageUrl: response.imageUrl }));
+                                                                    toast.success("Image uploaded!");
+                                                                }
+                                                            } catch (error) {
+                                                                toast.error("Failed to upload image");
+                                                            } finally {
+                                                                setUploadingTabImage(false);
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={tabFormData.imageUrl}
+                                                    onChange={(e) => setTabFormData({ ...tabFormData, imageUrl: e.target.value })}
+                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none text-sm"
+                                                    placeholder="Or enter URL here (e.g. /images/tractor.jpg)"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Color Code</label>
+                                            <input
+                                                type="text"
+                                                value={tabFormData.colorCode}
+                                                onChange={(e) => setTabFormData({ ...tabFormData, colorCode: e.target.value })}
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Action Type</label>
+                                            <select
+                                                value={tabFormData.actionType}
+                                                onChange={(e) => setTabFormData({ ...tabFormData, actionType: e.target.value })}
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                                            >
+                                                <option value="navigate">Navigate to Route</option>
+                                                <option value="link">External Link</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Route</label>
+                                            <input
+                                                type="text"
+                                                value={tabFormData.route}
+                                                onChange={(e) => setTabFormData({ ...tabFormData, route: e.target.value })}
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                                                placeholder="e.g. /user/agri-marketplace"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
+                                    <button type="submit" disabled={savingTab || uploadingTabImage} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-200 hover:bg-blue-700 hover:shadow-2xl transition-all disabled:opacity-50">
+                                        {savingTab ? 'Saving...' : 'Add Tab'}
+                                    </button>
+                                    <button type="button" onClick={() => setShowAddTabModal(false)} className="flex-1 py-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-black hover:bg-slate-50 transition-colors">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
                     </div>
                 )}
             </AnimatePresence>
@@ -730,4 +1403,3 @@ const ManageProducts = () => {
 };
 
 export default ManageProducts;
-

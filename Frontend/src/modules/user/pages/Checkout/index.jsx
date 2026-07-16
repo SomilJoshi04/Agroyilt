@@ -54,6 +54,7 @@ const Checkout = () => {
   const [searchingVendors, setSearchingVendors] = useState(false);
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('online'); // 'online' | 'pay_at_home'
+  const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false); // Payment confirmation modal
 
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -286,7 +287,7 @@ const Checkout = () => {
         return;
       }
     } else {
-      const needsTime = rentalType === 'hourly';
+      const needsTime = rentalType === 'hourly' || rentalType === 'land_based' || rentalType === 'daily';
       if (!addressDetails || !selectedDate || (needsTime && !selectedTime)) {
         if (!addressDetails) setShowAddressModal(true);
         else if (!selectedDate || (needsTime && !selectedTime)) setShowTimeSlotModal(true);
@@ -1094,35 +1095,38 @@ const Checkout = () => {
 
   const itemTotal = cartItems.reduce((sum, item) => sum + calculateItemPrice(item), 0);
   // Calculate savings including Plan Savings
+  // NOTE: totalOriginalPrice must use the SAME base & qty logic as calculateItemPrice()
+  // so that savings = 0 when no real plan discount exists (prevents fake BEST PRICE banner).
   const totalOriginalPrice = cartItems.reduce((sum, item) => {
     const svcO = item.serviceId && typeof item.serviceId === 'object' ? item.serviceId : item;
     const isAgri = !!(svcO.hourly_price || svcO.land_price || svcO.daily_price ||
       item.hourly_price || item.land_price || item.daily_price ||
       item.categoryTitle === 'Agriculture' || item.category === 'Agriculture');
-    let base = (item.originalPrice || item.unitPrice || (item.price / (item.serviceCount || 1)));
 
-    // Sync guideline rates for estimates
+    // Use exact same base price logic as calculateItemPrice() to avoid mismatch
+    let base = item.price || 0;
     if (isAgri) {
       if (rentalType === 'hourly') base = svcO.hourly_price || item.hourly_price || base;
       else if (rentalType === 'land_based') base = svcO.land_price || item.land_price || base;
       else if (rentalType === 'daily' || rentalType === 'monthly') base = svcO.daily_price || item.daily_price || base;
     }
 
-    // Dynamic quantity for Agriculture
+    // Dynamic quantity — same as calculateItemPrice()
     let qty = 1;
     if (isAgri) {
       if (rentalType === 'hourly') qty = parseFloat(estimatedDuration) || 1;
       else if (rentalType === 'land_based') qty = parseFloat(landSize) || 1;
-      else if (rentalType === 'daily') qty = parseFloat(localDays) || 1;
-      else if (rentalType === 'monthly') qty = (parseFloat(estimatedDuration) || 1) * 30;
+      else if (rentalType === 'daily' || rentalType === 'monthly') qty = parseFloat(localDays) || 1;
     }
 
-    const original = base * qty * (item.serviceCount || 1);
-    // If priced 0, original is huge saving
+    // Do NOT multiply by serviceCount here — calculateItemPrice() doesn't either.
+    // serviceCount is used as a booking quantity multiplier at a higher level only.
+    const original = base * qty;
     return sum + original;
   }, 0);
 
-  const savings = totalOriginalPrice - itemTotal;
+  // savings > 0 only when plan gives a real discount (free/discounted items)
+  const savings = Math.max(0, totalOriginalPrice - itemTotal);
   const hasAgriItems = cartItems.some(item => {
     const svc = item.serviceId && typeof item.serviceId === 'object' ? item.serviceId : item;
     return !!(svc.hourly_price || svc.land_price || svc.daily_price ||
@@ -1304,7 +1308,7 @@ const Checkout = () => {
       </header>
 
       <main className="px-4 py-4">
-        {/* Savings Banner */}
+        {/* Savings Banner — only shown when user has an actual plan-based discount */}
         {savings > 0 && (
           <div className="bg-green-50 border border-green-100 rounded-2xl p-4 mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1774,9 +1778,12 @@ const Checkout = () => {
                           displayStr += ` • ${timeDisplay}`;
                           if (estimatedDuration) displayStr += ` (${estimatedDuration} Hours)`;
                         } else if (rentalType === 'daily') {
+                          const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
+                          if (timeDisplay && timeDisplay !== '00:00') displayStr += ` • ${timeDisplay}`;
                           if (localDays) displayStr += ` (${localDays} Day${localDays > 1 ? 's' : ''})`;
                         } else if (rentalType === 'land_based') {
-                          // No extra time display needed for land_based
+                          const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
+                          if (timeDisplay && timeDisplay !== '00:00') displayStr += ` • ${timeDisplay}`;
                         } else {
                           const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
                           if (timeDisplay && timeDisplay !== '00:00') displayStr += ` • ${timeDisplay}`;
@@ -1820,9 +1827,9 @@ const Checkout = () => {
 
         <div className="p-4">
           <button
-            onClick={plan ? handlePlanPayment :
+            onClick={plan ? () => setShowPaymentConfirmModal(true) :
               (houseNumber || addressDetails) ?
-                (currentStep === 'payment' ? handlePayment : handleSearchVendors) :
+                (currentStep === 'payment' ? () => setShowPaymentConfirmModal(true) : handleSearchVendors) :
                 handleProceed}
             disabled={searchingVendors}
             className="w-full text-white py-3 rounded-lg text-base font-semibold transition-colors disabled:opacity-50 shadow-lg shadow-teal-500/30"
@@ -1971,6 +1978,155 @@ const Checkout = () => {
         cropType={cropType}
         chemicalUsed={chemicalUsed}
       />
+
+      {/* ══════════ Payment Confirmation Modal ══════════ */}
+      {showPaymentConfirmModal && (
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-[3px]"
+            onClick={() => setShowPaymentConfirmModal(false)}
+          />
+
+          {/* Bottom Sheet */}
+          <div
+            className="relative bg-white w-full rounded-t-[32px] shadow-2xl z-10 overflow-hidden"
+            style={{ maxHeight: '90vh' }}
+          >
+            {/* Green top strip */}
+            <div className="h-1 w-full" style={{ background: themeColors.gradient }} />
+
+            {/* Drag pill */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1.5 bg-gray-200 rounded-full" />
+            </div>
+
+            <div className="px-6 pb-8 pt-2">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-lg font-black text-gray-900">Confirm Payment</h3>
+                  <p className="text-[11px] text-gray-400 font-medium mt-0.5">Review or change your payment method</p>
+                </div>
+                <button
+                  onClick={() => setShowPaymentConfirmModal(false)}
+                  className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Amount Banner */}
+              {totalAmount > 0 && (
+                <div
+                  className="rounded-2xl px-5 py-4 mb-5 flex items-center justify-between"
+                  style={{ background: `linear-gradient(135deg, ${themeColors.brand?.teal || '#347989'}18, ${themeColors.brand?.teal || '#347989'}08)`, border: `1.5px solid ${themeColors.brand?.teal || '#347989'}22` }}
+                >
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Payable</p>
+                    <p className="text-2xl font-black text-gray-900">₹{totalAmount.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${themeColors.button}20` }}>
+                    <FiCreditCard className="w-6 h-6" style={{ color: themeColors.button }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Options */}
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Select Payment Method</p>
+              <div className="flex flex-col gap-3 mb-6">
+                {/* Pay Online */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('online')}
+                  className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all text-left ${
+                    paymentMethod === 'online'
+                      ? 'border-teal-500 bg-teal-50/30 shadow-sm shadow-teal-100'
+                      : 'border-gray-100 hover:border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                      paymentMethod === 'online' ? 'bg-teal-500 text-white shadow-md shadow-teal-200' : 'bg-gray-100 text-gray-400'
+                    }`}>
+                      <FiCreditCard className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className={`text-sm font-black block ${ paymentMethod === 'online' ? 'text-teal-800' : 'text-gray-700'}`}>Pay Online</span>
+                      <span className="text-[10px] font-medium text-gray-400">UPI · Cards · Netbanking</span>
+                    </div>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                    paymentMethod === 'online' ? 'border-teal-500 bg-teal-500' : 'border-gray-200'
+                  }`}>
+                    {paymentMethod === 'online' && <div className="w-2 h-2 bg-white rounded-full" />}
+                  </div>
+                </button>
+
+                {/* Pay After Work */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('pay_at_home')}
+                  className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all text-left ${
+                    paymentMethod === 'pay_at_home'
+                      ? 'border-emerald-500 bg-emerald-50/30 shadow-sm shadow-emerald-100'
+                      : 'border-gray-100 hover:border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                      paymentMethod === 'pay_at_home' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'bg-gray-100 text-gray-400'
+                    }`}>
+                      <FiDollarSign className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className={`text-sm font-black block ${ paymentMethod === 'pay_at_home' ? 'text-emerald-800' : 'text-gray-700'}`}>Pay After Work (Cash)</span>
+                      <span className="text-[10px] font-medium text-gray-400">Pay cash directly to professional</span>
+                    </div>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                    paymentMethod === 'pay_at_home' ? 'border-emerald-500 bg-emerald-500' : 'border-gray-200'
+                  }`}>
+                    {paymentMethod === 'pay_at_home' && <div className="w-2 h-2 bg-white rounded-full" />}
+                  </div>
+                </button>
+              </div>
+
+              {/* Confirm Button */}
+              <button
+                onClick={() => {
+                  setShowPaymentConfirmModal(false);
+                  // Small delay so modal closes smoothly before payment starts
+                  setTimeout(() => {
+                    if (plan) {
+                      handlePlanPayment();
+                    } else {
+                      handlePayment();
+                    }
+                  }, 150);
+                }}
+                className="w-full py-4 rounded-2xl text-white font-black text-sm tracking-wide transition-all active:scale-95 shadow-lg"
+                style={{
+                  background: paymentMethod === 'online'
+                    ? `linear-gradient(135deg, ${themeColors.button}, ${themeColors.brand?.teal || '#347989'})`
+                    : 'linear-gradient(135deg, #059669, #10b981)',
+                  boxShadow: paymentMethod === 'online'
+                    ? `0 8px 24px ${themeColors.button}44`
+                    : '0 8px 24px #05966944'
+                }}
+              >
+                {paymentMethod === 'online'
+                  ? `✦ Proceed to Pay ₹${totalAmount.toLocaleString('en-IN')}`
+                  : '✦ Confirm Booking (Cash)'}
+              </button>
+
+              <p className="text-center text-[10px] text-gray-400 font-medium mt-3">
+                🔒 Your booking is secured & protected
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,11 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FiCheckCircle, FiShield, FiAlertCircle, FiPackage, FiX, FiInfo } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => {
-  if (!isOpen || !booking) return null;
+  const [selectedMethod, setSelectedMethod] = useState('online'); // 'online' | 'cash'
 
   // Prevent background scrolling when modal is open
+  // NOTE: Both hooks must be declared BEFORE any conditional returns (Rules of Hooks)
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -16,6 +17,8 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
+
+  if (!isOpen || !booking) return null;
 
   // --- 1. Total & Breakdown Calculations ---
   const isPlanBenefit = booking.paymentMethod === 'plan_benefit';
@@ -262,7 +265,6 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
               )}
             </div>
 
-            {/* Actions */}
             <div className="mt-8 space-y-3">
               {booking.paymentStatus === 'success' ? (
                 <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-3">
@@ -276,32 +278,67 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                 </div>
               ) : (
                 <>
-                  {/* Online Pay */}
-                  <button
-                    onClick={onPayOnline}
-                    className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
-                  >
-                    Pay Online Securely
-                  </button>
+                  {/* Payment Method Selector */}
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Select Payment Method</p>
+                  <div className="flex gap-2 mb-4">
+                    {/* Pay Online */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMethod('online')}
+                      className={`flex-1 p-3 rounded-xl border-2 flex flex-col items-center gap-1 transition-all ${
+                        selectedMethod === 'online'
+                          ? 'border-slate-800 bg-slate-900 shadow-md'
+                          : 'border-slate-100 bg-slate-50 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className={`text-lg`}>💳</span>
+                      <span className={`text-[11px] font-black ${ selectedMethod === 'online' ? 'text-white' : 'text-slate-600'}`}>Pay Online</span>
+                      <span className={`text-[9px] font-medium ${ selectedMethod === 'online' ? 'text-slate-300' : 'text-slate-400'}`}>UPI · Cards</span>
+                    </button>
 
-                  {/* Cash Code - ONLY show if an OTP actually exists! */}
-                  {(booking.customerConfirmationOTP || booking.paymentOtp) && (
-                    <>
-                      <div className="relative py-2 text-center">
-                        <span className="bg-white px-2 text-[10px] font-bold text-slate-400 relative z-10 uppercase tracking-wider">OR</span>
-                        <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-100 z-0"></div>
-                      </div>
+                    {/* Pay Cash */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMethod('cash')}
+                      className={`flex-1 p-3 rounded-xl border-2 flex flex-col items-center gap-1 transition-all ${
+                        selectedMethod === 'cash'
+                          ? 'border-emerald-500 bg-emerald-50 shadow-md shadow-emerald-100'
+                          : 'border-slate-100 bg-slate-50 hover:border-emerald-200'
+                      }`}
+                    >
+                      <span className="text-lg">💵</span>
+                      <span className={`text-[11px] font-black ${ selectedMethod === 'cash' ? 'text-emerald-800' : 'text-slate-600'}`}>Pay Cash</span>
+                      <span className={`text-[9px] font-medium ${ selectedMethod === 'cash' ? 'text-emerald-500' : 'text-slate-400'}`}>Pay to Pro</span>
+                    </button>
+                  </div>
 
-                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
-                        <p className="text-xs font-bold text-slate-700 mb-2">Paying Cash? Share Code</p>
-                        <div className="bg-white border-2 border-dashed border-slate-300 rounded-lg py-2 px-4 inline-block mb-1">
-                          <span className="text-2xl font-black font-mono text-slate-900 tracking-[0.2em]">
+                  {/* Action based on selected method */}
+                  {selectedMethod === 'online' ? (
+                    <button
+                      onClick={onPayOnline}
+                      className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+                    >
+                      ✦ Pay Online Securely
+                    </button>
+                  ) : (
+                    // Cash OTP section
+                    (booking.customerConfirmationOTP || booking.paymentOtp) ? (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+                        <p className="text-xs font-bold text-emerald-800 mb-1">Share this OTP with the Professional</p>
+                        <p className="text-[10px] text-emerald-600 mb-3">Ask them to confirm receipt of cash</p>
+                        <div className="bg-white border-2 border-dashed border-emerald-300 rounded-lg py-3 px-4 inline-block mb-2">
+                          <span className="text-3xl font-black font-mono text-emerald-700 tracking-[0.25em]">
                             {booking.customerConfirmationOTP || booking.paymentOtp}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-1">Share with professional to confirm cash payment</p>
+                        <p className="text-[10px] text-slate-400 mt-1">🔒 OTP confirms your cash payment to the professional</p>
                       </div>
-                    </>
+                    ) : (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+                        <p className="text-xs font-bold text-amber-800">Cash OTP not available yet</p>
+                        <p className="text-[10px] text-amber-600 mt-1">OTP will appear here once work is completed</p>
+                      </div>
+                    )
                   )}
                 </>
               )}

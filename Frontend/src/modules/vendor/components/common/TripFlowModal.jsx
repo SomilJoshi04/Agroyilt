@@ -80,9 +80,23 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
             setPhotoPreview(null);
             setPhotoFile(null);
             setOtp(['', '', '', '']);
-            setWorkUnits('');
+            setEvidencePreview(null);
+            setEvidenceFile(null);
             setUploading(false);
             setSubmitting(false);
+
+            // Auto-fill workUnits from booking.landSize for land_based end trip
+            if (!isStart && rentalType === 'land_based' && booking?.landSize) {
+                // landSize can be "5 Acres" or just "5" — extract numeric part
+                const numericPart = parseFloat(String(booking.landSize));
+                if (!isNaN(numericPart)) {
+                    setWorkUnits(String(numericPart));
+                } else {
+                    setWorkUnits('');
+                }
+            } else {
+                setWorkUnits('');
+            }
         }
     }, [isOpen, mode]);
 
@@ -394,6 +408,11 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
                                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-yellow-600">Area</span>
                                             </div>
                                             <p className="text-[10px] text-yellow-700 italic">Bill will be calculated based on {workUnits || '0'} area.</p>
+                                            {booking?.landSize && (
+                                                <p className="text-[10px] text-yellow-600 font-semibold">
+                                                    📋 Booked area: {booking.landSize} — adjust if actual work differed
+                                                </p>
+                                            )}
                                         </div>
                                     )}
 

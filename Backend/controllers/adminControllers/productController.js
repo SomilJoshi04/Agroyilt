@@ -14,7 +14,11 @@ const getAllProducts = async (req, res) => {
             ]
         })
         .populate('categoryId', 'title')
-        .populate('vendorId', 'name businessName phone profilePhoto')
+        .populate({ 
+            path: 'vendorId', 
+            select: 'name businessName phone profilePhoto cityId',
+            populate: { path: 'cityId', select: 'name' }
+        })
         .sort({ createdAt: -1 });
         res.status(200).json({ success: true, data: products });
     } catch (error) {
@@ -34,7 +38,11 @@ const getVendorProducts = async (req, res) => {
 
         const products = await Product.find(query)
             .populate('categoryId', 'title')
-            .populate('vendorId', 'name businessName phone profilePhoto')
+            .populate({ 
+                path: 'vendorId', 
+                select: 'name businessName phone profilePhoto cityId',
+                populate: { path: 'cityId', select: 'name' }
+            })
             .sort({ createdAt: -1 });
         res.status(200).json({ success: true, data: products });
     } catch (error) {

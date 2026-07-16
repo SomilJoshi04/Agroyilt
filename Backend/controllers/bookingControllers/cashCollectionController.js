@@ -17,8 +17,12 @@ exports.initiateCashCollection = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    // Allow cash, pay_at_home, AND plan_benefit (for final bill flow)
-    const allowedMethods = ['cash', 'pay_at_home', 'plan_benefit'];
+    if (booking.paymentStatus === 'SUCCESS') {
+      return res.status(400).json({ success: false, message: 'Payment has already been completed online.' });
+    }
+
+    // Allow cash, pay_at_home, plan_benefit, AND online (in case user switches to cash at the door)
+    const allowedMethods = ['cash', 'pay_at_home', 'plan_benefit', 'online'];
     if (!allowedMethods.includes(booking.paymentMethod)) {
       return res.status(400).json({ success: false, message: 'This booking is not eligible for cash collection' });
     }
@@ -126,6 +130,10 @@ exports.confirmCashCollection = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.paymentStatus === 'SUCCESS') {
+      return res.status(400).json({ success: false, message: 'Payment has already been completed online.' });
     }
 
     // OTP Verification

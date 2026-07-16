@@ -10,6 +10,7 @@ router.use(isAdmin);
 
 router.get('/', equipmentController.getAllEquipment);
 router.patch('/:id/status', equipmentController.updateEquipmentStatus);
+router.put('/:id', equipmentController.updateEquipment);
 router.delete('/:id', equipmentController.deleteEquipment);
 
 module.exports = router;

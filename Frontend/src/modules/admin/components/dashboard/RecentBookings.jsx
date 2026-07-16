@@ -14,7 +14,7 @@ const statusBadge = (status) => {
     COMPLETED: 'bg-green-100 text-green-700',
     CANCELLED: 'bg-red-100 text-red-700',
     CANCELED: 'bg-red-100 text-red-700',
-    REJECTED: 'bg-red-100 text-red-700',
+    REJECTED: 'bg-rose-100 text-rose-700',
   };
   return map[s] || 'bg-gray-100 text-gray-700';
 };

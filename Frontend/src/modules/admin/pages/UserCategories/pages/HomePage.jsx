@@ -185,6 +185,7 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isFetchingCityData, setIsFetchingCityData] = useState(false);
 
   const categories = useMemo(() => {
     const list = ensureIds(catalog).categories || [];
@@ -201,6 +202,7 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
   // Fetch home content from API on mount or city change
   useEffect(() => {
     const fetchHomeContent = async () => {
+      setIsFetchingCityData(true);
       try {
         const params = {};
         if (selectedCity) params.cityId = selectedCity;
@@ -248,11 +250,11 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
             isPremiumOfferingsVisible: hc.isPremiumOfferingsVisible ?? true
           };
           setCatalog(next);
-          saveCatalog(next);
         }
       } catch (error) {
         console.error("Error fetching home content:", error);
-        toast.error("Failed to load home content");
+      } finally {
+        setIsFetchingCityData(false);
       }
     };
     fetchHomeContent();
@@ -553,6 +555,15 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
       cards: prev.cards.filter((c) => c.id !== cardId),
     }));
   };
+
+  if (isFetchingCityData) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl shadow-sm border border-slate-100 min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-bold text-lg animate-pulse">Loading City Data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

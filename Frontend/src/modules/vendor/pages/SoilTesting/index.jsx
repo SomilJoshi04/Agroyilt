@@ -470,15 +470,8 @@ const VendorSoilTests = () => {
                                                 </div>
                                             ) : (
                                                 <div className="space-y-1.5 text-xs">
-                                                    <div className="flex justify-between text-slate-600">
-                                                        <span>Farmer Paid Amount</span>
-                                                        <span className="font-bold text-slate-700">₹{activeRequest.totalAmount || 0}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-slate-600">
-                                                        <span>Admin Commission ({activeRequest.commissionPercentage || 0}%)</span>
-                                                        <span className="font-bold text-red-600">-₹{activeRequest.adminCommission || 0}</span>
-                                                    </div>
-                                                    <div className="flex justify-between pt-1.5 border-t border-dashed border-slate-200 text-slate-800 font-bold">
+
+                                                    <div className="flex justify-between text-slate-800 font-bold">
                                                         <span>Your Earnings</span>
                                                         <span className="text-emerald-600 font-black">₹{activeRequest.vendorEarning || 0}</span>
                                                     </div>

@@ -278,6 +278,14 @@ const bookingSchema = new mongoose.Schema({
     type: Number, // for hourly: number of hours
     default: null
   },
+  startReminderSent: {
+    type: Boolean,
+    default: false
+  },
+  endReminderSent: {
+    type: Boolean,
+    default: false
+  },
   // Agriculture: Specific Fields
   cropType: {
     type: String,

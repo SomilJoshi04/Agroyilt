@@ -90,11 +90,9 @@ const Home = () => {
   useEffect(() => {
     if (!detectedCityName || !cities || cities.length === 0) return;
 
-    const matchedCity = cities.find(c =>
-      c.name.toLowerCase() === detectedCityName.toLowerCase() ||
-      c.name.toLowerCase().includes(detectedCityName.toLowerCase()) ||
-      detectedCityName.toLowerCase().includes(c.name.toLowerCase())
-    );
+    const matchedCity = cities.find(c => c.name.toLowerCase() === detectedCityName.toLowerCase()) ||
+                        cities.find(c => c.name.toLowerCase().includes(detectedCityName.toLowerCase()) ||
+                                         detectedCityName.toLowerCase().includes(c.name.toLowerCase()));
 
     if (matchedCity) {
       setIsLocationSupported(true);
@@ -155,11 +153,9 @@ const Home = () => {
 
         // Immediate update of selected city if supported
         if (cities && cities.length > 0) {
-          const matchedCity = cities.find(c =>
-            c.name.toLowerCase() === city.toLowerCase() ||
-            c.name.toLowerCase().includes(city.toLowerCase()) ||
-            city.toLowerCase().includes(c.name.toLowerCase())
-          );
+          const matchedCity = cities.find(c => c.name.toLowerCase() === city.toLowerCase()) ||
+                              cities.find(c => c.name.toLowerCase().includes(city.toLowerCase()) ||
+                                               city.toLowerCase().includes(c.name.toLowerCase()));
           if (matchedCity) {
             selectCity(matchedCity);
           } else {
@@ -226,11 +222,9 @@ const Home = () => {
 
                     // Immediate update of selected city if supported
                     if (cities && cities.length > 0) {
-                      const matchedCity = cities.find(c =>
-                        c.name.toLowerCase() === city.toLowerCase() ||
-                        c.name.toLowerCase().includes(city.toLowerCase()) ||
-                        city.toLowerCase().includes(c.name.toLowerCase())
-                      );
+                      const matchedCity = cities.find(c => c.name.toLowerCase() === city.toLowerCase()) ||
+                                          cities.find(c => c.name.toLowerCase().includes(city.toLowerCase()) ||
+                                                           city.toLowerCase().includes(c.name.toLowerCase()));
                       if (matchedCity) {
                         selectCity(matchedCity);
                       } else {
@@ -301,7 +295,8 @@ const Home = () => {
             hasSaleBadge: cat.hasSaleBadge,
             badge: cat.badge,
             requiresDriver: cat.requiresDriver,
-            sectionType: cat.sectionType || 'General'
+            sectionType: cat.sectionType || 'General',
+            showOnHome: cat.showOnHome ?? true
           }));
           setCategories(mappedCategories);
           if (mappedCategories.length > 0) hasData = true;
@@ -689,9 +684,9 @@ const Home = () => {
                 <>
                   {/* Group categories by sectionType and render each group */}
                   {(() => {
-                    const sectionTypes = [...new Set(categories.map(c => (c.sectionType || 'General').trim()))];
+                    const sectionTypes = [...new Set(categories.filter(c => c.showOnHome !== false).map(c => (c.sectionType || 'General').trim()))];
                     return sectionTypes.map(sectionType => {
-                      const sectionCategories = categories.filter(c => (c.sectionType || 'General').trim() === sectionType);
+                      const sectionCategories = categories.filter(c => c.showOnHome !== false && (c.sectionType || 'General').trim() === sectionType);
                       if (sectionCategories.length === 0) return null;
                       return (
                         <motion.section key={sectionType} variants={itemVariants} className="relative overflow-hidden pt-2 mb-4">

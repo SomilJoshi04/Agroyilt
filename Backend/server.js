@@ -27,6 +27,10 @@ initRedis();
 const { startWeatherScheduler } = require('./services/weatherNotificationService');
 startWeatherScheduler();
 
+// Initialize Booking Reminder Scheduler (Slot alerts)
+const { startBookingReminderScheduler } = require('./services/bookingReminderService');
+startBookingReminderScheduler();
+
 // Initialize Express app
 const app = express();
 app.set('trust proxy', 1);
@@ -318,8 +322,4 @@ if (process.env.VERCEL !== '1' && !process.env.VERCEL_ENV) {
 }
 
 module.exports = app;
-
-
-
-
 

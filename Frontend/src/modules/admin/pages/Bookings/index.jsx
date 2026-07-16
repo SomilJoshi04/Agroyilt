@@ -268,6 +268,7 @@ const Bookings = () => {
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider
                             ${booking.status === 'completed' ? 'bg-green-100 text-green-700' :
                           booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                          booking.status === 'rejected' ? 'bg-rose-100 text-rose-700' :
                             booking.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
                               'bg-yellow-100 text-yellow-700'}`}>
                         {booking.status?.replace('_', ' ')}

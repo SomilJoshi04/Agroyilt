@@ -54,11 +54,15 @@ const getAllCategories = async (req, res) => {
     if (showOnHome !== undefined) query.showOnHome = showOnHome === 'true';
     if (isPopular !== undefined) query.isPopular = isPopular === 'true';
     if (cityId) {
-      query.$or = [
-        { cityIds: cityId },
-        { cityIds: { $size: 0 } },
-        { cityIds: { $exists: false } }
-      ];
+      const mongoose = require('mongoose');
+      let cityObjectId;
+      try {
+        cityObjectId = new mongoose.Types.ObjectId(cityId);
+      } catch (e) {
+        cityObjectId = cityId;
+      }
+      
+      query.cityIds = cityObjectId;
     }
 
     const categories = await Category.find(query)

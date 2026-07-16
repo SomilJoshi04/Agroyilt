@@ -70,6 +70,7 @@ const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || '
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
+  const [reminderAlert, setReminderAlert] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -193,6 +194,15 @@ export const SocketProvider = ({ children }) => {
 
       if (isSoundEnabled(userType)) {
         playNotificationSound();
+      }
+
+      if (data.type === 'booking_approaching' || data.type === 'booking_ending') {
+        setReminderAlert({
+          title: data.title,
+          message: data.message,
+          relatedId: data.relatedId,
+          type: data.type
+        });
       }
 
       // Show custom toast for all notifications
@@ -345,6 +355,69 @@ export const SocketProvider = ({ children }) => {
   return (
     <SocketContext.Provider value={socket}>
       {children}
+
+      {/* Booking Slot Reminder Alert Modal Pop-up */}
+      {reminderAlert && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setReminderAlert(null)}
+          />
+          <div className="relative bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full border border-gray-100 animate-slide-up">
+            <div className="flex flex-col items-center text-center">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                reminderAlert.type === 'booking_ending' 
+                  ? 'bg-orange-50 text-orange-600 border border-orange-100' 
+                  : 'bg-teal-50 text-teal-600 border border-teal-100'
+              }`}>
+                {reminderAlert.type === 'booking_ending' ? (
+                  <span className="text-3xl">⏳</span>
+                ) : (
+                  <span className="text-3xl">⏰</span>
+                )}
+              </div>
+              
+              <h3 className="text-lg font-black text-gray-900 mb-2 uppercase tracking-tight">
+                {reminderAlert.title}
+              </h3>
+              <p className="text-sm text-gray-500 mb-6 font-medium leading-relaxed">
+                {reminderAlert.message}
+              </p>
+              
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setReminderAlert(null)}
+                  className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Dismiss
+                </button>
+                <button
+                  onClick={() => {
+                    const bookingId = reminderAlert.relatedId;
+                    setReminderAlert(null);
+                    if (bookingId) {
+                      if (userType === 'vendor') {
+                        navigate(`/vendor/booking/${bookingId}`);
+                      } else if (userType === 'worker') {
+                        navigate(`/worker/job/${bookingId}`);
+                      } else {
+                        navigate(`/user/booking/${bookingId}`);
+                      }
+                    }
+                  }}
+                  className={`flex-1 py-3 text-white rounded-xl text-sm font-bold shadow-lg transition-all ${
+                    reminderAlert.type === 'booking_ending'
+                      ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/10'
+                      : 'bg-teal-600 hover:bg-teal-700 shadow-teal-600/10'
+                  }`}
+                >
+                  View Details
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </SocketContext.Provider>
   );
 };

@@ -150,12 +150,15 @@ const BillingPage = () => {
   const handleSendOTP = async () => {
     try {
       setOtpLoading(true);
-      // Save bill first
-      await vendorBillService.createOrUpdateBill(id, {
-        parts: [],
-        customItems: [],
-        transportCharges: 0
-      });
+      
+      // Save bill first ONLY if it hasn't been generated yet
+      if (!booking?.vendorBillId) {
+        await vendorBillService.createOrUpdateBill(id, {
+          parts: [],
+          customItems: [],
+          transportCharges: 0
+        });
+      }
 
       const res = await vendorWalletService.initiateCashCollection(
         id,
@@ -304,7 +307,7 @@ const BillingPage = () => {
 
       {/* Fixed Bottom Navigation */}
       <div className="fixed bottom-[72px] left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 flex gap-3">
-        {booking.paymentMethod === 'cash' || booking.paymentMethod === 'pay_at_home' || booking.paymentMethod === 'plan_benefit' ? (
+        {booking.vendorBillId || booking.paymentMethod === 'cash' || booking.paymentMethod === 'pay_at_home' || booking.paymentMethod === 'plan_benefit' ? (
           isOtpSent ? (
             <button
               onClick={() => setShowOtpModal(true)}
@@ -312,7 +315,7 @@ const BillingPage = () => {
               className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold rounded-xl shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70 disabled:scale-100"
             >
               <FiKey className="w-5 h-5" />
-              {otpLoading ? 'Verifying...' : 'Enter OTP to Confirm'}
+              {otpLoading ? 'Verifying...' : 'Enter OTP to Confirm Cash'}
             </button>
           ) : (
             <button
@@ -320,7 +323,7 @@ const BillingPage = () => {
               disabled={otpLoading}
               className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70 disabled:scale-100"
             >
-              {otpLoading ? 'Sending...' : <><FiDollarSign className="w-5 h-5" /> Send OTP to User</>}
+              {otpLoading ? 'Sending...' : <><FiDollarSign className="w-5 h-5" /> Collect Cash (Send OTP)</>}
             </button>
           )
         ) : (

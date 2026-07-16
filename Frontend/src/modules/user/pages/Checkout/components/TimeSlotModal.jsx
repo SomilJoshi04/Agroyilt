@@ -280,33 +280,6 @@ const TimeSlotModal = ({
                      </div>
                    </div>
                  </div>
-
-                 {/* Agriculture Specific Inputs */}
-                 <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-                   <h3 className="text-sm font-bold text-black mb-3 uppercase tracking-wider">Crop & Chemical Details</h3>
-                   <div className="space-y-3">
-                     <div>
-                       <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Crop Type</label>
-                       <input
-                         type="text"
-                         placeholder="E.g. Wheat, Rice, Sugarcane"
-                         value={localCropType}
-                         onChange={(e) => { setLocalCropType(e.target.value); onQuantityChange?.({ cropType: e.target.value }); }}
-                         className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-semibold text-gray-900"
-                       />
-                     </div>
-                     <div>
-                       <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Chemical to Spray</label>
-                       <input
-                         type="text"
-                         placeholder="E.g. Urea, Pesticide (Optional)"
-                         value={localChemicalUsed}
-                         onChange={(e) => { setLocalChemicalUsed(e.target.value); onQuantityChange?.({ chemicalUsed: e.target.value }); }}
-                         className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-semibold text-gray-900"
-                       />
-                     </div>
-                   </div>
-                 </div>
                </div>
             )}
 
@@ -318,8 +291,8 @@ const TimeSlotModal = ({
               <p className="text-xs text-gray-600">Online payment only for selected date</p>
             </div>
 
-            {/* Time Selection — only for Hourly rental */}
-            {rentalType === 'hourly' && (
+            {/* Time Selection — for Hourly, Land-Based, or Daily rental */}
+            {(rentalType === 'hourly' || rentalType === 'land_based' || rentalType === 'daily') && (
             <div className="mb-4">
               <h3 className="text-base font-semibold text-black mb-3">Select equipment arrival time</h3>
               {getTimeSlots().length === 0 ? (
@@ -395,19 +368,19 @@ const TimeSlotModal = ({
                   extraArgs.endDate = end;
                 }
 
-                onSave(selectedDate, rentalType === 'monthly' || rentalType === 'daily' || rentalType === 'land_based' ? '00:00' : selectedTime, extraArgs);
+                onSave(selectedDate, rentalType === 'monthly' ? '00:00' : selectedTime, extraArgs);
               }}
               disabled={
                 !selectedDate ||
-                (rentalType === 'daily' && (!selectedDate || !localDays)) ||
+                (rentalType === 'daily' && (!selectedDate || !localDays || !selectedTime)) ||
                 (rentalType === 'hourly' && (!selectedTime || !localHours)) ||
-                (rentalType === 'land_based' && (!selectedDate || !localAcres))
+                (rentalType === 'land_based' && (!selectedDate || !localAcres || !selectedTime))
               }
               className="w-full py-3.5 rounded-lg text-base font-semibold transition-colors mb-4"
               style={(selectedDate && (
-                (rentalType === 'daily' && localDays) ||
+                (rentalType === 'daily' && localDays && selectedTime) ||
                 (rentalType === 'hourly' && selectedTime && localHours) ||
-                (rentalType === 'land_based' && localAcres)
+                (rentalType === 'land_based' && localAcres && selectedTime)
               )) ? {
                 backgroundColor: themeColors.button,
                 color: 'white'
@@ -418,9 +391,9 @@ const TimeSlotModal = ({
               }}
               onMouseEnter={(e) => {
                 const isValid = selectedDate && (
-                  (rentalType === 'daily' && localDays) ||
+                  (rentalType === 'daily' && localDays && selectedTime) ||
                   (rentalType === 'hourly' && selectedTime && localHours) ||
-                  (rentalType === 'land_based' && localAcres)
+                  (rentalType === 'land_based' && localAcres && selectedTime)
                 );
                 if (isValid) {
                   e.target.style.backgroundColor = themeColors.button;
@@ -428,9 +401,9 @@ const TimeSlotModal = ({
               }}
               onMouseLeave={(e) => {
                 const isValid = selectedDate && (
-                  (rentalType === 'daily' && localDays) ||
+                  (rentalType === 'daily' && localDays && selectedTime) ||
                   (rentalType === 'hourly' && selectedTime && localHours) ||
-                  (rentalType === 'land_based' && localAcres)
+                  (rentalType === 'land_based' && localAcres && selectedTime)
                 );
                 if (isValid) {
                   e.target.style.backgroundColor = themeColors.button;

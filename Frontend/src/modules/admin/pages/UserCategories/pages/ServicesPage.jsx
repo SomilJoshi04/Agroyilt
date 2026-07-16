@@ -38,9 +38,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        if (!catalog.categories || catalog.categories.length === 0) {
-          setFetching(true);
-        }
+        setFetching(true);
 
         const params = { status: 'active' };
         if (selectedCity) params.cityId = selectedCity;
@@ -244,8 +242,11 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
         <div className="lg:col-span-1">
           <CardShell icon={FiGrid} title="Select Category">
             <div className="max-h-[600px] overflow-y-auto space-y-2 pr-1">
-              {fetching && (!categories || categories.length === 0) ? (
-                <div className="text-center py-4 text-sm text-gray-500">Loading categories...</div>
+              {fetching ? (
+                <div className="text-center py-8 text-sm text-gray-500 flex flex-col items-center justify-center">
+                  <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3"></div>
+                  Loading categories...
+                </div>
               ) : categories.length === 0 ? (
                 <div className="text-center text-gray-400 py-4 text-sm">No categories found</div>
               ) : (

@@ -26,11 +26,8 @@ const getPublicCategories = async (req, res) => {
       } catch (e) {
         cityObjectId = cityId; // fallback if invalid ObjectId format
       }
-      query.$or = [
-        { cityIds: cityObjectId },
-        { cityIds: { $size: 0 } },
-        { cityIds: { $exists: false } }
-      ];
+      
+      query.cityIds = cityObjectId;
     }
 
     let categories = await Category.find(query)
@@ -39,16 +36,7 @@ const getPublicCategories = async (req, res) => {
       .sort({ homeOrder: 1, createdAt: -1 })
       .lean();
 
-    // FALLBACK: If a city was requested but has no categories assigned,
-    // return all global categories (those with no cityIds or any city)
-    // This mirrors the HomeContent fallback behaviour.
-    if (cityId && categories.length === 0) {
-      categories = await Category.find({ status: 'active' })
-        .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver sectionType')
-        .populate('parentCategories', 'title slug')
-        .sort({ homeOrder: 1, createdAt: -1 })
-        .lean();
-    }
+    // Fallback removed as per user request to only show explicitly mapped categories.
 
     const initialCategories = categories.map(cat => ({
       id: cat._id?.toString() || '',
@@ -119,17 +107,15 @@ const getPublicBrands = async (req, res) => {
     const query = { status: 'active' };
     if (categoryId) query.categoryIds = categoryId;
     if (cityId) {
+      const mongoose = require('mongoose');
       let cityObjectId;
       try {
         cityObjectId = new mongoose.Types.ObjectId(cityId);
       } catch (e) {
         cityObjectId = cityId; // fallback if invalid ObjectId format
       }
-      query.$or = [
-        { cityIds: cityObjectId },
-        { cityIds: { $size: 0 } },
-        { cityIds: { $exists: false } }
-      ];
+      
+      query.cityIds = cityObjectId;
     }
 
     if (search) {

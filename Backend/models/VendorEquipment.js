@@ -93,6 +93,10 @@ const vendorEquipmentSchema = new mongoose.Schema({
     ref: 'City',
     index: true
   }],
+  requestedCityName: {
+    type: String,
+    default: null
+  },
   // Machine Verification & Status
   status: {
     type: String,

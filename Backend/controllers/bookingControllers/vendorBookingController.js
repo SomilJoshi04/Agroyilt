@@ -1785,19 +1785,37 @@ const endTrip = async (req, res) => {
     await booking.save();
 
     // 6. NOTIFY USER
+    const isCashBooking = booking.paymentMethod === 'cash' || booking.paymentMethod === 'pay_at_home';
     await createNotification({
       userId: booking.userId,
       type: 'work_completed',
       title: 'Work Completed & Bill Generated',
-      message: `Your equipment trip for ${service?.title || booking.serviceName} has ended. Total Bill: ₹${finalAmount}.`,
+      message: isCashBooking && booking.customerConfirmationOTP
+        ? `Your equipment trip has ended. Total Bill: \u20b9${finalAmount}. Payment OTP: ${booking.customerConfirmationOTP}. Share this OTP with the operator to confirm cash payment.`
+        : `Your equipment trip for ${service?.title || booking.serviceName} has ended. Total Bill: \u20b9${finalAmount}.`,
       relatedId: booking._id,
       relatedType: 'booking',
+      priority: 'high',
       pushData: {
         type: 'work_done',
         bookingId: booking._id.toString(),
+        paymentOtp: booking.customerConfirmationOTP || undefined,
         link: `/user/booking/${booking._id}`
       }
     });
+
+    // 7. SOCKET: Real-time update to user — includes OTP for cash bookings
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: booking.status,
+        finalAmount,
+        customerConfirmationOTP: booking.customerConfirmationOTP || undefined,
+        paymentOtp: booking.customerConfirmationOTP || undefined,
+        workDoneDetails: booking.workDoneDetails
+      });
+    }
 
     res.status(200).json({
       success: true,

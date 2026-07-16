@@ -37,7 +37,8 @@ const BookingDetailsPage = () => {
     const getStatusColor = (status) => {
         const s = status?.toLowerCase();
         if (s === 'completed') return 'bg-green-100 text-green-700';
-        if (s === 'cancelled' || s === 'rejected') return 'bg-red-100 text-red-700';
+        if (s === 'cancelled') return 'bg-red-100 text-red-700';
+        if (s === 'rejected') return 'bg-rose-100 text-rose-700';
         if (s === 'in_progress') return 'bg-purple-100 text-purple-700';
         return 'bg-yellow-100 text-yellow-700';
     };
