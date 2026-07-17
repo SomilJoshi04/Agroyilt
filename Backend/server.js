@@ -220,6 +220,7 @@ app.use('/api', require('./routes/admin-routes/upload.routes')); // Generic uplo
 // User routes additions
 app.use('/api/user/soil-test', require('./routes/user-routes/soilTest.routes'));
 app.use('/api/user/ecommerce', require('./routes/user-routes/product.routes.js'));
+app.use('/api/user/ecommerce-cart', require('./routes/user-routes/ecommerceCart.routes'));
 
 // Vendor Wallet/Ledger routes
 // Vendor Wallet/Ledger routes

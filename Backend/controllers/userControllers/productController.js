@@ -2,8 +2,10 @@ const Product = require('../../models/Product');
 const EcommerceOrder = require('../../models/EcommerceOrder');
 const Transaction = require('../../models/Transaction');
 const User = require('../../models/User');
+const EcommerceCart = require('../../models/EcommerceCart');
 const { createOrder, verifyPayment } = require('../../services/razorpayService');
 const { createNotification } = require('../notificationControllers/notificationController');
+const PDFDocument = require('pdfkit');
 
 const checkAndNotifyOutOfStock = async (productId) => {
     try {
@@ -28,7 +30,7 @@ const checkAndNotifyOutOfStock = async (productId) => {
  */
 const getApprovedProducts = async (req, res) => {
     try {
-        const { categoryId, query, lat, lng, radius } = req.query;
+        const { categoryId, query, lat, lng, radius, cityId } = req.query;
         let filter = { 
             approvalStatus: 'approved', 
             status: 'active'
@@ -81,6 +83,21 @@ const getApprovedProducts = async (req, res) => {
             filter.vendorId = { $in: vendorIds };
         }
 
+        // City-based filtering logic
+        if (cityId) {
+            const Vendor = require('../../models/Vendor');
+            const vendorsInCity = await Vendor.find({ cityId }).select('_id');
+            const vendorIds = vendorsInCity.map(v => v._id);
+            if (filter.vendorId) {
+                // Intersect GPS filters and City filters if both are present
+                filter.vendorId = { 
+                    $in: filter.vendorId.$in.filter(id => vendorIds.some(vid => vid.toString() === id.toString())) 
+                };
+            } else {
+                filter.vendorId = { $in: vendorIds };
+            }
+        }
+
         let productsQuery = Product.find(filter)
             .populate('categoryId', 'title imageUrl')
             .populate('vendorId', 'businessName name profilePhoto')
@@ -120,88 +137,173 @@ const getProductDetails = async (req, res) => {
 };
 
 /**
- * User: Create an order (Calculates Platform Fee vs Vendor Balance)
+ * User: Create an order (Calculates Platform Fee vs Vendor Balance + Shipping Charges)
  */
 const placeOrder = async (req, res) => {
     try {
         const { productId, quantity, shippingAddress, paymentMethod, paymentType } = req.body;
-        
-        const product = await Product.findById(productId);
-        if (!product || product.approvalStatus !== 'approved' || product.stock < quantity) {
-            return res.status(400).json({ success: false, message: 'Product unavailable or out of stock' });
+        const userId = req.user._id;
+
+        let checkoutItems = [];
+        let isFromCart = false;
+
+        if (productId) {
+            // Single Item Buy Flow
+            const product = await Product.findById(productId);
+            if (!product || product.approvalStatus !== 'approved' || product.stock < quantity) {
+                return res.status(400).json({ success: false, message: 'Product unavailable or out of stock' });
+            }
+            checkoutItems.push({
+                product,
+                quantity: Number(quantity)
+            });
+        } else {
+            // Cart Checkout Flow
+            const cart = await EcommerceCart.findOne({ userId }).populate('items.productId');
+            if (!cart || !cart.items || cart.items.length === 0) {
+                return res.status(400).json({ success: false, message: 'Your e-commerce cart is empty' });
+            }
+            for (const item of cart.items) {
+                const product = item.productId;
+                if (!product || product.approvalStatus !== 'approved' || product.status !== 'active') {
+                    return res.status(400).json({ success: false, message: `Product ${product?.title || 'Unknown'} is unavailable` });
+                }
+                if (product.stock < item.quantity) {
+                    return res.status(400).json({ success: false, message: `Product ${product.title} does not have enough stock` });
+                }
+                checkoutItems.push({
+                    product,
+                    quantity: item.quantity
+                });
+            }
+            isFromCart = true;
         }
 
-        const itemsTotal = product.price * quantity;
-        const adminCommission = (product.price * (product.commissionPercentage / 100));
-        const gstAmount = (itemsTotal * (product.gstPercentage / 100));
-        const platformFee = adminCommission + gstAmount;
-        const vendorBalance = itemsTotal;
+        // Group items by vendorId
+        const vendorGroups = {};
+        for (const item of checkoutItems) {
+            const vendorId = item.product.vendorId.toString();
+            if (!vendorGroups[vendorId]) {
+                vendorGroups[vendorId] = [];
+            }
+            vendorGroups[vendorId].push(item);
+        }
 
-        const orderTotal = itemsTotal + platformFee;
-        
-        const order = new EcommerceOrder({
-            userId: req.user._id,
-            vendorId: product.vendorId,
-            items: [{
-                productId: product._id,
-                name: product.title,
-                quantity,
-                price: product.price,
-                bagWeight: product.bagWeight,
-                subtotal: itemsTotal
-            }],
-            pricing: {
-                itemsTotal,
-                adminCommission,
-                gstAmount,
-                platformFee,
-                vendorBalance,
-                orderTotal
-            },
-            shippingAddress,
-            deliveryOtp: Math.floor(1000 + Math.random() * 9000).toString(),
-            paymentMethod: paymentMethod || 'wallet',
-            paymentType: paymentType || 'split'
-        });
+        const createdOrders = [];
 
-        if (order.paymentType === 'cod') {
-            order.deliveryStatus = 'ordered'; // Direct to vendor
-            order.paymentMethod = 'cash';
-            await order.save();
-            
-            // Reduce Stock
-            await Product.findByIdAndUpdate(product._id, { $inc: { stock: -quantity } });
-            await checkAndNotifyOutOfStock(product._id);
+        // Loop through each vendor group and create separate orders
+        for (const [vendorId, items] of Object.entries(vendorGroups)) {
+            let itemsTotal = 0;
+            let adminCommission = 0;
+            let gstAmount = 0;
+            let shippingCharges = 0;
 
-            // Notify Vendor
-            try {
-                await createNotification({
-                    recipientId: order.vendorId,
-                    recipientModel: 'Vendor',
-                    title: 'New COD Store Order!',
-                    message: `You received a COD order for ${order.items[0].name}. Please pack it for shipping.`,
-                    type: 'ecommerce_order',
-                    metadata: { orderId: order._id }
-                });
-            } catch (nErr) { console.error('Push notification error:', nErr); }
+            const orderItems = items.map(item => {
+                const subtotal = item.product.price * item.quantity;
+                itemsTotal += subtotal;
+                adminCommission += (subtotal * (item.product.commissionPercentage / 100));
+                gstAmount += (subtotal * (item.product.gstPercentage / 100));
+                shippingCharges += ((item.product.shippingCharge || 0) * item.quantity);
 
-            return res.status(201).json({ 
-                success: true, 
-                data: order, 
-                message: 'COD Order placed successfully.',
-                paymentType: 'cod'
+                return {
+                    productId: item.product._id,
+                    name: item.product.title,
+                    quantity: item.quantity,
+                    price: item.product.price,
+                    bagWeight: item.product.bagWeight,
+                    subtotal
+                };
+            });
+
+            const platformFee = adminCommission + gstAmount;
+            const vendorBalance = itemsTotal;
+            const orderTotal = itemsTotal + platformFee + shippingCharges;
+
+            const order = new EcommerceOrder({
+                userId,
+                vendorId,
+                items: orderItems,
+                pricing: {
+                    itemsTotal,
+                    adminCommission,
+                    gstAmount,
+                    platformFee,
+                    vendorBalance,
+                    shippingCharges,
+                    orderTotal
+                },
+                shippingAddress,
+                deliveryOtp: Math.floor(1000 + Math.random() * 9000).toString(),
+                paymentMethod: paymentMethod || 'wallet',
+                paymentType: paymentType || 'split'
+            });
+
+            if (order.paymentType === 'cod') {
+                order.deliveryStatus = 'ordered'; // Direct to vendor
+                order.paymentMethod = 'cash';
+                await order.save();
+
+                // Reduce Stock
+                for (const item of items) {
+                    await Product.findByIdAndUpdate(item.product._id, { $inc: { stock: -item.quantity } });
+                    await checkAndNotifyOutOfStock(item.product._id);
+                }
+
+                // Notify Vendor
+                try {
+                    await createNotification({
+                        recipientId: order.vendorId,
+                        recipientModel: 'Vendor',
+                        title: 'New COD Store Order!',
+                        message: `You received a COD order for ${order.items[0].name}. Please pack it for shipping.`,
+                        type: 'ecommerce_order',
+                        metadata: { orderId: order._id }
+                    });
+                } catch (nErr) { console.error('Push notification error:', nErr); }
+
+            } else {
+                await order.save();
+            }
+
+            createdOrders.push(order);
+        }
+
+        // Clear cart if ordered from cart
+        if (isFromCart) {
+            await EcommerceCart.findOneAndUpdate({ userId }, { $set: { items: [] } });
+        }
+
+        // Handle response
+        // If there's only one order created (standard single item checkout or single vendor checkout)
+        if (createdOrders.length === 1) {
+            const order = createdOrders[0];
+            return res.status(201).json({
+                success: true,
+                data: order,
+                orders: createdOrders,
+                message: order.paymentType === 'cod' 
+                    ? 'COD Order placed successfully.' 
+                    : (order.paymentType === 'online_full' ? 'Order created. Please pay full amount to confirm.' : 'Order created. Please pay Platform Fee to confirm.'),
+                amountToPay: order.paymentType === 'online_full' ? order.pricing.orderTotal : order.pricing.platformFee,
+                paymentType: order.paymentType
             });
         }
 
-        await order.save();
-        res.status(201).json({ 
-            success: true, 
-            data: order, 
-            message: order.paymentType === 'online_full' ? 'Order created. Please pay full amount to confirm.' : 'Order created. Please pay Platform Fee to confirm.',
-            amountToPay: order.paymentType === 'online_full' ? order.pricing.orderTotal : order.pricing.platformFee,
-            paymentType: order.paymentType
+        // Multi-vendor checkout response
+        const totalAmountToPay = createdOrders.reduce((sum, order) => {
+            return sum + (order.paymentType === 'online_full' ? order.pricing.orderTotal : order.pricing.platformFee);
+        }, 0);
+
+        res.status(201).json({
+            success: true,
+            orders: createdOrders,
+            message: `Created ${createdOrders.length} orders for different vendors.`,
+            amountToPay: totalAmountToPay,
+            paymentType: paymentType
         });
+
     } catch (error) {
+        console.error('Place Order error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -465,6 +567,138 @@ const cancelOrder = async (req, res) => {
     }
 };
 
+const generateInvoice = async (req, res) => {
+    try {
+        const order = await EcommerceOrder.findById(req.params.id)
+            .populate('userId', 'name phone email')
+            .populate('vendorId', 'businessName phone name')
+            .populate('items.productId', 'title price unit bagWeight gstPercentage commissionPercentage brandName');
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        // Create PDF Document
+        const doc = new PDFDocument({ margin: 50 });
+        
+        // Header Response
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=invoice_${order._id}.pdf`);
+        
+        doc.pipe(res);
+        
+        // Invoice Branding
+        doc.fontSize(24).font('Helvetica-Bold').fillColor('#2E7D32').text('GrooAgri Marketplace', { align: 'left' });
+        doc.fontSize(10).font('Helvetica').fillColor('#555555').text('Sustainable Farming Inputs & Services', { align: 'left' });
+        doc.moveDown();
+        
+        // Horizontal Line
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor('#dddddd').stroke();
+        doc.moveDown();
+        
+        // Details Row
+        const yStart = doc.y;
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('#333333').text('Seller Details:', 50, yStart);
+        doc.font('Helvetica').text(order.vendorId?.businessName || order.vendorId?.name || 'Local Seller', 50, yStart + 15);
+        doc.text(`Phone: ${order.vendorId?.phone || 'N/A'}`, 50, yStart + 30);
+        
+        doc.font('Helvetica-Bold').text('Customer Details:', 300, yStart);
+        doc.font('Helvetica').text(order.shippingAddress?.name || order.userId?.name || 'Customer', 300, yStart + 15);
+        doc.text(`Phone: ${order.shippingAddress?.phone || order.userId?.phone || 'N/A'}`, 300, yStart + 30);
+        
+        let addressText = '';
+        if (order.shippingAddress) {
+            addressText = [order.shippingAddress.addressLine1, order.shippingAddress.city, order.shippingAddress.state, order.shippingAddress.pincode].filter(Boolean).join(', ');
+        }
+        doc.text(`Address: ${addressText || 'N/A'}`, 300, yStart + 45, { width: 250 });
+        
+        doc.y = Math.max(yStart + 70, doc.y);
+        doc.moveDown();
+        
+        // Order Info
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor('#dddddd').stroke();
+        doc.moveDown();
+        
+        const infoY = doc.y;
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#333333');
+        doc.text(`Invoice No: INV-${order._id.toString().substring(12).toUpperCase()}`, 50, infoY);
+        doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 300, infoY);
+        doc.text(`Payment Status: ${order.paymentStatus.toUpperCase()} (${order.paymentType.toUpperCase()})`, 50, infoY + 20);
+        doc.text(`Delivery Status: ${order.deliveryStatus.toUpperCase()}`, 300, infoY + 20);
+        
+        doc.y = infoY + 45;
+        doc.moveDown();
+        
+        // Table Header
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff');
+        // Draw green header background
+        doc.rect(50, doc.y, 500, 20).fill('#2E7D32');
+        doc.fillColor('#ffffff');
+        doc.text('Item Name', 60, doc.y + 5);
+        doc.text('Qty', 280, doc.y + 5);
+        doc.text('Price/Unit', 330, doc.y + 5);
+        doc.text('GST %', 400, doc.y + 5);
+        doc.text('Subtotal', 480, doc.y + 5);
+        
+        doc.y = doc.y + 20;
+        doc.moveDown(0.5);
+        
+        // Table Rows
+        doc.font('Helvetica').fillColor('#333333');
+        let index = 0;
+        for (const item of order.items) {
+            const product = item.productId;
+            const gstPercent = product?.gstPercentage || 5;
+            const unitPrice = item.price;
+            const subtotal = item.subtotal || (unitPrice * item.quantity);
+            
+            // Draw zebra striping
+            if (index % 2 === 1) {
+                doc.rect(50, doc.y - 2, 500, 18).fill('#f9f9f9');
+                doc.fillColor('#333333');
+            }
+            
+            doc.text(item.name || 'Product', 60, doc.y);
+            doc.text(item.quantity.toString(), 280, doc.y);
+            doc.text(`₹${unitPrice.toFixed(2)}`, 330, doc.y);
+            doc.text(`${gstPercent}%`, 400, doc.y);
+            doc.text(`₹${subtotal.toFixed(2)}`, 480, doc.y);
+            
+            doc.y = doc.y + 18;
+            index++;
+        }
+        
+        doc.moveDown();
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor('#dddddd').stroke();
+        doc.moveDown();
+        
+        // Summary
+        const summaryY = doc.y;
+        doc.font('Helvetica').fontSize(10);
+        doc.text('Items Total:', 350, summaryY);
+        doc.text(`₹${order.pricing.itemsTotal.toFixed(2)}`, 480, summaryY);
+        
+        doc.text('Platform Fee (Comm+GST):', 350, summaryY + 15);
+        doc.text(`₹${order.pricing.platformFee.toFixed(2)}`, 480, summaryY + 15);
+        
+        doc.text('Shipping & Delivery:', 350, summaryY + 30);
+        doc.text(`₹${(order.pricing.shippingCharges || 0).toFixed(2)}`, 480, summaryY + 30);
+        
+        doc.fontSize(12).font('Helvetica-Bold').fillColor('#2E7D32');
+        doc.text('Grand Total:', 350, summaryY + 50);
+        doc.text(`₹${order.pricing.orderTotal.toFixed(2)}`, 480, summaryY + 50);
+        
+        doc.moveDown(4);
+        doc.fontSize(9).font('Helvetica-Oblique').fillColor('#888888').text('Thank you for shopping with GrooAgri! This is an electronically generated document.', { align: 'center' });
+        
+        doc.end();
+        
+    } catch (error) {
+        console.error('Invoice PDF Generation error:', error);
+        res.status(500).json({ success: false, message: 'Failed to generate invoice PDF: ' + error.message });
+    }
+};
+
 module.exports = {
     getApprovedProducts,
     getProductDetails,
@@ -473,5 +707,6 @@ module.exports = {
     payPlatformFee,
     getMyOrders,
     getOrderById,
-    cancelOrder
+    cancelOrder,
+    generateInvoice
 };

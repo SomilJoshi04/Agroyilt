@@ -5,7 +5,7 @@ const Product = require('../../models/Product');
  */
 const getProducts = async (req, res) => {
     try {
-        const { categoryId, isFeatured, query } = req.query;
+        const { categoryId, isFeatured, query, cityId } = req.query;
         let filter = { 
             status: 'active',
             approvalStatus: 'approved' // Only show admin-approved or auto-approved products
@@ -15,6 +15,13 @@ const getProducts = async (req, res) => {
         if (isFeatured === 'true') filter.isFeatured = true;
         if (query) {
             filter.title = { $regex: query, $options: 'i' };
+        }
+
+        if (cityId) {
+            const Vendor = require('../../models/Vendor');
+            const vendorsInCity = await Vendor.find({ cityId }).select('_id');
+            const vendorIds = vendorsInCity.map(v => v._id);
+            filter.vendorId = { $in: vendorIds };
         }
 
         const products = await Product.find(filter).populate('categoryId', 'title');

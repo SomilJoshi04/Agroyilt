@@ -113,6 +113,15 @@ const getMyOrders = async (req, res) => {
             const order = await EcommerceOrder.findOne({ _id: req.params.id, vendorId: req.user._id });
             if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
+            if (status === 'cancelled') {
+                if (order.deliveryStatus === 'cancelled') {
+                    return res.status(400).json({ success: false, message: 'Order is already cancelled' });
+                }
+                if (order.deliveryStatus === 'delivered') {
+                    return res.status(400).json({ success: false, message: 'Cannot cancel a delivered order' });
+                }
+            }
+
             if (status === 'delivered') {
                 if (order.deliveryOtp && order.deliveryOtp !== deliveryOtp) {
                     return res.status(400).json({ success: false, message: 'Invalid Verification OTP' });
@@ -145,6 +154,38 @@ const getMyOrders = async (req, res) => {
             if(status === 'delivered' && order.trackingDetails) order.trackingDetails.deliveredAt = new Date();
             if(status === 'cancelled' && order.trackingDetails) order.trackingDetails.cancelledAt = new Date();
             
+            if (status === 'cancelled') {
+                const Transaction = require('../../models/Transaction');
+                // If it was already paid, refund the correct amount to the user's wallet
+                if (order.paymentStatus === 'paid') {
+                    const user = await User.findById(order.userId);
+                    if (user) {
+                        let refundAmount = order.pricing.platformFee;
+                        if (order.paymentType === 'online_full') {
+                            refundAmount = order.pricing.orderTotal;
+                        }
+                        
+                        user.wallet.balance += refundAmount;
+                        await user.save();
+
+                        await Transaction.create({
+                            userId: user._id,
+                            type: 'refund',
+                            amount: refundAmount,
+                            status: 'completed',
+                            paymentMethod: 'system',
+                            description: `Refund for Vendor-Cancelled Ecommerce Order: ${order._id.toString().slice(-8)}`,
+                            metadata: { orderId: order._id, reason: 'vendor_cancelled' }
+                        });
+                    }
+                }
+
+                // Return items to stock
+                for (const item of order.items) {
+                    await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+                }
+            }
+
             await order.save();
 
             // If COD and Delivered, we need to add platform fee to vendor's dues
@@ -210,15 +251,17 @@ const getMyOrders = async (req, res) => {
                     });
 
                     // Transaction 2: Earnings credited to vendor
-                    if (vendorBalance > 0) {
+                    const shippingCharges = order.pricing.shippingCharges || 0;
+                    const totalVendorCredit = vendorBalance + shippingCharges;
+                    if (totalVendorCredit > 0) {
                         await Transaction.create({
                             vendorId: vendor._id,
                             bookingId: null,
                             type: 'earnings_credit',
-                            amount: vendorBalance,
+                            amount: totalVendorCredit,
                             status: 'completed',
                             paymentMethod: 'system',
-                            description: `Earnings ₹${vendorBalance} settled directly in cash for COD Order #${order._id.toString().slice(-8)}.`,
+                            description: `Earnings ₹${totalVendorCredit} settled directly in cash for COD Order #${order._id.toString().slice(-8)} (includes ₹${shippingCharges} shipping).`,
                             metadata: {
                                 type: 'earnings_increase',
                                 orderId: order._id.toString()
@@ -231,21 +274,23 @@ const getMyOrders = async (req, res) => {
                 const vendor = await Vendor.findById(order.vendorId);
                 if (vendor) {
                     const vendorBalance = order.pricing.vendorBalance;
+                    const shippingCharges = order.pricing.shippingCharges || 0;
+                    const totalVendorCredit = vendorBalance + shippingCharges;
                     
                     const updateQuery = {
-                        $inc: { 'wallet.earnings': vendorBalance }
+                        $inc: { 'wallet.earnings': totalVendorCredit }
                     };
                     await Vendor.findByIdAndUpdate(vendor._id, updateQuery);
 
-                    if (vendorBalance > 0) {
+                    if (totalVendorCredit > 0) {
                         await Transaction.create({
                             vendorId: vendor._id,
                             bookingId: null, // No booking for ecommerce
                             type: 'earnings_credit',
-                            amount: vendorBalance,
+                            amount: totalVendorCredit,
                             status: 'completed',
                             paymentMethod: 'system',
-                            description: `Earnings ₹${vendorBalance} credited for Prepaid Ecommerce Order #${order._id.toString().slice(-8)} on delivery.`,
+                            description: `Earnings ₹${totalVendorCredit} credited for Prepaid Ecommerce Order #${order._id.toString().slice(-8)} on delivery (includes ₹${shippingCharges} shipping).`,
                             metadata: {
                                 type: 'earnings_increase',
                                 orderId: order._id.toString()
@@ -258,10 +303,12 @@ const getMyOrders = async (req, res) => {
                 const vendor = await Vendor.findById(order.vendorId);
                 if (vendor) {
                     const vendorBalance = order.pricing.vendorBalance;
+                    const shippingCharges = order.pricing.shippingCharges || 0;
+                    const totalCashCollectedByVendor = vendorBalance + shippingCharges;
 
                     const updateQuery = {
                         $inc: { 
-                            'wallet.totalCashCollected': vendorBalance
+                            'wallet.totalCashCollected': totalCashCollectedByVendor
                         }
                     };
 
@@ -272,10 +319,10 @@ const getMyOrders = async (req, res) => {
                         vendorId: vendor._id,
                         bookingId: null, // Ecommerce
                         type: 'cash_collected',
-                        amount: vendorBalance,
+                        amount: totalCashCollectedByVendor,
                         status: 'completed',
                         paymentMethod: 'cash',
-                        description: `Cash ₹${vendorBalance} collected directly by vendor for Split Order #${order._id.toString().slice(-8)} (No Admin Dues).`,
+                        description: `Cash ₹${totalCashCollectedByVendor} collected directly by vendor for Split Order #${order._id.toString().slice(-8)} (No Admin Dues, includes ₹${shippingCharges} shipping).`,
                         metadata: {
                             type: 'dues_increase', // Keeps metadata format consistent
                             orderId: order._id.toString(),
@@ -284,15 +331,15 @@ const getMyOrders = async (req, res) => {
                     });
 
                     // Transaction 2: Earnings credited to vendor (retained by vendor, no payout pending)
-                    if (vendorBalance > 0) {
+                    if (totalCashCollectedByVendor > 0) {
                         await Transaction.create({
                             vendorId: vendor._id,
                             bookingId: null,
                             type: 'earnings_credit',
-                            amount: vendorBalance,
+                            amount: totalCashCollectedByVendor,
                             status: 'completed',
                             paymentMethod: 'system',
-                            description: `Earnings ₹${vendorBalance} settled directly in cash for Split Order #${order._id.toString().slice(-8)}.`,
+                            description: `Earnings ₹${totalCashCollectedByVendor} settled directly in cash for Split Order #${order._id.toString().slice(-8)} (includes ₹${shippingCharges} shipping).`,
                             metadata: {
                                 type: 'earnings_increase',
                                 orderId: order._id.toString()

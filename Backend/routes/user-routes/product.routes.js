@@ -9,7 +9,8 @@ const {
     payPlatformFee,
     getMyOrders,
     getOrderById,
-    cancelOrder
+    cancelOrder,
+    generateInvoice
 } = require('../../controllers/userControllers/productController');
 
 // ✅ PUBLIC routes — No auth required (browsing marketplace)
@@ -19,6 +20,7 @@ router.get('/products/:id', getProductDetails);
 // 🔒 PROTECTED routes — Auth required (ordering & tracking)
 router.post('/orders', authenticate, placeOrder);
 router.get('/orders/:id', authenticate, getOrderById);
+router.get('/orders/:id/invoice', authenticate, generateInvoice);
 router.post('/orders/:id/create-payment-order', authenticate, createPaymentOrder);
 router.post('/orders/:id/pay-platform-fee', authenticate, payPlatformFee);
 router.post('/orders/:id/cancel', authenticate, cancelOrder);

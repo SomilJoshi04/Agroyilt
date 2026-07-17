@@ -82,6 +82,11 @@ const productSchema = new mongoose.Schema({
         type: Number,
         default: 0 // Admin sets this during approval
     },
+    shippingCharge: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
     status: {
         type: String,
         enum: ['active', 'inactive', 'out_of_stock'],
