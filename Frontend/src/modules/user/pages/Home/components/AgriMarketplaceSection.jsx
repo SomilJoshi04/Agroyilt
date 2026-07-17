@@ -15,8 +15,11 @@ const toAssetUrl = (url) => {
     return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
 
+import { useCity } from '../../../../../context/CityContext';
+
 const AgriMarketplaceSection = () => {
     const navigate = useNavigate();
+    const { activeCity } = useCity();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const { addToCart } = useCart();
@@ -24,7 +27,11 @@ const AgriMarketplaceSection = () => {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const res = await productService.getProducts({ isFeatured: true });
+                const params = { isFeatured: true };
+                if (activeCity) {
+                    params.cityId = activeCity._id || activeCity.id;
+                }
+                const res = await productService.getProducts(params);
                 if (res.success) {
                     setProducts(res.data);
                 }
@@ -35,7 +42,7 @@ const AgriMarketplaceSection = () => {
             }
         };
         fetchProducts();
-    }, []);
+    }, [activeCity]);
 
     const handleAddToCart = async (product) => {
         try {

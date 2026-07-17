@@ -74,7 +74,10 @@ const CitySelectorModal = ({ isOpen, onClose }) => {
               <div className="overflow-y-auto p-2" style={{ maxHeight: 'calc(80vh - 80px)' }}>
                 <div className="grid gap-2">
                   {cities.map((city) => {
-                    const isSelected = currentCity && (currentCity._id === city._id || currentCity.id === city.id);
+                    const isSelected = currentCity && (
+                      (currentCity._id && city._id && currentCity._id.toString() === city._id.toString()) || 
+                      (currentCity.id && city.id && currentCity.id.toString() === city.id.toString())
+                    );
 
                     return (
                       <button

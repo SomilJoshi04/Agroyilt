@@ -92,7 +92,7 @@ const ProductDetail = () => {
     const commissionPercentage = product.commissionPercentage || 0;
     const gstPercentage = product.gstPercentage || 5;
 
-    const commission = basePrice * (commissionPercentage / 100);
+    const commission = (basePrice * quantity) * (commissionPercentage / 100);
     const gstTotal = (basePrice * quantity) * (gstPercentage / 100);
     const calculatedPlatformFee = commission + gstTotal;
 

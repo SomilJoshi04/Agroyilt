@@ -8,6 +8,10 @@ const ecommerceService = {
         const queryParams = new URLSearchParams();
         if (params.categoryId) queryParams.append('categoryId', params.categoryId);
         if (params.query) queryParams.append('query', params.query);
+        if (params.cityId) queryParams.append('cityId', params.cityId);
+        if (params.lat) queryParams.append('lat', params.lat);
+        if (params.lng) queryParams.append('lng', params.lng);
+        if (params.radius) queryParams.append('radius', params.radius);
         
         const response = await api.get(`/user/ecommerce/marketplace?${queryParams.toString()}`);
         return response.data;

@@ -11,19 +11,23 @@ import ecommerceService from '../../../../services/ecommerceService';
 import { publicCatalogService } from '../../../../services/catalogService';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { useCity } from '../../../../context/CityContext';
+import CitySelectorModal from '../../components/common/CitySelectorModal';
 
 const AgriMarket = () => {
     const navigate = useNavigate();
+    const { currentCity } = useCity();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [hasOrders, setHasOrders] = useState(false);
+    const [showCityModal, setShowCityModal] = useState(false);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [currentCity]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -31,7 +35,11 @@ const AgriMarket = () => {
 
         // Load products independently
         try {
-            const prodRes = await ecommerceService.getProducts();
+            const params = {};
+            if (currentCity) {
+                params.cityId = currentCity._id || currentCity.id;
+            }
+            const prodRes = await ecommerceService.getProducts(params);
             if (prodRes.success) setProducts(prodRes.data || []);
         } catch (err) {
             console.error('Products fetch error:', err?.response?.data || err.message);
@@ -87,14 +95,25 @@ const AgriMarket = () => {
         <div className="min-h-screen bg-slate-50">
             {/* Premium Header */}
             <div className="bg-white px-6 pt-12 pb-6 rounded-b-[48px] shadow-sm border-b border-slate-100 sticky top-0 z-40">
-                <div className="flex items-center gap-4 mb-6 relative z-50">
-                    <button onClick={() => navigate('/user')} className="p-3 bg-slate-50 rounded-2xl relative z-50 cursor-pointer pointer-events-auto active:scale-95 transition-all">
-                        <FiChevronLeft className="w-6 h-6 text-slate-800" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl font-black text-slate-800 leading-tight">Agri Marketplace</h1>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Seeds & Fertilizers</p>
+                <div className="flex items-center justify-between gap-4 mb-6 relative z-50">
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => navigate('/user')} className="p-3 bg-slate-50 rounded-2xl relative z-50 cursor-pointer pointer-events-auto active:scale-95 transition-all">
+                            <FiChevronLeft className="w-6 h-6 text-slate-800" />
+                        </button>
+                        <div>
+                            <h1 className="text-xl font-black text-slate-800 leading-none">Agri Market</h1>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Seeds & Fertilizers</p>
+                        </div>
                     </div>
+
+                    <button 
+                        onClick={() => setShowCityModal(true)} 
+                        className="px-3.5 py-2 bg-teal-50/50 hover:bg-teal-50 border border-teal-100 rounded-2xl flex items-center gap-1.5 text-[10px] font-black text-teal-700 uppercase tracking-wider transition-all active:scale-95 shadow-sm shrink-0"
+                    >
+                        <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse" />
+                        {currentCity?.name || 'Select City'}
+                        <span className="text-[7px]">▼</span>
+                    </button>
                 </div>
 
                 <div className="flex gap-3">
@@ -225,6 +244,12 @@ const AgriMarket = () => {
                     )}
                 </div>
             </div>
+            
+            {/* City Selector Modal Popup */}
+            <CitySelectorModal 
+                isOpen={showCityModal} 
+                onClose={() => setShowCityModal(false)} 
+            />
         </div>
     );
 };
