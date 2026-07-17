@@ -6,6 +6,7 @@ import AppRoutes from './routes';
 import { SocketProvider } from './context/SocketContext';
 import { CartProvider } from './context/CartContext';
 import { CityProvider } from './context/CityContext';
+import { EcommerceCartProvider } from './context/EcommerceCartContext';
 import { initializePushNotifications, setupForegroundNotificationHandler } from './services/pushNotificationService';
 // Global common imports removed here as they are now handled in AppRoutes.jsx for conditional rendering
 // import { LocationPermissionChecker, Chatbot } from './components/common';
@@ -67,35 +68,37 @@ function App() {
       <SocketProvider>
         <CityProvider>
           <CartProvider>
-            <div className="App">
-              <AppRoutes />
-              {/* Global components moved to routes/index.jsx */}
-              <Toaster
-                position="top-center"
-                reverseOrder={false}
-                toastOptions={{
-                  duration: 2000, // Global default (reduced from 3000)
-                  style: {
-                    background: '#333',
-                    color: '#fff',
-                    borderRadius: '10px',
-                    padding: '12px 20px',
-                  },
-                  success: {
-                    duration: 1000, // 1 second as requested
+            <EcommerceCartProvider>
+              <div className="App">
+                <AppRoutes />
+                {/* Global components moved to routes/index.jsx */}
+                <Toaster
+                  position="top-center"
+                  reverseOrder={false}
+                  toastOptions={{
+                    duration: 2000, // Global default (reduced from 3000)
                     style: {
-                      background: '#10B981',
+                      background: '#333',
+                      color: '#fff',
+                      borderRadius: '10px',
+                      padding: '12px 20px',
                     },
-                  },
-                  error: {
-                    duration: 2000, // Reduced from 4000
-                    style: {
-                      background: '#EF4444',
+                    success: {
+                      duration: 1000, // 1 second as requested
+                      style: {
+                        background: '#10B981',
+                      },
                     },
-                  },
-                }}
-              />
-            </div>
+                    error: {
+                      duration: 2000, // Reduced from 4000
+                      style: {
+                        background: '#EF4444',
+                      },
+                    },
+                  }}
+                />
+              </div>
+            </EcommerceCartProvider>
           </CartProvider>
         </CityProvider>
       </SocketProvider>

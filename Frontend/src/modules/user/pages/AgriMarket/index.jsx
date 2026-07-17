@@ -4,11 +4,14 @@ import {
     FiFilter, 
     FiChevronLeft,
     FiPackage,
-    FiArrowRight
+    FiArrowRight,
+    FiShoppingCart,
+    FiPlus
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import ecommerceService from '../../../../services/ecommerceService';
 import { publicCatalogService } from '../../../../services/catalogService';
+import { useEcommerceCart } from '../../../../context/EcommerceCartContext';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { useCity } from '../../../../context/CityContext';
@@ -17,9 +20,23 @@ import CitySelectorModal from '../../components/common/CitySelectorModal';
 const AgriMarket = () => {
     const navigate = useNavigate();
     const { currentCity } = useCity();
+    const { addToCart, cartCount } = useEcommerceCart();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    const handleAddToCartClick = async (product) => {
+        try {
+            const res = await addToCart(product._id, 1);
+            if (res.success) {
+                toast.success(`"${product.title}" added to cart!`);
+            } else {
+                toast.error(res.message || "Failed to add to cart");
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to add to cart");
+        }
+    };
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [hasOrders, setHasOrders] = useState(false);
@@ -106,14 +123,28 @@ const AgriMarket = () => {
                         </div>
                     </div>
 
-                    <button 
-                        onClick={() => setShowCityModal(true)} 
-                        className="px-3.5 py-2 bg-teal-50/50 hover:bg-teal-50 border border-teal-100 rounded-2xl flex items-center gap-1.5 text-[10px] font-black text-teal-700 uppercase tracking-wider transition-all active:scale-95 shadow-sm shrink-0"
-                    >
-                        <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse" />
-                        {currentCity?.name || 'Select City'}
-                        <span className="text-[7px]">▼</span>
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0 relative z-50">
+                        <button 
+                            onClick={() => setShowCityModal(true)} 
+                            className="px-3 py-2 bg-teal-50/50 hover:bg-teal-50 border border-teal-100 rounded-2xl flex items-center gap-1 text-[9px] font-black text-teal-700 uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+                        >
+                            <span className="w-1 h-1 bg-teal-500 rounded-full animate-pulse" />
+                            {currentCity?.name || 'Select City'}
+                            <span className="text-[6px]">▼</span>
+                        </button>
+
+                        <button 
+                            onClick={() => navigate('/user/agri-cart')}
+                            className="p-3.5 bg-slate-50 hover:bg-slate-100 rounded-2xl relative z-50 cursor-pointer active:scale-95 transition-all shadow-sm border border-slate-100"
+                        >
+                            <FiShoppingCart className="w-5 h-5 text-slate-800" />
+                            {cartCount > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 bg-[#2E7D32] text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border border-white min-w-[18px] text-center shadow-sm">
+                                    {cartCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex gap-3">
@@ -237,6 +268,26 @@ const AgriMarket = () => {
                                                 </p>
                                             )}
                                         </div>
+
+                                        {/* Add to Cart button */}
+                                        {product.stock > 0 ? (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleAddToCartClick(product);
+                                                }}
+                                                className="mt-2 w-full py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1 shadow-sm cursor-pointer pointer-events-auto border border-teal-600/10"
+                                            >
+                                                <FiPlus className="w-3 h-3" /> Add to Cart
+                                            </button>
+                                        ) : (
+                                            <button
+                                                disabled
+                                                className="mt-2 w-full py-2 bg-slate-100 text-slate-400 rounded-xl text-[9px] font-black uppercase tracking-wider cursor-not-allowed flex items-center justify-center"
+                                            >
+                                                Out of Stock
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </motion.div>

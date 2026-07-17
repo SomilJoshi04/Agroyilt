@@ -8,10 +8,12 @@ import {
     FiPlus,
     FiMinus,
     FiShield,
-    FiTruck
+    FiTruck,
+    FiShoppingCart
 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import ecommerceService from '../../../../services/ecommerceService';
+import { useEcommerceCart } from '../../../../context/EcommerceCartContext';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import LocationPicker from '../Checkout/components/LocationPicker';
@@ -19,13 +21,31 @@ import LocationPicker from '../Checkout/components/LocationPicker';
 const ProductDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { addToCart, cartCount } = useEcommerceCart();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
     const [showCheckout, setShowCheckout] = useState(false);
     const [address, setAddress] = useState(null); // Will hold {addressLine1, lat, lng}
     const [paymentType, setPaymentType] = useState('split'); // 'split', 'online_full', 'cod'
+    const [adding, setAdding] = useState(false);
     const scrollRef = useRef(null);
+
+    const handleAddToCart = async () => {
+        try {
+            setAdding(true);
+            const res = await addToCart(product._id, quantity);
+            if (res.success) {
+                toast.success("Cart mein add ho gaya!");
+            } else {
+                toast.error(res.message || "Failed to add to cart");
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Cart mein add karne mein dikkat hui");
+        } finally {
+            setAdding(false);
+        }
+    };
 
     const scrollImage = (direction) => {
         if (scrollRef.current) {
@@ -107,6 +127,17 @@ const ProductDetail = () => {
                 <div className="absolute top-12 left-6 z-10">
                     <button onClick={() => navigate(-1)} className="p-3 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl shadow-slate-900/10 active:scale-95 transition-all">
                         <FiChevronLeft className="w-6 h-6 text-slate-800" />
+                    </button>
+                </div>
+                
+                <div className="absolute top-12 right-6 z-10">
+                    <button onClick={() => navigate('/user/agri-cart')} className="p-3 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl shadow-slate-900/10 active:scale-95 transition-all relative">
+                        <FiShoppingCart className="w-6 h-6 text-slate-800" />
+                        {cartCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-[#2E7D32] text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border border-white min-w-[18px] text-center shadow-sm">
+                                {cartCount}
+                            </span>
+                        )}
                     </button>
                 </div>
                 
@@ -264,28 +295,39 @@ const ProductDetail = () => {
             </div>
 
             {/* Sticky Action Footer */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 pb-3 pt-2 bg-slate-50 border-t border-slate-100 z-50">
-                <div className="flex items-center justify-between mb-2 px-2">
+            <div className="fixed bottom-0 left-0 right-0 p-4 pb-4 pt-2 bg-white border-t border-slate-100 z-50 shadow-[0_-8px_30px_rgba(0,0,0,0.05)]">
+                <div className="flex items-center justify-between mb-3 px-2">
                     <div>
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Value</p>
                         <p className="text-xl font-black text-slate-800">₹{totalPayable}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-[9px] font-black text-teal-500 uppercase tracking-widest">Pay Now</p>
+                        <p className="text-[9px] font-black text-teal-500 uppercase tracking-widest">Confirm Fee</p>
                         <p className="text-xl font-black text-teal-600">₹{adminFee}</p>
                     </div>
                 </div>
-                <button 
-                    disabled={product.stock <= 0}
-                    onClick={() => setShowCheckout(true)}
-                    className={`w-full py-3.5 rounded-2xl font-black text-white transition-all text-sm uppercase tracking-wider ${
-                        product.stock <= 0 
-                            ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' 
-                            : 'bg-[#2E7D32] hover:bg-[#1B5E20] shadow-xl shadow-green-900/10 active:scale-95'
-                    }`}
-                >
-                    {product.stock <= 0 ? 'Out of Stock' : 'Order Now'}
-                </button>
+                <div className="flex gap-3">
+                    <button 
+                        disabled={product.stock <= 0 || adding}
+                        onClick={handleAddToCart}
+                        className={`flex-1 py-4 rounded-2xl font-black text-[#2E7D32] border-2 border-[#2E7D32] bg-white transition-all text-xs uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5 ${
+                            product.stock <= 0 ? 'border-slate-200 text-slate-400 cursor-not-allowed active:scale-100' : 'hover:bg-slate-50'
+                        }`}
+                    >
+                        {adding ? 'Adding...' : 'Add to Cart'}
+                    </button>
+                    <button 
+                        disabled={product.stock <= 0}
+                        onClick={() => setShowCheckout(true)}
+                        className={`flex-1 py-4 rounded-2xl font-black text-white transition-all text-xs uppercase tracking-wider active:scale-95 ${
+                            product.stock <= 0 
+                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none active:scale-100' 
+                                : 'bg-[#2E7D32] hover:bg-[#1B5E20] shadow-lg shadow-green-950/10'
+                        }`}
+                    >
+                        {product.stock <= 0 ? 'Out of Stock' : 'Order Now'}
+                    </button>
+                </div>
             </div>
 
             {/* Checkout Modal */}
