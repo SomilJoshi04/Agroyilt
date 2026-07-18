@@ -274,6 +274,8 @@ const Home = () => {
 
   // Fetch categories and home content on mount (and when city changes)
   useEffect(() => {
+    if (cityLoading) return;
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -319,7 +321,7 @@ const Home = () => {
     };
 
     fetchData();
-  }, [currentCity]);
+  }, [currentCity, cityLoading]);
   // Open category modal from navigation state (e.g. from Cart 'Add Services')
   useEffect(() => {
     if (!loading && categories.length > 0 && (location.state?.openCategoryId || location.state?.openCategoryName)) {
@@ -632,61 +634,33 @@ const Home = () => {
                          </div>
                       </motion.div>
                     ))}
-
-                    {/* Agri Marketplace (Static) */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.15 }}
-                      onClick={() => navigate('/user/agri-marketplace')}
-                      className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
-                    >
-                       <div className="absolute inset-0 bg-gradient-to-br from-[#FCA311]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                       <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#FCA311]/10 text-[#FCA311] group-hover:bg-[#FCA311] group-hover:text-white transition-all duration-300 shadow-sm border border-[#FCA311]/20 group-hover:border-[#FCA311] z-10 overflow-hidden">
-                         <img src="/landing_images/fertilizer_seeds.jpg" alt="Market" className="w-full h-full object-cover" />
-                       </div>
-                       <div className="flex-1 min-w-0 z-10">
-                          <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Market</p>
-                          <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Buy Needs</p>
-                       </div>
-                    </motion.div>
-
-
-                  {/* Weather Button */}
-                  <WeatherWidget />
-
-                    {/* Soil Testing (Static) */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      onClick={() => navigate('/user/soil-testing')}
-                      className="relative overflow-hidden bg-white border border-slate-100 rounded-[20px] p-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all active:scale-95 group flex items-center gap-3 cursor-pointer"
-                    >
-                       <div className="absolute inset-0 bg-gradient-to-br from-[#1A73E8]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                       <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center flex-shrink-0 bg-[#1A73E8]/10 text-[#1A73E8] group-hover:bg-[#1A73E8] group-hover:text-white transition-all duration-300 shadow-sm border border-[#1A73E8]/20 group-hover:border-[#1A73E8] z-10 overflow-hidden">
-                         <img src="/landing_images/soil_testing2.jpg" alt="Soil Test" className="w-full h-full object-cover" />
-                       </div>
-                       <div className="flex-1 min-w-0 z-10">
-                          <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">Soil Test</p>
-                          <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">Lab Reports</p>
-                       </div>
-                    </motion.div>
-
-
+                    {/* Weather Button */}
+                    <WeatherWidget />
                   </div>
                 </motion.section>
               )}
 
 
-              {/* Categories Sections - Show ALL categories grouped by sectionType */}
-              {homeContent?.isCategoriesVisible !== false && categories.length > 0 && (
-                <>
-                  {/* Group categories by sectionType and render each group */}
-                  {(() => {
-                    const sectionTypes = [...new Set(categories.filter(c => c.showOnHome !== false).map(c => (c.sectionType || 'General').trim()))];
-                    return sectionTypes.map(sectionType => {
-                      const sectionCategories = categories.filter(c => c.showOnHome !== false && (c.sectionType || 'General').trim() === sectionType);
+              {/* Categories Sections - Only show categories whose sectionType is NOT a tab (premiumOfferings tab titles) */}
+              {homeContent?.isCategoriesVisible !== false && categories.length > 0 && (() => {
+                // Collect all tab titles from premiumOfferings to exclude those sectionTypes
+                const tabSectionTypes = new Set(
+                  (homeContent?.premiumOfferings || []).map(item => (item.title || '').trim().toLowerCase())
+                );
+
+                // Only show categories that are NOT tab-based (i.e. sectionType not in tabSectionTypes)
+                const nonTabCategories = categories.filter(c =>
+                  c.showOnHome !== false &&
+                  !tabSectionTypes.has((c.sectionType || 'General').trim().toLowerCase())
+                );
+
+                if (nonTabCategories.length === 0) return null;
+
+                const sectionTypes = [...new Set(nonTabCategories.map(c => (c.sectionType || 'General').trim()))];
+                return (
+                  <>
+                    {sectionTypes.map(sectionType => {
+                      const sectionCategories = nonTabCategories.filter(c => (c.sectionType || 'General').trim() === sectionType);
                       if (sectionCategories.length === 0) return null;
                       return (
                         <motion.section key={sectionType} variants={itemVariants} className="relative overflow-hidden pt-2 mb-4">
@@ -700,10 +674,10 @@ const Home = () => {
                           />
                         </motion.section>
                       );
-                    });
-                  })()}
-                </>
-              )}
+                    })}
+                  </>
+                );
+              })()}
 
               {/* Curated Services */}
               {homeContent?.isCuratedVisible !== false && (

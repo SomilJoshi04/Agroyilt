@@ -13,7 +13,7 @@ import { cityService } from "../../services/cityService";
 const UserCategories = () => {
   const [catalog, setCatalog] = useState(() => ensureIds(loadCatalog()));
   const [cities, setCities] = useState([]);
-  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedCity, setSelectedCity] = useState(() => localStorage.getItem('adminSelectedCity') || '');
 
   useEffect(() => {
     const handler = () => setCatalog(ensureIds(loadCatalog()));
@@ -21,26 +21,37 @@ const UserCategories = () => {
     return () => window.removeEventListener("adminUserAppCatalogUpdated", handler);
   }, []);
 
+  useEffect(() => {
+    if (selectedCity) {
+      localStorage.setItem('adminSelectedCity', selectedCity);
+    } else {
+      localStorage.removeItem('adminSelectedCity');
+    }
+  }, [selectedCity]);
+
   // Fetch cities once for the parent container
   useEffect(() => {
     const fetchCities = async () => {
       try {
-        const response = await cityService.getAll();
-        if (response.success) {
-          const loadedCities = (response.cities || []).filter(city => city.isActive);
-          setCities(loadedCities);
+        let currentCities = cities;
+        if (cities.length === 0) {
+          const response = await cityService.getAll();
+          if (response.success) {
+            currentCities = (response.cities || []).filter(city => city.isActive);
+            setCities(currentCities);
+          }
+        }
 
-          // Auto-select default or first city if none selected
-          if (!selectedCity && loadedCities.length > 0) {
-            const defaultCity = loadedCities.find(c => c.isDefault);
-            // Handle potentially different ID formats
-            const cityId = defaultCity
-              ? (defaultCity._id || defaultCity.id)
-              : (loadedCities[0]._id || loadedCities[0].id);
+        // Auto-select default or first city if none selected
+        if (!selectedCity && currentCities.length > 0) {
+          const defaultCity = currentCities.find(c => c.isDefault);
+          // Handle potentially different ID formats
+          const cityId = defaultCity
+            ? (defaultCity._id || defaultCity.id)
+            : (currentCities[0]._id || currentCities[0].id);
 
-            if (cityId) {
-              setSelectedCity(cityId);
-            }
+          if (cityId) {
+            setSelectedCity(cityId);
           }
         }
       } catch (error) {
@@ -48,7 +59,7 @@ const UserCategories = () => {
       }
     };
     fetchCities();
-  }, []);
+  }, [selectedCity, cities.length]);
 
   // Get admin role to control UI visibility
   const isAdminSuper = (() => {
