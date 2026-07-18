@@ -67,9 +67,9 @@ const seedPremiumOfferings = async () => {
     const imageUrls = await uploadLocalImages();
 
     // Secure persistent Cloudinary URLs already uploaded in task-337 as defaults
-    const rotavatorUrl = imageUrls.rotavator || 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278224/Homster/HomeContent/premium-offerings/rotavator.jpg';
+    const rotavatorUrl = imageUrls.rotavator || 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784365962/Homster/HomeContent/premium-offerings/rotavator.jpg';
     const harvesterUrl = imageUrls.harvester || 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278226/Homster/HomeContent/premium-offerings/harvester.jpg';
-    const borewellUrl = imageUrls.borewell || 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278227/Homster/HomeContent/premium-offerings/borewell.jpg';
+    const borewellUrl = imageUrls.borewell || 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784365601/Homster/HomeContent/premium-offerings/borewell.jpg';
     const fertilizerSeedsUrl = imageUrls.fertilizer_seeds || 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278228/Homster/HomeContent/premium-offerings/fertilizer-seeds.jpg';
     const soilTestingUrl = imageUrls.soil_testing2 || 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278229/Homster/HomeContent/premium-offerings/soil-testing2.jpg';
     const tracterUrl = imageUrls.tracter || 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278230/Homster/HomeContent/premium-offerings/tracter.jpg';
@@ -111,26 +111,6 @@ const seedPremiumOfferings = async () => {
         order: 3
       },
       {
-        title: 'Market',
-        subtitle: 'Agri Store',
-        imageUrl: fertilizerSeedsUrl,
-        colorCode: '#AD1457', // Pink/Rose
-        route: '/user/agri-marketplace',
-        actionType: 'navigate',
-        actionPayload: '/user/agri-marketplace',
-        order: 4
-      },
-      {
-        title: 'Soil Testing',
-        subtitle: 'Lab Reports',
-        imageUrl: soilTestingUrl,
-        colorCode: '#00838F', // Cyan/Teal
-        route: '/user/soil-testing',
-        actionType: 'navigate',
-        actionPayload: '/user/soil-testing',
-        order: 5
-      },
-      {
         title: 'Farming Machinery',
         subtitle: 'Tractor with Cultivator & Rotavator',
         imageUrl: tracterUrl,
@@ -138,7 +118,7 @@ const seedPremiumOfferings = async () => {
         route: '',
         actionType: 'setActiveSectionTab',
         actionPayload: 'Farming Machinery',
-        order: 6
+        order: 4
       },
       {
         title: 'Drone Spraying',
@@ -148,6 +128,26 @@ const seedPremiumOfferings = async () => {
         route: '',
         actionType: 'setActiveSectionTab',
         actionPayload: 'Drone Spraying',
+        order: 5
+      },
+      {
+        title: 'Market',
+        subtitle: 'Agri Store',
+        imageUrl: fertilizerSeedsUrl,
+        colorCode: '#AD1457', // Pink/Rose
+        route: '/user/agri-marketplace',
+        actionType: 'navigate',
+        actionPayload: '/user/agri-marketplace',
+        order: 6
+      },
+      {
+        title: 'Soil Testing',
+        subtitle: 'Lab Reports',
+        imageUrl: soilTestingUrl,
+        colorCode: '#00838F', // Cyan/Teal
+        route: '/user/soil-testing',
+        actionType: 'navigate',
+        actionPayload: '/user/soil-testing',
         order: 7
       }
     ];

@@ -14,42 +14,42 @@ const seedData = [
     subcategories: [
       {
         name: 'Tractor with Cultivator',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278224/Homster/HomeContent/premium-offerings/rotavator.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784367673/Homster/HomeContent/premium-offerings/tractor-cultivator.jpg',
         services: [
           { name: 'Tractor with Cultivator', unit: 'hour', shortDescription: 'Tractor with cultivator implement for soil loosening', basePrice: 500 }
         ]
       },
       {
         name: 'Tractor with Rotavator',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278224/Homster/HomeContent/premium-offerings/rotavator.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784368086/Homster/HomeContent/premium-offerings/tractor-rotavator2.jpg',
         services: [
           { name: 'Tractor with Rotavator', unit: 'hour', shortDescription: 'Tractor with rotavator implement for seedbed preparation', basePrice: 600 }
         ]
       },
       {
         name: 'Tractor with Trolley',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278224/Homster/HomeContent/premium-offerings/rotavator.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784368089/Homster/HomeContent/premium-offerings/tractor-trolley2.jpg',
         services: [
           { name: 'Tractor with Trolley', unit: 'trip', shortDescription: 'Tractor with trolley for crop and soil transport', basePrice: 1200 }
         ]
       },
       {
         name: 'Tractor with MB Plough',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278224/Homster/HomeContent/premium-offerings/rotavator.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784368083/Homster/HomeContent/premium-offerings/tractor-mb-plough2.jpg',
         services: [
           { name: 'Tractor with MB Plough', unit: 'hour', shortDescription: 'Tractor with mouldboard plough for deep tillage', basePrice: 700 }
         ]
       },
       {
         name: 'Tractor with Disc Harrow',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278224/Homster/HomeContent/premium-offerings/rotavator.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784367714/Homster/HomeContent/premium-offerings/tractor-disc-harrow.jpg',
         services: [
           { name: 'Tractor with Disc Harrow', unit: 'hour', shortDescription: 'Tractor with disc harrow for pulverizing soil clods', basePrice: 550 }
         ]
       },
       {
         name: 'Tractor with Seed Drill',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278224/Homster/HomeContent/premium-offerings/rotavator.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784367732/Homster/HomeContent/premium-offerings/tractor-seed-drill.jpg',
         services: [
           { name: 'Tractor with Seed Drill', unit: 'acre', shortDescription: 'Tractor with seed drill for precision sowing', basePrice: 800 }
         ]
@@ -63,9 +63,9 @@ const seedData = [
         name: 'Harvesting',
         homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278226/Homster/HomeContent/premium-offerings/harvester.jpg',
         services: [
-          { name: 'Combine Harvester', unit: 'acre', shortDescription: 'Multi-crop combine harvester for crop harvesting', basePrice: 2000 },
-          { name: 'Paddy Thresher', unit: 'hour', shortDescription: 'Stationary paddy thresher machine', basePrice: 400 },
-          { name: 'Maize Thresher', unit: 'hour', shortDescription: 'Stationary maize thresher machine', basePrice: 450 }
+          { name: 'Combine Harvester', unit: 'acre', shortDescription: 'Multi-crop combine harvester for crop harvesting', basePrice: 4500 },
+          { name: 'Paddy Thresher', unit: 'quintal', shortDescription: 'Stationary paddy thresher machine', basePrice: 200 },
+          { name: 'Maize Thresher', unit: 'quintal', shortDescription: 'Stationary maize thresher machine', basePrice: 200 }
         ]
       }
     ]
@@ -75,42 +75,42 @@ const seedData = [
     subcategories: [
       {
         name: 'Earth Moving Equipment',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278226/Homster/HomeContent/premium-offerings/harvester.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784366500/Homster/HomeContent/premium-offerings/jcb-excavator.jpg',
         services: [
-          { name: 'JCB', unit: 'hour', shortDescription: 'JCB backhoe loader for agricultural excavation', basePrice: 900 },
-          { name: 'Loader', unit: 'hour', shortDescription: 'Front loader machine for material handling', basePrice: 800 },
-          { name: 'Bulldozer', unit: 'hour', shortDescription: 'Bulldozer for farm levelling and clearing', basePrice: 1500 }
+          { name: 'JCB', unit: 'hour', shortDescription: 'JCB backhoe loader for agricultural excavation', basePrice: 2000 },
+          { name: 'Loader', unit: 'hour', shortDescription: 'Front loader machine for material handling', basePrice: 2000 },
+          { name: 'Bulldozer', unit: 'hour', shortDescription: 'Bulldozer for farm levelling and clearing', basePrice: 3500 }
         ]
       },
       {
         name: 'Lifting Equipment',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278226/Homster/HomeContent/premium-offerings/harvester.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784366501/Homster/HomeContent/premium-offerings/crane-lifting.jpg',
         services: [
-          { name: 'Crane', unit: 'hour', shortDescription: 'Mobile hydraulic crane service', basePrice: 1200 }
+          { name: 'Crane', unit: 'day', shortDescription: 'Mobile hydraulic crane service', basePrice: 35000 }
         ]
       },
       {
         name: 'Transport Vehicles',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278230/Homster/HomeContent/premium-offerings/tracter.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784366502/Homster/HomeContent/premium-offerings/dumper-truck.jpg',
         services: [
-          { name: 'Dumper', unit: 'trip', shortDescription: 'Dumper truck for agricultural materials', basePrice: 1500 },
-          { name: 'Pickup Vehicle', unit: 'trip', shortDescription: 'Pickup van transport service', basePrice: 800 },
-          { name: 'Truck', unit: 'trip', shortDescription: 'Heavy truck transport', basePrice: 2500 }
+          { name: 'Dumper', unit: 'trip', shortDescription: 'Dumper truck for agricultural materials', basePrice: 5000 },
+          { name: 'Pickup Vehicle', unit: 'trip', shortDescription: 'Pickup van transport service', basePrice: 2000 },
+          { name: 'Truck', unit: 'day', shortDescription: 'Heavy truck transport', basePrice: 10000 }
         ]
       },
       {
         name: 'Construction Equipment',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278224/Homster/HomeContent/premium-offerings/rotavator.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784366503/Homster/HomeContent/premium-offerings/road-roller.jpg',
         services: [
-          { name: 'Road Roller', unit: 'day', shortDescription: 'Road roller rental for path building', basePrice: 3500 },
-          { name: 'Concrete Mixer', unit: 'day', shortDescription: 'Concrete mixer machine rental', basePrice: 1000 }
+          { name: 'Road Roller', unit: 'hour', shortDescription: 'Road roller rental for path building', basePrice: 2000 },
+          { name: 'Concrete Mixer', unit: 'day', shortDescription: 'Concrete mixer machine rental', basePrice: 15000 }
         ]
       },
       {
         name: 'Water Supply',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278227/Homster/HomeContent/premium-offerings/borewell.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784366504/Homster/HomeContent/premium-offerings/water-tanker.jpg',
         services: [
-          { name: 'Water Tanker', unit: 'trip', shortDescription: 'Clean water tanker supply', basePrice: 600 }
+          { name: 'Water Tanker', unit: 'hour', shortDescription: 'Clean water tanker supply', basePrice: 1000 }
         ]
       }
     ]
@@ -120,7 +120,7 @@ const seedData = [
     subcategories: [
       {
         name: 'Drilling',
-        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784278227/Homster/HomeContent/premium-offerings/borewell.jpg',
+        homeIconUrl: 'https://res.cloudinary.com/dzb3z1pt1/image/upload/v1784365601/Homster/HomeContent/premium-offerings/borewell.jpg',
         services: [
           { name: 'Borewell Drilling', unit: 'foot', shortDescription: 'Borewell drilling per foot service', basePrice: 80 }
         ]
