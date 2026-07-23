@@ -3,12 +3,15 @@ import { FiSearch } from 'react-icons/fi';
 import NotificationBell from '../../../components/common/NotificationBell';
 import { themeColors } from '../../../../../theme';
 
-const SearchBar = ({ onInputClick }) => {
+const SearchBar = ({ onInputClick, categories = [] }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
   const [currentServiceIndex, setCurrentServiceIndex] = useState(0);
 
-  const serviceNames = ['organic seeds', 'soil testing', 'tractor repair', 'equipment rental'];
+  const defaultServices = ['soil testing', 'rotavator', 'tractor rental', 'harvester', 'drone spraying', 'cultivator'];
+  const serviceNames = categories.length > 0
+    ? categories.slice(0, 8).map(c => c.title.toLowerCase())
+    : defaultServices;
 
   useEffect(() => {
     let timer;

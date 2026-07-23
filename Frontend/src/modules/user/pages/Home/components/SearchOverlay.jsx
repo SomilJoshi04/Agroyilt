@@ -30,44 +30,45 @@ const SearchOverlay = ({ isOpen, onClose, categories = [], onCategoryClick }) =>
       setRecentSearches(JSON.parse(saved).slice(0, 5));
     }
 
+    const defaultTrending = categories.length > 0
+      ? categories.slice(0, 5).map((cat, idx) => ({
+          id: cat.id || `cat-${idx}`,
+          title: cat.title,
+          isCategory: true,
+          imageUrl: cat.icon
+        }))
+      : [
+          { id: 'trend-1', title: 'Soil Testing', isCategory: true },
+          { id: 'trend-2', title: 'Farming Equipment', isCategory: true },
+          { id: 'trend-3', title: 'Heavy Machinery', isCategory: true },
+          { id: 'trend-4', title: 'Drone Spraying', isCategory: true },
+          { id: 'trend-5', title: 'Rotavator & Cultivator', isCategory: true }
+        ];
+
     // Fetch trending services (Most Booked)
     const fetchTrending = async () => {
       try {
         const res = await publicCatalogService.getHomeContent();
         if (res.success && res.homeContent?.booked && res.homeContent.booked.length > 0) {
-          // Take top 5 most booked services, EXCLUDING 'Fan Installation', 'Top Load', etc.
           const filtered = res.homeContent.booked.filter(s =>
             !s.title.toLowerCase().includes('fan install') &&
             !s.title.toLowerCase().includes('fan repair') &&
             !s.title.toLowerCase().includes('top load') &&
             !s.title.toLowerCase().includes('automatic')
           );
-          setTrendingServices(filtered.slice(0, 5));
-        } else {
-          // Fallback to project-specific trending services if API returns empty
-          console.log('Using fallback trending services');
-          setTrendingServices([
-            { id: 'trend-1', title: 'AC Repair & Service', category: 'AC & Appliance', imageUrl: '/assets/icons/services/ac.png' },
-            { id: 'trend-2', title: 'Washing Machine Repair', category: 'AC & Appliance', imageUrl: '/assets/icons/services/washing-machine.png' },
-            { id: 'trend-3', title: 'Microwave Repair', category: 'AC & Appliance', imageUrl: '/assets/icons/services/microwave.png' },
-            { id: 'trend-4', title: 'Refrigerator Repair', category: 'AC & Appliance', imageUrl: '/assets/icons/services/refrigerator.png' },
-            { id: 'trend-5', title: 'RO Water Purifier Service', category: 'AC & Appliance', imageUrl: '/assets/icons/services/ro.png' }
-          ]);
+          if (filtered.length > 0) {
+            setTrendingServices(filtered.slice(0, 5));
+            return;
+          }
         }
+        setTrendingServices(defaultTrending);
       } catch (error) {
         console.error("Failed to load trending services", error);
-        // Fallback on error too
-        setTrendingServices([
-          { id: 'trend-1', title: 'AC Repair & Service', category: 'AC & Appliance' },
-          { id: 'trend-2', title: 'Washing Machine Repair', category: 'AC & Appliance' },
-          { id: 'trend-3', title: 'Microwave Repair', category: 'AC & Appliance' },
-          { id: 'trend-4', title: 'Refrigerator Repair', category: 'AC & Appliance' },
-          { id: 'trend-5', title: 'RO Water Purifier Service', category: 'AC & Appliance' }
-        ]);
+        setTrendingServices(defaultTrending);
       }
     };
     fetchTrending();
-  }, []);
+  }, [categories]);
 
   // Focus input when opened
   useEffect(() => {
@@ -95,16 +96,31 @@ const SearchOverlay = ({ isOpen, onClose, categories = [], onCategoryClick }) =>
           ).map(c => ({ ...c, isCategory: true }));
 
           // 2. Search Services (API)
-          const response = await publicCatalogService.getServices({ search: query });
+          const serviceRes = await publicCatalogService.getServices({ search: query });
           let serviceMatches = [];
-
-          if (response.success) {
-            serviceMatches = response.services;
+          if (serviceRes.success && Array.isArray(serviceRes.services)) {
+            serviceMatches = serviceRes.services.map(s => ({ ...s, isService: true }));
           }
 
-          // Combine: Categories first, then Services
-          setResults([...categoryMatches, ...serviceMatches]);
+          // 3. Search Brands (API)
+          const brandRes = await publicCatalogService.getBrands({ search: query });
+          let brandMatches = [];
+          if (brandRes.success && Array.isArray(brandRes.brands)) {
+            brandMatches = brandRes.brands.map(b => ({ ...b, isBrand: true }));
+          }
 
+          // Combine and deduplicate by title
+          const seen = new Set();
+          const combined = [];
+          for (const item of [...categoryMatches, ...serviceMatches, ...brandMatches]) {
+            const titleKey = (item.title || '').trim().toLowerCase();
+            if (titleKey && !seen.has(titleKey)) {
+              seen.add(titleKey);
+              combined.push(item);
+            }
+          }
+
+          setResults(combined);
         } catch (error) {
           console.error("Search failed", error);
         } finally {
@@ -113,37 +129,63 @@ const SearchOverlay = ({ isOpen, onClose, categories = [], onCategoryClick }) =>
       } else {
         setResults([]);
       }
-    }, 400); // 400ms debounce
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [query, categories]);
 
   const handleResultClick = (item) => {
     // Add to recent searches
-    const newRecent = [item.title, ...recentSearches.filter(s => s !== item.title)].slice(0, 5);
-    setRecentSearches(newRecent);
-    localStorage.setItem('recent_searches', JSON.stringify(newRecent));
+    if (item.title) {
+      const newRecent = [item.title, ...recentSearches.filter(s => s !== item.title)].slice(0, 5);
+      setRecentSearches(newRecent);
+      localStorage.setItem('recent_searches', JSON.stringify(newRecent));
+    }
 
     onClose();
 
-    // 1. Handle Category Click
-    if (item.isCategory) {
-      onCategoryClick(item);
+    const titleLower = (item.title || '').toLowerCase();
+    const slugLower = (item.slug || '').toLowerCase();
+    if (titleLower.includes('soil') || slugLower.includes('soil')) {
+      navigate('/user/soil-testing');
       return;
     }
 
-    // 2. Handle Service Click
-    if (item.categoryId || item.targetCategoryId) {
-      const catId = item.categoryId || item.targetCategoryId;
+    // 1. Handle Category Click
+    if (item.isCategory) {
+      const cat = categories.find(c => (c.id === item.id || c._id === item.id || c.title === item.title));
+      onCategoryClick(cat || item);
+      return;
+    }
+
+    // 2. Handle Service/Brand Click
+    const catId = item.categoryId || item.targetCategoryId || (item.categoryIds && item.categoryIds[0]) || item.parentSourceId;
+    if (catId) {
       const cat = categories.find(c => (c.id === catId || c._id === catId));
       if (cat) {
         onCategoryClick(cat);
+        return;
       }
-    } else if (item.category) {
-      const cat = categories.find(c => c.title === item.category);
+    }
+
+    if (item.category) {
+      const cat = categories.find(c => c.title.toLowerCase() === item.category.toLowerCase());
       if (cat) {
         onCategoryClick(cat);
+        return;
       }
+    }
+
+    // Fallback search category by title match
+    const matchedCategory = categories.find(c =>
+      item.title?.toLowerCase().includes(c.title.toLowerCase()) ||
+      c.title.toLowerCase().includes(item.title?.toLowerCase())
+    );
+
+    if (matchedCategory) {
+      onCategoryClick(matchedCategory);
+    } else if (categories.length > 0) {
+      onCategoryClick(categories[0]);
     }
   };
 

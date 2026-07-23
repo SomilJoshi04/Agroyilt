@@ -254,6 +254,7 @@ export const publicCatalogService = {
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
     if (params.parentSourceId) queryParams.append('parentSourceId', params.parentSourceId);
     if (params.pricing_context) queryParams.append('pricing_context', params.pricing_context);
+    if (params.search) queryParams.append('search', params.search);
 
     const cacheKey = `public:services:${queryParams.toString()}`;
     const cached = apiCache.get(cacheKey);

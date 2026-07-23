@@ -346,6 +346,14 @@ const Home = () => {
   };
 
   const handleCategoryClick = (category) => {
+    if (category) {
+      const slug = (category.slug || '').toLowerCase();
+      const title = (category.title || '').toLowerCase();
+      if (slug.includes('soil') || title.includes('soil')) {
+        navigate('/user/soil-testing');
+        return;
+      }
+    }
     setSelectedCategory(category);
     setIsCategoryModalOpen(true);
   };
@@ -515,7 +523,7 @@ const Home = () => {
             onLocationClick={handleLocationClick}
           />
           <div className="px-5 pb-5 pt-1 max-w-lg mx-auto w-full">
-            <SearchBar onInputClick={() => setIsSearchOpen(true)} />
+            <SearchBar onInputClick={() => setIsSearchOpen(true)} categories={categories} />
           </div>
         </motion.div>
 

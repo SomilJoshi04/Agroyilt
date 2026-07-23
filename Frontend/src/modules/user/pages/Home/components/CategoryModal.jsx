@@ -47,9 +47,18 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
         setServices([]);
         setIsRedirecting(false);
       }, 300);
-    } else if (category?.id || category?._id) {
-      // Fetch Services directly for this category
-      fetchServicesDirectly();
+    } else if (category) {
+      const slug = (category.slug || '').toLowerCase();
+      const title = (category.title || '').toLowerCase();
+      if (slug.includes('soil') || title.includes('soil')) {
+        onClose();
+        navigate('/user/soil-testing');
+        return;
+      }
+      if (category.id || category._id) {
+        // Fetch Services directly for this category
+        fetchServicesDirectly();
+      }
     }
   }, [isOpen, category?.id, category?._id, cityId]);
 

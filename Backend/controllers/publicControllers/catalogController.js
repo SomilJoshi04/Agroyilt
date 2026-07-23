@@ -284,9 +284,17 @@ const getPublicBrandBySlug = async (req, res) => {
  */
 const getPublicServices = async (req, res) => {
   try {
-    const { brandId, brandSlug, categoryId, parentSourceId, pricing_context } = req.query;
+    const { brandId, brandSlug, categoryId, parentSourceId, pricing_context, search } = req.query;
 
     const query = { status: 'active' };
+
+    if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.$or = [
+        { title: { $regex: escapedSearch, $options: 'i' } },
+        { description: { $regex: escapedSearch, $options: 'i' } }
+      ];
+    }
 
     if (brandId) {
       query.brandId = brandId;
@@ -328,6 +336,8 @@ const getPublicServices = async (req, res) => {
         daily_price: svc.daily_price || 0,
         pricing_context: svc.pricing_context || 'any',
         parentSourceId: svc.parentSourceId ? svc.parentSourceId.toString() : null,
+        categoryId: svc.categoryId ? svc.categoryId.toString() : null,
+        brandId: svc.brandId ? svc.brandId.toString() : null,
         gstPercentage: svc.gstPercentage,
         description: svc.description
       }))

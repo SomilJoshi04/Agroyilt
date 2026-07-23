@@ -188,70 +188,82 @@ const ProductDetail = () => {
             <div className="p-8 space-y-8 pb-72">
                 {/* Title & Price */}
                 <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest">{product.brandName || 'Local Brand'}</p>
-                        <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">In Stock: {product.stock} {product.unit}s</p>
-                    </div>
-                    <h1 className="text-3xl font-black text-slate-800 leading-tight">{product.title}</h1>
-                    
-                    <div className="flex items-baseline gap-2 pt-2">
-                        <p className="text-3xl font-black text-slate-800">₹{basePrice}</p>
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">/ {product.unit}</p>
-                        <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full ml-2">Base Price</p>
-                    </div>
-                </div>
-
-                {/* Split Payment Info */}
-                <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex items-center gap-2 text-xs font-black text-slate-800 uppercase tracking-widest">
-                        <FiInfo className="text-teal-600" /> Payment Structure
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                        <p className="text-[10px] font-bold text-teal-600 uppercase tracking-wider truncate max-w-[60%]">{product.brandName || 'Local Brand'}</p>
+                        <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-2.5 py-0.5 rounded-full shrink-0">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                            <span className="text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">In Stock: {product.stock} {product.unit}s</span>
+                        </div>
                     </div>
                     
-                    <div className="space-y-4">
-                        <div className="p-6 pl-8 bg-white rounded-2xl border border-teal-100 shadow-[0_4px_20px_-4px_rgba(20,184,166,0.1)] relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-3 h-full bg-teal-500"></div>
-                            <div className="flex justify-between items-center mb-5">
-                                <div>
-                                    <p className="text-xs font-black text-slate-800 uppercase tracking-widest leading-none">Booking Amount</p>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">Pay now to confirm order</p>
-                                </div>
-                                <p className="text-3xl font-black text-teal-600 font-sans tracking-tight">₹{adminFee.toFixed(2)}</p>
-                            </div>
-                            
-                            <div className="pt-4 border-t border-dashed border-slate-200 space-y-3">
-                                <div className="flex justify-between items-center">
-                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Platform Commission <span className="text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-1">{commissionPercentage}%</span></p>
-                                    <p className="text-xs font-black text-slate-700 font-sans">₹{commission.toFixed(2)}</p>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">GST (Taxes) <span className="text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-1">{gstPercentage}%</span></p>
-                                    <p className="text-xs font-black text-slate-700 font-sans">₹{gstTotal.toFixed(2)}</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div className="flex justify-between items-center p-6 bg-slate-50 rounded-2xl border border-slate-200 shadow-sm">
-                            <div>
-                                <p className="text-xs font-black text-slate-800 uppercase tracking-widest leading-none">Base Price</p>
-                                <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">Pay to vendor on delivery</p>
-                            </div>
-                            <p className="text-3xl font-black text-slate-800 font-sans tracking-tight">₹{vendorBalance.toFixed(2)}</p>
-                        </div>
+                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-snug">{product.title}</h1>
+                    
+                    <div className="flex items-baseline gap-2 pt-1 flex-wrap">
+                        <p className="text-2xl font-black text-slate-900">₹{basePrice}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">/ {product.unit}</p>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-full ml-1 whitespace-nowrap">Base Price</span>
                     </div>
                 </div>
 
                 {/* Quantity Selector */}
-                <div className="flex items-center justify-between px-2">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Quantity</h3>
-                    <div className="flex items-center gap-6 bg-white p-2 border border-slate-100 rounded-3xl shadow-sm">
-                        <button onClick={() => setQuantity(q => Math.max(1, q-1))} className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center font-bold active:scale-90 transition-all">
-                            <FiMinus />
+                <div className="flex items-center justify-between px-2 bg-white p-3 rounded-[24px] border border-slate-100 shadow-sm">
+                    <div>
+                        <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Select Quantity</h3>
+                        <p className="text-[10px] font-medium text-slate-400 mt-0.5">Total units to order</p>
+                    </div>
+                    <div className="flex items-center gap-4 bg-slate-50 p-1.5 border border-slate-200/60 rounded-2xl">
+                        <button onClick={() => setQuantity(q => Math.max(1, q-1))} className="w-9 h-9 bg-white text-slate-700 rounded-xl flex items-center justify-center font-bold shadow-sm active:scale-90 transition-all border border-slate-100">
+                            <FiMinus className="w-4 h-4" />
                         </button>
-                        <span className="text-xl font-black text-slate-800 font-sans min-w-[30px] text-center">{quantity}</span>
-                        <button onClick={() => setQuantity(q => q + 1)} className="w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-bold active:scale-90 transition-all">
-                            <FiPlus />
+                        <span className="text-lg font-black text-slate-900 font-sans min-w-[24px] text-center">{quantity}</span>
+                        <button onClick={() => setQuantity(q => q + 1)} className="w-9 h-9 bg-slate-900 text-white rounded-xl flex items-center justify-center font-bold shadow-md active:scale-90 transition-all">
+                            <FiPlus className="w-4 h-4" />
                         </button>
+                    </div>
+                </div>
+
+                {/* Split Payment Info */}
+                <div className="bg-white p-5 rounded-[28px] border border-slate-100 shadow-sm space-y-4">
+                    <div className="flex items-center gap-2 text-xs font-black text-slate-800 uppercase tracking-wider">
+                        <FiInfo className="text-teal-600" /> Payment Structure
+                    </div>
+                    
+                    <div className="space-y-3">
+                        <div className="p-4 pl-6 bg-white rounded-2xl border border-teal-100 shadow-[0_4px_20px_-4px_rgba(20,184,166,0.1)] relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-2.5 h-full bg-teal-500"></div>
+                            <div className="flex justify-between items-center mb-4 gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-black text-slate-800 uppercase tracking-wider whitespace-nowrap">Booking Amount</p>
+                                    <p className="text-[10px] font-medium text-slate-400 mt-0.5 whitespace-nowrap">Pay now to confirm order</p>
+                                </div>
+                                <p className="text-2xl font-black text-teal-600 font-sans tracking-tight shrink-0 ml-2">₹{adminFee.toFixed(2)}</p>
+                            </div>
+                            
+                            <div className="pt-3 border-t border-dashed border-slate-200 space-y-2">
+                                <div className="flex justify-between items-center gap-2">
+                                    <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+                                        <span className="whitespace-nowrap">Platform Commission</span> 
+                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">{commissionPercentage}%</span>
+                                    </p>
+                                    <p className="text-xs font-black text-slate-800 font-sans shrink-0">₹{commission.toFixed(2)}</p>
+                                </div>
+                                <div className="flex justify-between items-center gap-2">
+                                    <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+                                        <span className="whitespace-nowrap">GST (Taxes)</span> 
+                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">{gstPercentage}%</span>
+                                    </p>
+                                    <p className="text-xs font-black text-slate-800 font-sans shrink-0">₹{gstTotal.toFixed(2)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center p-4 pl-5 bg-slate-50 rounded-2xl border border-slate-200/80 shadow-sm gap-2">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-black text-slate-800 uppercase tracking-wider whitespace-nowrap">Base Price</p>
+                                <p className="text-[10px] font-medium text-slate-400 mt-0.5 whitespace-nowrap">Pay to vendor on delivery</p>
+                            </div>
+                            <p className="text-2xl font-black text-slate-800 font-sans tracking-tight shrink-0 ml-2">₹{vendorBalance.toFixed(2)}</p>
+                        </div>
                     </div>
                 </div>
 
