@@ -625,7 +625,7 @@ const VendorSignup = () => {
                               <input
                                 type="text"
                                 required
-                                placeholder="Lab Name *"
+                                placeholder="Lab Name * (e.g. Kisan Soil Testing Lab)"
                                 value={formData.labDetails.labName}
                                 onChange={(e) => handleLabShopChange('labDetails', 'labName', e.target.value)}
                                 className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 ${!formData.labDetails.labName ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-gray-300 focus:border-[#347989]'}`}
@@ -638,7 +638,7 @@ const VendorSignup = () => {
                               </div>
                               <input
                                 type="text"
-                                placeholder="License Number"
+                                placeholder="License Number (e.g. STL12345678)"
                                 value={formData.labDetails.licenseNumber}
                                 onChange={(e) => handleLabShopChange('labDetails', 'licenseNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20))}
                                 className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 focus:border-[#347989]"
@@ -696,7 +696,7 @@ const VendorSignup = () => {
                               <input
                                 type="text"
                                 required
-                                placeholder="Shop Name *"
+                                placeholder="Shop Name * (e.g. Shree Ram Krishi Kendra)"
                                 value={formData.shopDetails.shopName}
                                 onChange={(e) => handleLabShopChange('shopDetails', 'shopName', e.target.value)}
                                 className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 ${!formData.shopDetails.shopName ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-gray-300 focus:border-[#347989]'}`}
@@ -710,7 +710,7 @@ const VendorSignup = () => {
                               <input
                                 type="text"
                                 required
-                                placeholder="Shop Address *"
+                                placeholder="Shop Address * (e.g. Krishi Mandi Road, Indore)"
                                 value={formData.shopDetails.shopAddress}
                                 onChange={(e) => handleLabShopChange('shopDetails', 'shopAddress', e.target.value)}
                                 className={`block w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 ${!formData.shopDetails.shopAddress ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-gray-300 focus:border-[#347989]'}`}
@@ -723,7 +723,7 @@ const VendorSignup = () => {
                               </div>
                               <input
                                 type="text"
-                                placeholder="Shop License"
+                                placeholder="Shop License (e.g. MPSEED7890)"
                                 value={formData.shopDetails.shopLicense}
                                 onChange={(e) => handleLabShopChange('shopDetails', 'shopLicense', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20))}
                                 className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-offset-2 transition-all duration-300 outline-none hover:border-gray-400 focus:border-[#347989]"
