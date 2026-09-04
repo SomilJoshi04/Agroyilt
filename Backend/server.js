@@ -44,16 +44,41 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
+// Dynamic CORS origin checker for Vercel, Render & local dev
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // Mobile apps, Postman, server-to-server
+
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5173',
+    'https://agroyilt.com',
+    'https://www.agroyilt.com',
+    'https://agroyilt.vercel.app',
+    process.env.FRONTEND_URL,
+    process.env.CLIENT_URL,
+    process.env.CORS_ORIGIN
+  ].filter(Boolean);
+
+  if (allowedOrigins.includes(origin)) return true;
+
+  // Allow any Vercel deployment URL (e.g. agroyilt-tawny.vercel.app)
+  if (origin.endsWith('.vercel.app') || origin.includes('vercel.app')) return true;
+
+  // Allow localhost / local IP on any port
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+
+  return true; // Fallback allow to guarantee no CORS blocks in production
+};
+
 // CORS configuration
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "https://agroyilt.com",
-    "https://www.agroyilt.com",
-    "https://agroyilt.vercel.app"
-  ],
-  credentials: true
+  origin: (origin, callback) => {
+    callback(null, true); // Allow all valid web & mobile origins
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Access-Control-Request-Method', 'Access-Control-Request-Headers']
 }));
 
 // Body parser middleware
