@@ -157,7 +157,7 @@ const BookingDetails = () => {
   });
 
   const [supportInfo, setSupportInfo] = useState({
-    email: 'grooagri@gmail.com',
+    email: 'agroyilt@gmail.com',
     phone: '+91 91177 04450'
   });
 
@@ -171,14 +171,14 @@ const BookingDetails = () => {
         if (response.data?.success && response.data?.settings) {
           const { supportEmail, supportPhone } = response.data.settings;
           setSupportInfo({
-            email: supportEmail || 'grooagri@gmail.com',
+            email: supportEmail || 'agroyilt@gmail.com',
             phone: supportPhone || '+91 91177 04450'
           });
         }
       } catch (error) {
         console.error('Failed to fetch support settings:', error);
         setSupportInfo({
-          email: 'grooagri@gmail.com',
+          email: 'agroyilt@gmail.com',
           phone: '+91 91177 04450'
         });
       }
@@ -360,7 +360,10 @@ const BookingDetails = () => {
       case 'completed': return 'Completed';
       case 'cancelled': return 'Cancelled';
       case 'requested':
-      case 'searching': return isAgri ? 'Finding Driver' : 'Finding Expert';
+      case 'searching': {
+        const isWorker = booking?.providerType === 'WORKER' || /labour|labor|worker|shramik|majdoor/i.test(booking?.serviceCategory || '');
+        return isAgri ? 'Finding Driver' : (isWorker ? 'Finding Worker' : 'Finding Expert');
+      }
       default: return status?.replace('_', ' ') || 'Pending';
     }
   };

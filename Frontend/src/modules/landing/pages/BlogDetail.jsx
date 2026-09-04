@@ -18,17 +18,17 @@ const BlogDetail = () => {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
         "headline": blog.title,
-        "image": blog.image || "https://grooagri.com/logo.png",
+        "image": blog.image || "https://agroyilt.com/AgroyiltLogo.png",
         "author": {
             "@type": "Organization",
-            "name": "GrooAgri"
+            "name": "Agroyilt"
         },
         "publisher": {
             "@type": "Organization",
-            "name": "GrooAgri",
+            "name": "Agroyilt",
             "logo": {
                 "@type": "ImageObject",
-                "url": "https://grooagri.com/logo.png"
+                "url": "https://agroyilt.com/AgroyiltLogo.png"
             }
         },
         "datePublished": blog.createdAt,
@@ -59,9 +59,9 @@ const BlogDetail = () => {
     return (
         <div className="min-h-screen bg-white">
             <Helmet>
-                <title>{`${blog.title} | GrooAgri Blog`}</title>
+                <title>{`${blog.title} | Agroyilt Blog`}</title>
                 <meta name="description" content={blog.content.substring(0, 160)} />
-                <link rel="canonical" href={`https://grooagri.com/blogs/${id}`} />
+                <link rel="canonical" href={`https://agroyilt.com/blogs/${id}`} />
                 {articleSchema && <script type="application/ld+json">{JSON.stringify(articleSchema)}</script>}
             </Helmet>
 

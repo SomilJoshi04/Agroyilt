@@ -16,9 +16,11 @@ const phoneSchema = z.object({
 
 const VendorLogin = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState('phone'); // 'phone' or 'otp'
+  const [step, setStep] = useState('phone'); // 'phone', 'otp', or 'mpin'
+  const [loginMethod, setLoginMethod] = useState('otp'); // 'otp' or 'mpin'
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [mpin, setMpin] = useState(['', '', '', '']);
   const [otpToken, setOtpToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
@@ -37,6 +39,7 @@ const VendorLogin = () => {
   // Refs for auto-focus
   const phoneInputRef = useRef(null);
   const otpInputRefs = useRef([]);
+  const mpinInputRefs = useRef([]);
 
   // Auto-focus logic
   useEffect(() => {
@@ -50,6 +53,8 @@ const VendorLogin = () => {
       setTimeout(() => phoneInputRef.current.focus(), 100);
     } else if (step === 'otp' && otpInputRefs.current[0]) {
       setTimeout(() => otpInputRefs.current[0].focus(), 100);
+    } else if (step === 'mpin' && mpinInputRefs.current[0]) {
+      setTimeout(() => mpinInputRefs.current[0].focus(), 100);
     }
   }, [step, navigate]);
 
@@ -64,6 +69,12 @@ const VendorLogin = () => {
     }
 
     const cleanPhone = phoneNumber.replace(/\D/g, '');
+
+    if (loginMethod === 'mpin') {
+      setStep('mpin');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await sendOTP(cleanPhone);
@@ -178,7 +189,12 @@ const VendorLogin = () => {
             </div>,
             { icon: <FiCheckCircle className="text-green-500" /> }
           );
-          navigate('/vendor', { replace: true });
+
+          if (!response.vendor?.isMpinSet) {
+            navigate('/vendor/settings/mpin-setup', { state: { isFirstTime: true } });
+          } else {
+            navigate('/vendor', { replace: true });
+          }
         }
       } else {
         setIsLoading(false);
@@ -188,6 +204,75 @@ const VendorLogin = () => {
       setIsLoading(false);
       const errorMessage = error.response?.data?.message || 'Verification failed. Please try again.';
       toast.error(errorMessage);
+    }
+  };
+
+  const handleMpinChange = (index, value) => {
+    if (value && !/^\d+$/.test(value)) return;
+    if (value.length > 1) {
+      if (index === 0 && value.length === 4) {
+        setMpin(value.split(''));
+        mpinInputRefs.current[3]?.focus();
+      }
+      return;
+    }
+    const newMpin = [...mpin];
+    newMpin[index] = value;
+    setMpin(newMpin);
+    if (value && index < 3) {
+      mpinInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleMpinKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !mpin[index] && index > 0) {
+      mpinInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  useEffect(() => {
+    const mpinValue = mpin.join('');
+    if (mpinValue.length === 4 && !isLoading) {
+      handleMpinSubmit();
+    }
+  }, [mpin]);
+
+  const handleMpinSubmit = async (e) => {
+    if (e) e.preventDefault();
+    const mpinValue = mpin.join('');
+    if (mpinValue.length !== 4) {
+      toast.error('Please enter 4-digit MPIN');
+      return;
+    }
+    setIsLoading(true);
+    // Since vendor loginWithMpin is not in verifyLogin but in vendorAuthService.loginWithMpin
+    // We need to import vendorAuthService, let's fix it by importing directly.
+    try {
+      // Actually we have import { sendOTP, verifyLogin } from '../services/authService';
+      // Better to use dynamic import or require, but wait, authService has vendorAuthService.
+      // We'll update the import at the top later, for now let's assume it's imported or we use it via api.
+      const { vendorAuthService } = await import('../services/authService');
+      const response = await vendorAuthService.loginWithMpin({
+        phone: phoneNumber.replace(/\D/g, ''),
+        mpin: mpinValue
+      });
+
+      if (response.success) {
+        toast.success('Welcome back!');
+        navigate('/vendor', { replace: true });
+      }
+    } catch (error) {
+      setIsLoading(false);
+      if (error.response?.data?.mpinNotSet) {
+        toast.error('MPIN not set. Please login with OTP.');
+        setLoginMethod('otp');
+        setStep('phone');
+        setMpin(['', '', '', '']);
+      } else {
+        toast.error(error.response?.data?.message || 'Invalid MPIN');
+        setMpin(['', '', '', '']);
+        mpinInputRefs.current[0]?.focus();
+      }
     }
   };
 
@@ -258,6 +343,27 @@ const VendorLogin = () => {
               </div>
             </div>
 
+            <div className="flex bg-gray-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setLoginMethod('otp')}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+                  loginMethod === 'otp' ? 'bg-white shadow text-[#426B4F]' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Login with OTP
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginMethod('mpin')}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+                  loginMethod === 'mpin' ? 'bg-white shadow text-[#426B4F]' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Login with MPIN
+              </button>
+            </div>
+
             <div className="flex items-center justify-between text-xs px-2 mt-2">
               <label className="flex items-center text-[#426B4F] font-medium cursor-pointer">
                 <input type="checkbox" className="mr-2 rounded-full text-[#426B4F] focus:ring-[#426B4F] border-gray-300 shadow-sm" />
@@ -275,7 +381,7 @@ const VendorLogin = () => {
                 {isLoading ? (
                   <LogoLoader fullScreen={false} inline={true} size="w-6 h-6" />
                 ) : (
-                  <span>Login</span>
+                  <span>{loginMethod === 'mpin' ? 'Next' : 'Login'}</span>
                 )}
               </button>
             </div>
@@ -287,7 +393,7 @@ const VendorLogin = () => {
               </Link>
             </div>
           </form>
-        ) : (
+        ) : step === 'otp' ? (
           <form className="space-y-8" onSubmit={handleOtpSubmit}>
             <div className="flex justify-center gap-2 sm:gap-3 py-4">
               {otp.map((digit, index) => (
@@ -360,6 +466,66 @@ const VendorLogin = () => {
                   <LogoLoader fullScreen={false} inline={true} size="w-6 h-6" />
                 ) : (
                   <span>Verify</span>
+                )}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form className="space-y-8" onSubmit={handleMpinSubmit}>
+            <div className="flex justify-center gap-3 py-4">
+              {mpin.map((digit, index) => (
+                <input
+                  key={index}
+                  ref={(el) => (mpinInputRefs.current[index] = el)}
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="current-password"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleMpinChange(index, e.target.value)}
+                  onKeyDown={(e) => handleMpinKeyDown(index, e)}
+                  className="w-14 h-14 text-center text-2xl font-bold rounded-xl focus:ring-2 focus:ring-[#426B4F] border-transparent transition-all duration-300 shadow-sm"
+                  style={{ backgroundColor: inputBgColor, color: brandColor }}
+                />
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between px-2 text-sm font-medium">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMpin(['', '', '', '']);
+                  setStep('phone');
+                }}
+                className="flex items-center text-gray-400 hover:text-[#426B4F] transition-colors"
+              >
+                <FiChevronLeft className="mr-1" /> Change Number
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMethod('otp');
+                  setStep('phone');
+                  handlePhoneSubmit({ preventDefault: () => {} });
+                }}
+                className="text-[#426B4F] hover:underline font-bold"
+              >
+                Forgot MPIN?
+              </button>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={isLoading || mpin.join('').length !== 4}
+                className="w-full flex justify-center py-4 px-4 rounded-3xl text-sm font-bold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:-translate-y-0.5"
+                style={{ backgroundColor: brandColor }}
+              >
+                {isLoading ? (
+                  <LogoLoader fullScreen={false} inline={true} size="w-6 h-6" />
+                ) : (
+                  <span>Login</span>
                 )}
               </button>
             </div>

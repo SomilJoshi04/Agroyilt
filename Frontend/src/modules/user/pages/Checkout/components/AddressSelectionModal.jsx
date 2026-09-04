@@ -1,23 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { FiArrowLeft, FiX, FiSearch, FiMapPin, FiHome } from 'react-icons/fi';
-import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import { themeColors } from '../../../../../theme';
-import LocationPicker, { GOOGLE_MAPS_LIBRARIES } from './LocationPicker';
+import LocationPicker from './LocationPicker';
 
 const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = '', onHouseNumberChange, onSave }) => {
   const [isClosing, setIsClosing] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [mapAddress, setMapAddress] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [autocomplete, setAutocomplete] = useState(null);
-
-  // Use SAME id + SAME library array reference as LocationPicker → singleton loader, no conflict
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-  });
+  const [isSearching, setIsSearching] = useState(false);
 
   // Lock body scroll when modal open
   useEffect(() => {
@@ -46,50 +38,53 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
     setSearchQuery(location.address);
   };
 
-  const onPlaceChanged = () => {
-    if (autocomplete !== null) {
-      const place = autocomplete.getPlace();
-      if (place.geometry) {
-        const location = {
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng(),
-          address: place.formatted_address,
-          components: place.address_components,
-        };
-        setSelectedLocation(location);
-        setMapAddress(place.formatted_address);
-        setSearchQuery(place.formatted_address);
+  // Geocode address when user presses Enter using Nominatim
+  const handleSearchKeyDown = async (e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      e.preventDefault();
+      setIsSearching(true);
+      
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&countrycodes=in&addressdetails=1`);
+        const results = await response.json();
+        
+        if (results && results.length > 0) {
+          const place = results[0];
+          
+          // Map OSM address structure to our expected structure
+          const components = Object.keys(place.address || {}).map(key => ({
+            long_name: place.address[key],
+            short_name: place.address[key],
+            types: [key]
+          }));
+
+          const mappedComponents = components.map(c => {
+             if(c.types.includes('postcode')) c.types.push('postal_code');
+             if(c.types.includes('city') || c.types.includes('town') || c.types.includes('county')) c.types.push('locality');
+             if(c.types.includes('state')) c.types.push('administrative_area_level_1');
+             return c;
+          });
+
+          const location = {
+            lat: parseFloat(place.lat),
+            lng: parseFloat(place.lon),
+            address: place.display_name,
+            components: mappedComponents,
+          };
+          
+          setSelectedLocation(location);
+          setMapAddress(place.display_name);
+          setSearchQuery(place.display_name);
+        } else {
+          alert('Address not found. Please try a different search.');
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+        alert('Error searching for address.');
+      } finally {
+        setIsSearching(false);
       }
     }
-  };
-
-  // Geocode address when user presses Enter (without selecting from dropdown)
-  const handleSearchKeyDown = async (e) => {
-    if (e.key === 'Enter' && searchQuery.trim() && window.google) {
-      e.preventDefault();
-      const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode(
-        { address: searchQuery, componentRestrictions: { country: 'in' } },
-        (results, status) => {
-          if (status === 'OK' && results[0]) {
-            const place = results[0];
-            const location = {
-              lat: place.geometry.location.lat(),
-              lng: place.geometry.location.lng(),
-              address: place.formatted_address,
-              components: place.address_components,
-            };
-            setSelectedLocation(location);
-            setMapAddress(place.formatted_address);
-            setSearchQuery(place.formatted_address);
-          }
-        }
-      );
-    }
-  };
-
-  const onAutocompleteLoad = (autocompleteInstance) => {
-    setAutocomplete(autocompleteInstance);
   };
 
   // Don't render if closed and not animating
@@ -120,9 +115,6 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
         @keyframes modalSlideDown {
           from { transform: translateY(0);    opacity: 1; }
           to   { transform: translateY(100%); opacity: 0; }
-        }
-        .pac-container {
-          z-index: 100000 !important;
         }
       `}</style>
 
@@ -203,7 +195,6 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
         {/* Map */}
         <div style={{ padding: '0 16px 8px' }}>
           <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid #e5e7eb', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            {/* LocationPicker uses the same useJsApiLoader singleton — no conflict */}
             <LocationPicker
               onLocationSelect={handleLocationSelect}
               initialPosition={selectedLocation}
@@ -221,50 +212,34 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
           }}>
             Search Address
           </label>
-          {isLoaded ? (
-          <Autocomplete
-              onLoad={onAutocompleteLoad}
-              onPlaceChanged={onPlaceChanged}
-              options={{
-                componentRestrictions: { country: 'in' },
-                fields: ['formatted_address', 'geometry', 'name', 'address_components'],
+          
+          <div style={{ position: 'relative', marginBottom: 16 }}>
+            <FiSearch size={15} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
+            <input
+              type="text"
+              placeholder={isSearching ? "Searching..." : "Search and press Enter..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              disabled={isSearching}
+              style={{
+                width: '100%', padding: '12px 36px 12px 36px',
+                background: '#f9fafb', border: '1px solid #e5e7eb',
+                borderRadius: 12, fontSize: 14, fontWeight: 500,
+                outline: 'none', boxSizing: 'border-box',
+                opacity: isSearching ? 0.7 : 1
               }}
-            >
-              <div style={{ position: 'relative', marginBottom: 16 }}>
-                <FiSearch size={15} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
-                <input
-                  type="text"
-                  placeholder="Search for area, street, city..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                  style={{
-                    width: '100%', padding: '12px 36px 12px 36px',
-                    background: '#f9fafb', border: '1px solid #e5e7eb',
-                    borderRadius: 12, fontSize: 14, fontWeight: 500,
-                    outline: 'none', boxSizing: 'border-box',
-                  }}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
-                  >
-                    <FiX size={14} color="#9ca3af" />
-                  </button>
-                )}
-              </div>
-            </Autocomplete>
-          ) : (
-            <div style={{ position: 'relative', marginBottom: 16 }}>
-              <FiSearch size={15} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
-              <input
-                type="text" placeholder="Loading map search..." disabled
-                style={{ width: '100%', padding: '12px 12px 12px 36px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 14, boxSizing: 'border-box' }}
-              />
-            </div>
-          )}
+            />
+            {searchQuery && !isSearching && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                <FiX size={14} color="#9ca3af" />
+              </button>
+            )}
+          </div>
 
           {/* House/Flat Number */}
           <label style={{

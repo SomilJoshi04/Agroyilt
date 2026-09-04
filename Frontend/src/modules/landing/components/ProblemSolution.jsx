@@ -130,7 +130,7 @@ const ProblemSolution = () => {
     "Traditional Challenges", "Digital Ecosystem for Farm Access",
     ...problems,
     "Problem is not lack of machinery, Problem is lack of access.",
-    "Our Solution: GROO",
+    "Our Solution: AgroYilt",
     ...solutions.flatMap(s => [s.title, s.desc]),
     "Drones", "Soil Testing", "Marketplace"
   ], []);
@@ -250,7 +250,7 @@ const ProblemSolution = () => {
               className="inline-flex items-center space-x-2 bg-green-800 text-green-400 px-4 py-1.5 rounded-full text-[10px] font-black mb-5 tracking-widest uppercase shadow-sm border border-green-700"
             >
               <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-              <span>{getTranslatedText("Our Solution: GROO")}</span>
+              <span>{getTranslatedText("Our Solution: AgroYilt")}</span>
             </motion.div>
 
             {/* Title with character stagger */}

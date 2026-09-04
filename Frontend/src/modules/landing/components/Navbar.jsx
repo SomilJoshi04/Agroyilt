@@ -4,6 +4,7 @@ import { HiMenu, HiX, HiTranslate } from 'react-icons/hi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../../../context/LanguageContext';
 import TranslatedText from '../../../components/TranslatedText';
+import Logo from '../../../components/common/Logo';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -81,7 +82,7 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex-shrink-0 flex items-center">
             <Link to="/">
-              <img src="/logo.png" alt="Groo Logo" className="h-14 md:h-16 w-auto" />
+              <Logo className="h-10 md:h-12 w-auto" />
             </Link>
           </div>
 
@@ -149,16 +150,22 @@ const Navbar = () => {
 
               <Link
                 to="/user/login"
-                className="bg-green-700 text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-green-800 transition-colors shadow-lg"
+                className="bg-green-700 text-white px-4 py-2 rounded-full text-xs font-bold hover:bg-green-800 transition-colors shadow-md"
               >
                 <TranslatedText>Join as User</TranslatedText>
               </Link>
               <Link
                 to="/vendor/login"
-                className={`px-5 py-2 rounded-full text-xs font-bold transition-all border ${(isScrolled || isLightPage) ? 'border-green-700 text-green-700 hover:bg-green-50' : 'border-white text-white hover:bg-white/10'
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${(isScrolled || isLightPage) ? 'border-green-700 text-green-700 hover:bg-green-50' : 'border-white text-white hover:bg-white/10'
                   }`}
               >
                 <TranslatedText>Join as Vendor</TranslatedText>
+              </Link>
+              <Link
+                to="/worker/login"
+                className="bg-amber-600 text-white px-4 py-2 rounded-full text-xs font-bold hover:bg-amber-700 transition-colors shadow-md"
+              >
+                <TranslatedText>Join as Worker</TranslatedText>
               </Link>
             </div>
           </div>
@@ -247,17 +254,24 @@ const Navbar = () => {
               <div className="pt-4 px-3 space-y-3">
                 <Link
                   to="/user/login"
-                  className="block w-full text-center bg-green-700 text-white px-6 py-3 rounded-lg text-base font-semibold"
+                  className="block w-full text-center bg-green-700 text-white px-6 py-2.5 rounded-lg text-base font-semibold"
                   onClick={() => setIsOpen(false)}
                 >
                   <TranslatedText>Join as User</TranslatedText>
                 </Link>
                 <Link
                   to="/vendor/login"
-                  className="block w-full text-center border-2 border-green-700 text-green-700 px-6 py-3 rounded-lg text-base font-semibold"
+                  className="block w-full text-center border-2 border-green-700 text-green-700 px-6 py-2.5 rounded-lg text-base font-semibold"
                   onClick={() => setIsOpen(false)}
                 >
                   <TranslatedText>Join as Vendor</TranslatedText>
+                </Link>
+                <Link
+                  to="/worker/login"
+                  className="block w-full text-center bg-amber-600 text-white px-6 py-2.5 rounded-lg text-base font-semibold"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <TranslatedText>Join as Worker</TranslatedText>
                 </Link>
               </div>
             </div>

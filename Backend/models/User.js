@@ -28,6 +28,23 @@ const userSchema = new mongoose.Schema({
     type: String,
     select: false
   },
+  // MPIN Login
+  mpin: {
+    type: String,
+    select: false // Never returned in normal queries
+  },
+  isMpinSet: {
+    type: Boolean,
+    default: false
+  },
+  mpinAttempts: {
+    type: Number,
+    default: 0
+  },
+  mpinLockedUntil: {
+    type: Date,
+    default: null
+  },
   isEmailVerified: {
     type: Boolean,
     default: false
@@ -58,6 +75,35 @@ const userSchema = new mongoose.Schema({
     },
     lat: Number,
     lng: Number
+  }],
+  // Farms / Khet Details
+  farms: [{
+    name: {
+      type: String,
+      trim: true,
+      default: 'My Farm'
+    },
+    location: {
+      addressLine1: String,
+      city: String,
+      state: String,
+      pincode: String,
+      lat: Number,
+      lng: Number,
+      fullAddress: String
+    },
+    sizeInAcres: {
+      type: Number,
+      default: 0
+    },
+    cropType: [{
+      type: String
+    }],
+    khasraNumber: {
+      type: String,
+      trim: true,
+      default: null
+    }
   }],
   wallet: {
     balance: {
@@ -166,6 +212,9 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
+
+// Indexes
+userSchema.index({ 'farms.location': '2dsphere' });
 
 module.exports = mongoose.model('User', userSchema);
 

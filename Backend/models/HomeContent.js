@@ -303,24 +303,21 @@ const homeContentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Ensure only one home content document exists per city
+// Ensure home content lookup falls back to default (cityId: null) if no city-specific content exists
 homeContentSchema.statics.getHomeContent = async function (cityId = null) {
-  let query = { cityId: null };
+  let homeContent = null;
 
   if (cityId) {
-    query = { cityId };
+    homeContent = await this.findOne({ cityId });
   }
 
-  let homeContent = await this.findOne(query);
+  // Fallback to default (cityId: null) if city-specific content not found
+  if (!homeContent) {
+    homeContent = await this.findOne({ cityId: null });
+  }
 
-  // If requesting a specific city and no content exists, create it by copying default/empty
-  if (!homeContent && cityId) {
-    // Ideally we might copy from default here, but for now we create empty/default structure
-    // Fetch default to see if we can copy basics? No, start fresh or based on migration.
-    // Let's create a new entry for this city.
-    homeContent = await this.create({ cityId });
-  } else if (!homeContent && !cityId) {
-    // Create default if it doesn't exist
+  // Create default global content if still none exists
+  if (!homeContent) {
     homeContent = await this.create({ cityId: null });
   }
 

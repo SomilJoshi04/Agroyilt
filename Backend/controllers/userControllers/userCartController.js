@@ -8,9 +8,7 @@ const { validationResult } = require('express-validator');
 const getUserCart = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    let cart = await Cart.findOne({ userId }).populate('items.serviceId', 'title iconUrl slug hourly_price land_price land_unit daily_price').populate('items.categoryId', 'title slug');
-
+    let cart = await Cart.findOne({ userId }).populate('items.categoryId', 'title slug');
     if (!cart) {
       // Create empty cart if doesn't exist
       cart = await Cart.create({ userId, items: [] });
@@ -69,19 +67,7 @@ const addToCart = async (req, res) => {
 
     console.log(`[AddToCart] Request details - Title: ${title}, Section: ${sectionTitle}`);
 
-    // Verify service exists (only if serviceId is provided)
-    let service = null;
-    if (serviceId) {
-      service = await Service.findById(serviceId);
-      if (!service) {
-        return res.status(404).json({
-          success: false,
-          message: 'Service not found'
-        });
-      }
-    }
-
-    // Get or create cart
+    // Check if item already exists in cart
     let cart = await Cart.findOne({ userId });
 
     console.log(`[AddToCart] User: ${userId}, Cart Found: ${!!cart}`);

@@ -82,7 +82,7 @@ const ArticleDetail = () => {
                         <button 
                             onClick={() => flutterBridge.shareContent({
                                 title: article.title,
-                                text: `Check out this article on GrooAgri: ${article.title}`,
+                                text: `Check out this article on Agroyilt: ${article.title}`,
                                 url: window.location.href
                             })}
                             className="flex items-center gap-2 text-gray-900 font-black border-2 border-gray-900 px-8 py-3 rounded-2xl hover:bg-gray-900 hover:text-white transition-all">

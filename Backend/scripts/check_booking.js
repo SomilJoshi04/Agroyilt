@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const URI = 'mongodb+srv://grooagri_db_user:grooagri_db_user@cluster0.zbhhozr.mongodb.net/groo';
+const URI = 'mongodb+srv://agroyilt_db_user:agroyilt_db_user@cluster0.zbhhozr.mongodb.net/groo';
 
 async function checkBooking() {
     try {

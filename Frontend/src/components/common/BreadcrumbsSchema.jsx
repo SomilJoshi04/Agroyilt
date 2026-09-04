@@ -13,7 +13,7 @@ const BreadcrumbsSchema = ({ items = [] }) => {
       "@type": "ListItem",
       "position": index + 1,
       "name": crumb.name,
-      "item": crumb.item.startsWith('http') ? crumb.item : `https://grooagri.com${crumb.item}`
+      "item": crumb.item.startsWith('http') ? crumb.item : `https://agroyilt.com${crumb.item}`
     }))
   };
 

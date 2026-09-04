@@ -97,7 +97,7 @@ const Hero = () => {
       <div ref={bgRef} className="absolute inset-0 z-0 will-change-transform">
         <img
           src={harvesterHero}
-          alt="Groo Hero"
+          alt="AgroYilt Hero"
           className="w-full h-full object-cover scale-110"
         />
         {/* Multi-layer gradient overlay */}
@@ -143,7 +143,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="text-5xl md:text-7xl font-black text-white leading-none mb-2 tracking-tighter"
           >
-            GROO
+            AGROYILT
           </motion.h1>
 
           <motion.div
@@ -159,7 +159,7 @@ const Hero = () => {
             transition={{ duration: 0.7, delay: 0.3 }}
             className="text-xl md:text-2xl font-bold text-yellow-400 mb-5 font-serif italic"
           >
-            <TranslatedText>Grow more with GROO</TranslatedText>
+            <TranslatedText>Grow more with AGROYILT</TranslatedText>
           </motion.p>
 
           <motion.p
@@ -169,7 +169,7 @@ const Hero = () => {
             className="text-sm md:text-base text-gray-300 mb-8 max-w-2xl leading-relaxed font-medium"
           >
             <TranslatedText>
-              GROO is made for farmers. Farmers can book tractors, harvesters, rotavators, drones, JCB, borewell machines, labour, and other equipment on rent. With GROO, they can also easily order seeds, fertilizers, and other farming items from nearby shops. Our goal is to make farming work easy, fast, and on time. Farmers can get modern technology, useful services, weather updates, and support in one place. GROO helps save time, reduce trouble, and improve farming work. We want every farmer to get the right machine, right service, and right support at the right time.
+              AgroYilt is made for farmers. Farmers can book tractors, harvesters, rotavators, drones, JCB, borewell machines, labour, and other equipment on rent. With AgroYilt, they can also easily order seeds, fertilizers, and other farming items from nearby shops. Our goal is to make farming work easy, fast, and on time. Farmers can get modern technology, useful services, weather updates, and support in one place. AgroYilt helps save time, reduce trouble, and improve farming work. We want every farmer to get the right machine, right service, and right support at the right time.
             </TranslatedText>
           </motion.p>
 
@@ -178,13 +178,13 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.6 }}
-            className="flex flex-col sm:flex-row gap-4 mb-16"
+            className="flex flex-col sm:flex-row flex-wrap gap-4 mb-16"
           >
             <Link to="/user/login">
               <motion.div
                 whileHover={{ scale: 1.05, boxShadow: '0 20px 40px rgba(21, 128, 61, 0.4)' }}
                 whileTap={{ scale: 0.97 }}
-                className="bg-green-600 text-white px-8 py-3 rounded-full text-sm font-bold cursor-pointer shadow-xl text-center transition-colors hover:bg-green-700"
+                className="bg-green-600 text-white px-7 py-3 rounded-full text-sm font-bold cursor-pointer shadow-xl text-center transition-colors hover:bg-green-700"
               >
                 <TranslatedText>Book Now</TranslatedText>
               </motion.div>
@@ -193,9 +193,18 @@ const Hero = () => {
               <motion.div
                 whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.15)' }}
                 whileTap={{ scale: 0.97 }}
-                className="bg-white/8 backdrop-blur-md text-white border border-white/30 px-8 py-3 rounded-full text-sm font-bold cursor-pointer text-center"
+                className="bg-white/8 backdrop-blur-md text-white border border-white/30 px-7 py-3 rounded-full text-sm font-bold cursor-pointer text-center"
               >
                 <TranslatedText>Owner Registration</TranslatedText>
+              </motion.div>
+            </Link>
+            <Link to="/worker/login">
+              <motion.div
+                whileHover={{ scale: 1.05, boxShadow: '0 20px 40px rgba(217, 119, 6, 0.4)' }}
+                whileTap={{ scale: 0.97 }}
+                className="bg-amber-600 text-white px-7 py-3 rounded-full text-sm font-bold cursor-pointer shadow-xl text-center transition-colors hover:bg-amber-700"
+              >
+                <TranslatedText>Worker Join</TranslatedText>
               </motion.div>
             </Link>
           </motion.div>

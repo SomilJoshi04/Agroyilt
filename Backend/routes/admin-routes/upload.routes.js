@@ -2,25 +2,49 @@ const express = require('express');
 const router = express.Router();
 const { uploadImage, uploadVideo, handleMulterError } = require('../../middleware/uploadMiddleware');
 const { getSignature } = require('../../controllers/cloudinaryController');
+const cloudinaryService = require('../../services/cloudinaryService');
 
 // Get signature for direct signed upload
 router.get('/upload/sign-signature', getSignature);
 
-// Upload single file to Cloudinary
-router.post('/upload', uploadImage, handleMulterError, async (req, res) => {
+// Upload single file or base64 to Cloudinary
+router.post('/upload', (req, res, next) => {
+  // If JSON request with base64 image, skip multer middleware
+  if (req.headers['content-type']?.includes('application/json')) {
+    return next();
+  }
+  uploadImage(req, res, next);
+}, handleMulterError, async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded'
+    // 1. Multer file upload
+    if (req.file) {
+      return res.status(200).json({
+        success: true,
+        imageUrl: req.file.path || req.file.secure_url,
+        message: 'File uploaded successfully'
       });
     }
 
-    // When using multer-storage-cloudinary, req.file.path is the secure_url
-    res.status(200).json({
-      success: true,
-      imageUrl: req.file.path,
-      message: 'File uploaded successfully'
+    // 2. Base64 string upload
+    const base64Data = req.body.image || req.body.file || req.body.base64;
+    if (base64Data) {
+      const uploadRes = await cloudinaryService.uploadFile(base64Data, { folder: 'appzeto' });
+      if (uploadRes.success) {
+        return res.status(200).json({
+          success: true,
+          imageUrl: uploadRes.url,
+          message: 'Base64 image uploaded to Cloudinary successfully'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: uploadRes.error || 'Failed to upload image to Cloudinary'
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: 'No file or image data provided'
     });
   } catch (error) {
     console.error('Upload error:', error);

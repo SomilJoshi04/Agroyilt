@@ -14,7 +14,7 @@ const HelpSupport = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showContactForm, setShowContactForm] = useState(false);
   const [supportInfo, setSupportInfo] = useState({
-    email: 'grooagri@gmail.com',
+    email: 'agroyilt@gmail.com',
     phone: '+91 91177 04450',
     whatsapp: '+91 91177 04450'
   });
@@ -32,7 +32,7 @@ const HelpSupport = () => {
         if (configRes?.data?.success && configRes?.data?.settings) {
           const { supportEmail, supportPhone, supportWhatsapp } = configRes.data.settings;
           setSupportInfo({
-            email: supportEmail || 'grooagri@gmail.com',
+            email: supportEmail || 'agroyilt@gmail.com',
             phone: supportPhone || '+91 91177 04450',
             whatsapp: supportWhatsapp || '+91 91177 04450'
           });

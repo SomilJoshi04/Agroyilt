@@ -201,7 +201,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
         const response = await serviceService.create(result.data);
         if (response.success) {
           toast.success("Equipment created");
-          setCategoryServices(prev => [...prev, response.service || response.data]);
+          setCategoryServices(prev => [response.service || response.data, ...prev]);
           resetForm();
           const reloadRes = await serviceService.getAll({ categoryId: activeCategoryId });
           if (reloadRes.success) setCategoryServices(reloadRes.services);
@@ -448,6 +448,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
             />
           </div>
 
+          {/* SOP requested removal of these complex fields 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">Pricing Context</label>
@@ -491,6 +492,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
               </select>
             </div>
           </div>
+          */}
 
 
           <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-4">

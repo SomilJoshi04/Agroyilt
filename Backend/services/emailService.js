@@ -76,14 +76,14 @@ const emailWrapper = (content, title, preheader = '') => `
     <div class="main">
       <div class="header">
         <div class="logo-circle">G</div>
-        <h1>GrooAgri</h1>
+        <h1>Agroyilt</h1>
       </div>
       <div class="content">
         ${content}
       </div>
       <div class="footer">
         <p>Premium Home Services • Delivered with Care</p>
-        <p>&copy; ${new Date().getFullYear()} GrooAgri India. All rights reserved.</p>
+        <p>&copy; ${new Date().getFullYear()} Agroyilt India. All rights reserved.</p>
         <div class="social-links">
           <a href="#">Help Center</a>
           <a href="#">Privacy Policy</a>
@@ -125,7 +125,7 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
       <div style="text-align: center;">
         <div class="badge badge-primary">Security</div>
         <h2>Verify your identity</h2>
-        <p>Your one-time password (OTP) for GrooAgri is ready. Use this code to complete your ${purpose.replace('_', ' ')}.</p>
+        <p>Your one-time password (OTP) for Agroyilt is ready. Use this code to complete your ${purpose.replace('_', ' ')}.</p>
         
         <div style="background: ${COLORS.bg}; border-radius: 20px; padding: 40px; margin: 40px 0; border: 2px dashed ${COLORS.primary};">
           <div style="font-size: 48px; font-weight: 900; letter-spacing: 12px; color: ${COLORS.primary}; margin-bottom: 8px;">${otp}</div>
@@ -137,9 +137,9 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
     `;
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'GrooAgri <noreply@grooagri.com>',
+      from: process.env.EMAIL_FROM || 'Agroyilt <noreply@agroyilt.com>',
       to: email,
-      subject: `${subjectPrefix} - GrooAgri`,
+      subject: `${subjectPrefix} - Agroyilt`,
       html: emailWrapper(content, subjectPrefix, `Your verification code is ${otp}`)
     });
     return { success: true };
@@ -161,7 +161,7 @@ const sendWelcomeEmail = async (email, name) => {
       <div style="text-align: center;">
         <div class="badge badge-success">Welcome</div>
         <h2>Hello ${name}! 👋</h2>
-        <p>Welcome to the GrooAgri family. We're excited to help you take care of your home with our premium services.</p>
+        <p>Welcome to the Agroyilt family. We're excited to help you take care of your home with our premium services.</p>
         
         <div style="display: flex; justify-content: space-around; margin: 40px 0; flex-wrap: wrap;">
           <div style="width: 140px; margin: 10px;">
@@ -185,9 +185,9 @@ const sendWelcomeEmail = async (email, name) => {
     `;
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'GrooAgri <noreply@grooagri.com>',
+      from: process.env.EMAIL_FROM || 'Agroyilt <noreply@agroyilt.com>',
       to: email,
-      subject: 'Welcome to GrooAgri!',
+      subject: 'Welcome to Agroyilt!',
       html: emailWrapper(content, 'Welcome', 'Welcome to the future of home services')
     });
     return { success: true };
@@ -231,9 +231,9 @@ const sendBookingEmails = async (booking, user, vendor, service) => {
       `;
 
       await transporter.sendMail({
-        from: process.env.EMAIL_FROM || 'GrooAgri <noreply@grooagri.com>',
+        from: process.env.EMAIL_FROM || 'Agroyilt <noreply@agroyilt.com>',
         to: user.email,
-        subject: `Booking Confirmed #${bookingId} - GrooAgri`,
+        subject: `Booking Confirmed #${bookingId} - Agroyilt`,
         html: emailWrapper(content, 'Confirmed', 'Your booking is scheduled successfully')
       });
     }
@@ -259,9 +259,9 @@ const sendBookingEmails = async (booking, user, vendor, service) => {
       `;
 
       await transporter.sendMail({
-        from: process.env.EMAIL_FROM || 'GrooAgri <noreply@grooagri.com>',
+        from: process.env.EMAIL_FROM || 'Agroyilt <noreply@agroyilt.com>',
         to: vendor.email,
-        subject: `New Job Assigned #${bookingId} - GrooAgri`,
+        subject: `New Job Assigned #${bookingId} - Agroyilt`,
         html: emailWrapper(vContent, 'New Job', 'Action Required: New job assigned')
       });
     }
@@ -283,7 +283,7 @@ const sendBookingCompletionEmails = async (booking) => {
         <div style="text-align: center; margin-bottom: 32px;">
           <div style="font-size: 48px; margin-bottom: 16px;">⭐</div>
           <h2>Service Completed</h2>
-          <p>Thank you for choosing GrooAgri. We hope the service for <strong>${booking.serviceId?.title || 'Home Service'}</strong> was to your satisfaction.</p>
+          <p>Thank you for choosing Agroyilt. We hope the service for <strong>${booking.serviceId?.title || 'Home Service'}</strong> was to your satisfaction.</p>
         </div>
 
         <div class="card" style="background-color: white;">
@@ -310,9 +310,9 @@ const sendBookingCompletionEmails = async (booking) => {
       `;
 
       await transporter.sendMail({
-        from: process.env.EMAIL_FROM || 'GrooAgri <noreply@grooagri.com>',
+        from: process.env.EMAIL_FROM || 'Agroyilt <noreply@agroyilt.com>',
         to: user.email,
-        subject: `Service Invoice #${bookingId} - GrooAgri`,
+        subject: `Service Invoice #${bookingId} - Agroyilt`,
         html: emailWrapper(content, 'Invoice', 'Your service is complete. Here is the receipt.')
       });
     }
@@ -345,9 +345,9 @@ const sendWithdrawalApprovedEmail = async (vendor, amount, transactionId) => {
     `;
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'GrooAgri <noreply@grooagri.com>',
+      from: process.env.EMAIL_FROM || 'Agroyilt <noreply@agroyilt.com>',
       to: vendor.email,
-      subject: 'Withdrawal Success - GrooAgri',
+      subject: 'Withdrawal Success - Agroyilt',
       html: emailWrapper(content, 'Withdrawal', 'Your funds are on the way')
     });
   } catch (error) { console.error(error); }
@@ -378,9 +378,9 @@ const sendDuesPaymentApprovedEmail = async (vendor, amount, balanceAfter) => {
     `;
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'GrooAgri <noreply@grooagri.com>',
+      from: process.env.EMAIL_FROM || 'Agroyilt <noreply@agroyilt.com>',
       to: vendor.email,
-      subject: 'Dues Payment Verified - GrooAgri',
+      subject: 'Dues Payment Verified - Agroyilt',
       html: emailWrapper(content, 'Verified', 'We have received your payment')
     });
   } catch (error) { console.error(error); }

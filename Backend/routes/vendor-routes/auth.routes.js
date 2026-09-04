@@ -7,7 +7,11 @@ const {
   login,
   logout,
   verifyLogin,
-  deleteAccount
+  deleteAccount,
+  loginWithMpin,
+  setMpin,
+  resetMpin,
+  getMpinStatus
 } = require('../../controllers/vendorControllers/vendorAuthController');
 const { authenticate } = require('../../middleware/authMiddleware');
 const { isVendor } = require('../../middleware/roleMiddleware');
@@ -46,6 +50,12 @@ router.post('/login', loginValidation, login);
 router.post('/refresh-token', require('../../controllers/vendorControllers/vendorAuthController').refreshToken);
 router.post('/logout', authenticate, isVendor, logout);
 router.delete('/delete-account', authenticate, isVendor, deleteAccount);
+
+// MPIN Routes
+router.post('/login-mpin', loginWithMpin);
+router.post('/set-mpin', authenticate, isVendor, setMpin);
+router.post('/reset-mpin', resetMpin);
+router.get('/mpin-status', authenticate, isVendor, getMpinStatus);
 
 module.exports = router;
 

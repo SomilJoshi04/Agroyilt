@@ -5,7 +5,7 @@
  * Items expire every 24 hours.
  */
 
-const DB_NAME = 'GrooAgriTranslationCache';
+const DB_NAME = 'AgroyiltTranslationCache';
 const STORE_NAME = 'translations';
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 Hours
 

@@ -8,7 +8,7 @@ const cloudinaryStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'appzeto',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'gif'],
+    allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'gif', 'avif', 'heic'],
     // Apply quality-preserving optimization on upload
     transformation: [
       { quality: 'auto:good', fetch_format: 'auto' }

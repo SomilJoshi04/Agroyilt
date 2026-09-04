@@ -68,7 +68,7 @@ const Wallet = () => {
           key: res.data.key,
           amount: Math.round(res.data.amount * 100),
           currency: res.data.currency,
-          name: 'GrooAgri',
+          name: 'Agroyilt',
           description: 'Wallet Top-up',
           order_id: res.data.orderId,
           handler: async function (response) {

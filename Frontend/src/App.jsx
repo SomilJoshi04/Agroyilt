@@ -7,6 +7,7 @@ import { SocketProvider } from './context/SocketContext';
 import { CartProvider } from './context/CartContext';
 import { CityProvider } from './context/CityContext';
 import { EcommerceCartProvider } from './context/EcommerceCartContext';
+import { BrandProvider } from './context/BrandContext';
 import { initializePushNotifications, setupForegroundNotificationHandler } from './services/pushNotificationService';
 // Global common imports removed here as they are now handled in AppRoutes.jsx for conditional rendering
 // import { LocationPermissionChecker, Chatbot } from './components/common';
@@ -42,7 +43,7 @@ function App() {
           try {
             new Notification(title, {
               body: body,
-              icon: payload.notification?.icon || payload.data?.icon || '/grooAgri-logo.png'
+              icon: payload.notification?.icon || payload.data?.icon || '/AgroyiltLogo.png'
             });
           } catch (e) {
             console.error('🔔 [App.jsx] Error showing native notification in foreground:', e);
@@ -65,43 +66,45 @@ function App() {
 
   return (
     <BrowserRouter>
-      <SocketProvider>
-        <CityProvider>
-          <CartProvider>
-            <EcommerceCartProvider>
-              <div className="App">
-                <AppRoutes />
-                {/* Global components moved to routes/index.jsx */}
-                <Toaster
-                  position="top-center"
-                  reverseOrder={false}
-                  toastOptions={{
-                    duration: 2000, // Global default (reduced from 3000)
-                    style: {
-                      background: '#333',
-                      color: '#fff',
-                      borderRadius: '10px',
-                      padding: '12px 20px',
-                    },
-                    success: {
-                      duration: 1000, // 1 second as requested
+      <BrandProvider>
+        <SocketProvider>
+          <CityProvider>
+            <CartProvider>
+              <EcommerceCartProvider>
+                <div className="App">
+                  <AppRoutes />
+                  {/* Global components moved to routes/index.jsx */}
+                  <Toaster
+                    position="top-center"
+                    reverseOrder={false}
+                    toastOptions={{
+                      duration: 2000, // Global default (reduced from 3000)
                       style: {
-                        background: '#10B981',
+                        background: '#333',
+                        color: '#fff',
+                        borderRadius: '10px',
+                        padding: '12px 20px',
                       },
-                    },
-                    error: {
-                      duration: 2000, // Reduced from 4000
-                      style: {
-                        background: '#EF4444',
+                      success: {
+                        duration: 1000, // 1 second as requested
+                        style: {
+                          background: '#10B981',
+                        },
                       },
-                    },
-                  }}
-                />
-              </div>
-            </EcommerceCartProvider>
-          </CartProvider>
-        </CityProvider>
-      </SocketProvider>
+                      error: {
+                        duration: 2000, // Reduced from 4000
+                        style: {
+                          background: '#EF4444',
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              </EcommerceCartProvider>
+            </CartProvider>
+          </CityProvider>
+        </SocketProvider>
+      </BrandProvider>
     </BrowserRouter>
   );
 }

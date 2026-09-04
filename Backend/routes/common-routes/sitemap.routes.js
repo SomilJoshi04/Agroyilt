@@ -10,7 +10,7 @@ const Blog = require('../../models/Blog');
  */
 router.get('/sitemap.xml', async (req, res) => {
   try {
-    const baseUrl = 'https://grooagri.com';
+    const baseUrl = 'https://agroyilt.com';
     
     // Static Pages
     const staticPages = [

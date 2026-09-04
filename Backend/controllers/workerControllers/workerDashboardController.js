@@ -38,15 +38,31 @@ const getDashboardStats = async (req, res) => {
 
     const totalEarnings = earningStats.length > 0 ? earningStats[0].total : 0;
 
-    // 3. Count Active Jobs (Assigned, Visited, In Progress)
+    const BookingRequest = require('../../models/BookingRequest');
+    const myRequests = await BookingRequest.find({ workerId: worker._id, status: { $ne: 'REJECTED' } }).select('bookingId');
+    const requestBookingIds = myRequests.map(r => r.bookingId);
+
+    const workerFilter = {
+      $or: [
+        { workerId: worker._id },
+        { notifiedWorkers: worker._id },
+        { 'potentialWorkers.workerId': worker._id },
+        { _id: { $in: requestBookingIds } }
+      ]
+    };
+
+    // 3. Count Active Jobs (Assigned, Visited, In Progress, Requested, Searching)
     const activeJobsCount = await Booking.countDocuments({
-      workerId: worker._id,
+      ...workerFilter,
       status: {
         $in: [
           BOOKING_STATUS.ASSIGNED,
           BOOKING_STATUS.VISITED,
           BOOKING_STATUS.IN_PROGRESS,
-          BOOKING_STATUS.CONFIRMED
+          BOOKING_STATUS.CONFIRMED,
+          BOOKING_STATUS.REQUESTED,
+          BOOKING_STATUS.SEARCHING,
+          BOOKING_STATUS.PENDING
         ]
       }
     });
@@ -76,7 +92,7 @@ const getDashboardStats = async (req, res) => {
     const averageRating = ratingStats.length > 0 ? parseFloat(ratingStats[0].avgRating.toFixed(1)) : (worker.rating || 0);
 
     // 6. Get Recent Jobs
-    const recentJobs = await Booking.find({ workerId: worker._id })
+    const recentJobs = await Booking.find(workerFilter)
       .sort({ createdAt: -1 })
       .limit(5)
       .populate('userId', 'name')

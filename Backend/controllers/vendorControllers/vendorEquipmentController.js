@@ -1,6 +1,17 @@
 const VendorEquipment = require('../../models/VendorEquipment');
 const Category = require('../../models/Category');
+const Vendor = require('../../models/Vendor');
 const { validationResult } = require('express-validator');
+
+// Helper for pricing validation
+const validatePricing = (pricing) => {
+  if (!pricing) return 'Pricing information is required';
+  const checkBounds = (val) => typeof val === 'number' && val >= 0 && val <= 50000;
+  if (pricing.hourly?.isEnabled && !checkBounds(pricing.hourly.price)) return 'Invalid hourly price (must be 0-50000)';
+  if (pricing.daily?.isEnabled && !checkBounds(pricing.daily.price)) return 'Invalid daily price (must be 0-50000)';
+  if (pricing.land_based?.isEnabled && !checkBounds(pricing.land_based.price)) return 'Invalid land-based price (must be 0-50000)';
+  return null;
+};
 
 /**
  * Get all equipment for the logged-in vendor
@@ -40,6 +51,13 @@ exports.addEquipment = async (req, res) => {
     }
 
     const vendorId = req.user.id;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
+    if (vendor.verificationStatus !== 'verified') {
+      return res.status(403).json({ success: false, message: 'Your account must be verified by an admin before you can list machinery.' });
+    }
+
     const { 
       categoryId, 
       requestedCategoryName,
@@ -58,6 +76,9 @@ exports.addEquipment = async (req, res) => {
       requestedCityName
     } = req.body;
 
+    const priceError = validatePricing(pricing);
+    if (priceError) return res.status(400).json({ success: false, message: priceError });
+
     // 1. Verify Category exists and is a "Main Category" (if categoryId is provided)
     if (categoryId) {
       const mainCategory = await Category.findById(categoryId);
@@ -69,6 +90,7 @@ exports.addEquipment = async (req, res) => {
       }
 
       // 2. Verify sub-categories belong to this main category
+      let allCategories = [mainCategory];
       if (subCategoryIds && subCategoryIds.length > 0) {
         const children = await Category.find({ _id: { $in: subCategoryIds }, parentCategory: categoryId });
         if (children.length !== subCategoryIds.length) {
@@ -77,12 +99,38 @@ exports.addEquipment = async (req, res) => {
             message: 'One or more implements (sub-categories) do not belong to the selected machine type'
           });
         }
+        allCategories = allCategories.concat(children);
+      }
+
+      // 3. Rate-Card Validation (Intersection of all linked categories)
+      let minAllowed = -Infinity;
+      let maxAllowed = Infinity;
+
+      for (const cat of allCategories) {
+        if (cat.priceRangeMin != null) minAllowed = Math.max(minAllowed, cat.priceRangeMin);
+        if (cat.priceRangeMax != null) maxAllowed = Math.min(maxAllowed, cat.priceRangeMax);
+      }
+
+      if (minAllowed !== -Infinity && maxAllowed !== Infinity) {
+        if (minAllowed > maxAllowed) {
+          return res.status(400).json({
+            success: false,
+            message: 'Conflicting price ranges between main category and sub-categories. Please contact admin.'
+          });
+        }
+
+        const submittedPrice = pricing?.hourly?.isEnabled ? pricing.hourly.price : (pricing?.land_based?.isEnabled ? pricing.land_based.price : pricing?.daily?.price);
+        
+        if (submittedPrice != null && (submittedPrice < minAllowed || submittedPrice > maxAllowed)) {
+          return res.status(400).json({
+            success: false,
+            message: `Your price (₹${submittedPrice}) must be between ₹${minAllowed} and ₹${maxAllowed} according to platform rules.`
+          });
+        }
       }
     }
 
     // 3. Retrieve vendor cityId for listing location
-    const Vendor = require('../../models/Vendor');
-    const vendor = await Vendor.findById(vendorId);
     let cityIds = req.body.cityIds || [];
     if (!cityIds.length && vendor) {
       cityIds = (vendor.cityId || vendor.address?.cityId)
@@ -142,6 +190,11 @@ exports.updateEquipment = async (req, res) => {
     // Update fields (excluding vendorId and status reset)
     const updateData = req.body;
     delete updateData.vendorId;
+    
+    if (updateData.pricing) {
+      const priceError = validatePricing(updateData.pricing);
+      if (priceError) return res.status(400).json({ success: false, message: priceError });
+    }
     
     // If category changed, reset to pending
     if (updateData.categoryId && updateData.categoryId !== equipment.categoryId.toString()) {

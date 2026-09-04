@@ -1,11 +1,11 @@
-require('dotenv').config({ path: 'd:\\companyfolder\\GrooAgri\\Backend\\.env' });
+require('dotenv').config({ path: 'd:\\companyfolder\\Agroyilt\\Backend\\.env' });
 const mongoose = require('mongoose');
 
 async function fixIndex() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
-    const Vendor = require('d:\\companyfolder\\GrooAgri\\Backend\\models\\Vendor');
+    const Vendor = require('d:\\companyfolder\\Agroyilt\\Backend\\models\\Vendor');
     
     console.log('Dropping email_1 index...');
     try {

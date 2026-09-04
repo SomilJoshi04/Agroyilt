@@ -8,7 +8,7 @@ const City = require('../models/City');
 
 const run = async () => {
   try {
-    const uri = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/grooagri';
+    const uri = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/agroyilt';
     console.log('Connecting to MongoDB...');
     await mongoose.connect(uri);
     console.log('Connected.');

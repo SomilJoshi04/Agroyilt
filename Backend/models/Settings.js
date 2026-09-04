@@ -175,6 +175,24 @@ const settingsSchema = new mongoose.Schema({
   supportWhatsapp: {
     type: String,
     default: ''
+  },
+
+  // Branding & App Identity
+  appName: {
+    type: String,
+    default: 'AgroYilt'
+  },
+  appTagline: {
+    type: String,
+    default: 'Smart Agriculture Equipment Booking'
+  },
+  appLogo: {
+    type: String,
+    default: '/AgroyiltLogo.png'
+  },
+  appFavicon: {
+    type: String,
+    default: '/AgroyiltLogo.png'
   }
 }, { timestamps: true });
 

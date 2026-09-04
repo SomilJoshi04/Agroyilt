@@ -34,6 +34,7 @@ const formatCategory = (cat) => ({
   trackingType: cat.trackingType || 'none',
   requiresDriver: cat.requiresDriver || false,
   sectionType: cat.sectionType || 'General',
+  bookingType: cat.bookingType || 'VENDOR',
   metaTitle: cat.metaTitle,
   metaDescription: cat.metaDescription,
   createdAt: cat.createdAt,
@@ -156,7 +157,8 @@ const createCategory = async (req, res) => {
       isAlwaysMain,
       trackingType,
       requiresDriver,
-      sectionType
+      sectionType,
+      bookingType
     } = req.body;
 
     console.log('Creating category with payload:', req.body);
@@ -210,6 +212,7 @@ const createCategory = async (req, res) => {
       trackingType: trackingType || 'none',
       requiresDriver: Boolean(requiresDriver),
       sectionType: sectionType || 'General',
+      bookingType: bookingType || 'VENDOR',
       createdBy: req.user?._id || req.userId || null
     });
 
@@ -274,7 +277,8 @@ const updateCategory = async (req, res) => {
       isAlwaysMain,
       trackingType,
       requiresDriver,
-      sectionType
+      sectionType,
+      bookingType
     } = req.body;
 
     const category = await Category.findById(id);
@@ -353,6 +357,7 @@ const updateCategory = async (req, res) => {
     if (trackingType !== undefined) category.trackingType = trackingType;
     if (requiresDriver !== undefined) category.requiresDriver = Boolean(requiresDriver);
     if (sectionType !== undefined) category.sectionType = sectionType;
+    if (bookingType !== undefined) category.bookingType = bookingType;
 
     if (updateCityIds !== undefined) {
       category.cityIds = updateCityIds;

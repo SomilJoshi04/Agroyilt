@@ -11,7 +11,7 @@ const CTA = () => {
                 <img
                     src={ctaBg}
                     className="w-full h-full object-cover opacity-30"
-                    alt="Groo Background"
+                    alt="AgroYilt Background"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-gray-900"></div>
             </div>
@@ -27,7 +27,7 @@ const CTA = () => {
                             <TranslatedText>Ready to Revolutionize Your</TranslatedText> <span className="text-yellow-400 font-serif italic"><TranslatedText>Farm?</TranslatedText></span>
                         </h2>
                         <p className="text-lg text-green-100 mb-10 leading-relaxed">
-                            <TranslatedText>Join thousands of smart farmers and equipment owners who are already growing their digital presence with Groo.</TranslatedText>
+                            <TranslatedText>Join thousands of smart farmers and equipment owners who are already growing their digital presence with AgroYilt.</TranslatedText>
                         </p>
 
                         <div className="flex flex-col sm:flex-row justify-center gap-6">

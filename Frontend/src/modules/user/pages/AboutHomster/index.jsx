@@ -5,12 +5,33 @@ import { gsap } from 'gsap';
 import Logo from '../../../../components/common/Logo';
 import api from '../../../../services/api';
 
-const AboutGrooAgri = () => {
+const AboutAgroyilt = () => {
   const navigate = useNavigate();
   const containerRef = useRef(null);
   const [aboutContent, setAboutContent] = useState(null);
+  const [dynamicStats, setDynamicStats] = useState({
+    farmers: '10K+',
+    owners: '500+'
+  });
 
   useEffect(() => {
+    // Fetch Platform Stats
+    api.get('/public/stats')
+      .then(res => {
+        if (res.data?.success && res.data?.data) {
+          const formatNumber = (num) => {
+             if (num >= 1000) return (num / 1000).toFixed(1) + 'K+';
+             if (num > 0) return num + '+';
+             return num;
+          };
+          setDynamicStats({
+             farmers: res.data.data.farmers > 10000 ? formatNumber(res.data.data.farmers) : (res.data.data.farmers || '0'),
+             owners: res.data.data.owners > 500 ? formatNumber(res.data.data.owners) : (res.data.data.owners || '0')
+          });
+        }
+      })
+      .catch(err => console.error("Failed to fetch stats", err));
+
     // Fetch About content from API
     api.get('/content/about')
       .then(res => {
@@ -66,10 +87,41 @@ const AboutGrooAgri = () => {
   ];
 
   const stats = [
-    { number: '10K+', label: 'Happy Farmers' },
-    { number: '500+', label: 'Service Partners' },
+    { number: dynamicStats.farmers, label: 'Happy Farmers' },
+    { number: dynamicStats.owners, label: 'Service Partners' },
     { number: '4.8', label: 'App Rating' },
   ];
+
+  const parseMarkdownToHtml = (text) => {
+    if (!text) return '';
+    let html = text;
+    
+    // Headers
+    html = html.replace(/^####\s+(.*$)/gim, '<h4 class="text-[17px] font-bold mt-6 mb-2">$1</h4>');
+    html = html.replace(/^###\s+(.*$)/gim, '<h3 class="text-[19px] font-bold mt-6 mb-3">$1</h3>');
+    html = html.replace(/^##\s+(.*$)/gim, '<h2 class="text-[21px] font-bold mt-7 mb-3">$1</h2>');
+    html = html.replace(/^#\s+(.*$)/gim, '<h1 class="text-[24px] font-extrabold mt-8 mb-4">$1</h1>');
+    
+    // Bold
+    html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+    
+    // Bullet points (handle * or -)
+    html = html.replace(/^[\*\-]\s+(.*$)/gim, '<li class="ml-5 list-disc mb-2 pl-1">$1</li>');
+    
+    // Group list items into ul
+    html = html.replace(/(<li.*?>.*?<\/li>\n?)+/gim, '<ul class="mb-5 mt-2">$&</ul>');
+    
+    // Paragraphs: Split by double newline to form paragraphs
+    html = html.split(/\n{2,}/).map(p => {
+       p = p.trim();
+       if (!p) return '';
+       if (p.startsWith('<h') || p.startsWith('<ul')) return p;
+       // Replace single newlines inside paragraphs with <br>
+       return `<p class="mb-4">${p.replace(/\n/g, '<br/>')}</p>`;
+    }).join('\n');
+    
+    return html;
+  };
 
   return (
     <div ref={containerRef} className="min-h-screen bg-gray-50 pb-10">
@@ -91,7 +143,7 @@ const AboutGrooAgri = () => {
           >
             <FiArrowLeft className="w-5 h-5 text-gray-700" />
           </button>
-          <span className="text-xl font-bold" style={grooTextGradient}>About GrooAgri</span>
+          <span className="text-xl font-bold" style={grooTextGradient}>About Agroyilt</span>
         </div>
       </header>
 
@@ -114,7 +166,7 @@ const AboutGrooAgri = () => {
           </div>
 
           <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
-            Welcome to <span style={grooTextGradient}>GrooAgri</span>
+            Welcome to <span style={grooTextGradient}>Agroyilt</span>
           </h1>
           <p className="text-gray-500 max-w-xs mx-auto leading-relaxed">
             Your trusted partner for premium agriculture and farm care services.
@@ -141,8 +193,8 @@ const AboutGrooAgri = () => {
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
               <h3 className="text-lg font-bold text-gray-800 mb-4">{aboutContent.title || 'About Us'}</h3>
               <div 
-                className="text-sm text-gray-600 leading-relaxed prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: aboutContent.content }}
+                className="text-[15px] text-gray-700 leading-relaxed prose prose-sm max-w-none prose-p:mb-4 prose-headings:text-gray-900 prose-strong:text-gray-900"
+                dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(aboutContent.content) }}
               />
             </div>
           </div>
@@ -155,7 +207,7 @@ const AboutGrooAgri = () => {
               </div>
               <h3 className="text-lg font-bold text-gray-800 mb-3">Our Mission</h3>
               <p className="text-sm text-gray-600 leading-relaxed relative z-10">
-                GrooAgri is dedicated to revolutionizing how you experience agriculture equipment and services. We connect you with top-tier equipment owners to deliver safe, reliable, and high-quality services right at your farm. We believe in making farming simpler, one service at a time.
+                Agroyilt is dedicated to revolutionizing how you experience agriculture equipment and services. We connect you with top-tier equipment owners to deliver safe, reliable, and high-quality services right at your farm. We believe in making farming simpler, one service at a time.
               </p>
             </div>
           </div>
@@ -163,7 +215,7 @@ const AboutGrooAgri = () => {
 
         {/* Why Choose Us Grid */}
         <div className="animate-item">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 px-1">Why Choose GrooAgri?</h3>
+          <h3 className="text-lg font-bold text-gray-800 mb-4 px-1">Why Choose Agroyilt?</h3>
           <div className="grid grid-cols-2 gap-3">
             {features.map((feature, index) => (
               <div
@@ -207,7 +259,7 @@ const AboutGrooAgri = () => {
         {/* Footer Info */}
         <div className="animate-item text-center pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-400 mb-1">Designed & Developed by</p>
-          <span className="text-sm font-bold tracking-wide" style={grooTextGradient}>GrooAgri Team</span>
+          <span className="text-sm font-bold tracking-wide" style={grooTextGradient}>Agroyilt Team</span>
           <p className="text-[10px] text-gray-300 mt-4">v1.2.1 • Made with ❤️ in India</p>
         </div>
       </main>
@@ -222,4 +274,4 @@ const AboutGrooAgri = () => {
   );
 };
 
-export default AboutGrooAgri;
+export default AboutAgroyilt;

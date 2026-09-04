@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { themeColors } from '../../../../../theme';
 
-const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRetry }) => {
+const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRetry, isWorker }) => {
   const [dots, setDots] = useState('.');
   const [radius, setRadius] = useState(2);
 
@@ -92,7 +92,7 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
 
             {/* Status Text */}
             <div className="text-center relative z-20 px-4 mb-4">
-              <h3 className="text-xl font-black text-gray-900 mb-2">Finding nearby {currentStep === 'waiting' ? 'professionals' : 'experts'}</h3>
+              <h3 className="text-xl font-black text-gray-900 mb-2">Finding nearby {isWorker ? 'independent workers' : (currentStep === 'waiting' ? 'professionals' : 'experts')}</h3>
               <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
                 Searching within {radius}km{dots}
               </p>
@@ -101,7 +101,7 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
             {/* Bottom Pill */}
             <div className="flex justify-center mt-2 w-full relative z-20">
               <div className="px-4 py-2 bg-gray-50 rounded-full border border-gray-100 text-[10px] font-black uppercase tracking-tighter text-gray-400">
-                Searching for available providers
+                Searching for available {isWorker ? 'workers' : 'providers'}
               </div>
             </div>
 
@@ -118,15 +118,15 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
               </svg>
             </div>
 
-            <h3 className="text-2xl font-black text-gray-900 mb-2 italic">EXPERT FOUND!</h3>
+            <h3 className="text-2xl font-black text-gray-900 mb-2 italic">{isWorker ? 'WORKER FOUND!' : 'EXPERT FOUND!'}</h3>
             <p className="text-gray-400 text-[10px] text-center mb-8 px-4 font-black uppercase tracking-widest">
-              Request accepted by professional
+              Request accepted by {isWorker ? 'independent worker' : 'professional'}
             </p>
 
             {/* Vendor Card */}
             <div className="w-full bg-gray-50 rounded-[32px] p-6 border border-gray-100 mb-10 relative overflow-hidden shadow-sm">
               <div className="relative z-10">
-                <h4 className="font-black text-xl text-gray-900 mb-1">{acceptedVendor.businessName}</h4>
+                <h4 className="font-black text-xl text-gray-900 mb-1">{acceptedVendor.businessName || acceptedVendor.name}</h4>
                 <div className="flex items-center gap-4 text-xs font-bold text-gray-500 mt-3">
                   <span className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm">
                     <span className="text-yellow-400">★</span> {acceptedVendor.rating || '4.9'}
@@ -164,9 +164,9 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
               </svg>
             </div>
 
-            <h3 className="text-2xl font-black text-gray-900 mb-2 italic">NO EXPERT FOUND</h3>
+            <h3 className="text-2xl font-black text-gray-900 mb-2 italic">{isWorker ? 'NO WORKER FOUND' : 'NO EXPERT FOUND'}</h3>
             <p className="text-gray-400 text-[10px] text-center mb-10 px-8 font-black uppercase tracking-widest leading-relaxed">
-              We couldn't find any available professionals in your area right now.
+              We couldn't find any available {isWorker ? 'independent workers' : 'professionals'} in your area right now.
             </p>
 
             <button

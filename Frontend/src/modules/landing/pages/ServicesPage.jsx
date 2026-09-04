@@ -12,8 +12,8 @@ const ServicesPage = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Helmet>
-        <title>Our Services | GrooAgri</title>
-        <meta name="description" content="Explore the professional agriculture equipment and farm solutions offered by GrooAgri." />
+        <title>Our Services | Agroyilt</title>
+        <meta name="description" content="Explore the professional agriculture equipment and farm solutions offered by Agroyilt." />
       </Helmet>
       <Navbar />
       <div className="flex-grow pt-20">

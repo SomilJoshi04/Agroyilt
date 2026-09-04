@@ -194,6 +194,37 @@ const verifyPaymentWebhook = async (req, res) => {
       console.log(`[Payment] Credited ₹${vendorEarning} to vendor ${booking.vendorId}`);
     }
 
+    // ── Credit Independent Worker Wallet if booking is directly assigned to an independent worker ──
+    if (booking.workerId && !booking.vendorId) {
+      const Worker = require('../../models/Worker');
+      const workerEarning = bill ? bill.vendorTotalEarning : (booking.finalAmount * 0.8);
+
+      await Worker.findByIdAndUpdate(booking.workerId, {
+        $inc: { 'wallet.balance': workerEarning }
+      });
+
+      booking.workerPaymentStatus = 'PAID';
+      booking.isWorkerPaid = true;
+      booking.workerPaidAt = new Date();
+      await booking.save();
+
+      await Transaction.create({
+        workerId: booking.workerId,
+        bookingId: booking._id,
+        amount: workerEarning,
+        type: 'worker_payment',
+        paymentMethod: 'system',
+        status: 'completed',
+        description: `Earnings ₹${workerEarning} credited for booking #${booking.bookingNumber} (online payment)`,
+        metadata: {
+          type: 'earnings_increase',
+          bookingNumber: booking.bookingNumber
+        }
+      });
+
+      console.log(`[Payment] Credited ₹${workerEarning} to independent worker ${booking.workerId}`);
+    }
+
     // Record stats in the Daily Earning Tracker
     recordBookingEarning({
       date: new Date(),

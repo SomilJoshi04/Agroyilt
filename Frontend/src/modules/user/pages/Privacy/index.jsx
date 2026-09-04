@@ -68,7 +68,7 @@ const PrivacyPolicy = () => {
                     </div>
                     <h1 className="text-2xl font-black text-gray-900 mb-2">Your Privacy Matters</h1>
                     <p className="text-sm text-gray-500 leading-relaxed">
-                        At GrooAgri, we are committed to protecting your privacy and ensuring a secure experience.
+                        At Agroyilt, we are committed to protecting your privacy and ensuring a secure experience.
                     </p>
                 </div>
 
@@ -105,7 +105,7 @@ const PrivacyPolicy = () => {
 
                 {/* Footer */}
                 <div className="animate-item text-center pt-6 opacity-40">
-                    <p className="text-[10px] uppercase tracking-widest font-black">GrooAgri Security Standard</p>
+                    <p className="text-[10px] uppercase tracking-widest font-black">Agroyilt Security Standard</p>
                     <p className="text-[10px] mt-1">Last updated: April 17, 2026</p>
                 </div>
             </main>

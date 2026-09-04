@@ -205,6 +205,7 @@ const AddEquipment = () => {
     try {
       setUploading(true);
       const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
+      let hasError = false;
 
       for (const file of files) {
         const formData = new FormData();
@@ -222,13 +223,24 @@ const AddEquipment = () => {
           } else {
             setForm(prev => ({ ...prev, images: [...prev.images, data.imageUrl] }));
           }
+        } else {
+          hasError = true;
+          console.error("Backend upload error:", data.message || data.error);
         }
       }
-      toast.success('Upload success');
+      
+      if (hasError) {
+        toast.error('Some uploads failed. Check console or server logs.');
+      } else {
+        toast.success('Upload success');
+      }
     } catch (err) {
+      console.error(err);
       toast.error('Upload failed');
     } finally {
       setUploading(false);
+      // Reset input value so same file can be selected again
+      e.target.value = null;
     }
   };
 

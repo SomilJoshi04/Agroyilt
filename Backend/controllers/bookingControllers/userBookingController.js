@@ -82,12 +82,45 @@ const createBooking = async (req, res) => {
       serviceId = serviceId._id;
     }
 
-    // Verify service exists
-    const service = await Service.findById(serviceId);
+    // Verify service exists (or check if serviceId is an Independent Worker or Category ID)
+    let service = await Service.findById(serviceId);
+    let requestedWorker = null;
+
+    if (!service) {
+      requestedWorker = await Worker.findById(serviceId);
+      if (requestedWorker) {
+        service = {
+          _id: requestedWorker._id,
+          title: requestedWorker.name,
+          category: reqServiceCategory || 'Labour',
+          basePrice: requestedWorker.hourlyRate || requestedWorker.dailyRate || requestedWorker.landRate || 250,
+          hourly_price: requestedWorker.hourlyRate || 0,
+          daily_price: requestedWorker.dailyRate || 0,
+          land_price: requestedWorker.landRate || 0,
+          isWorkerProfile: true
+        };
+      }
+    }
+
+    if (!service) {
+      const catObj = await Category.findById(serviceId);
+      if (catObj) {
+        service = {
+          _id: catObj._id,
+          title: catObj.title,
+          category: catObj.title,
+          basePrice: 250,
+          hourly_price: 250,
+          daily_price: 500,
+          land_price: 300
+        };
+      }
+    }
+
     if (!service) {
       return res.status(404).json({
         success: false,
-        message: 'Service not found'
+        message: 'Service, Worker, or Category not found'
       });
     }
 
@@ -176,57 +209,88 @@ const createBooking = async (req, res) => {
     // Don't assign vendor initially - send to nearby vendors instead
     // Vendor will be assigned when a vendor accepts the booking
 
-    // --- MOVE VENDOR SEARCH UP HERE ---
-    // Find nearby vendors using location service
-    const { findNearbyVendors, geocodeAddress } = require('../../services/locationService');
+    // --- LOCATION AND PROVIDER SEARCH ---
+    const { findNearbyVendors, findNearbyWorkers, geocodeAddress } = require('../../services/locationService');
 
-    // ... (Vendor Search Logic Omitted/Unchanged - keeping context)
     // Determine booking location (prioritize frontend coordinates)
     let bookingLocation;
     if (address.lat && address.lng) {
       bookingLocation = { lat: address.lat, lng: address.lng };
-      console.log('Using provided coordinates for vendor search:', bookingLocation);
+      console.log('Using provided coordinates for provider search:', bookingLocation);
     } else {
       bookingLocation = await geocodeAddress(
         `${address.addressLine1}, ${address.city}, ${address.state} ${address.pincode}`
       );
-      console.log('Geocoded address for vendor search:', bookingLocation);
+      console.log('Geocoded address for provider search:', bookingLocation);
     }
 
-    // Find vendors within dynamic radius (2km -> 5km -> 8km -> 10km -> 15km -> 20km -> 30km)
-    // CUSTOM - Check Cash Limit only if payment method is CASH
-    const vendorFilters = {
-      ...(category ? { service: category.title } : {}),
-      checkCashLimit: paymentMethod === 'cash'
-    };
+    // Determine provider type
+    const isWorkerBooking = !!requestedWorker || service.isWorkerProfile || category?.bookingType === 'WORKER' || reqServiceCategory?.toLowerCase().includes('labour') || reqServiceCategory?.toLowerCase().includes('worker');
+    const providerType = isWorkerBooking ? 'WORKER' : 'VENDOR';
 
     let nearbyVendors = [];
+    let nearbyWorkers = [];
     let usedRadius = 2;
     const searchRadii = [2, 5, 8, 10, 15, 20, 30];
 
-    for (const radius of searchRadii) {
-      usedRadius = radius;
-      nearbyVendors = await findNearbyVendors(bookingLocation, radius, vendorFilters);
-      
-      // We allow isOnline to be false so that we can send FCM background pushes to wake them up.
-      nearbyVendors = nearbyVendors.filter(v => v.availability === 'AVAILABLE' || v.availability === 'OFFLINE');
+    if (providerType === 'VENDOR') {
+      // Find vendors within dynamic radius
+      const vendorFilters = {
+        ...(category ? { service: category.title } : {}),
+        checkCashLimit: paymentMethod === 'cash'
+      };
 
-      if (nearbyVendors && nearbyVendors.length > 0) {
-        break; // Stop expanding radius if we found available vendors
+      for (const radius of searchRadii) {
+        usedRadius = radius;
+        nearbyVendors = await findNearbyVendors(bookingLocation, radius, vendorFilters);
+        
+        // Allow isOnline to be false so that we can send FCM background pushes to wake them up.
+        nearbyVendors = nearbyVendors.filter(v => v.availability === 'AVAILABLE' || v.availability === 'OFFLINE');
+
+        if (nearbyVendors && nearbyVendors.length > 0) {
+          break; // Stop expanding radius if we found available vendors
+        }
       }
+
+      // Deduplicate nearbyVendors by _id to prevent duplicate notifications
+      const uniqueVendorIds = new Set();
+      nearbyVendors = nearbyVendors.filter(vendor => {
+        const idStr = vendor._id.toString();
+        if (uniqueVendorIds.has(idStr)) return false;
+        uniqueVendorIds.add(idStr);
+        return true;
+      });
+
+      console.log(`[CreateBooking] Found ${nearbyVendors.length} nearby vendors for booking within ${usedRadius}km`);
+    } else {
+      // Find workers within dynamic radius
+      if (requestedWorker) {
+        nearbyWorkers = [requestedWorker];
+      } else {
+        const workerFilters = {};
+        
+        for (const radius of searchRadii) {
+          usedRadius = radius;
+          nearbyWorkers = await findNearbyWorkers(bookingLocation, radius, workerFilters);
+          
+          if (nearbyWorkers && nearbyWorkers.length > 0) {
+            break; 
+          }
+        }
+      }
+
+      // Deduplicate nearbyWorkers
+      const uniqueWorkerIds = new Set();
+      nearbyWorkers = nearbyWorkers.filter(worker => {
+        const idStr = worker._id.toString();
+        if (uniqueWorkerIds.has(idStr)) return false;
+        uniqueWorkerIds.add(idStr);
+        return true;
+      });
+
+      console.log(`[CreateBooking] Found ${nearbyWorkers.length} nearby workers for booking within ${usedRadius}km`);
     }
-
-    // Deduplicate nearbyVendors by _id to prevent duplicate notifications
-    const uniqueVendorIds = new Set();
-    nearbyVendors = nearbyVendors.filter(vendor => {
-      const idStr = vendor._id.toString();
-      if (uniqueVendorIds.has(idStr)) return false;
-      uniqueVendorIds.add(idStr);
-      return true;
-    });
-
-    console.log(`[CreateBooking] Found ${nearbyVendors.length} ONLINE nearby vendors for booking within ${usedRadius}km`);
-    // --- END VENDOR SEARCH BLOCK ---
+    // --- END PROVIDER SEARCH BLOCK ---
 
     // Calculate pricing - use amount from frontend if provided, otherwise calculate
     let basePrice, discount, tax, finalAmount;
@@ -450,6 +514,8 @@ const createBooking = async (req, res) => {
       bookingNumber,
       userId,
       vendorId: null, // Will be assigned when vendor accepts
+      workerId: requestedWorker ? requestedWorker._id : null, // Set workerId if directly requested
+      providerType,
       serviceId,
       categoryId: finalCategory?._id || categoryId,
       serviceName: service.title,
@@ -493,13 +559,10 @@ const createBooking = async (req, res) => {
         start: timeSlot.start,
         end: timeSlot.end
       },
-      // userNotes: userNotes || null, // Removed
-      // isPlusAdded: isPlusAdded || false, // Removed
       paymentMethod: paymentMethod || null,
       status: bookingStatus,
       paymentStatus: bookingPaymentStatus,
       selectedImplements: selectedImplements || []
-      // notifiedVendors will be set after wave sorting
     });
 
     // If Plus membership was added, update user status
@@ -516,109 +579,191 @@ const createBooking = async (req, res) => {
       console.log(`User ${userId} upgraded to Plus Membership until ${expiryDate}`);
     }
 
-    // Nearby vendors already found above
-    // WAVE-BASED ALERTING: Sort by distance and only notify first wave
-    const sortedVendors = nearbyVendors.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-
-    // Wave 1: First 3 vendors
     const WAVE_1_COUNT = 3;
-    const wave1Vendors = sortedVendors.slice(0, WAVE_1_COUNT);
+    const io = req.app.get('io');
+    const BookingRequest = require('../../models/BookingRequest');
 
-    // Store all potential vendors in booking for scheduler to use
-    booking.potentialVendors = sortedVendors.map(v => ({
-      vendorId: v._id,
-      distance: v.distance || 0
-    }));
-    booking.currentWave = 1;
-    booking.waveStartedAt = new Date();
-    booking.notifiedVendors = wave1Vendors.map(v => v._id);
-    await booking.save();
+    if (providerType === 'VENDOR') {
+      const sortedVendors = nearbyVendors.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+      const wave1Vendors = sortedVendors.slice(0, WAVE_1_COUNT);
 
-    if (wave1Vendors.length > 0) {
-      console.log(`[CreateBooking] Wave 1: Alerting ${wave1Vendors.length} closest vendors (of ${sortedVendors.length} total)`);
-
-      // Create BookingRequest entries for Wave 1 vendors
-      const BookingRequest = require('../../models/BookingRequest');
-      const bookingRequests = wave1Vendors.map(vendor => ({
-        bookingId: booking._id,
-        vendorId: vendor._id,
-        status: 'PENDING',
-        wave: 1,
-        distance: vendor.distance || null,
-        sentAt: new Date(),
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000) // Expires in 1 hour
+      booking.potentialVendors = sortedVendors.map(v => ({
+        vendorId: v._id,
+        distance: v.distance || 0
       }));
+      booking.currentWave = 1;
+      booking.waveStartedAt = new Date();
+      booking.notifiedVendors = wave1Vendors.map(v => v._id);
+      await booking.save();
 
-      try {
-        await BookingRequest.insertMany(bookingRequests, { ordered: false });
-        console.log(`[CreateBooking] Created ${bookingRequests.length} BookingRequest entries`);
-      } catch (err) {
-        // Ignore duplicate key errors (if retrying)
-        if (err.code !== 11000) console.error('[CreateBooking] BookingRequest insert error:', err);
+      if (wave1Vendors.length > 0) {
+        console.log(`[CreateBooking] Wave 1: Alerting ${wave1Vendors.length} closest vendors (of ${sortedVendors.length} total)`);
+
+        const bookingRequests = wave1Vendors.map(vendor => ({
+          bookingId: booking._id,
+          providerType: 'VENDOR',
+          vendorId: vendor._id,
+          status: 'PENDING',
+          wave: 1,
+          distance: vendor.distance || null,
+          sentAt: new Date(),
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000) // Expires in 1 hour
+        }));
+
+        try {
+          await BookingRequest.insertMany(bookingRequests, { ordered: false });
+        } catch (err) {
+          if (err.code !== 11000) console.error('[CreateBooking] BookingRequest insert error:', err);
+        }
+
+        if (io) {
+          wave1Vendors.forEach(vendor => {
+            io.to(`vendor_${vendor._id}`).emit('new_booking_request', {
+              bookingId: booking._id,
+              serviceName: service.title,
+              serviceCategory: category ? category.title : 'Category',
+              customerName: user.name,
+              customerPhone: user.phone,
+              scheduledDate: scheduledDate,
+              scheduledTime: scheduledTime,
+              price: finalAmount,
+              basePrice: basePrice,
+              address: address,
+              distance: vendor.distance,
+              brandName: service.brand || '',
+              brandIcon: service.brandIcon || '',
+              rental_type: service.pricingType || '',
+              estimatedDuration: booking.estimatedDuration || '',
+              landSize: address.landSize || '',
+              playSound: true,
+              message: `New booking request within ${vendor.distance?.toFixed(1) || '?'}km!`
+            });
+          });
+        }
+      } else {
+        console.warn(`[CreateBooking] NO VENDORS FOUND nearby! Push notifications will not be sent.`);
       }
     } else {
-      console.warn(`[CreateBooking] NO VENDORS FOUND nearby! Push notifications will not be sent.`);
+      // WORKER BLOCK
+      const sortedWorkers = nearbyWorkers.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+      const wave1Workers = sortedWorkers.slice(0, WAVE_1_COUNT);
+
+      booking.potentialWorkers = sortedWorkers.map(w => ({
+        workerId: w._id,
+        distance: w.distance || 0
+      }));
+      booking.currentWave = 1;
+      booking.waveStartedAt = new Date();
+      booking.notifiedWorkers = wave1Workers.map(w => w._id);
+      await booking.save();
+
+      if (wave1Workers.length > 0) {
+        console.log(`[CreateBooking] Wave 1: Alerting ${wave1Workers.length} closest workers (of ${sortedWorkers.length} total)`);
+
+        const bookingRequests = wave1Workers.map(worker => ({
+          bookingId: booking._id,
+          providerType: 'WORKER',
+          workerId: worker._id,
+          status: 'PENDING',
+          wave: 1,
+          distance: worker.distance || null,
+          sentAt: new Date(),
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000) // Expires in 1 hour
+        }));
+
+        try {
+          await BookingRequest.insertMany(bookingRequests, { ordered: false });
+        } catch (err) {
+          if (err.code !== 11000) console.error('[CreateBooking] BookingRequest insert error:', err);
+        }
+
+        if (io) {
+          wave1Workers.forEach(worker => {
+            io.to(`worker_${worker._id}`).emit('new_job_alert', {
+              bookingId: booking._id,
+              serviceName: service.title,
+              serviceCategory: category ? category.title : 'Category',
+              customerName: user.name,
+              customerPhone: user.phone,
+              scheduledDate: scheduledDate,
+              scheduledTime: scheduledTime,
+              price: finalAmount,
+              basePrice: basePrice,
+              address: address,
+              distance: worker.distance,
+              brandName: service.brand || '',
+              brandIcon: service.brandIcon || '',
+              rental_type: service.pricingType || '',
+              estimatedDuration: booking.estimatedDuration || '',
+              landSize: address.landSize || '',
+              playSound: true,
+              message: `New job request within ${worker.distance?.toFixed(1) || '?'}km!`
+            });
+          });
+        }
+      } else {
+        console.warn(`[CreateBooking] NO WORKERS FOUND nearby! Push notifications will not be sent.`);
+      }
     }
 
-    // Emit Socket.IO event to Wave 1 vendors IMMEDIATELY (before DB notifications)
-    // This ensures instant popup without waiting for notification DB save
-    const io = req.app.get('io');
-    if (io) {
-      console.log('Socket.IO instance found, emitting Wave 1 events...');
-      wave1Vendors.forEach(vendor => {
-        console.log(`[Wave 1] Emitting to vendor_${vendor._id} (dist: ${vendor.distance?.toFixed(1)}km)`);
-        io.to(`vendor_${vendor._id}`).emit('new_booking_request', {
-          bookingId: booking._id,
-          serviceName: service.title,
-          serviceCategory: category ? category.title : 'Category',
-          customerName: user.name,
-          customerPhone: user.phone,
-          scheduledDate: scheduledDate,
-          scheduledTime: scheduledTime,
-          price: finalAmount,
-          basePrice: basePrice,
-          address: address,
-          distance: vendor.distance,
-          brandName: service.brand || '',
-          brandIcon: service.brandIcon || '',
-          rental_type: service.pricingType || '',
-          estimatedDuration: booking.estimatedDuration || '',
-          landSize: address.landSize || '',
-          playSound: true,
-          message: `New booking request within ${vendor.distance?.toFixed(1) || '?'}km!`
-        });
-      });
-    } else {
-      console.error('CRITICAL: Socket.IO instance NOT found on req.app!');
-    }
+    // Handle database notifications below
 
     // Save notifications to DB in background (don't await — don't block response)
-    Promise.all(wave1Vendors.map(vendor =>
-      createNotification({
-        vendorId: vendor._id,
-        type: 'booking_request',
-        title: 'New Booking Request',
-        message: `New service request for ${service.title} from ${user.name}`,
-        relatedId: booking._id,
-        relatedType: 'booking',
-        data: {
-          bookingId: booking._id,
-          serviceName: service.title,
-          customerName: user.name,
-          customerPhone: user.phone,
-          scheduledDate: scheduledDate,
-          scheduledTime: scheduledTime,
-          location: address,
-          price: finalAmount,
-          distance: vendor.distance
-        },
-        pushData: {
-          type: 'new_booking',
-          dataOnly: false,
-          link: `/vendor/bookings/${booking._id}`
-        }
-      })
-    )).catch(err => console.error('[Notification] Background save error:', err));
+    if (providerType === 'VENDOR' && typeof wave1Vendors !== 'undefined') {
+      Promise.all(wave1Vendors.map(vendor =>
+        createNotification({
+          vendorId: vendor._id,
+          type: 'booking_request',
+          title: 'New Booking Request',
+          message: `New service request for ${service.title} from ${user.name}`,
+          relatedId: booking._id,
+          relatedType: 'booking',
+          data: {
+            bookingId: booking._id,
+            serviceName: service.title,
+            customerName: user.name,
+            customerPhone: user.phone,
+            scheduledDate: scheduledDate,
+            scheduledTime: scheduledTime,
+            location: address,
+            price: finalAmount,
+            distance: vendor.distance
+          },
+          pushData: {
+            type: 'new_booking',
+            dataOnly: false,
+            link: `/vendor/bookings/${booking._id}`
+          }
+        })
+      )).catch(err => console.error('[Notification] Background save error (vendor):', err));
+    } else if (providerType === 'WORKER' && typeof wave1Workers !== 'undefined') {
+      Promise.all(wave1Workers.map(worker =>
+        createNotification({
+          workerId: worker._id,
+          type: 'job_request',
+          title: 'New Job Request',
+          message: `New job request for ${service.title} from ${user.name}`,
+          relatedId: booking._id,
+          relatedType: 'booking',
+          data: {
+            bookingId: booking._id,
+            serviceName: service.title,
+            customerName: user.name,
+            customerPhone: user.phone,
+            scheduledDate: scheduledDate,
+            scheduledTime: scheduledTime,
+            location: address,
+            price: finalAmount,
+            distance: worker.distance
+          },
+          pushData: {
+            type: 'new_job',
+            dataOnly: false,
+            link: `/worker/jobs/${booking._id}`
+          }
+        })
+      )).catch(err => console.error('[Notification] Background save error (worker):', err));
+    }
 
     // Populate booking details
     const populatedBooking = await Booking.findById(booking._id)
@@ -718,10 +863,13 @@ const createBooking = async (req, res) => {
       // specific error shouldn't fail the booking response
     }
 
-    // Clear user's cart COMPLETELY after booking setup (if vendors were found)
-    // This addresses the user's request while allowing retries if no vendors found
+    // Clear user's cart COMPLETELY after booking setup (if providers were found)
+    const activeProviders = providerType === 'WORKER' 
+      ? (typeof wave1Workers !== 'undefined' ? wave1Workers : []) 
+      : (typeof wave1Vendors !== 'undefined' ? wave1Vendors : []);
+
     try {
-      if (wave1Vendors.length > 0) {
+      if (activeProviders.length > 0) {
         await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
       }
     } catch (e) {
@@ -730,8 +878,8 @@ const createBooking = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: wave1Vendors.length > 0 ? 'Booking created successfully' : 'No vendors found nearby',
-      noVendorsFound: wave1Vendors.length === 0,
+      message: activeProviders.length > 0 ? 'Booking created successfully' : (providerType === 'WORKER' ? 'No workers found nearby' : 'No vendors found nearby'),
+      noVendorsFound: activeProviders.length === 0,
       data: populatedBooking
     });
   } catch (error) {

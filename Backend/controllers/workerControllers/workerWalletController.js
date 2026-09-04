@@ -27,6 +27,7 @@ const getWallet = async (req, res) => {
       success: true,
       data: {
         balance: worker.wallet?.balance || 0,
+        vendorId: worker.vendorId || null,
         pendingBookings: pendingBookings
       }
     });

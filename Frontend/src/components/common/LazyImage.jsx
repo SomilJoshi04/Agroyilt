@@ -82,7 +82,7 @@ const LazyImage = ({
         style={{ backgroundColor: hasError ? '#f9fafb' : placeholder }}
       >
         <img
-          src="/grooAgri-logo.png"
+          src="/AgroyiltLogo.png"
           alt="Broken image"
           className="w-12 h-12 object-contain opacity-40 grayscale"
         />

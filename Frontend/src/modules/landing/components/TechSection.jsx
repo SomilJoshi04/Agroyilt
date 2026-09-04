@@ -24,7 +24,7 @@ const TechSection = () => {
                             Powered by <span className="text-green-700">Cutting-Edge</span> Technology
                         </h2>
                         <p className="text-lg text-gray-600 leading-relaxed mb-10">
-                            We've built Groo using the most reliable and performance-oriented technologies to ensure
+                            We've built AgroYilt using the most reliable and performance-oriented technologies to ensure
                             zero downtime and 100% security for all transactions.
                         </p>
                         <div className="grid grid-cols-2 gap-8">

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiMapPin, FiSave, FiSearch, FiHome } from 'react-icons/fi';
-import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
+import { FiArrowLeft, FiMapPin, FiSave, FiSearch, FiHome, FiX } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { vendorTheme as themeColors } from '../../../../theme';
 import vendorService from '../../../../services/vendorService';
@@ -9,22 +8,14 @@ import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import LocationPicker from '../../../user/pages/Checkout/components/LocationPicker';
 
-const libraries = ['places', 'geometry'];
-
 const AddressManagement = () => {
   const navigate = useNavigate();
   const [address, setAddress] = useState(''); // Display address
   const [houseNumber, setHouseNumber] = useState('');
   const [selectedLocation, setSelectedLocation] = useState(null); // { lat, lng, address, components... }
-  const [autocomplete, setAutocomplete] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries
-  });
+  const [isSearching, setIsSearching] = useState(false);
 
   // Load saved address from backend
   useEffect(() => {
@@ -78,31 +69,56 @@ const AddressManagement = () => {
 
   const handleLocationSelect = (location) => {
     setSelectedLocation(location);
-    // setAddress(location.address); 
-    // Usually user selects from map -> we update search query & address field
     setSearchQuery(location.address);
     setAddress(location.address);
   };
 
-  const onPlaceChanged = () => {
-    if (autocomplete !== null) {
-      const place = autocomplete.getPlace();
-      if (place.geometry) {
-        const location = {
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng(),
-          address: place.formatted_address,
-          components: place.address_components
-        };
-        setSelectedLocation(location);
-        setAddress(place.formatted_address);
-        setSearchQuery(place.formatted_address);
+  const handleSearchKeyDown = async (e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      e.preventDefault();
+      setIsSearching(true);
+      
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&countrycodes=in&addressdetails=1`);
+        const results = await response.json();
+        
+        if (results && results.length > 0) {
+          const place = results[0];
+          
+          // Map OSM address structure to our expected structure
+          const components = Object.keys(place.address || {}).map(key => ({
+            long_name: place.address[key],
+            short_name: place.address[key],
+            types: [key]
+          }));
+
+          const mappedComponents = components.map(c => {
+             if(c.types.includes('postcode')) c.types.push('postal_code');
+             if(c.types.includes('city') || c.types.includes('town') || c.types.includes('county')) c.types.push('locality');
+             if(c.types.includes('state')) c.types.push('administrative_area_level_1');
+             return c;
+          });
+
+          const location = {
+            lat: parseFloat(place.lat),
+            lng: parseFloat(place.lon),
+            address: place.display_name,
+            components: mappedComponents,
+          };
+          
+          setSelectedLocation(location);
+          setAddress(place.display_name);
+          setSearchQuery(place.display_name);
+        } else {
+          toast.error('Address not found. Please try a different search.');
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+        toast.error('Error searching for address.');
+      } finally {
+        setIsSearching(false);
       }
     }
-  };
-
-  const onAutocompleteLoad = (autocompleteInstance) => {
-    setAutocomplete(autocompleteInstance);
   };
 
   const handleSave = async () => {
@@ -113,13 +129,11 @@ const AddressManagement = () => {
 
     setLoading(true);
 
-    // Prepare full address object similar to `AddressSelectionModal`
     let city = '';
     let state = '';
     let pincode = '';
     let addressLine2 = '';
 
-    // If we have components from Google API (either via map click or autocomplete)
     if (selectedLocation.components) {
       selectedLocation.components.forEach(comp => {
         if (comp.types.includes('locality')) city = comp.long_name;
@@ -129,8 +143,6 @@ const AddressManagement = () => {
       });
     }
 
-    // We can also re-use existing logic from updateProfile controller which expects an object
-    // consistent with what EditProfile sends.
     const addrData = {
       fullAddress: selectedLocation.address || address,
       addressLine1: houseNumber,
@@ -150,8 +162,7 @@ const AddressManagement = () => {
       if (response.success) {
         toast.success('Address saved successfully!');
         setTimeout(() => {
-          //   navigate('/vendor/profile'); // Stay here or go back settings? User preference.
-          //   Let's just show success. Or maybe go back.
+           navigate(-1);
         }, 500);
       } else {
         toast.error(response.message || 'Failed to save address');
@@ -169,7 +180,7 @@ const AddressManagement = () => {
       <Header
         title="Manage Business Address"
         showBack={true}
-        onBack={() => navigate('/vendor/settings')}
+        onBack={() => navigate(-1)}
       />
 
       <main className="px-4 py-6">
@@ -187,7 +198,7 @@ const AddressManagement = () => {
         </div>
 
         {/* Map Section */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6 border border-gray-100 relative">
           <LocationPicker
             onLocationSelect={handleLocationSelect}
             initialPosition={selectedLocation}
@@ -197,44 +208,38 @@ const AddressManagement = () => {
         {/* Form Inputs Container */}
         <div className="bg-white rounded-xl p-4 shadow-md space-y-4">
 
-          {/* Address Autocomplete */}
+          {/* Address Search */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Street Address / Area
             </label>
-            {isLoaded ? (
-              <Autocomplete
-                onLoad={onAutocompleteLoad}
-                onPlaceChanged={onPlaceChanged}
-                options={{
-                  componentRestrictions: { country: 'in' },
-                  fields: ['formatted_address', 'geometry', 'name', 'address_components']
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
+              <input
+                type="text"
+                placeholder={isSearching ? "Searching..." : "Search and press Enter..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                disabled={isSearching}
+                className="w-full pl-10 pr-10 py-3 border-2 rounded-lg text-sm focus:outline-none transition-colors"
+                style={{ 
+                  borderColor: '#e5e7eb',
+                  opacity: isSearching ? 0.7 : 1 
                 }}
-              >
-                <div className="relative">
-                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
-                  <input
-                    type="text"
-                    placeholder="Search for area, street name..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border-2 rounded-lg text-sm focus:outline-none transition-colors"
-                    style={{ borderColor: '#e5e7eb' }}
-                    onFocus={(e) => e.target.style.borderColor = themeColors.button}
-                    onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-                  />
-                </div>
-              </Autocomplete>
-            ) : (
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Loading Maps..."
-                  disabled
-                  className="w-full pl-4 py-3 border-2 rounded-lg text-sm bg-gray-100"
-                />
-              </div>
-            )}
+                onFocus={(e) => e.target.style.borderColor = themeColors.button}
+                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+              />
+              {searchQuery && !isSearching && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-5 h-5" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* House Number */}

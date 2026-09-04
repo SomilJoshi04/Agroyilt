@@ -1,4 +1,4 @@
-# Logs
+# Logs & Build Outputs
 logs
 *.log
 npm-debug.log*
@@ -6,15 +6,32 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+build_*.txt
+build_*.log
+dev.log
 
+# Environment & Dependencies
 .env
-
+.env.*
+!.env.example
 node_modules
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Scratch, Utility & Python Scripts
+make_transparent.py
+replace_*.cjs
+scratch/
+tmp/
+temp/
+*.tmp
+test*.js
+test_*.js
+check*.js
+check_*.js
+
+# Editor & OS
 .vscode/*
 !.vscode/extensions.json
 .idea

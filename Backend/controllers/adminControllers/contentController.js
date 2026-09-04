@@ -56,7 +56,7 @@ exports.getAbout = async (req, res) => {
     try {
         let about = await About.findOne();
         if (!about) {
-            about = await About.create({ title: 'About Us', content: '<p>Welcome to GrooAgri.</p>' });
+            about = await About.create({ title: 'About Us', content: '<p>Welcome to Agroyilt.</p>' });
         }
         res.status(200).json({ success: true, data: about });
     } catch (error) {

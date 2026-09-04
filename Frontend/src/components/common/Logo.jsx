@@ -1,19 +1,29 @@
 import React, { forwardRef } from 'react';
+import { useBrand } from '../../context/BrandContext';
 
 /**
  * Centralized Logo Component
+ * Dynamic App Logo & Name from BrandContext
  * Usage: <Logo className="h-8 w-auto" />
- * Supports ref for animations
  */
 const Logo = forwardRef(({ className = "h-8 w-auto", ...props }, ref) => {
+  const { appLogo, appName } = useBrand();
+
   return (
-    <img
+    <div
       ref={ref}
-      src="/logo.png"
-      alt="GrooAgri"
-      className={`${className} object-contain`}
+      className={`${className} aspect-square rounded-full overflow-hidden flex items-center justify-center`}
       {...props}
-    />
+    >
+      <img
+        src={appLogo || "/AgroyiltLogo.png"}
+        alt={appName || "AgroYilt"}
+        className="w-[115%] h-[115%] max-w-none object-cover"
+        onError={(e) => {
+          e.target.src = "/AgroyiltLogo.png";
+        }}
+      />
+    </div>
   );
 });
 

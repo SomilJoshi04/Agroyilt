@@ -24,9 +24,9 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-white">
       <Helmet>
-        <title>GrooAgri | Professional Agriculture Equipment & Farm Solutions</title>
+        <title>Agroyilt | Professional Agriculture Equipment & Farm Solutions</title>
         <meta name="description" content="Empowering Indian farmers with easy access to high-quality agriculture machinery. Rent tractors, harvesters, and tools from verified local vendors." />
-        <link rel="canonical" href="https://grooagri.com/" />
+        <link rel="canonical" href="https://agroyilt.com/" />
       </Helmet>
       <Navbar />
       <Hero />

@@ -562,7 +562,7 @@ const Checkout = () => {
       }
 
       // Create booking request
-      toast.loading('Searching for nearby vendors...');
+      toast.loading(isWorkerBooking ? 'Searching for nearby workers...' : 'Searching for nearby vendors...');
 
       // Ensure serviceId is a string (handle populated cart data)
       const serviceId = typeof firstItem.serviceId === 'object'
@@ -643,7 +643,7 @@ const Checkout = () => {
 
       if (!bookingResponse.success) {
         toast.dismiss();
-        toast.error(bookingResponse.message || 'Failed to search for vendors');
+        toast.error(bookingResponse.message || (isWorkerBooking ? 'Failed to search for workers' : 'Failed to search for vendors'));
         setCurrentStep('details');
         setSearchingVendors(false);
         setShowVendorModal(false);
@@ -690,7 +690,7 @@ const Checkout = () => {
       } else {
         // Move to waiting state - alerts sent to nearby vendors
         setCurrentStep('waiting');
-        toast.success('Finding nearby vendors... Alerts sent to vendors within 10km!');
+        toast.success(isWorkerBooking ? 'Finding nearby workers... Alerts sent to workers within 10km!' : 'Finding nearby vendors... Alerts sent to vendors within 10km!');
       }
 
       // REMOVED local setCartItems([]) - The summary should remain visible while searching
@@ -699,7 +699,7 @@ const Checkout = () => {
     } catch (error) {
       toast.dismiss();
       console.error('Search vendors error:', error);
-      toast.error('Failed to search for vendors. Please try again.');
+      toast.error(isWorkerBooking ? 'Failed to search for workers. Please try again.' : 'Failed to search for vendors. Please try again.');
       setCurrentStep('details');
       setSearchingVendors(false);
       setShowVendorModal(false);
@@ -1127,6 +1127,12 @@ const Checkout = () => {
 
   // savings > 0 only when plan gives a real discount (free/discounted items)
   const savings = Math.max(0, totalOriginalPrice - itemTotal);
+  const isWorkerBooking = cartItems.some(item =>
+    item.isWorkerProfile ||
+    /labour|labor|worker|shramik|majdoor/i.test(item.categoryTitle || item.category || '') ||
+    /labour|labor|worker|shramik|majdoor/i.test(category || '')
+  );
+
   const hasAgriItems = cartItems.some(item => {
     const svc = item.serviceId && typeof item.serviceId === 'object' ? item.serviceId : item;
     return !!(svc.hourly_price || svc.land_price || svc.daily_price ||
@@ -1835,12 +1841,12 @@ const Checkout = () => {
             className="w-full text-white py-3 rounded-lg text-base font-semibold transition-colors disabled:opacity-50 shadow-lg shadow-teal-500/30"
             style={{ backgroundColor: themeColors.button }}
           >
-            {searchingVendors ? 'Searching for vendors...' :
+            {searchingVendors ? (isWorkerBooking ? 'Searching for workers...' : 'Searching for vendors...') :
               currentStep === 'payment' ? (totalAmount === 0 ? 'Confirm Booking (Free)' : (paymentMethod === 'online' ? 'Proceed to Pay' : 'Confirm Booking')) :
                 plan ? 'Proceed to Payment' :
-                  bookingType === 'instant' ? 'Find nearby vendors now' :
+                  bookingType === 'instant' ? (isWorkerBooking ? 'Find nearby workers now' : 'Find nearby vendors now') :
                     (selectedDate && (selectedTime || rentalType === 'monthly' || rentalType === 'daily')) ? 
-                      'Find nearby vendors' :
+                      (isWorkerBooking ? 'Find nearby workers' : 'Find nearby vendors') :
                       (houseNumber || addressDetails) ? (rentalType === 'monthly' ? 'Select Start Date' : 'Select Time Slot') : 'Add address to proceed'}
           </button>
         </div>
@@ -1865,6 +1871,7 @@ const Checkout = () => {
         onRetry={() => {
           handleSearchVendors();
         }}
+        isWorker={isWorkerBooking}
       />
 
       {/* Contact Details Edit Modal */}

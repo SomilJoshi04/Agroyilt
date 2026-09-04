@@ -17,7 +17,7 @@ const getPublicCategories = async (req, res) => {
     const { cityId, type } = req.query;
     const mongoose = require('mongoose');
 
-    // Build query - Keep it simple to ensure all active categories load
+    // Build query - Match cityObjectId OR categories with no city restrictions
     const query = { status: 'active' };
     if (cityId) {
       let cityObjectId;
@@ -27,16 +27,28 @@ const getPublicCategories = async (req, res) => {
         cityObjectId = cityId; // fallback if invalid ObjectId format
       }
       
-      query.cityIds = cityObjectId;
+      query.$or = [
+        { cityIds: cityObjectId },
+        { cityIds: { $exists: false } },
+        { cityIds: { $size: 0 } },
+        { cityIds: null }
+      ];
     }
 
     let categories = await Category.find(query)
-      .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver sectionType')
+      .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver sectionType bookingType')
       .populate('parentCategories', 'title slug')
       .sort({ homeOrder: 1, createdAt: -1 })
       .lean();
 
-    // Fallback removed as per user request to only show explicitly mapped categories.
+    // Fallback: If city-filtered query returned 0 categories, fallback to all active categories
+    if (categories.length === 0 && cityId) {
+      categories = await Category.find({ status: 'active' })
+        .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver sectionType bookingType')
+        .populate('parentCategories', 'title slug')
+        .sort({ homeOrder: 1, createdAt: -1 })
+        .lean();
+    }
 
     const initialCategories = categories.map(cat => ({
       id: cat._id?.toString() || '',
@@ -59,6 +71,7 @@ const getPublicCategories = async (req, res) => {
       trackingType: cat.trackingType || 'none',
       requiresDriver: cat.requiresDriver || false,
       sectionType: cat.sectionType || 'General',
+      bookingType: cat.bookingType || (/labour|labor|worker|manpower|service|shramik|majdoor/i.test(cat.title || '') ? 'WORKER' : 'VENDOR')
     }));
 
     // Fetch brands for these categories
@@ -74,12 +87,24 @@ const getPublicCategories = async (req, res) => {
 
     const brands = await Brand.find(brandQuery).select('title categoryIds').lean();
 
-    // Map brands to categories
+    // Fetch services (equipments) for these categories
+    const serviceQuery = {
+      categoryId: { $in: categoryIds },
+      status: 'active'
+    };
+    const services = await Service.find(serviceQuery).select('title categoryId').lean();
+
+    // Map brands and services to categories
     const categoriesWithBrands = initialCategories.map(cat => {
       const catBrands = brands.filter(b => 
         b.categoryIds && Array.isArray(b.categoryIds) && b.categoryIds.some(id => id.toString() === cat.id)
       ).map(b => b.title);
-      return { ...cat, subBrands: catBrands };
+      
+      const catServices = services.filter(s => 
+        s.categoryId && s.categoryId.toString() === cat.id
+      ).map(s => s.title);
+      
+      return { ...cat, subBrands: catBrands, subServices: catServices };
     });
 
     res.status(200).json({
@@ -284,9 +309,10 @@ const getPublicBrandBySlug = async (req, res) => {
  */
 const getPublicServices = async (req, res) => {
   try {
-    const { brandId, brandSlug, categoryId, parentSourceId, pricing_context, search } = req.query;
+    const { brandId, brandSlug, categoryId, category, parentSourceId, pricing_context, search } = req.query;
+    const catId = categoryId || category;
 
-    const query = { status: 'active' };
+    const query = { status: { $ne: 'deleted' } };
 
     if (search) {
       const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -307,8 +333,18 @@ const getPublicServices = async (req, res) => {
       }
     }
 
-    if (categoryId) {
-      query.categoryId = categoryId;
+    if (catId) {
+      const mongoose = require('mongoose');
+      let catIdObj;
+      try {
+        catIdObj = new mongoose.Types.ObjectId(catId);
+      } catch (e) {
+        catIdObj = catId;
+      }
+      query.$or = [
+        { categoryId: catId },
+        { categoryId: catIdObj }
+      ];
     }
 
     if (parentSourceId) {
@@ -320,7 +356,7 @@ const getPublicServices = async (req, res) => {
       query.pricing_context = { $in: [pricing_context, 'any'] };
     }
 
-    const services = await Service.find(query).sort({ createdAt: 1 }).lean();
+    const services = await Service.find(query).sort({ createdAt: -1 }).lean();
 
     res.status(200).json({
       success: true,
@@ -359,19 +395,22 @@ const getPublicHomeContent = async (req, res) => {
     const { cityId } = req.query;
     let homeContent = await HomeContent.getHomeContent(cityId);
 
-    // FALLBACK LOGIC: Check if the city-specific content is essentially empty
-    if (cityId && homeContent) {
-      const isEmpty = (!homeContent.banners || homeContent.banners.length === 0) &&
-                      (!homeContent.promos || homeContent.promos.length === 0) &&
-                      (!homeContent.curated || homeContent.curated.length === 0) &&
-                      (!homeContent.noteworthy || homeContent.noteworthy.length === 0) &&
-                      (!homeContent.booked || homeContent.booked.length === 0) &&
-                      (!homeContent.categorySections || homeContent.categorySections.length === 0) &&
-                      (!homeContent.premiumOfferings || homeContent.premiumOfferings.length === 0);
-      
-      // If empty, fallback to the default content (where cityId is null)
-      if (isEmpty) {
-        homeContent = await HomeContent.getHomeContent(null);
+    // FALLBACK LOGIC: Check if the city-specific content is essentially empty or missing
+    const isDocEmpty = (doc) => {
+      if (!doc) return true;
+      return (!doc.banners || doc.banners.length === 0) &&
+             (!doc.promos || doc.promos.length === 0) &&
+             (!doc.curated || doc.curated.length === 0) &&
+             (!doc.noteworthy || doc.noteworthy.length === 0) &&
+             (!doc.booked || doc.booked.length === 0) &&
+             (!doc.categorySections || doc.categorySections.length === 0) &&
+             (!doc.premiumOfferings || doc.premiumOfferings.length === 0);
+    };
+
+    if (cityId && isDocEmpty(homeContent)) {
+      const defaultContent = await HomeContent.findOne({ cityId: null });
+      if (defaultContent && !isDocEmpty(defaultContent)) {
+        homeContent = defaultContent;
       }
     }
 
@@ -466,10 +505,71 @@ const getPublicHomeContent = async (req, res) => {
   }
 };
 
+/**
+ * Get active independent workers for catalog/category
+ * GET /api/public/workers
+ */
+const getPublicWorkers = async (req, res) => {
+  try {
+    const { categoryId, category } = req.query;
+    const Worker = require('../../models/Worker');
+    const Category = require('../../models/Category');
+
+    const catId = categoryId || category;
+    let query = { isActive: true };
+
+    if (catId) {
+      let catDoc = await Category.findById(catId).catch(() => null);
+      if (!catDoc) {
+        catDoc = await Category.findOne({ title: catId }).catch(() => null);
+      }
+      const categoryTitle = catDoc ? catDoc.title : catId;
+
+      query.$or = [
+        { serviceCategories: categoryTitle },
+        { serviceCategories: { $regex: new RegExp(categoryTitle, 'i') } }
+      ];
+    }
+
+    const workers = await Worker.find(query)
+      .select('name phone profilePhoto rating totalJobs completedJobs address status hourlyRate dailyRate landRate customRates serviceCategories skills')
+      .sort({ rating: -1, completedJobs: -1 })
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      workers: workers.map(w => ({
+        id: w._id.toString(),
+        _id: w._id.toString(),
+        name: w.name,
+        profilePhoto: w.profilePhoto || '',
+        rating: w.rating || 4.8,
+        totalJobs: w.totalJobs || 0,
+        completedJobs: w.completedJobs || 0,
+        address: w.address || {},
+        status: w.status || 'OFFLINE',
+        hourlyRate: w.hourlyRate || 0,
+        dailyRate: w.dailyRate || 0,
+        landRate: w.landRate || 0,
+        customRates: w.customRates || [],
+        serviceCategories: w.serviceCategories || [],
+        skills: w.skills || []
+      }))
+    });
+  } catch (error) {
+    console.error('Get public workers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch workers'
+    });
+  }
+};
+
 module.exports = {
   getPublicCategories,
   getPublicBrands,
   getPublicBrandBySlug,
   getPublicServices,
-  getPublicHomeContent
+  getPublicHomeContent,
+  getPublicWorkers
 };

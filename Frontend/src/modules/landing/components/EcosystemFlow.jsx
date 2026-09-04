@@ -22,7 +22,7 @@ const JOURNEY_STEPS = [
   },
   {
     id: 2,
-    actor: 'GROO Platform',
+    actor: 'AgroYilt Platform',
     icon: <FiZap size={22} />,
     action: 'Verifies & Matches',
     detail: 'AI matches request to nearest available, verified equipment owner.',
@@ -42,7 +42,7 @@ const JOURNEY_STEPS = [
   },
   {
     id: 4,
-    actor: 'GROO GPS',
+    actor: 'AgroYilt GPS',
     icon: <HiOutlineLocationMarker size={22} />,
     action: 'Tracks in Real-Time',
     detail: 'Live GPS tracking for both farmer & owner. Transparent proof of work.',
@@ -55,7 +55,7 @@ const JOURNEY_STEPS = [
     actor: 'Admin',
     icon: <HiOutlineShieldCheck size={22} />,
     action: 'Approves Completion',
-    detail: 'Image & speedometer proof verified by Groo before releasing payment.',
+    detail: 'Image & speedometer proof verified by AgroYilt before releasing payment.',
     color: '#06b6d4',
     bg: 'from-cyan-500 to-cyan-700',
     side: 'left',
@@ -81,7 +81,7 @@ const ECOSYSTEM_ROLES = [
     points: ['Books via App', 'GPS Tracked Work', 'Pay Per Use', 'Crop Advisory'],
   },
   {
-    role: 'GROO Platform',
+    role: 'AgroYilt Platform',
     icon: <FiZap size={26} />,
     color: '#f59e0b',
     bg: 'from-yellow-400 to-orange-500',

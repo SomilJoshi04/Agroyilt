@@ -57,6 +57,7 @@ const HowToUse = lazyLoad(() => import('../pages/HowToUse'));
 const UpdateProfile = lazyLoad(() => import('../pages/UpdateProfile'));
 const Login = lazyLoad(() => import('../pages/login'));
 const Signup = lazyLoad(() => import('../pages/signup'));
+const MpinSetup = lazyLoad(() => import('../pages/MpinSetup'));
 const Privacy = lazyLoad(() => import('../pages/Privacy'));
 
 const Notifications = lazyLoad(() => import('../pages/Notifications'));
@@ -132,6 +133,7 @@ const UserRoutes = () => {
               <Route path="/booking/:id/track" element={<ProtectedRoute userType="user"><BookingTrack /></ProtectedRoute>} />
               <Route path="/booking-confirmation/:id" element={<ProtectedRoute userType="user"><BookingConfirmation /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute userType="user"><Settings /></ProtectedRoute>} />
+              <Route path="/settings/mpin-setup" element={<ProtectedRoute userType="user"><MpinSetup /></ProtectedRoute>} />
               <Route path="/manage-payment-methods" element={<ProtectedRoute userType="user"><ManagePaymentMethods /></ProtectedRoute>} />
               <Route path="/manage-addresses" element={<ProtectedRoute userType="user"><ManageAddresses /></ProtectedRoute>} />
               <Route path="/wallet" element={<ProtectedRoute userType="user"><Wallet /></ProtectedRoute>} />

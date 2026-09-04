@@ -12,8 +12,8 @@ const AboutPage = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Helmet>
-        <title>About Us | GrooAgri</title>
-        <meta name="description" content="Learn more about GrooAgri, empowering Indian farmers." />
+        <title>About Us | Agroyilt</title>
+        <meta name="description" content="Learn more about Agroyilt, empowering Indian farmers." />
       </Helmet>
       <Navbar />
       <div className="flex-grow pt-20">

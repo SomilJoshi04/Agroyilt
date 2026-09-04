@@ -284,7 +284,7 @@ const WorkerSignup = () => {
       const response = await workerAuthService.register(registerData);
       if (response.success) {
         setIsLoading(false);
-        toast.success('Successfully Registered! Welcome to GrooAgri.');
+        toast.success('Successfully Registered! Welcome to Agroyilt.');
         navigate('/worker');
       } else {
         setIsLoading(false);

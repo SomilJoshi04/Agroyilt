@@ -291,6 +291,7 @@ const Home = () => {
         if (categoriesRes.success) {
           const mappedCategories = categoriesRes.categories.map(cat => ({
             id: cat.id,
+            _id: cat.id,
             title: cat.title,
             slug: cat.slug,
             icon: toAssetUrl(cat.icon),
@@ -298,7 +299,8 @@ const Home = () => {
             badge: cat.badge,
             requiresDriver: cat.requiresDriver,
             sectionType: cat.sectionType || 'General',
-            showOnHome: cat.showOnHome ?? true
+            showOnHome: cat.showOnHome ?? true,
+            bookingType: cat.bookingType || (/labour|labor|worker|manpower|service|shramik|majdoor/i.test(cat.title || '') ? 'WORKER' : 'VENDOR')
           }));
           setCategories(mappedCategories);
           if (mappedCategories.length > 0) hasData = true;
@@ -394,15 +396,8 @@ const Home = () => {
   };
 
   const handleAddClick = async (service) => {
+    console.log('[DEBUG] handleAddClick payload:', service);
     try {
-      if (service.targetCategoryId) {
-        const cat = categories.find(c => c.id === service.targetCategoryId);
-        if (cat) {
-          handleCategoryClick(cat);
-          return;
-        }
-      }
-
       if (service.serviceId && service.categoryId) {
         const cartItemData = {
           serviceId: service.serviceId,
@@ -411,14 +406,14 @@ const Home = () => {
           description: service.subtitle || service.description || '',
           icon: service.image || '',
           category: service.category || 'Equipment',
-          price: parseInt(service.price?.toString().replace(/,/g, '') || 0),
-          originalPrice: service.originalPrice ? parseInt(service.originalPrice.toString().replace(/,/g, '')) : null,
-          unitPrice: parseInt(service.price?.toString().replace(/,/g, '') || 0),
+          price: parseInt(service.price?.toString().replace(/[^0-9]/g, '')) || 0,
+          originalPrice: service.originalPrice ? (parseInt(service.originalPrice.toString().replace(/[^0-9]/g, '')) || null) : null,
+          unitPrice: parseInt(service.price?.toString().replace(/[^0-9]/g, '')) || 0,
           serviceCount: 1,
           rating: service.rating || "4.8",
           reviews: service.reviews || "10k+",
           vendorId: service.vendorId || null,
-          sectionId: service.sectionId || null // VITAL: Added for plan benefits
+          sectionId: service.sectionId || null
         };
 
         const response = await addToCart(cartItemData);
@@ -428,17 +423,15 @@ const Home = () => {
         } else {
           toast.error(response.message || 'Failed to add to cart');
         }
-      } else {
-        if (service.targetCategoryId) {
-          const cat = categories.find(c => (c.id === service.targetCategoryId || c._id === service.targetCategoryId));
-          if (cat) {
-            handleCategoryClick(cat);
-          } else {
-            toast.error('Unable to add this item to cart.');
-          }
+      } else if (service.targetCategoryId) {
+        const cat = categories.find(c => (c.id === service.targetCategoryId || c._id === service.targetCategoryId));
+        if (cat) {
+          handleCategoryClick(cat);
         } else {
           toast.error('Unable to add this item to cart.');
         }
+      } else {
+        toast.error('Unable to add this item to cart.');
       }
     } catch (error) {
       toast.error('Failed to add to cart. Please try again.');
@@ -649,33 +642,24 @@ const Home = () => {
               )}
 
 
-              {/* Categories Sections - Only show categories whose sectionType is NOT a tab (premiumOfferings tab titles) */}
+              {/* Categories Sections */}
               {homeContent?.isCategoriesVisible !== false && categories.length > 0 && (() => {
-                // Collect all tab titles from premiumOfferings to exclude those sectionTypes
-                const tabSectionTypes = new Set(
-                  (homeContent?.premiumOfferings || []).map(item => (item.title || '').trim().toLowerCase())
-                );
+                const activeCategories = categories.filter(c => c.showOnHome !== false);
 
-                // Only show categories that are NOT tab-based (i.e. sectionType not in tabSectionTypes)
-                const nonTabCategories = categories.filter(c =>
-                  c.showOnHome !== false &&
-                  !tabSectionTypes.has((c.sectionType || 'General').trim().toLowerCase())
-                );
+                if (activeCategories.length === 0) return null;
 
-                if (nonTabCategories.length === 0) return null;
-
-                const sectionTypes = [...new Set(nonTabCategories.map(c => (c.sectionType || 'General').trim()))];
+                const sectionTypes = [...new Set(activeCategories.map(c => (c.sectionType || 'General').trim()))];
                 return (
                   <>
                     {sectionTypes.map(sectionType => {
-                      const sectionCategories = nonTabCategories.filter(c => (c.sectionType || 'General').trim() === sectionType);
+                      const sectionCategories = activeCategories.filter(c => (c.sectionType || 'General').trim() === sectionType);
                       if (sectionCategories.length === 0) return null;
                       return (
                         <motion.section key={sectionType} variants={itemVariants} className="relative overflow-hidden pt-2 mb-4">
                           <div className="absolute inset-0 bg-gradient-to-b from-gray-50/30 to-transparent pointer-events-none -z-10" />
                           <ServiceCategories
-                            title={sectionType === 'General' ? 'General Services' : sectionType}
-                            subtitle={sectionType === 'General' ? 'ALL OTHER SERVICES' : `EXPLORE ${sectionType.toUpperCase()}`}
+                            title={sectionType === 'General' ? 'All Services' : sectionType}
+                            subtitle={sectionType === 'General' ? 'EXPLORE CATEGORIES' : `EXPLORE ${sectionType.toUpperCase()}`}
                             categories={sectionCategories}
                             onCategoryClick={handleCategoryClick}
                             onSeeAllClick={() => { }}
@@ -738,7 +722,9 @@ const Home = () => {
                         discount: item.discount,
                         image: toAssetUrl(item.imageUrl),
                         targetCategoryId: item.targetCategoryId,
-                        slug: item.slug
+                        slug: item.slug,
+                        serviceId: item.targetServiceId,
+                        categoryId: item.targetCategoryId
                       }))}
                       onServiceClick={handleServiceClick}
                       onAddClick={handleAddClick}
@@ -777,7 +763,9 @@ const Home = () => {
                           discount: card.discount,
                           image: processedImage,
                           targetCategoryId: card.targetCategoryId,
-                          slug: card.slug
+                          slug: card.slug,
+                          serviceId: card.targetServiceId,
+                          categoryId: card.targetCategoryId
                         };
                       }) || []}
                       onSeeAllClick={() => {

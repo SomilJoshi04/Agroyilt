@@ -149,7 +149,7 @@ const Signup = () => {
           toast.success(
             <div className="flex flex-col">
               <span className="font-bold">Successfully Registered!</span>
-              <span className="text-xs">Welcome to GrooAgri.</span>
+              <span className="text-xs">Welcome to Agroyilt.</span>
             </div>,
             { icon: <FiCheckCircle className="text-green-500" /> }
           );
@@ -254,7 +254,7 @@ const Signup = () => {
         toast.success(
           <div className="flex flex-col">
             <span className="font-bold">Successfully Registered!</span>
-            <span className="text-xs">Welcome to GrooAgri.</span>
+            <span className="text-xs">Welcome to Agroyilt.</span>
           </div>,
           { icon: <FiCheckCircle className="text-green-500" /> }
         );

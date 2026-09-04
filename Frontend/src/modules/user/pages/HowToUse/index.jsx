@@ -123,7 +123,7 @@ const HowToUse = () => {
           </div>
 
           <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
-            How to use <span style={grooTextGradient}>GrooAgri</span>
+            How to use <span style={grooTextGradient}>Agroyilt</span>
           </h1>
           <p className="text-gray-500 max-w-xs mx-auto leading-relaxed">
             Follow these simple steps to make the most of our application.

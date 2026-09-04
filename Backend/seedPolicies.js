@@ -17,22 +17,22 @@ const seedPolicies = async () => {
                 role: 'user',
                 type: 'terms',
                 content: `1. Introduction
-Welcome to GrooAgri. These Terms and Conditions govern your use of our platform as a User (Farmer). By registering, you agree to these terms.
+Welcome to Agroyilt. These Terms and Conditions govern your use of our platform as a User (Farmer). By registering, you agree to these terms.
 
 2. Account Registration
 You must provide accurate information during registration. You are responsible for maintaining the confidentiality of your account credentials.
 
 3. Platform Usage
-GrooAgri connects you with equipment owners for agricultural machinery rentals. You agree to use the platform only for lawful purposes.
+Agroyilt connects you with equipment owners for agricultural machinery rentals. You agree to use the platform only for lawful purposes.
 
 4. Payments and Bookings
 All payments must be processed through the platform. Direct dealings with vendors to bypass platform fees are strictly prohibited.
 
 5. Cancellations and Refunds
-Cancellations are subject to the GrooAgri cancellation policy. Refunds will be processed within 5-7 business days.
+Cancellations are subject to the Agroyilt cancellation policy. Refunds will be processed within 5-7 business days.
 
 6. Liability
-GrooAgri is not liable for any damages to crops or property caused by rented machinery. We act solely as an intermediary.
+Agroyilt is not liable for any damages to crops or property caused by rented machinery. We act solely as an intermediary.
 
 7. Modifications
 We reserve the right to modify these terms at any time. Continued use implies acceptance.`
@@ -59,7 +59,7 @@ You have the right to access, modify, or delete your personal data. Contact our 
                 role: 'vendor',
                 type: 'terms',
                 content: `1. Vendor Agreement
-By registering as a Vendor (Equipment Owner), you agree to abide by GrooAgri's terms and provide quality service to farmers.
+By registering as a Vendor (Equipment Owner), you agree to abide by Agroyilt's terms and provide quality service to farmers.
 
 2. Equipment Listing
 All listed machinery must be in good working condition. You are responsible for regular maintenance.
@@ -68,13 +68,13 @@ All listed machinery must be in good working condition. You are responsible for 
 You must provide valid Aadhar, PAN, and any required licenses (e.g., Shop/Lab certificates). False information will lead to account suspension.
 
 4. Payments and Payouts
-GrooAgri will deduct applicable platform fees and taxes (including TDS) before remitting payments to your registered bank account. Payouts are processed as per the settlement schedule.
+Agroyilt will deduct applicable platform fees and taxes (including TDS) before remitting payments to your registered bank account. Payouts are processed as per the settlement schedule.
 
 5. Conduct
-You agree to communicate professionally with farmers. Any disputes should be reported to GrooAgri support.
+You agree to communicate professionally with farmers. Any disputes should be reported to Agroyilt support.
 
 6. Account Termination
-GrooAgri reserves the right to terminate your account for policy violations, repeated poor ratings, or fraudulent activities.`
+Agroyilt reserves the right to terminate your account for policy violations, repeated poor ratings, or fraudulent activities.`
             },
             {
                 role: 'vendor',
@@ -83,7 +83,7 @@ GrooAgri reserves the right to terminate your account for policy violations, rep
 We collect business details, identity documents (Aadhar, PAN), bank account information, and location data.
 
 2. How We Use Your Information
-Your information is used for identity verification, processing payouts, and displaying your services to potential customers on the GrooAgri platform.
+Your information is used for identity verification, processing payouts, and displaying your services to potential customers on the Agroyilt platform.
 
 3. Data Disclosure
 We may share your information with legal authorities if required by law or for tax compliance purposes.

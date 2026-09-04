@@ -1,6 +1,6 @@
 # Flutter Bridge Implementation Guide
 
-To enable native features (Camera, Downloads, Sharing) within the GrooAgri Web App (WebView), the Flutter developer must implement the following `JavaScriptHandlers` using the `flutter_inappwebview` package.
+To enable native features (Camera, Downloads, Sharing) within the Agroyilt Web App (WebView), the Flutter developer must implement the following `JavaScriptHandlers` using the `flutter_inappwebview` package.
 
 ## 1. Camera Handler (`openCamera`)
 Used when users need to take a photo for work completion or profile updates.

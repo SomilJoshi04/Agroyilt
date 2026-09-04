@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin } from 'react-icons/fa';
 import { HiX } from 'react-icons/hi';
 import { motion, AnimatePresence } from 'framer-motion';
+import Logo from '../../../components/common/Logo';
 
 const Footer = () => {
     const [showTerms, setShowTerms] = useState(false);
@@ -13,7 +14,7 @@ const Footer = () => {
                     {/* Brand Section */}
                     <div className="space-y-6">
                         <div className="mb-4">
-                            <img src="/logo.png" alt="Groo Logo" className="h-16 w-auto brightness-0 invert" />
+                            <Logo className="h-12 w-auto brightness-0 invert" />
                         </div>
                         <p className="text-yellow-500 font-black tracking-widest text-[10px] uppercase mt-2 mb-4">
                             By Chinmay Anand
@@ -24,20 +25,20 @@ const Footer = () => {
                         </p>
                         <div className="flex space-x-5">
                             <a href="https://www.facebook.com/share/1YgEfFD8jW/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><FaFacebook size={24} /></a>
-                            <a href="https://www.instagram.com/grooagri?igsh=MWticXBlbHR4YnVjMQ==" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><FaInstagram size={24} /></a>
+                            <a href="https://www.instagram.com/agroyilt?igsh=MWticXBlbHR4YnVjMQ==" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><FaInstagram size={24} /></a>
                             <a href="https://www.linkedin.com/in/global-rural-outreach-organisation-llp-groo-4923873b8/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><FaLinkedin size={24} /></a>
                         </div>
                     </div>
 
                     {/* Quick Links */}
                     <div>
-                        <h4 className="text-white font-bold text-lg mb-6">Explore Groo</h4>
+                        <h4 className="text-white font-bold text-lg mb-6">Explore AgroYilt</h4>
                         <ul className="space-y-4 text-sm">
                             <li><a href="/user/machinery-explorer" className="hover:text-yellow-500 transition-colors">Rent Equipment</a></li>
                             <li><a href="/blogs" className="hover:text-yellow-500 transition-colors">Latest Agriculture News</a></li>
                             <li><a href="/#workflow" className="hover:text-yellow-500 transition-colors">How to Book</a></li>
-                            <li><a href="/#features" className="hover:text-yellow-500 transition-colors">Platform Features</a></li>
                             <li><a href="/vendor/login" className="hover:text-yellow-500 transition-colors">Owner Dashboard</a></li>
+                            <li><a href="/worker/login" className="hover:text-yellow-500 transition-colors">Worker Portal</a></li>
                         </ul>
                     </div>
 
@@ -57,7 +58,7 @@ const Footer = () => {
                             </li>
                             <li className="flex items-center space-x-3">
                                 <span className="text-green-600">📧</span>
-                                <span>grooagri@gmail.com</span>
+                                <span>agroyilt@gmail.com</span>
                             </li>
                             <li>
                                 <button 
@@ -88,7 +89,7 @@ const Footer = () => {
                 </div>
 
                 <div className="pt-8 border-t border-gray-900 text-center text-xs uppercase tracking-widest font-medium">
-                    <p>&copy; {new Date().getFullYear()} Groo Technologies. Building the future of farming.</p>
+                    <p>&copy; {new Date().getFullYear()} AgroYilt Technologies. Building the future of farming.</p>
                 </div>
             </div>
 
@@ -118,7 +119,7 @@ const Footer = () => {
                                         <span className="mr-2">🌾</span> For Farmers (Users)
                                     </h3>
                                     <div className="space-y-4 text-sm leading-relaxed">
-                                        <p><strong>1. Booking & Payments:</strong> All bookings must be made through the Groo app. Payments are secured via integrated gateways. Cancellation is free up to 24 hours before work starts.</p>
+                                        <p><strong>1. Booking & Payments:</strong> All bookings must be made through the AgroYilt app. Payments are secured via integrated gateways. Cancellation is free up to 24 hours before work starts.</p>
                                         <p><strong>2. Equipment Usage:</strong> Farmers must ensure a safe working environment for the machinery and operators. Any site hazards must be disclosed beforehand.</p>
                                         <p><strong>3. Data Privacy:</strong> Your location and booking history are used only to improve service efficiency. We never sell your data to third parties.</p>
                                     </div>
@@ -132,13 +133,13 @@ const Footer = () => {
                                     <div className="space-y-4 text-sm leading-relaxed">
                                         <p><strong>1. Verification & KYC:</strong> Owners must provide valid machine documents and KYC to list equipment. Admin verification is mandatory for live listings.</p>
                                         <p><strong>2. Service Quality:</strong> Owners are responsible for maintaining their machines in top condition. Operators must be skilled and follow safety protocols.</p>
-                                        <p><strong>3. Earnings & Fees:</strong> Payouts are settled after work completion verification. Groo charges a platform fee which is disclosed during listing.</p>
+                                        <p><strong>3. Earnings & Fees:</strong> Payouts are settled after work completion verification. AgroYilt charges a platform fee which is disclosed during listing.</p>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="mt-12 p-6 bg-gray-50 rounded-2xl text-xs text-gray-500 text-center">
-                                By using the Groo platform, you agree to abide by these policies designed to ensure a fair and efficient agricultural ecosystem for all.
+                                By using the AgroYilt platform, you agree to abide by these policies designed to ensure a fair and efficient agricultural ecosystem for all.
                                 <br />Last Updated: March 2026
                             </div>
                         </motion.div>

@@ -588,7 +588,7 @@ const generateInvoice = async (req, res) => {
         doc.pipe(res);
         
         // Invoice Branding
-        doc.fontSize(24).font('Helvetica-Bold').fillColor('#2E7D32').text('GrooAgri Marketplace', { align: 'left' });
+        doc.fontSize(24).font('Helvetica-Bold').fillColor('#2E7D32').text('Agroyilt Marketplace', { align: 'left' });
         doc.fontSize(10).font('Helvetica').fillColor('#555555').text('Sustainable Farming Inputs & Services', { align: 'left' });
         doc.moveDown();
         
@@ -689,7 +689,7 @@ const generateInvoice = async (req, res) => {
         doc.text(`₹${order.pricing.orderTotal.toFixed(2)}`, 480, summaryY + 50);
         
         doc.moveDown(4);
-        doc.fontSize(9).font('Helvetica-Oblique').fillColor('#888888').text('Thank you for shopping with GrooAgri! This is an electronically generated document.', { align: 'center' });
+        doc.fontSize(9).font('Helvetica-Oblique').fillColor('#888888').text('Thank you for shopping with Agroyilt! This is an electronically generated document.', { align: 'center' });
         
         doc.end();
         

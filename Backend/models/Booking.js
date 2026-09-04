@@ -33,9 +33,18 @@ const bookingSchema = new mongoose.Schema({
     default: null,
     index: true
   },
+  providerType: {
+    type: String,
+    enum: ['VENDOR', 'WORKER'],
+    default: 'VENDOR'
+  },
   notifiedVendors: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Vendor'
+  }],
+  notifiedWorkers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Worker'
   }],
 
   // ==========================================
@@ -43,6 +52,10 @@ const bookingSchema = new mongoose.Schema({
   // ==========================================
   potentialVendors: [{
     vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
+    distance: { type: Number } // in km
+  }],
+  potentialWorkers: [{
+    workerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Worker' },
     distance: { type: Number } // in km
   }],
   currentWave: {
@@ -168,6 +181,19 @@ const bookingSchema = new mongoose.Schema({
     default: 0
   },
   */
+  // Booking Extensions
+  extensionRequests: [{
+    requestedHours: { type: Number, required: true },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    chargeAmount: { type: Number, required: true },
+    reason: { type: String, default: null },
+    createdAt: { type: Date, default: Date.now },
+    respondedAt: { type: Date, default: null }
+  }],
+  extensionChargesTotal: {
+    type: Number,
+    default: 0
+  },
   // Total Value of the Booking (set after bill generation)
   finalAmount: {
     type: Number,

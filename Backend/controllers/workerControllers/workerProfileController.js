@@ -28,6 +28,10 @@ const getProfile = async (req, res) => {
         serviceCategories: worker.serviceCategories || [],
         serviceCategory: worker.serviceCategories?.[0] || '', // Legacy support
         skills: worker.skills || [],
+        hourlyRate: worker.hourlyRate || 0,
+        dailyRate: worker.dailyRate || 0,
+        landRate: worker.landRate || 0,
+        customRates: worker.customRates || [],
         address: worker.address || null,
         rating: worker.rating || 0,
         totalJobs: worker.totalJobs || 0,
@@ -65,7 +69,7 @@ const updateProfile = async (req, res) => {
     }
 
     const workerId = req.user.id;
-    const { name, serviceCategories, serviceCategory, skills, address, status, profilePhoto } = req.body;
+    const { name, serviceCategories, serviceCategory, skills, hourlyRate, dailyRate, landRate, customRates, address, status, profilePhoto } = req.body;
 
     const worker = await Worker.findById(workerId);
 
@@ -87,6 +91,10 @@ const updateProfile = async (req, res) => {
     }
 
     if (skills && Array.isArray(skills)) worker.skills = skills;
+    if (hourlyRate !== undefined) worker.hourlyRate = Number(hourlyRate) || 0;
+    if (dailyRate !== undefined) worker.dailyRate = Number(dailyRate) || 0;
+    if (landRate !== undefined) worker.landRate = Number(landRate) || 0;
+    if (customRates && Array.isArray(customRates)) worker.customRates = customRates;
     if (address) {
       worker.address = {
         addressLine1: address.addressLine1 || worker.address?.addressLine1 || '',
@@ -94,7 +102,8 @@ const updateProfile = async (req, res) => {
         city: address.city || worker.address?.city || '',
         state: address.state || worker.address?.state || '',
         pincode: address.pincode || worker.address?.pincode || '',
-        landmark: address.landmark || worker.address?.landmark || ''
+        landmark: address.landmark || worker.address?.landmark || '',
+        fullAddress: address.fullAddress || worker.address?.fullAddress || ''
       };
     }
     if (status) worker.status = status;
@@ -131,6 +140,10 @@ const updateProfile = async (req, res) => {
         serviceCategories: worker.serviceCategories,
         serviceCategory: worker.serviceCategories?.[0] || '',
         skills: worker.skills,
+        hourlyRate: worker.hourlyRate,
+        dailyRate: worker.dailyRate,
+        landRate: worker.landRate,
+        customRates: worker.customRates,
         address: worker.address,
         rating: worker.rating,
         totalJobs: worker.totalJobs,

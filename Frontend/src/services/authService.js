@@ -108,6 +108,34 @@ export const userAuthService = {
     return response.data;
   },
 
+  // --- MPIN Methods ---
+  loginWithMpin: async (data) => {
+    const response = await api.post('/users/auth/login-mpin', data);
+    if (response.data.success && response.data.accessToken) {
+      localStorage.setItem('accessToken', response.data.accessToken);
+      localStorage.setItem('refreshToken', response.data.refreshToken);
+      localStorage.setItem('userData', JSON.stringify(response.data.user));
+      notifyFlutterLogin(response.data);
+      registerFCMToken('user', true).catch(console.error);
+    }
+    return response.data;
+  },
+
+  setMpin: async (data) => {
+    const response = await api.post('/users/auth/set-mpin', data);
+    return response.data;
+  },
+
+  resetMpin: async (data) => {
+    const response = await api.post('/users/auth/reset-mpin', data);
+    return response.data;
+  },
+
+  getMpinStatus: async () => {
+    const response = await api.get('/users/auth/mpin-status');
+    return response.data;
+  },
+
   // Delete account permanently
   deleteAccount: async () => {
     await removeFCMToken('user').catch(() => {}); // Silent fail
@@ -230,6 +258,34 @@ export const vendorAuthService = {
     return response.data;
   },
 
+  // --- MPIN Methods ---
+  loginWithMpin: async (data) => {
+    const response = await api.post('/vendors/auth/login-mpin', data);
+    if (response.data.success && response.data.accessToken) {
+      localStorage.setItem('vendorAccessToken', response.data.accessToken);
+      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
+      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      notifyFlutterLogin(response.data);
+      registerFCMToken('vendor', true).catch(console.error);
+    }
+    return response.data;
+  },
+
+  setMpin: async (data) => {
+    const response = await api.post('/vendors/auth/set-mpin', data);
+    return response.data;
+  },
+
+  resetMpin: async (data) => {
+    const response = await api.post('/vendors/auth/reset-mpin', data);
+    return response.data;
+  },
+
+  getMpinStatus: async () => {
+    const response = await api.get('/vendors/auth/mpin-status');
+    return response.data;
+  },
+
   // Delete account permanently
   deleteAccount: async () => {
     await removeFCMToken('vendor').catch(() => {}); // Silent fail
@@ -325,6 +381,34 @@ export const workerAuthService = {
     if (response.data.worker) {
       localStorage.setItem('workerData', JSON.stringify(response.data.worker));
     }
+    return response.data;
+  },
+
+  // --- MPIN Methods ---
+  loginWithMpin: async (data) => {
+    const response = await api.post('/workers/auth/login-mpin', data);
+    if (response.data.success && response.data.accessToken) {
+      localStorage.setItem('workerAccessToken', response.data.accessToken);
+      localStorage.setItem('workerRefreshToken', response.data.refreshToken);
+      localStorage.setItem('workerData', JSON.stringify(response.data.worker));
+      notifyFlutterLogin(response.data);
+      registerFCMToken('worker', true).catch(console.error);
+    }
+    return response.data;
+  },
+
+  setMpin: async (data) => {
+    const response = await api.post('/workers/auth/set-mpin', data);
+    return response.data;
+  },
+
+  resetMpin: async (data) => {
+    const response = await api.post('/workers/auth/reset-mpin', data);
+    return response.data;
+  },
+
+  getMpinStatus: async () => {
+    const response = await api.get('/workers/auth/mpin-status');
     return response.data;
   }
 };

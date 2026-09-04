@@ -37,6 +37,7 @@ const getProfile = async (req, res) => {
         isEmailVerified: user.isEmailVerified || false,
         profilePhoto: user.profilePhoto || null,
         addresses: user.addresses || [],
+        farms: user.farms || [],
         plans: user.plans || {},
         settings: user.settings || {},
         wallet: user.wallet || { balance: 0 },
@@ -68,7 +69,7 @@ const updateProfile = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const { name, email, addresses, profilePhoto, settings } = req.body;
+    const { name, email, addresses, farms, profilePhoto, settings } = req.body;
 
     console.log('[Profile Update] Request for user:', userId);
     console.log('[Profile Update] Data received:', { name, email, profilePhoto: profilePhoto ? 'provided' : 'not provided' });
@@ -124,6 +125,11 @@ const updateProfile = async (req, res) => {
       updateData.addresses = addresses.slice(-1); // Only save the last one
     }
 
+    // Update farms
+    if (farms && Array.isArray(farms)) {
+      updateData.farms = farms;
+    }
+
     // Update settings
     if (settings) {
       if (settings.notifications !== undefined) {
@@ -157,6 +163,7 @@ const updateProfile = async (req, res) => {
         isEmailVerified: updatedUser.isEmailVerified,
         profilePhoto: updatedUser.profilePhoto || null,
         addresses: updatedUser.addresses || [],
+        farms: updatedUser.farms || [],
         plans: updatedUser.plans || {},
         settings: updatedUser.settings || {},
         wallet: updatedUser.wallet || { balance: 0 }

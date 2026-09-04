@@ -12,7 +12,7 @@ const Chatbot = () => {
   const isAuthPage = location.pathname.includes('/login') || location.pathname.includes('/signup');
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { text: "नमस्ते! मैं GrooAgri का AI असिस्टेंट हूँ। मैं आपकी कैसे मदद कर सकता हूँ?", sender: 'bot' }
+    { text: "नमस्ते! मैं Agroyilt का AI असिस्टेंट हूँ। मैं आपकी कैसे मदद कर सकता हूँ?", sender: 'bot' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -143,7 +143,7 @@ const Chatbot = () => {
                 <BsRobot size={20} />
               </div>
               <div>
-                <h3 className="font-bold text-lg">GrooAgri Assistant</h3>
+                <h3 className="font-bold text-lg">Agroyilt Assistant</h3>
                 <p className="text-xs text-green-100">हमेशा आपकी मदद के लिए तैयार</p>
               </div>
             </div>

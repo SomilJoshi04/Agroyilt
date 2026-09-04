@@ -170,6 +170,22 @@ const Settings = () => {
           <h2 className="text-base font-bold text-black mb-4">Account</h2>
           <div className="space-y-3">
             <button
+              onClick={() => navigate('/user/settings/mpin-setup')}
+              className="w-full bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between hover:bg-gray-50 active:scale-[0.98] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-blue-50">
+                  <FiShield className="w-5 h-5 text-blue-500" />
+                </div>
+                <div className="text-left">
+                  <span className="text-sm font-medium text-black block">Set / Change MPIN</span>
+                  <span className="text-xs text-gray-500">Manage your 4-digit login pin</span>
+                </div>
+              </div>
+              <FiChevronRight className="w-5 h-5 text-gray-400" />
+            </button>
+
+            <button
               onClick={async () => {
                 const confirmed = window.confirm('Are you sure you want to log out?');
                 if (confirmed) {

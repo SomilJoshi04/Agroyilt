@@ -65,7 +65,8 @@ const LiveBookingCard = ({ hasBottomNav }) => {
         else if (seconds >= 14) radius = 8;
         else if (seconds >= 7) radius = 5;
 
-        return { label: 'Finding Nearby Vendors', icon: FiClock, color: 'bg-teal-500', sub: `Scanning within ${radius}km...`, pulse: true };
+        const isWorker = booking.providerType === 'WORKER' || /labour|labor|worker|shramik|majdoor/i.test(booking.serviceCategory || '');
+        return { label: isWorker ? 'Finding Nearby Workers' : 'Finding Nearby Vendors', icon: FiClock, color: 'bg-teal-500', sub: `Scanning within ${radius}km...`, pulse: true };
       }
       default:
         return null;

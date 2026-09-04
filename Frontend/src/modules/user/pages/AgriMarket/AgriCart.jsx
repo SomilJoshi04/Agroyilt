@@ -192,7 +192,7 @@ const AgriCart = () => {
                             <div key={vendorId} className="bg-white rounded-[32px] p-5 shadow-sm border border-slate-100 space-y-4">
                                 <div className="border-b border-slate-50 pb-3 flex items-center justify-between">
                                     <span className="text-[9px] font-black text-teal-600 uppercase tracking-widest">
-                                        {vendorId === 'central' ? 'GrooAgri Central Store' : `Seller Store #${vendorId.slice(-6).toUpperCase()}`}
+                                        {vendorId === 'central' ? 'Agroyilt Central Store' : `Seller Store #${vendorId.slice(-6).toUpperCase()}`}
                                     </span>
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                                         {items.length} {items.length === 1 ? 'Item' : 'Items'}

@@ -7,7 +7,11 @@ const {
   login,
   logout,
   refreshToken,
-  verifyLogin
+  verifyLogin,
+  loginWithMpin,
+  setMpin,
+  resetMpin,
+  getMpinStatus
 } = require('../../controllers/workerControllers/workerAuthController');
 const { authenticate } = require('../../middleware/authMiddleware');
 const { isWorker } = require('../../middleware/roleMiddleware');
@@ -43,5 +47,11 @@ router.post('/register', registerValidation, register);
 router.post('/login', loginValidation, login);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', authenticate, isWorker, logout);
+
+// MPIN Routes
+router.post('/login-mpin', loginWithMpin);
+router.post('/set-mpin', authenticate, isWorker, setMpin);
+router.post('/reset-mpin', resetMpin);
+router.get('/mpin-status', authenticate, isWorker, getMpinStatus);
 
 module.exports = router;

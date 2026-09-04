@@ -87,9 +87,9 @@ const EquipmentDetail = () => {
   return (
     <div className="min-h-screen bg-slate-50 pb-32">
       <Helmet>
-        <title>{`${equipment.name} Booking | GrooAgri`}</title>
+        <title>{`${equipment.name} Booking | Agroyilt`}</title>
         <meta name="description" content={`Book ${equipment.name} machinery for your farm. Verified professional operator, affordable rates starting at ₹${currentRate}.`} />
-        <link rel="canonical" href={`https://grooagri.com/user/machinery/${id}`} />
+        <link rel="canonical" href={`https://agroyilt.com/user/machinery/${id}`} />
       </Helmet>
 
       {/* SEO Structured Data */}
@@ -388,7 +388,7 @@ const EquipmentDetail = () => {
                  </div>
               </div>
               <p className="mt-4 text-xs text-slate-500 font-medium leading-relaxed">
-                 {equipment.description || "This verified professional machinery is well-maintained and ready for efficient field work. Certified by GrooAgri team."}
+                 {equipment.description || "This verified professional machinery is well-maintained and ready for efficient field work. Certified by Agroyilt team."}
               </p>
            </div>
         </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import Logo from './Logo';
 
 /**
  * LogoLoader Component
@@ -71,11 +72,7 @@ const LogoLoader = ({ fullScreen = false, overlay = false, inline = false, size 
         }}
         className={`relative ${size} flex items-center justify-center`}
       >
-        <img
-          src="/logo.png"
-          alt="Loading..."
-          className="w-full h-full object-contain"
-        />
+        <Logo className="w-full h-full" />
         {/* Subtle ripple effect */}
         <motion.div
           className="absolute inset-0 rounded-full border-2 border-teal-200"

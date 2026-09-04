@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiUser, FiMail, FiPhone, FiCamera } from 'react-icons/fi';
+import { FiArrowLeft, FiUser, FiMail, FiPhone, FiCamera, FiPlus, FiMapPin, FiTrash2, FiMap } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
 import { userAuthService } from '../../../../services/authService';
-
+import AddressSelectionModal from '../Checkout/components/AddressSelectionModal';
 import { z } from "zod";
 
 // Zod schema
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address").refine(val => val.includes('@'), "Invalid email address"),
+  email: z.string().email("Please enter a valid email address").refine(val => val.includes('@'), "Invalid email address").optional().or(z.literal('')),
 });
 
 const UpdateProfile = () => {
@@ -20,15 +20,19 @@ const UpdateProfile = () => {
     email: '',
     phone: '',
     profilePhoto: '', // URL
+    farms: [],
   });
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState({});
 
-
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Map state for farms
+  const [activeFarmIndex, setActiveFarmIndex] = useState(null);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
   // Fetch user profile on component mount
   useEffect(() => {
@@ -43,6 +47,7 @@ const UpdateProfile = () => {
             email: userData.email || '',
             phone: userData.phone || '',
             profilePhoto: userData.profilePhoto || '',
+            farms: userData.farms || [],
           });
         }
 
@@ -55,6 +60,7 @@ const UpdateProfile = () => {
             email: user.email || '',
             phone: user.phone || '',
             profilePhoto: user.profilePhoto || '',
+            farms: user.farms || [],
           });
 
           // Update localStorage with fresh data including photo
@@ -73,6 +79,7 @@ const UpdateProfile = () => {
             email: userData.email || '',
             phone: userData.phone || '',
             profilePhoto: userData.profilePhoto || '',
+            farms: userData.farms || [],
           });
         } else {
           toast.error('Failed to load profile data');
@@ -150,6 +157,79 @@ const UpdateProfile = () => {
     }
   };
 
+  const handleAddFarm = () => {
+    setFormData(prev => ({
+      ...prev,
+      farms: [
+        ...prev.farms,
+        {
+          name: `Farm ${prev.farms.length + 1}`,
+          sizeInAcres: '',
+          cropType: [],
+          location: { addressLine1: '', city: '', state: '', pincode: '', lat: null, lng: null, fullAddress: '' }
+        }
+      ]
+    }));
+  };
+
+  const handleRemoveFarm = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      farms: prev.farms.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleFarmChange = (index, field, value) => {
+    setFormData(prev => {
+      const newFarms = [...prev.farms];
+      if (field === 'cropType') {
+        // Assume comma separated string input for crop types
+        newFarms[index][field] = value.split(',').map(s => s.trim()).filter(s => s);
+      } else {
+        newFarms[index][field] = value;
+      }
+      return { ...prev, farms: newFarms };
+    });
+  };
+
+  const openAddressModalForFarm = (index) => {
+    setActiveFarmIndex(index);
+    setIsAddressModalOpen(true);
+  };
+
+  const handleAddressSave = (houseNumber, location) => {
+    let city = '';
+    let state = '';
+    let pincode = '';
+
+    if (location.components) {
+      location.components.forEach(comp => {
+        if (comp.types.includes('locality')) city = comp.long_name;
+        if (comp.types.includes('administrative_area_level_1')) state = comp.long_name;
+        if (comp.types.includes('postal_code')) pincode = comp.long_name;
+      });
+    }
+
+    setFormData(prev => {
+      const newFarms = [...prev.farms];
+      if (activeFarmIndex !== null && newFarms[activeFarmIndex]) {
+        newFarms[activeFarmIndex].location = {
+          addressLine1: houseNumber || '',
+          city,
+          state,
+          pincode,
+          lat: location.lat,
+          lng: location.lng,
+          fullAddress: location.address
+        };
+      }
+      return { ...prev, farms: newFarms };
+    });
+    
+    setIsAddressModalOpen(false);
+    setActiveFarmIndex(null);
+  };
+
   const handleSave = async () => {
     // Zod Validation
     const validationResult = profileSchema.safeParse({
@@ -183,13 +263,13 @@ const UpdateProfile = () => {
       const response = await userAuthService.updateProfile({
         name: formData.name.trim(),
         email: formData.email.trim() || null,
-        profilePhoto: photoUrl
+        profilePhoto: photoUrl,
+        farms: formData.farms
       });
 
       if (response.success) {
         toast.success('Profile updated successfully!');
-        // authService.updateProfile already updates localStorage with response.user
-        // but let's ensure we have the latest data
+        // Update local storage
         if (response.user) {
           const storedUserData = localStorage.getItem('userData');
           if (storedUserData) {
@@ -373,10 +453,111 @@ const UpdateProfile = () => {
               </p>
             </div>
           </div>
+
+          {/* Farms Section */}
+          <div className="mt-8 border-t border-gray-200 pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <label className="block text-base font-bold text-gray-800">
+                Farms / Khet Details
+              </label>
+              <button
+                type="button"
+                onClick={handleAddFarm}
+                className="flex items-center gap-1 text-sm font-bold transition-colors bg-blue-50 px-3 py-1.5 rounded-lg"
+                style={{ color: themeColors.button }}
+              >
+                <FiPlus className="w-4 h-4" />
+                Add Farm
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {formData.farms.map((farm, index) => (
+                <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                  <button 
+                    onClick={() => handleRemoveFarm(index)}
+                    className="absolute top-3 right-3 p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                  >
+                    <FiTrash2 className="w-4 h-4" />
+                  </button>
+                  
+                  <div className="space-y-4 pr-8">
+                    {/* Farm Name */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">Farm Name</label>
+                      <input
+                        type="text"
+                        value={farm.name}
+                        onChange={(e) => handleFarmChange(index, 'name', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+                        placeholder="e.g. Main Farm, North Field"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-4">
+                      {/* Farm Size */}
+                      <div className="flex-1">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Size (Acres)</label>
+                        <input
+                          type="number"
+                          value={farm.sizeInAcres}
+                          onChange={(e) => handleFarmChange(index, 'sizeInAcres', e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+                          placeholder="e.g. 10"
+                        />
+                      </div>
+                      
+                      {/* Crop Type */}
+                      <div className="flex-1">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Crops</label>
+                        <input
+                          type="text"
+                          value={farm.cropType ? farm.cropType.join(', ') : ''}
+                          onChange={(e) => handleFarmChange(index, 'cropType', e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+                          placeholder="e.g. Wheat, Rice"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Location */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">Location</label>
+                      <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200 mb-2">
+                        <p className="text-sm text-gray-700 truncate">
+                          {farm.location?.fullAddress || 
+                           (farm.location?.city ? `${farm.location.city}, ${farm.location.state}` : '') || 
+                           'No location set'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openAddressModalForFarm(index)}
+                        className="w-full py-2 bg-blue-50 text-blue-600 rounded-lg font-semibold text-xs border border-blue-100 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <FiMap className="w-4 h-4" />
+                        Pin on Map
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {formData.farms.length === 0 && (
+              <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 mt-2">
+                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-3">
+                  <FiMapPin className="w-6 h-6 text-blue-500" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-700 mb-1">No Farms Added</h3>
+                <p className="text-xs text-gray-500 px-4">Add your farms to get personalized agricultural services and better machinery matching.</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Save Button */}
-        <div className="mt-6">
+        <div className="mt-8">
           <button
             onClick={handleSave}
             disabled={isLoading || isSaving}
@@ -400,9 +581,39 @@ const UpdateProfile = () => {
           </button>
         </div>
       </main>
+
+      <AddressSelectionModal
+        isOpen={isAddressModalOpen}
+        onClose={() => {
+          setIsAddressModalOpen(false);
+          setActiveFarmIndex(null);
+        }}
+        address={
+          (activeFarmIndex !== null && formData.farms[activeFarmIndex]?.location?.fullAddress) 
+          || ''
+        }
+        houseNumber={
+          (activeFarmIndex !== null && formData.farms[activeFarmIndex]?.location?.addressLine1) 
+          || ''
+        }
+        onHouseNumberChange={(val) => {
+          if (activeFarmIndex !== null) {
+            setFormData(prev => {
+              const newFarms = [...prev.farms];
+              if (newFarms[activeFarmIndex]) {
+                newFarms[activeFarmIndex].location = {
+                  ...newFarms[activeFarmIndex].location,
+                  addressLine1: val
+                };
+              }
+              return { ...prev, farms: newFarms };
+            });
+          }
+        }}
+        onSave={handleAddressSave}
+      />
     </div>
   );
 };
 
 export default UpdateProfile;
-

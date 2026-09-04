@@ -205,7 +205,7 @@ const SoilTesting = () => {
                     key: res.data.key,
                     amount: res.data.amount * 100,
                     currency: res.data.currency,
-                    name: 'GrooAgri',
+                    name: 'Agroyilt',
                     description: 'Soil Test Report',
                     order_id: res.data.orderId,
                     handler: async function (response) {
@@ -494,7 +494,7 @@ const SoilTesting = () => {
                                 <button onClick={() => handleWalletPayment(paymentModal)} disabled={processingPayment}
                                     className="w-full flex items-center justify-between p-4 rounded-2xl border-2 border-slate-100 hover:border-teal-500 bg-white transition-all active:scale-95 disabled:opacity-50 group">
                                     <div className="flex flex-col items-start">
-                                        <span className="font-black text-slate-800 group-hover:text-teal-700">GrooAgri Wallet</span>
+                                        <span className="font-black text-slate-800 group-hover:text-teal-700">Agroyilt Wallet</span>
                                         <span className="text-[10px] font-bold text-slate-400">Pay using your platform balance</span>
                                     </div>
                                     <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 group-hover:bg-teal-600 group-hover:text-white transition-all">

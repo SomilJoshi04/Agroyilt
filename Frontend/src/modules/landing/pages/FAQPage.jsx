@@ -12,8 +12,8 @@ const FAQPage = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Helmet>
-        <title>FAQ | GrooAgri</title>
-        <meta name="description" content="Frequently asked questions about GrooAgri." />
+        <title>FAQ | Agroyilt</title>
+        <meta name="description" content="Frequently asked questions about Agroyilt." />
       </Helmet>
       <Navbar />
       <div className="flex-grow pt-20">

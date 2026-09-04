@@ -30,6 +30,23 @@ const vendorSchema = new mongoose.Schema({
     type: String,
     select: false
   },
+  // MPIN Login
+  mpin: {
+    type: String,
+    select: false // Never returned in normal queries
+  },
+  isMpinSet: {
+    type: Boolean,
+    default: false
+  },
+  mpinAttempts: {
+    type: Number,
+    default: 0
+  },
+  mpinLockedUntil: {
+    type: Date,
+    default: null
+  },
   businessName: {
     type: String,
     trim: true

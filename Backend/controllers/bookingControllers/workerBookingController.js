@@ -1,4 +1,5 @@
 const Booking = require('../../models/Booking');
+const BookingRequest = require('../../models/BookingRequest');
 const { validationResult } = require('express-validator');
 const { BOOKING_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
 
@@ -10,10 +11,25 @@ const getAssignedJobs = async (req, res) => {
     const workerId = req.user.id;
     const { status, page = 1, limit = 10 } = req.query;
 
-    // Build query
-    const query = { workerId };
+    const BookingRequest = require('../../models/BookingRequest');
+    const myRequests = await BookingRequest.find({ workerId, status: { $ne: 'REJECTED' } }).select('bookingId');
+    const requestBookingIds = myRequests.map(r => r.bookingId);
+
+    // Build query matching assigned jobs or notified/potential/requested jobs
+    const query = {
+      $or: [
+        { workerId },
+        { notifiedWorkers: workerId },
+        { 'potentialWorkers.workerId': workerId },
+        { _id: { $in: requestBookingIds } }
+      ]
+    };
     if (status) {
-      query.status = status;
+      if (status.toUpperCase() === 'PENDING' || status.toUpperCase() === 'REQUESTED') {
+        query.status = { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING, BOOKING_STATUS.PENDING] };
+      } else {
+        query.status = status;
+      }
     }
 
     // Pagination
@@ -59,7 +75,18 @@ const getJobById = async (req, res) => {
     const workerId = req.user.id;
     const { id } = req.params;
 
-    const booking = await Booking.findOne({ _id: id, workerId })
+    const BookingRequest = require('../../models/BookingRequest');
+    const myRequest = await BookingRequest.findOne({ bookingId: id, workerId });
+
+    const booking = await Booking.findOne({
+      _id: id,
+      $or: [
+        { workerId },
+        { notifiedWorkers: workerId },
+        { 'potentialWorkers.workerId': workerId },
+        ...(myRequest ? [{ _id: id }] : [])
+      ]
+    })
       .populate('userId', 'name phone email')
       .populate('vendorId', 'name businessName phone email address')
       .populate('serviceId', 'title description iconUrl images')
@@ -81,6 +108,131 @@ const getJobById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch job. Please try again.'
+    });
+  }
+};
+
+/**
+ * Accept job (Atomic)
+ */
+const acceptJob = async (req, res) => {
+  try {
+    const workerId = req.user.id;
+    const { id } = req.params;
+
+    const myRequest = await BookingRequest.findOne({ bookingId: id, workerId });
+
+    // ATOMIC UPDATE: Check status and workerId in query to prevent race conditions
+    // Only accept if status is REQUESTED/SEARCHING/PENDING/CONFIRMED and NO worker or this worker is assigned
+    const updatedBooking = await Booking.findOneAndUpdate(
+      {
+        _id: id,
+        status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING, BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED] },
+        $or: [
+          { workerId: null }, // Ensures another request didn't just take it
+          { workerId: workerId }, // Direct assigned booking
+          { notifiedWorkers: workerId },
+          { 'potentialWorkers.workerId': workerId },
+          ...(myRequest ? [{ _id: id }] : [])
+        ]
+      },
+      {
+        $set: {
+          workerId: workerId,
+          acceptedAt: new Date(),
+          workerAcceptedAt: new Date(),
+          workerResponse: 'ACCEPTED',
+          status: BOOKING_STATUS.CONFIRMED // Default to confirmed
+        }
+      },
+      { new: true } // Return updated doc
+    );
+
+    if (!updatedBooking) {
+      // If update failed, check why (likely already taken)
+      const existing = await Booking.findById(id);
+      if (existing && existing.workerId) {
+        return res.status(409).json({ // 409 Conflict
+          success: false,
+          message: 'Sorry, this job has already been accepted by another worker.'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Booking is no longer available.'
+      });
+    }
+
+    const booking = updatedBooking;
+
+    // Generate Visit OTP for Worker
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    booking.visitOtp = otp;
+    
+    await booking.save();
+
+    // Update worker availability to ON_JOB
+    const Worker = require('../../models/Worker');
+    await Worker.findByIdAndUpdate(workerId, { status: 'ON_JOB' });
+
+    // Update BookingRequest statuses
+
+    // Mark this worker's request as ACCEPTED
+    await BookingRequest.findOneAndUpdate(
+      { bookingId: id, workerId },
+      { status: 'ACCEPTED', respondedAt: new Date() }
+    );
+
+    // Mark all other workers' requests as EXPIRED/CANCELLED
+    await BookingRequest.updateMany(
+      { bookingId: id, workerId: { $ne: workerId } },
+      { status: 'EXPIRED', respondedAt: new Date() }
+    );
+
+    // NOTIFY OTHER WORKERS to remove this job
+    // Use the stored notifiedWorkers list
+    const io = req.app.get('io');
+    if (io && booking.notifiedWorkers && booking.notifiedWorkers.length > 0) {
+      console.log(`[AcceptJob] Notifying ${booking.notifiedWorkers.length} other workers that job ${booking._id} was taken`);
+      booking.notifiedWorkers.forEach(otherWorkerId => {
+        // Skip the current worker
+        if (otherWorkerId.toString() !== workerId.toString()) {
+          const room = `worker_${otherWorkerId.toString()}`;
+          console.log(`[AcceptJob] Emitting job_taken to room: ${room}`);
+          io.to(room).emit('job_taken', {
+            bookingId: booking._id.toString(), // Ensure string for frontend comparison
+            message: 'This job has been accepted by someone else.'
+          });
+        }
+      });
+    }
+
+    // NOTIFY USER
+    const { createNotification } = require('../notificationControllers/notificationController');
+    await createNotification({
+      userId: booking.userId,
+      type: 'worker_assigned',
+      title: 'Worker Assigned',
+      message: `A worker has accepted your job.`,
+      relatedId: booking._id,
+      relatedType: 'booking',
+      pushData: {
+        type: 'worker_assigned',
+        bookingId: booking._id.toString(),
+        link: `/user/booking/${booking._id}`
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Job successfully accepted',
+      data: booking
+    });
+  } catch (error) {
+    console.error('Accept job error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to accept job. Please try again.'
     });
   }
 };
@@ -736,7 +888,18 @@ const respondToJob = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body; // 'ACCEPTED' or 'REJECTED'
 
-    const booking = await Booking.findOne({ _id: id, workerId });
+    const BookingRequest = require('../../models/BookingRequest');
+    const myRequest = await BookingRequest.findOne({ bookingId: id, workerId });
+
+    let booking = await Booking.findOne({
+      _id: id,
+      $or: [
+        { workerId },
+        { notifiedWorkers: workerId },
+        { 'potentialWorkers.workerId': workerId },
+        ...(myRequest ? [{ _id: id }] : [])
+      ]
+    });
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Job not found' });
@@ -897,6 +1060,7 @@ const completeMachineryWork = async (req, res) => {
 module.exports = {
   getAssignedJobs,
   getJobById,
+  acceptJob,
   updateJobStatus,
   startJob,
   workerReachedLocation,

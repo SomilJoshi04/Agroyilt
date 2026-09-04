@@ -68,7 +68,7 @@ const OrderPayment = () => {
                 key: key,
                 amount: amount,
                 currency: currency,
-                name: "GrooAgri",
+                name: "Agroyilt",
                 description: "Platform Fee for Seeds & Fertilizers",
                 order_id: order_id,
                 theme: { color: "#0D9488" },

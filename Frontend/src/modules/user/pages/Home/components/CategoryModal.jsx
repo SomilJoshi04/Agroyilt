@@ -5,6 +5,7 @@ import { FiX, FiLayers, FiArrowLeft, FiPlus, FiCheck } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import { themeColors } from '../../../../../theme';
 import { publicCatalogService } from '../../../../../services/catalogService';
+import api from '../../../../../services/api';
 import { useCart } from '../../../../../context/CartContext';
 import { toast } from 'react-hot-toast';
 import SlotPicker from '../../../components/booking/SlotPicker';
@@ -65,16 +66,133 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
   const fetchServicesDirectly = async () => {
     try {
       setLoading(true);
-      const response = await publicCatalogService.getServices({
-        categoryId: category?.id || category?._id,
-        cityId: cityId
-        // Don't filter by pricing_context — show all services for this category
+
+      const catId = category?.id || category?._id;
+      const title = (category?.title || '').toLowerCase();
+      const slug = (category?.slug || '').toLowerCase();
+
+      const isWorker = category?.bookingType === 'WORKER' || 
+                       /labour|labor|worker|manpower|service|shramik|majdoor/i.test(title) ||
+                       /labour|labor|worker|manpower|service|shramik|majdoor/i.test(slug);
+
+      if (isWorker) {
+        // 1. Fetch public services & registered independent workers
+        const [servicesRes, workersRes] = await Promise.all([
+          api.get('/public/services', { params: { categoryId: catId } }).catch(() => ({ data: {} })),
+          api.get('/public/workers', { params: { categoryId: catId, category: category?.title } }).catch(() => ({ data: {} }))
+        ]);
+
+        const rawServices = servicesRes.data?.services || servicesRes.data?.data || [];
+        const rawWorkers = workersRes.data?.workers || [];
+
+        const workerCards = rawWorkers.map(worker => ({
+          _id: worker.id || worker._id,
+          id: worker.id || worker._id,
+          title: `${worker.name} (Independent Worker)`,
+          description: `Rating: ${worker.rating || 4.8}★ • Skills: ${worker.skills?.join(', ') || 'General Labour'}`,
+          icon: worker.profilePhoto || '',
+          hourly_price: worker.hourlyRate || 0,
+          daily_price: worker.dailyRate || 0,
+          land_price: worker.landRate || 0,
+          land_unit: 'Acre',
+          originalWorker: worker,
+          isWorkerProfile: true
+        }));
+
+        // SOP RULE FOR WORKER CATEGORIES:
+        // If registered Independent Workers exist, show ONLY the Independent Worker profiles!
+        if (workerCards.length > 0) {
+          setServices(workerCards);
+          setLoading(false);
+          return;
+        }
+
+        // Fallback: If no registered workers exist yet, show admin base services template
+        const mappedServices = rawServices.map(service => ({
+          _id: service.id || service._id,
+          id: service.id || service._id,
+          title: service.title,
+          description: service.description,
+          icon: service.icon || service.iconUrl,
+          basePrice: service.basePrice,
+          hourly_price: service.hourly_price || service.basePrice || 0,
+          land_price: service.land_price || 0,
+          land_unit: service.land_unit || 'Acre',
+          daily_price: service.daily_price || 0,
+          discountPrice: service.discountPrice,
+          originalService: service
+        }));
+
+        if (mappedServices.length > 0) {
+          setServices(mappedServices);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Fetch machinery/vendor equipment (VENDOR)
+      let lat = '';
+      let lng = '';
+      try {
+        const storedLoc = JSON.parse(localStorage.getItem('userLocation'));
+        if (storedLoc?.lat) {
+          lat = storedLoc.lat;
+          lng = storedLoc.lng;
+        }
+      } catch (e) {}
+
+      const response = await api.get('/farmer/search/machinery', {
+        params: {
+          category: catId,
+          lat,
+          lng,
+          radius: 100
+        }
       });
-      if (response.success) {
-        setServices(response.services || []);
+
+      const machineryList = response.data?.data || [];
+
+      if (response.data?.success && machineryList.length > 0) {
+        const mappedListings = machineryList.map(equipment => ({
+          _id: equipment._id,
+          title: equipment.name,
+          description: `${equipment.vendorId?.name || 'Vendor'} • ${equipment.distance ? (equipment.distance/1000).toFixed(1) + 'km away' : ''}`,
+          icon: equipment.images?.[0] || '',
+          hourly_price: equipment.pricing?.hourly?.isEnabled ? equipment.pricing.hourly.price : 0,
+          land_price: equipment.pricing?.land_based?.isEnabled ? equipment.pricing.land_based.price : 0,
+          daily_price: equipment.pricing?.daily?.isEnabled ? equipment.pricing.daily.price : 0,
+          originalEquipment: equipment
+        }));
+        setServices(mappedListings);
+      } else {
+        // 3. Fallback: If machinery search returns 0 items, check public services
+        const fallbackRes = await api.get('/public/services', {
+          params: { categoryId: catId }
+        });
+        const fallbackServices = fallbackRes.data?.services || fallbackRes.data?.data || [];
+        if (fallbackServices.length > 0) {
+          const mappedServices = fallbackServices.map(service => ({
+            _id: service.id || service._id,
+            id: service.id || service._id,
+            title: service.title,
+            description: service.description,
+            icon: service.icon || service.iconUrl,
+            basePrice: service.basePrice,
+            hourly_price: service.hourly_price || service.basePrice || 0,
+            land_price: service.land_price || 0,
+            land_unit: service.land_unit || 'Acre',
+            daily_price: service.daily_price || 0,
+            discountPrice: service.discountPrice,
+            originalService: service
+          }));
+          setServices(mappedServices);
+        } else {
+          setServices([]);
+        }
       }
     } catch (error) {
-      console.error("Failed to load services directly:", error);
+      console.error("Failed to load services:", error);
+      toast.error("Failed to load services. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -102,14 +220,23 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
       setSelectedServiceForBooking(service);
       setLoading(true);
       try {
-        // Find attachments where parentSourceId matches the parent category ID
-        const parentId = category?._id || category?.id;
-        const res = await publicCatalogService.getServices({
-          pricing_context: 'sub-category',
-          parentSourceId: parentId
-        });
-        if (res?.success && res.services?.length > 0) {
-          setAvailableImplements(res.services);
+        const vendorImplements = service.originalEquipment?.implements || [];
+        
+        // Map vendor implements to match UI expectations
+        const mappedImplements = vendorImplements
+          .filter(impl => impl.subCategory) // Ensure it has details
+          .map(impl => ({
+            _id: impl.subCategory._id,
+            id: impl.subCategory._id,
+            title: impl.subCategory.title,
+            hourly_price: impl.pricing?.hourly?.isEnabled ? impl.pricing.hourly.price : 0,
+            land_price: impl.pricing?.land_based?.isEnabled ? impl.pricing.land_based.price : 0,
+            daily_price: impl.pricing?.daily?.isEnabled ? impl.pricing.daily.price : 0,
+            icon: impl.subCategory.homeIconUrl || ''
+          }));
+
+        if (mappedImplements.length > 0) {
+          setAvailableImplements(mappedImplements);
           setSelectedImplements([]);
           setView('attachments');
         } else {
@@ -117,7 +244,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
           processAddToCart(service);
         }
       } catch (err) {
-        console.error("Failed to fetch attachments:", err);
+        console.error("Failed to parse attachments:", err);
         processAddToCart(service);
       } finally {
         setLoading(false);
@@ -177,6 +304,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
           categoryId: category?._id || category?.id,
           categoryTitle: category?.title || 'Agriculture',
           category: category?.title || 'Agriculture',
+          vendorId: service?.originalEquipment?.vendorId?._id || service?.originalEquipment?.vendorId || null,
           brandId: selectedBrand?._id || selectedBrand?.id,
           sectionTitle: selectedBrand?.title || '',
           sectionIcon: toAssetUrl(selectedBrand?.iconUrl || selectedBrand?.icon || ''),
@@ -310,7 +438,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
                            ? `Attachments for ${selectedServiceForBooking?.title}`
                            : (category?.title || 'Services')}
                        </h1>
-                       {view === 'services' && <p className="text-xs text-gray-500">Select a machine to continue</p>}
+                       {view === 'services' && <p className="text-xs text-gray-500">{category?.bookingType === 'WORKER' ? 'Select a service to continue' : 'Select a machine to continue'}</p>}
                        {view === 'attachments' && <p className="text-xs text-gray-500">Step 2: Choose tools required for your task</p>}
                      </div>
                      {loading && <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin ml-auto"></div>}
@@ -480,7 +608,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
                           </div>
                         ) : (
                           <div className="text-center py-12 text-gray-500">
-                            <p>No equipment available in this category yet.</p>
+                            <p>{category?.bookingType === 'WORKER' ? 'No services available in this category yet.' : 'No equipment available in this category yet.'}</p>
                           </div>
                         )
                       )}

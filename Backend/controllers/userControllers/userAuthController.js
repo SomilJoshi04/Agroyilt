@@ -5,6 +5,7 @@ const { sendOTP: sendSMSOTP } = require('../../services/smsService');
 const { sendOTPEmail, sendWelcomeEmail } = require('../../services/emailService');
 const { USER_ROLES } = require('../../utils/constants');
 const { validationResult } = require('express-validator');
+const mpinService = require('../../utils/mpinService');
 
 /**
  * Send OTP for user registration/login
@@ -440,6 +441,192 @@ const deleteAccount = async (req, res) => {
   }
 };
 
+/**
+ * Login user with MPIN
+ */
+const loginWithMpin = async (req, res) => {
+  try {
+    const { phone, mpin } = req.body;
+
+    if (!phone || !mpin) {
+      return res.status(400).json({ success: false, message: 'Phone and MPIN are required' });
+    }
+
+    if (!mpinService.validateMpinFormat(mpin)) {
+      return res.status(400).json({ success: false, message: 'MPIN must be exactly 4 digits' });
+    }
+
+    // Find user by phone, including the mpin field
+    const user = await User.findOne({ phone }).select('+mpin');
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: 'Your account has been deactivated.' });
+    }
+
+    if (!user.isMpinSet) {
+      return res.status(400).json({ success: false, mpinNotSet: true, message: 'MPIN is not set for this account. Please login with OTP.' });
+    }
+
+    if (mpinService.isMpinLocked(user)) {
+      return res.status(429).json({ 
+        success: false, 
+        message: `Too many failed attempts. Try again after ${mpinService.MPIN_LOCKOUT_MINUTES} minutes.`,
+        lockUntil: user.mpinLockedUntil
+      });
+    }
+
+    const isMatch = await mpinService.compareMpin(mpin, user.mpin);
+    if (!isMatch) {
+      const { locked, remainingAttempts } = await mpinService.incrementMpinAttempts(user);
+      if (locked) {
+        return res.status(429).json({ success: false, message: `Too many failed attempts. Account locked for ${mpinService.MPIN_LOCKOUT_MINUTES} minutes.` });
+      }
+      return res.status(401).json({ success: false, message: `Invalid MPIN. ${remainingAttempts} attempts remaining.` });
+    }
+
+    // Success - reset attempts
+    await mpinService.resetMpinAttempts(user);
+
+    // Generate JWT tokens
+    const tokens = generateTokenPair({
+      userId: user._id,
+      role: USER_ROLES.USER
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        isPhoneVerified: user.isPhoneVerified,
+        isEmailVerified: user.isEmailVerified
+      },
+      ...tokens
+    });
+  } catch (error) {
+    console.error('MPIN login error:', error);
+    res.status(500).json({ success: false, message: 'Login failed. Please try again.' });
+  }
+};
+
+/**
+ * Set or Change MPIN
+ */
+const setMpin = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { mpin, confirmMpin, currentMpin } = req.body;
+
+    if (!mpin || !confirmMpin) {
+      return res.status(400).json({ success: false, message: 'MPIN and Confirm MPIN are required' });
+    }
+
+    if (mpin !== confirmMpin) {
+      return res.status(400).json({ success: false, message: 'MPINs do not match' });
+    }
+
+    if (!mpinService.validateMpinFormat(mpin)) {
+      return res.status(400).json({ success: false, message: 'MPIN must be exactly 4 digits' });
+    }
+
+    const user = await User.findById(userId).select('+mpin');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.isMpinSet) {
+      if (!currentMpin) {
+        return res.status(400).json({ success: false, message: 'Current MPIN is required to change it' });
+      }
+
+      if (mpinService.isMpinLocked(user)) {
+        return res.status(429).json({ success: false, message: 'Too many failed attempts. Try again later.' });
+      }
+
+      const isMatch = await mpinService.compareMpin(currentMpin, user.mpin);
+      if (!isMatch) {
+        await mpinService.incrementMpinAttempts(user);
+        return res.status(401).json({ success: false, message: 'Incorrect current MPIN' });
+      }
+    }
+
+    user.mpin = await mpinService.hashMpin(mpin);
+    user.isMpinSet = true;
+    user.mpinAttempts = 0;
+    user.mpinLockedUntil = null;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'MPIN set successfully' });
+  } catch (error) {
+    console.error('Set MPIN error:', error);
+    res.status(500).json({ success: false, message: 'Failed to set MPIN' });
+  }
+};
+
+/**
+ * Reset MPIN via OTP verification token
+ */
+const resetMpin = async (req, res) => {
+  try {
+    const { verificationToken, mpin, confirmMpin } = req.body;
+
+    if (!verificationToken || !mpin || !confirmMpin) {
+      return res.status(400).json({ success: false, message: 'Verification token, MPIN, and confirm MPIN are required' });
+    }
+
+    if (mpin !== confirmMpin) {
+      return res.status(400).json({ success: false, message: 'MPINs do not match' });
+    }
+
+    if (!mpinService.validateMpinFormat(mpin)) {
+      return res.status(400).json({ success: false, message: 'MPIN must be exactly 4 digits' });
+    }
+
+    const phone = verifyVerificationToken(verificationToken);
+    if (!phone) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired verification session' });
+    }
+
+    const user = await User.findOne({ phone }).select('+mpin');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.mpin = await mpinService.hashMpin(mpin);
+    user.isMpinSet = true;
+    user.mpinAttempts = 0;
+    user.mpinLockedUntil = null;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'MPIN reset successfully. You can now login.' });
+  } catch (error) {
+    console.error('Reset MPIN error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset MPIN' });
+  }
+};
+
+/**
+ * Get MPIN Status
+ */
+const getMpinStatus = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    res.status(200).json({
+      success: true,
+      isMpinSet: !!user?.isMpinSet
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch status' });
+  }
+};
+
 module.exports = {
   sendOTP,
   verifyLogin,
@@ -447,5 +634,9 @@ module.exports = {
   login,
   logout,
   refreshToken,
-  deleteAccount
+  deleteAccount,
+  loginWithMpin,
+  setMpin,
+  resetMpin,
+  getMpinStatus
 };

@@ -97,7 +97,7 @@ const sendSMS = async (phone, message) => {
  */
 const sendOTP = async (phone, otp) => {
   // DLT-compliant message format (must match registered template)
-  const appName = 'Grooagri';
+  const appName = 'Agroyilt';
   const message = `Welcome to the ${appName} powered by Appzeto.Your OTP for registration is ${otp}.BGADEC`;
 
   console.log(`[SMS] Attempting to send OTP to ${phone}`);

@@ -220,6 +220,59 @@ const findNearbyVendors = async (centerLocation, radiusKm = 10, filters = {}) =>
 };
 
 /**
+ * Find workers within specified radius of a location
+ * @param {Object} centerLocation - {lat, lng} of center point
+ * @param {number} radiusKm - Search radius in kilometers (default: 10)
+ * @param {Object} filters - Additional filters for workers
+ * @returns {Promise<Array>} Array of nearby workers with distance
+ */
+const findNearbyWorkers = async (centerLocation, radiusKm = 10, filters = {}) => {
+  try {
+    const Worker = require('../models/Worker');
+    const { WORKER_STATUS } = require('../utils/constants');
+
+    // Build base query
+    const baseQuery = {
+      status: WORKER_STATUS.AVAILABLE, // Only available workers are eligible
+      // Assuming you might have an isActive or approvalStatus on Worker. If not, omit it.
+      // isActive: true, 
+      ...filters
+    };
+
+    let nearbyWorkers = [];
+
+    // Fallback: Use Haversine formula (assuming Worker model doesn't have 2dsphere yet or we do a simple query)
+    const workers = await Worker.find(baseQuery)
+      .select('name phone address profilePhoto skills serviceCategories servicePricing status');
+
+    // Calculate distances and filter by radius
+    nearbyWorkers = workers.map(worker => {
+      let distance = null;
+
+      // If worker has coordinates in address
+      if (worker.address && worker.address.lat && worker.address.lng) {
+        distance = calculateDistance(centerLocation, {
+          lat: worker.address.lat,
+          lng: worker.address.lng
+        });
+      }
+
+      return {
+        ...worker.toObject(),
+        distance: distance,
+        withinRange: distance === null || distance <= radiusKm
+      };
+    }).filter(worker => worker.withinRange);
+
+    console.log(`[LocationService] Found ${nearbyWorkers.length} workers using Haversine`);
+    return nearbyWorkers;
+  } catch (error) {
+    console.error('Find nearby workers error:', error);
+    return [];
+  }
+};
+
+/**
  * Get distance matrix between multiple points
  * @param {Array} origins - Array of {lat, lng} objects
  * @param {Array} destinations - Array of {lat, lng} objects
@@ -255,6 +308,7 @@ const getDistanceMatrix = async (origins, destinations) => {
 module.exports = {
   geocodeAddress,
   findNearbyVendors,
+  findNearbyWorkers,
   calculateDistance,
   getDistanceMatrix
 };

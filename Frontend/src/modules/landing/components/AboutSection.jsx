@@ -81,7 +81,7 @@ const AboutSection = () => {
                         viewport={{ once: true }}
                     >
                         <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-8">
-                            <TranslatedText>{aboutContent ? aboutContent.title : "About GROO"}</TranslatedText>
+                            <TranslatedText>{aboutContent ? aboutContent.title : "About AgroYilt"}</TranslatedText>
                         </h2>
                         {aboutContent && aboutContent.content ? (
                             <div className="space-y-6 text-lg text-gray-600 leading-relaxed whitespace-pre-line">
@@ -91,12 +91,12 @@ const AboutSection = () => {
                             <div className="space-y-6 text-lg text-gray-600 leading-relaxed">
                                 <p>
                                     <TranslatedText>
-                                        GROO is made to help farmers with daily farming needs in one place. They can also book tractors, harvesters, rotavators, drones, JCB, borewell machines, and other equipment on rent.
+                                        AgroYilt is made to help farmers with daily farming needs in one place. They can also book tractors, harvesters, rotavators, drones, JCB, borewell machines, and other equipment on rent.
                                     </TranslatedText>
                                 </p>
                                 <p>
                                     <TranslatedText>
-                                        Farmers can order seeds, fertilizers, and other farm items from nearby shops. GROO aims to make farming work easy, fast, and on time with useful support and modern technology.
+                                        Farmers can order seeds, fertilizers, and other farm items from nearby shops. AgroYilt aims to make farming work easy, fast, and on time with useful support and modern technology.
                                     </TranslatedText>
                                 </p>
                             </div>
@@ -116,7 +116,7 @@ const AboutSection = () => {
                                     <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-xl group">
                                         <img 
                                             src={aboutContent.images[0].url} 
-                                            alt={aboutContent.images[0].name || "About GROO"} 
+                                            alt={aboutContent.images[0].name || "About AgroYilt"} 
                                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">

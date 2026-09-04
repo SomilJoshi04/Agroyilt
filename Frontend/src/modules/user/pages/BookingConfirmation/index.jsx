@@ -21,7 +21,7 @@ import NotificationBell from '../../components/common/NotificationBell';
 import ConfirmDialog from '../../../../components/common/ConfirmDialog';
 
 // Inline Searching Animation Component
-const SearchingAnimation = () => {
+const SearchingAnimation = ({ isWorker }) => {
   const [dots, setDots] = useState('.');
 
   useEffect(() => {
@@ -74,9 +74,9 @@ const SearchingAnimation = () => {
 
       {/* Status Text */}
       <div className="text-center relative z-20">
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Finding nearby experts</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Finding nearby {isWorker ? 'independent workers' : 'experts'}</h3>
         <p className="text-gray-500 text-sm max-w-[240px] mx-auto leading-relaxed">
-          Connecting you with the best available service providers{dots}
+          Connecting you with the best available {isWorker ? 'workers' : 'service providers'}{dots}
         </p>
       </div>
 
@@ -276,76 +276,85 @@ const BookingConfirmation = () => {
         </header>
 
         <main className="px-4 py-6">
-          {/* Searching Animation - Show at top when searching for vendor */}
-          {isSearching && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-4 overflow-hidden">
-              <SearchingAnimation />
-            </div>
-          )}
+          {(() => {
+            const isWorker = booking?.providerType === 'WORKER' || 
+                             /labour|labor|worker|shramik|majdoor/i.test(booking?.serviceCategory || '') ||
+                             booking?.bookedItems?.some(i => (i.card?.title || '').toLowerCase().includes('worker') || (i.card?.title || '').toLowerCase().includes('independent'));
+            return (
+              <>
+                {/* Searching Animation - Show at top when searching for worker/vendor */}
+                {isSearching && (
+                  <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-4 overflow-hidden">
+                    <SearchingAnimation isWorker={isWorker} />
+                  </div>
+                )}
 
-          {/* Success Icon - Show when confirmed */}
-          {!isSearching && ['confirmed', 'assigned', 'journey_started', 'work_in_progress', 'visited', 'work_done', 'completed'].includes(booking?.status?.toLowerCase()) && (
-            <div className="flex flex-col items-center justify-center mb-6">
-              <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                <FiCheckCircle className="w-12 h-12 text-green-600" />
-              </div>
-              <h1 className="text-2xl font-bold text-black mb-2">Booking Confirmed!</h1>
-              <p className="text-sm text-gray-600 text-center">
-                Your booking has been confirmed. We'll send you updates via SMS.
-              </p>
-            </div>
-          )}
+                {/* Success Icon - Show when confirmed */}
+                {!isSearching && ['confirmed', 'assigned', 'journey_started', 'work_in_progress', 'visited', 'work_done', 'completed'].includes(booking?.status?.toLowerCase()) && (
+                  <div className="flex flex-col items-center justify-center mb-6">
+                    <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                      <FiCheckCircle className="w-12 h-12 text-green-600" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-black mb-2">Booking Confirmed!</h1>
+                    <p className="text-sm text-gray-600 text-center">
+                      Your booking has been confirmed. We'll send you updates via SMS.
+                    </p>
+                  </div>
+                )}
 
-          {/* Request Sent Icon - Show when status is requested but searching animation is stopped */}
-          {!isSearching && booking?.status?.toLowerCase() === 'requested' && (
-            <div className="flex flex-col items-center justify-center mb-6">
-              <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-4 border border-amber-100 shadow-sm">
-                <FiBell className="w-10 h-10 text-amber-500 animate-pulse" />
-              </div>
-              <h1 className="text-2xl font-black text-gray-900 mb-2 italic tracking-tight">REQUEST SENT!</h1>
-              <p className="text-sm text-gray-500 text-center max-w-[260px] font-medium leading-relaxed">
-                Your request has been broadcasted to all nearby experts. We'll notify you the moment someone accepts.
-              </p>
-            </div>
-          )}
+                {/* Request Sent Icon - Show when status is requested but searching animation is stopped */}
+                {!isSearching && booking?.status?.toLowerCase() === 'requested' && (
+                  <div className="flex flex-col items-center justify-center mb-6">
+                    <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-4 border border-amber-100 shadow-sm">
+                      <FiBell className="w-10 h-10 text-amber-500 animate-pulse" />
+                    </div>
+                    <h1 className="text-2xl font-black text-gray-900 mb-2 italic tracking-tight">REQUEST SENT!</h1>
+                    <p className="text-sm text-gray-500 text-center max-w-[260px] font-medium leading-relaxed">
+                      Your request has been broadcasted to all nearby {isWorker ? 'independent workers' : 'experts'}. We'll notify you the moment someone accepts.
+                    </p>
+                  </div>
+                )}
 
-          {/* Failure Icon - Show when expired/cancelled/rejected */}
-          {!isSearching && ['expired', 'cancelled', 'rejected', 'failed', 'timeout'].includes(booking?.status?.toLowerCase()) && (
-            <div className="flex flex-col items-center justify-center mb-6">
-              <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <FiXCircle className="w-12 h-12 text-red-600" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">No Expert Found</h1>
-              <p className="text-sm text-gray-500 text-center max-w-[260px] mb-6">
-                We couldn't find a nearby expert for your request at this moment.
-              </p>
-              <button
-                onClick={() => navigate('/')}
-                className="px-8 py-3 bg-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-600/20 active:scale-95 transition-all flex items-center gap-2"
-              >
-                <FiArrowRight className="w-5 h-5" />
-                Search Again
-              </button>
-            </div>
-          )}
+                {/* Failure Icon - Show when expired/cancelled/rejected */}
+                {!isSearching && ['expired', 'cancelled', 'rejected', 'failed', 'timeout'].includes(booking?.status?.toLowerCase()) && (
+                  <div className="flex flex-col items-center justify-center mb-6">
+                    <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                      <FiXCircle className="w-12 h-12 text-red-600" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">No {isWorker ? 'Worker' : 'Expert'} Found</h1>
+                    <p className="text-sm text-gray-500 text-center max-w-[260px] mb-6">
+                      We couldn't find a nearby {isWorker ? 'independent worker' : 'expert'} for your request at this moment.
+                    </p>
+                    <button
+                      onClick={() => navigate('/')}
+                      className="px-8 py-3 bg-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-600/20 active:scale-95 transition-all flex items-center gap-2"
+                    >
+                      <FiArrowRight className="w-5 h-5" />
+                      Search Again
+                    </button>
+                  </div>
+                )}
 
-          {/* Booking ID Card */}
-          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 mb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Booking ID</p>
-                <p className="text-base font-bold text-black">{booking.bookingNumber || booking._id || booking.id}</p>
-              </div>
-              <div className={`px-3 py-1.5 rounded-full ${(isSearching || booking?.status?.toLowerCase() === 'requested')
-                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                : 'bg-green-50 text-green-700 border border-green-200'
-                }`}>
-                <span className="text-sm font-semibold">
-                  {isSearching ? 'Finding Vendor...' : (booking?.status?.toLowerCase() === 'requested' ? 'Request Sent' : 'Confirmed')}
-                </span>
-              </div>
-            </div>
-          </div>
+                {/* Booking ID Card */}
+                <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Booking ID</p>
+                      <p className="text-base font-bold text-black">{booking.bookingNumber || booking._id || booking.id}</p>
+                    </div>
+                    <div className={`px-3 py-1.5 rounded-full ${(isSearching || booking?.status?.toLowerCase() === 'requested')
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                      : 'bg-green-50 text-green-700 border border-green-200'
+                      }`}>
+                      <span className="text-sm font-semibold">
+                        {isSearching ? (isWorker ? 'Finding Worker...' : 'Finding Vendor...') : (booking?.status?.toLowerCase() === 'requested' ? 'Request Sent' : 'Confirmed')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
 
           {/* Service Details Card */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 mb-4">

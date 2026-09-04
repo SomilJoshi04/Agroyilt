@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBell, FiVolume2, FiGlobe, FiLogOut } from 'react-icons/fi';
+import { FiBell, FiVolume2, FiGlobe, FiLogOut, FiShield } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { workerTheme as themeColors } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
@@ -198,6 +198,28 @@ const Settings = () => {
                 />
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Security Settings */}
+        <div
+          className="bg-white rounded-xl p-4 mb-6 shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+          style={{
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          }}
+          onClick={() => navigate('/worker/settings/mpin-setup')}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FiShield className="w-5 h-5" style={{ color: themeColors.icon }} />
+              <div>
+                <p className="font-semibold text-gray-800">Set / Change MPIN</p>
+                <p className="text-sm text-gray-600">Manage your 4-digit login pin</p>
+              </div>
+            </div>
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </div>
         </div>
 

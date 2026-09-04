@@ -44,6 +44,7 @@ const JobDetails = lazyLoad(() => import('../pages/JobDetails'));
 const Profile = lazyLoad(() => import('../pages/Profile'));
 const EditProfile = lazyLoad(() => import('../pages/Profile/EditProfile'));
 const Settings = lazyLoad(() => import('../pages/Settings'));
+const MpinSetup = lazyLoad(() => import('../pages/MpinSetup'));
 const Notifications = lazyLoad(() => import('../pages/Notifications'));
 const JobMap = lazyLoad(() => import('../pages/JobMap'));
 const JobTimeline = lazyLoad(() => import('../pages/JobTimeline'));
@@ -92,6 +93,7 @@ const WorkerRoutes = () => {
               <Route path="/profile" element={<ProtectedRoute userType="worker"><Profile /></ProtectedRoute>} />
               <Route path="/profile/edit" element={<ProtectedRoute userType="worker"><EditProfile /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute userType="worker"><Settings /></ProtectedRoute>} />
+              <Route path="/settings/mpin-setup" element={<ProtectedRoute userType="worker"><MpinSetup /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute userType="worker"><Notifications /></ProtectedRoute>} />
               <Route path="/wallet" element={<ProtectedRoute userType="worker"><Wallet /></ProtectedRoute>} />
             </Routes>

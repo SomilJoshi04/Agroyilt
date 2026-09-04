@@ -50,7 +50,9 @@ exports.updateSettings = async (req, res, next) => {
       // Billing Settings
       companyName, companyGSTIN, companyPAN, companyAddress, companyCity, companyState, companyPincode, companyPhone, companyEmail, invoicePrefix, sacCode,
       // Support Settings
-      supportEmail, supportPhone, supportWhatsapp
+      supportEmail, supportPhone, supportWhatsapp,
+      // Branding Settings
+      appName, appTagline, appLogo, appFavicon
     } = req.body;
 
     let settings = await Settings.findOne({ type: 'global' });
@@ -73,7 +75,8 @@ exports.updateSettings = async (req, res, next) => {
         razorpayWebhookSecret,
         cloudinaryCloudName,
         cloudinaryApiKey,
-        cloudinaryApiSecret
+        cloudinaryApiSecret,
+        appName, appTagline, appLogo, appFavicon
       });
     } else {
       // Update fields if provided
@@ -97,8 +100,6 @@ exports.updateSettings = async (req, res, next) => {
       if (cloudinaryApiKey !== undefined) settings.cloudinaryApiKey = cloudinaryApiKey;
       if (cloudinaryApiSecret !== undefined) settings.cloudinaryApiSecret = cloudinaryApiSecret;
 
-      if (cloudinaryApiSecret !== undefined) settings.cloudinaryApiSecret = cloudinaryApiSecret;
-
       // Billing update
       if (companyName !== undefined) settings.companyName = companyName;
       if (companyGSTIN !== undefined) settings.companyGSTIN = companyGSTIN;
@@ -116,6 +117,12 @@ exports.updateSettings = async (req, res, next) => {
       if (supportEmail !== undefined) settings.supportEmail = supportEmail;
       if (supportPhone !== undefined) settings.supportPhone = supportPhone;
       if (supportWhatsapp !== undefined) settings.supportWhatsapp = supportWhatsapp;
+
+      // Branding update
+      if (appName !== undefined) settings.appName = appName;
+      if (appTagline !== undefined) settings.appTagline = appTagline;
+      if (appLogo !== undefined) settings.appLogo = appLogo;
+      if (appFavicon !== undefined) settings.appFavicon = appFavicon;
 
       await settings.save();
     }
@@ -142,14 +149,14 @@ exports.updateSettings = async (req, res, next) => {
     });
   }
 };
-// Get Public Settings (Visited Charges, GST)
+// Get Public Settings (Visited Charges, GST, Branding)
 exports.getPublicSettings = async (req, res, next) => {
   try {
-    let settings = await Settings.findOne({ type: 'global' }).select('visitedCharges serviceGstPercentage partsGstPercentage supportEmail supportPhone supportWhatsapp cancellationPenalty bookingCommissionPercentage');
+    let settings = await Settings.findOne({ type: 'global' }).select('visitedCharges serviceGstPercentage partsGstPercentage supportEmail supportPhone supportWhatsapp cancellationPenalty bookingCommissionPercentage appName appTagline appLogo appFavicon');
 
     // Default if not found (fallback values)
     if (!settings) {
-      settings = { visitedCharges: 29, serviceGstPercentage: 18, partsGstPercentage: 18 };
+      settings = { visitedCharges: 29, serviceGstPercentage: 18, partsGstPercentage: 18, appName: 'AgroYilt', appLogo: '/AgroyiltLogo.png', appFavicon: '/AgroyiltLogo.png' };
     }
 
     res.status(200).json({

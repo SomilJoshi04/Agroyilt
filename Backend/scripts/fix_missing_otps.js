@@ -13,7 +13,7 @@ if (fs.existsSync(envPath)) {
     console.log('.env file NOT found. Using default URI.');
 }
 
-const dbUri = process.env.MONGO_URI || 'mongodb://localhost:27017/grooagri';
+const dbUri = process.env.MONGO_URI || 'mongodb://localhost:27017/agroyilt';
 console.log('Connecting to URI:', dbUri.replace(/:([^:@]+)@/, ':****@')); // Hide password
 
 const Booking = require('../models/Booking');

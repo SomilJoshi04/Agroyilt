@@ -30,6 +30,23 @@ const workerSchema = new mongoose.Schema({
     type: String,
     select: false
   },
+  // MPIN Login
+  mpin: {
+    type: String,
+    select: false // Never returned in normal queries
+  },
+  isMpinSet: {
+    type: Boolean,
+    default: false
+  },
+  mpinAttempts: {
+    type: Number,
+    default: 0
+  },
+  mpinLockedUntil: {
+    type: Date,
+    default: null
+  },
   aadhar: {
     number: {
       type: String,
@@ -61,6 +78,41 @@ const workerSchema = new mongoose.Schema({
   specializedExperience: [{
     type: String
   }],
+  serviceCategories: [{
+    type: String
+  }],
+  skills: [{
+    type: String
+  }],
+  servicePricing: [{
+    serviceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Service'
+    },
+    price: Number,
+    isPriceOverride: {
+      type: Boolean,
+      default: false
+    }
+  }],
+  hourlyRate: {
+    type: Number,
+    default: 0
+  },
+  dailyRate: {
+    type: Number,
+    default: 0
+  },
+  landRate: {
+    type: Number,
+    default: 0
+  },
+  customRates: [{
+    skill: String,
+    hourly_price: Number,
+    daily_price: Number,
+    land_price: Number
+  }],
   status: {
     type: String,
     enum: Object.values(WORKER_STATUS),
@@ -76,7 +128,8 @@ const workerSchema = new mongoose.Schema({
     city: String,
     state: String,
     pincode: String,
-    landmark: String
+    landmark: String,
+    fullAddress: String
   },
   rating: {
     type: Number,

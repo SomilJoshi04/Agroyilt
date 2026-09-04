@@ -66,7 +66,7 @@ const Header = ({ location, onLocationClick }) => {
               >
                 <Logo
                   ref={logoRef}
-                  className="h-12 w-auto"
+                  className="h-9 w-auto"
                 />
               </div>
             </div>

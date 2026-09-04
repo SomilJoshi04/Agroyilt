@@ -11,15 +11,15 @@ const ServiceSchema = ({ data }) => {
     "@context": "https://schema.org",
     "@type": "Product", // Equipment is often categorized as Product for commerce rich snippets
     "name": data.name,
-    "image": data.images?.[0] || "https://grooagri.com/logo.png",
-    "description": data.description || `Professional agriculture ${data.name} available for rent on GrooAgri.`,
+    "image": data.images?.[0] || "https://agroyilt.com/AgroyiltLogo.png",
+    "description": data.description || `Professional agriculture ${data.name} available for rent on Agroyilt.`,
     "brand": {
       "@type": "Brand",
-      "name": data.vendorId?.businessName || "GrooAgri"
+      "name": data.vendorId?.businessName || "Agroyilt"
     },
     "offers": {
       "@type": "Offer",
-      "url": `https://grooagri.com/user/machinery/${data._id}`,
+      "url": `https://agroyilt.com/user/machinery/${data._id}`,
       "priceCurrency": "INR",
       "price": data.pricing?.hourly?.price || data.pricing?.land_based?.price || 0,
       "availability": "https://schema.org/InStock"

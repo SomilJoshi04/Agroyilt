@@ -31,6 +31,10 @@ startWeatherScheduler();
 const { startBookingReminderScheduler } = require('./services/bookingReminderService');
 startBookingReminderScheduler();
 
+// Initialize Requirement Expiry Scheduler (Bidding System)
+const { startRequirementScheduler } = require('./services/requirementScheduler');
+startRequirementScheduler();
+
 // Initialize Express app
 const app = express();
 app.set('trust proxy', 1);
@@ -45,9 +49,9 @@ app.use(cors({
   origin: [
     "http://localhost:5173",
     "http://localhost:5174",
-    "https://grooagri.com",
-    "https://www.grooagri.com",
-    "https://grooagri.vercel.app"
+    "https://agroyilt.com",
+    "https://www.agroyilt.com",
+    "https://agroyilt.vercel.app"
   ],
   credentials: true
 }));
@@ -91,7 +95,7 @@ app.use('/api', rateLimiter);
 app.get('/health', (req, res) => {
   res.json({
     success: true,
-    message: 'GrooAgri API is running',
+    message: 'Agroyilt API is running',
     timestamp: new Date().toISOString()
   });
 });
@@ -159,6 +163,7 @@ app.use('/api/user/wallet', require('./routes/user-routes/userWallet.routes'));
 app.use('/api/users/bookings', require('./routes/user-routes/booking.routes'));
 app.use('/api/users', require('./routes/user-routes/cart.routes'));
 app.use('/api/users/fcm-tokens', require('./routes/user-routes/fcmToken.routes'));
+app.use('/api/users/requirements', require('./routes/user-routes/requirement.routes'));
 
 
 
@@ -168,6 +173,7 @@ app.use('/api/vendors', require('./routes/vendor-routes/profile.routes'));
 app.use('/api/vendors', require('./routes/vendor-routes/settings.routes'));
 app.use('/api/vendors', require('./routes/vendor-routes/wallet.routes'));
 app.use('/api/vendors', require('./routes/vendor-routes/dashboard.routes'));
+app.use('/api/vendors/ledger', require('./routes/vendor-routes/vendorLedger.routes'));
 app.use('/api/vendors', require('./routes/vendor-routes/service.routes'));
 app.use('/api/vendors/bookings', require('./routes/vendor-routes/booking.routes'));
 app.use('/api/vendors/workers', require('./routes/vendor-routes/worker.routes'));
@@ -177,7 +183,10 @@ app.use('/api/vendors', require('./routes/vendor-routes/vendorBill.routes'));
 app.use('/api/vendors/maintenance', require('./routes/vendor-routes/maintenance.routes'));
 app.use('/api/vendors/compliance', require('./routes/vendor-routes/compliance.routes'));
 app.use('/api/vendors/equipment', require('./routes/vendor-routes/equipment.routes'));
-
+app.use('/api/vendors/bids', require('./routes/vendor-routes/bid.routes'));
+app.use('/api/vendors', require('./routes/vendor-routes/labour.routes'));
+app.use('/api/vendors', require('./routes/vendor-routes/attendance.routes'));
+app.use('/api', require('./routes/common-routes/qr.routes'));
 // Worker routes
 app.use('/api/workers/auth', require('./routes/worker-routes/auth.routes'));
 app.use('/api/workers', require('./routes/worker-routes/profile.routes'));
@@ -213,6 +222,7 @@ app.use('/api/admin', require('./routes/admin-routes/reportManagement.routes'));
 app.use('/api/admin/disputes', require('./routes/admin-routes/disputeManagement.routes'));
 app.use('/api/admin/settlements', require('./routes/admin-routes/settlementManagement.routes'));
 app.use('/api/admin/website', require('./routes/admin-routes/websiteManagement.routes'));
+app.use('/api/admin', require('./routes/admin-routes/adminPayout.routes'));
 app.use('/api/admin/admins', require('./routes/admin-routes/adminManagement.routes'));
 app.use('/api/image', require('./routes/admin-routes/image.routes'));
 app.use('/api', require('./routes/admin-routes/upload.routes')); // Generic upload access
@@ -250,6 +260,7 @@ app.use('/api/disputes', require('./routes/common-routes/dispute.routes'));
 
 // Public routes (no authentication required)
 app.use('/api/content', require('./routes/contentRoutes'));
+app.use('/api/webhooks', require('./routes/common-routes/webhook.routes'));
 app.use('/api/public/website', require('./routes/public-routes/website.routes'));
 app.use('/api/public', require('./routes/public-routes/catalog.routes'));
 app.use('/api/public', require('./routes/public-routes/plan.routes'));
@@ -265,6 +276,9 @@ app.use('/', require('./routes/common-routes/sitemap.routes'));
 
 // Chatbot routes
 app.use('/api/chat', require('./routes/common-routes/chat.routes'));
+
+// Farmer routes (User Panel - Agriculture module)
+app.use('/api/farmer', require('./routes/farmer-routes/index'));
 
 // 404 handler
 app.use((req, res) => {

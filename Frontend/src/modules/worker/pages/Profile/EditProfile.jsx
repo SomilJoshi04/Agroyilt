@@ -29,7 +29,11 @@ const workerProfileSchema = z.object({
     pincode: z.string().optional(),
     fullAddress: z.string().optional()
   }).refine((data) => {
-    return (data.fullAddress && data.fullAddress.length > 5) || (data.addressLine1 && data.addressLine1.length > 0);
+    return Boolean(
+      (data.fullAddress && data.fullAddress.trim().length > 0) ||
+      (data.addressLine1 && data.addressLine1.trim().length > 0) ||
+      (data.city && data.city.trim().length > 0)
+    );
   }, { message: "Address is required" })
 });
 
@@ -53,6 +57,9 @@ const EditProfile = () => {
     },
     serviceCategories: [],
     skills: [],
+    hourlyRate: '',
+    dailyRate: '',
+    landRate: '',
     profilePhoto: null,
     status: 'OFFLINE'
   });
@@ -74,13 +81,18 @@ const EditProfile = () => {
     const initData = async () => {
       try {
         setLoading(true);
-        const [profileRes, catalogRes] = await Promise.all([
+        const [profileRes, catalogRes, servicesRes] = await Promise.all([
           workerService.getProfile(),
-          publicCatalogService.getCategories()
+          publicCatalogService.getCategories(),
+          publicCatalogService.getServices().catch(() => ({ services: [] }))
         ]);
 
         if (profileRes.success) {
           const w = profileRes.worker;
+          const fullAddr = w.address?.fullAddress ||
+                           w.address?.formattedAddress ||
+                           [w.address?.addressLine1, w.address?.city, w.address?.state, w.address?.pincode].filter(Boolean).join(', ');
+
           setFormData({
             name: w.name || '',
             phone: w.phone || '',
@@ -90,16 +102,39 @@ const EditProfile = () => {
               city: w.address?.city || '',
               state: w.address?.state || '',
               pincode: w.address?.pincode || '',
+              fullAddress: fullAddr || ''
             },
             serviceCategories: w.serviceCategories || (w.serviceCategory ? [w.serviceCategory] : []),
             skills: w.skills || [],
+            hourlyRate: w.hourlyRate || '',
+            dailyRate: w.dailyRate || '',
+            landRate: w.landRate || '',
             profilePhoto: w.profilePhoto || null,
             status: w.status || 'OFFLINE'
           });
         }
 
         if (catalogRes.success) {
-          setCategories(catalogRes.categories || []);
+          const rawCats = catalogRes.categories || [];
+          const allSvcs = servicesRes?.services || [];
+
+          const enhancedCategories = rawCats.map(cat => {
+            const catSvcTitles = allSvcs
+              .filter(s => (s.categoryId === cat.id || s.categoryId === cat._id))
+              .map(s => s.title);
+
+            const mergedSubServices = [...new Set([
+              ...(cat.subServices || []).map(s => typeof s === 'string' ? s : (s.title || s.name)),
+              ...catSvcTitles
+            ])];
+
+            return {
+              ...cat,
+              subServices: mergedSubServices
+            };
+          });
+
+          setCategories(enhancedCategories);
         }
       } catch (error) {
         console.error('Init error:', error);
@@ -237,6 +272,9 @@ const EditProfile = () => {
         serviceCategories: formData.serviceCategories,
         serviceCategory: formData.serviceCategories[0], // Fallback
         skills: formData.skills,
+        hourlyRate: Number(formData.hourlyRate) || 0,
+        dailyRate: Number(formData.dailyRate) || 0,
+        landRate: Number(formData.landRate) || 0,
         address: formData.address,
         status: formData.status
       };
@@ -273,8 +311,19 @@ const EditProfile = () => {
     }
   };
 
-  // Get aggregated sub-services (skills) from ALL selected categories
-  const availableSkills = categories
+  // Filter categories to ONLY show WORKER categories to independent workers
+  const workerCategories = (categories || []).filter(cat => {
+    const title = (cat.title || '').toLowerCase();
+    const slug = (cat.slug || '').toLowerCase();
+    const bookingType = cat.bookingType || '';
+
+    return bookingType === 'WORKER' ||
+           /labour|labor|worker|manpower|service|shramik|majdoor|crop|planting|field|harvest|pruning/i.test(title) ||
+           /labour|labor|worker|manpower|service|shramik|majdoor|crop|planting|field|harvest|pruning/i.test(slug);
+  });
+
+  // Get aggregated sub-services (skills) from selected WORKER categories only
+  const availableSkills = workerCategories
     .filter(c => formData.serviceCategories.includes(c.title))
     .flatMap(c => c.subServices || []);
 
@@ -476,7 +525,7 @@ const EditProfile = () => {
 
               {isCategoryOpen && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-60 overflow-y-auto">
-                  {categories.map((cat, index) => {
+                  {workerCategories.map((cat, index) => {
                     const isSelected = formData.serviceCategories.includes(cat.title);
                     return (
                       <div
@@ -492,6 +541,11 @@ const EditProfile = () => {
                       </div>
                     );
                   })}
+                  {workerCategories.length === 0 && (
+                    <div className="px-4 py-3 text-gray-400 text-sm italic">
+                      No worker categories available
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -565,6 +619,49 @@ const EditProfile = () => {
               {errors.skills && <p className="text-red-500 text-[10px] mt-1">Select at least one service</p>}
             </div>
           )}
+
+          {/* Custom Labour Pricing / Rates */}
+          <div className="pt-4 border-t border-gray-100 space-y-3">
+            <div className="flex flex-col">
+              <label className="text-xs font-extrabold text-gray-800 uppercase tracking-wider">
+                My Pricing & Charges (अपनी रेट दर्ज करें)
+              </label>
+              <p className="text-[10px] text-gray-400 font-medium">Set custom rate per hour, per day, or per acre for your work.</p>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                <label className="text-[9.5px] font-black text-gray-500 block mb-1 uppercase">Hourly (₹/Hr)</label>
+                <input
+                  type="number"
+                  value={formData.hourlyRate}
+                  onChange={(e) => handleInputChange('hourlyRate', e.target.value)}
+                  className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="e.g. 200"
+                />
+              </div>
+              <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                <label className="text-[9.5px] font-black text-gray-500 block mb-1 uppercase">Daily (₹/Day)</label>
+                <input
+                  type="number"
+                  value={formData.dailyRate}
+                  onChange={(e) => handleInputChange('dailyRate', e.target.value)}
+                  className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="e.g. 800"
+                />
+              </div>
+              <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                <label className="text-[9.5px] font-black text-gray-500 block mb-1 uppercase">Land (₹/Acre)</label>
+                <input
+                  type="number"
+                  value={formData.landRate}
+                  onChange={(e) => handleInputChange('landRate', e.target.value)}
+                  className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="e.g. 1200"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Action Buttons */}

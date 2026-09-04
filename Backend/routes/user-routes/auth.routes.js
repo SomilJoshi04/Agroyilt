@@ -7,7 +7,11 @@ const {
   login,
   logout,
   verifyLogin,
-  deleteAccount
+  deleteAccount,
+  loginWithMpin,
+  setMpin,
+  resetMpin,
+  getMpinStatus
 } = require('../../controllers/userControllers/userAuthController');
 // ...
 
@@ -45,6 +49,12 @@ router.post('/login', loginValidation, login);
 router.post('/refresh-token', require('../../controllers/userControllers/userAuthController').refreshToken);
 router.post('/logout', authenticate, isUser, logout);
 router.delete('/delete-account', authenticate, isUser, deleteAccount);
+
+// MPIN Routes
+router.post('/login-mpin', loginWithMpin);
+router.post('/set-mpin', authenticate, isUser, setMpin);
+router.post('/reset-mpin', resetMpin);
+router.get('/mpin-status', authenticate, isUser, getMpinStatus);
 
 module.exports = router;
 

@@ -21,7 +21,9 @@ const {
   getVendorRatings,
   getPendingBookings,
   startTrip,
-  endTrip
+  endTrip,
+  approveExtension,
+  rejectExtension
 } = require('../../controllers/bookingControllers/vendorBookingController');
 
 // Validation rules
@@ -56,6 +58,8 @@ router.post('/:id/reject', authenticate, isVendor, rejectBookingValidation, reje
 router.post('/:id/assign-worker', authenticate, isVendor, assignWorkerValidation, assignWorker);
 router.put('/:id/status', authenticate, isVendor, updateStatusValidation, updateBookingStatus);
 router.post('/:id/notes', authenticate, isVendor, addNotesValidation, addVendorNotes);
+router.post('/:id/extension/:requestId/approve', authenticate, isVendor, approveExtension);
+router.post('/:id/extension/:requestId/reject', authenticate, isVendor, rejectExtension);
 
 // Self-Job Routes
 router.post('/:id/self/start', authenticate, isVendor, startSelfJob);

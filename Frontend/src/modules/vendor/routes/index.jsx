@@ -29,6 +29,7 @@ const ProfileDetails = lazy(() => import('../pages/Profile/ProfileDetails'));
 const EditProfile = lazy(() => import('../pages/Profile/EditProfile'));
 const BookingMap = lazy(() => import('../pages/BookingMap'));
 const Settings = lazy(() => import('../pages/Settings'));
+const MpinSetup = lazy(() => import('../pages/MpinSetup'));
 const AddressManagement = lazy(() => import('../pages/AddressManagement'));
 const Notifications = lazy(() => import('../pages/Notifications'));
 const SettlementRequest = lazy(() => import('../pages/Wallet/SettlementRequest'));
@@ -131,6 +132,7 @@ const VendorRoutes = () => {
                 <Route path="/profile/details" element={<ProtectedRoute userType="vendor"><ProfileDetails /></ProtectedRoute>} />
                 <Route path="/profile/edit" element={<ProtectedRoute userType="vendor"><EditProfile /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute userType="vendor"><Settings /></ProtectedRoute>} />
+                <Route path="/settings/mpin-setup" element={<ProtectedRoute userType="vendor"><MpinSetup /></ProtectedRoute>} />
                 <Route path="/address-management" element={<ProtectedRoute userType="vendor"><AddressManagement /></ProtectedRoute>} />
                 <Route path="/notifications" element={<ProtectedRoute userType="vendor"><Notifications /></ProtectedRoute>} />
                 <Route path="/my-ratings" element={<ProtectedRoute userType="vendor"><MyRatings /></ProtectedRoute>} />

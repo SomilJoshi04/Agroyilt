@@ -21,6 +21,7 @@ const categorySchema = z.object({
   requiresDriver: z.boolean().default(false),
   sectionType: z.string().default('General'),
   trackingType: z.string().default('none'),
+  bookingType: z.enum(['VENDOR', 'WORKER']).default('VENDOR'),
 });
 
 const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
@@ -47,6 +48,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
     trackingType: "none",
     requiresDriver: false,
     sectionType: "General",
+    bookingType: "VENDOR",
   });
 
   const categoriesBase = useMemo(() => {
@@ -109,6 +111,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           trackingType: cat.trackingType || 'none',
           requiresDriver: cat.requiresDriver || false,
           sectionType: cat.sectionType || 'General',
+          bookingType: cat.bookingType || 'VENDOR',
         }));
 
         setCatalog({ ...catalog, categories: mapped });
@@ -161,6 +164,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       trackingType: editing.trackingType || "none",
       requiresDriver: Boolean(editing.requiresDriver),
       sectionType: editing.sectionType || "General",
+      bookingType: editing.bookingType || "VENDOR",
     });
   }, [editingId, editing]);
 
@@ -198,6 +202,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
     trackingType: cat.trackingType || 'none',
     requiresDriver: cat.requiresDriver || false,
     sectionType: cat.sectionType || 'General',
+    bookingType: cat.bookingType || 'VENDOR',
   });
 
   const upsert = async () => {
@@ -222,8 +227,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       };
 
       if (!editing) {
-        const maxOrder = Math.max(...categoriesBase.map(c => c.homeOrder || 0), 0);
-        data.homeOrder = maxOrder + 1;
+        const minOrder = Math.min(...categoriesBase.map(c => c.homeOrder || 0), 0);
+        data.homeOrder = minOrder - 1;
       }
 
       const response = editing
@@ -238,7 +243,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
             ? existingCategories.map(category =>
               category.id === normalizedCategory.id ? normalizedCategory : category
             )
-            : [...existingCategories, normalizedCategory];
+            : [normalizedCategory, ...existingCategories];
 
           const nextCatalog = { ...catalog, categories: updatedCategories };
           setCatalog(nextCatalog);
@@ -339,6 +344,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest w-20">Icon</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Category Name</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Parent Categories</th>
+                <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Booking Type</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Section Tab</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Hierarchy</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Tracking</th>
@@ -398,6 +404,11 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
                           <span className="text-[10px] text-gray-400 font-bold uppercase italic">No Parent</span>
                         )}
                       </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className={`inline-block whitespace-nowrap px-2 py-1 rounded text-[10px] font-black border ${c.bookingType === 'WORKER' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                        {c.bookingType || 'VENDOR'}
+                      </span>
                     </td>
                     <td className="py-4 px-4">
                       <span className="inline-block whitespace-nowrap px-2 py-1 bg-purple-50 text-purple-700 rounded text-[10px] font-black border border-purple-200">
@@ -509,6 +520,18 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
               <label htmlFor="alwaysMain" className="text-base font-bold text-gray-900">Always show in Main List</label>
             </div>
             <p className="text-[11px] text-gray-400 leading-tight pl-7">Useful for tools like "Rotavator" that should be visible even when they are sub-categories.</p>
+          </div>
+
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Booking Type</label>
+            <select
+              value={form.bookingType}
+              onChange={e => setForm({ ...form, bookingType: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold mb-4"
+            >
+              <option value="VENDOR">VENDOR (Machinery/Equipment)</option>
+              <option value="WORKER">WORKER (Independent Workers)</option>
+            </select>
           </div>
 
           <div>

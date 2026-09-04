@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone, FiHeadphones, FiMessageCircle, FiEdit, FiLock, FiUnlock, FiX } from 'react-icons/fi';
+import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone, FiHeadphones, FiMessageCircle, FiEdit, FiLock, FiUnlock, FiX, FiGlobe, FiUpload } from 'react-icons/fi';
 import { getSettings, updateSettings, updateAdminProfile, getAdminProfile, getAllAdmins, createAdmin, deleteAdmin, updateAdminDetails, toggleAdminStatus } from '../../services/settingsService';
 import { cityService } from '../../services/cityService';
 import CityManagement from '../Cities';
 import { toast } from 'react-hot-toast';
+import { useBrand } from '../../../../context/BrandContext';
+import api from '../../../../services/api';
 
 const AdminSettings = () => {
+  const { refreshBrandSettings } = useBrand();
   const [settings, setSettings] = useState({
-    // No operator assignment in GrooAgri
+    // No operator assignment in Agroyilt
   });
 
   const [financialSettings, setFinancialSettings] = useState({
@@ -48,6 +51,112 @@ const AdminSettings = () => {
     supportWhatsapp: ''
   });
   const [supportLoading, setSupportLoading] = useState(false);
+
+  // Branding & App Identity State
+  const [brandingSettings, setBrandingSettings] = useState({
+    appName: 'AgroYilt',
+    appTagline: 'Smart Agriculture Equipment Booking',
+    appLogo: '/AgroyiltLogo.png',
+    appFavicon: '/AgroyiltLogo.png'
+  });
+  const [brandingLoading, setBrandingLoading] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const logoInputRef = useRef(null);
+  const faviconInputRef = useRef(null);
+
+  // Helper to compress image in browser using canvas
+  const compressImage = (file, maxWidth = 512, maxHeight = 512, quality = 0.85) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Return compressed Base64 Data URL (webp format)
+          const compressedBase64 = canvas.toDataURL('image/webp', quality);
+          resolve(compressedBase64);
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
+  const handleLogoFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingLogo(true);
+    try {
+      // 1. Compress image in browser before upload
+      const compressedBase64 = await compressImage(file, 512, 512, 0.85);
+
+      // 2. Upload compressed image to Cloudinary via backend
+      const res = await api.post('/admin/upload', { image: compressedBase64 });
+      if (res.data && res.data.imageUrl) {
+        setBrandingSettings(prev => ({ ...prev, appLogo: res.data.imageUrl }));
+        toast.success('App Logo compressed & saved to Cloudinary!');
+      } else {
+        toast.error('Failed to upload logo image');
+      }
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast.error(error.response?.data?.message || 'Failed to upload logo image file');
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
+  const handleFaviconFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFavicon(true);
+    try {
+      // 1. Compress favicon image in browser
+      const compressedBase64 = await compressImage(file, 256, 256, 0.85);
+
+      // 2. Upload compressed favicon to Cloudinary via backend
+      const res = await api.post('/admin/upload', { image: compressedBase64 });
+      if (res.data && res.data.imageUrl) {
+        setBrandingSettings(prev => ({ ...prev, appFavicon: res.data.imageUrl }));
+        toast.success('Favicon compressed & saved to Cloudinary!');
+      } else {
+        toast.error('Failed to upload favicon image');
+      }
+    } catch (error) {
+      console.error('Error uploading favicon:', error);
+      toast.error(error.response?.data?.message || 'Failed to upload favicon file');
+    } finally {
+      setUploadingFavicon(false);
+      if (faviconInputRef.current) faviconInputRef.current.value = '';
+    }
+  };
 
   const [profile, setProfile] = useState({
     name: '',
@@ -142,6 +251,13 @@ const AdminSettings = () => {
             supportPhone: res.settings.supportPhone || '',
             supportWhatsapp: res.settings.supportWhatsapp || ''
           });
+          // Load branding settings
+          setBrandingSettings({
+            appName: res.settings.appName || 'AgroYilt',
+            appTagline: res.settings.appTagline || 'Smart Agriculture Equipment Booking',
+            appLogo: res.settings.appLogo || '/AgroyiltLogo.png',
+            appFavicon: res.settings.appFavicon || '/AgroyiltLogo.png'
+          });
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -197,7 +313,7 @@ const AdminSettings = () => {
     const { name, value } = e.target;
     setFinancialSettings(prev => ({
       ...prev,
-      [name]: Number(value)
+      [name]: value === '' ? '' : Number(value)
     }));
   };
 
@@ -210,7 +326,10 @@ const AdminSettings = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await updateSettings(financialSettings);
+      const payload = Object.fromEntries(
+        Object.entries(financialSettings).map(([k, v]) => [k, v === '' ? 0 : Number(v)])
+      );
+      await updateSettings(payload);
       toast.success('Financial settings updated');
     } catch (error) {
       toast.error('Failed to update settings');
@@ -325,6 +444,26 @@ const AdminSettings = () => {
       toast.error('Failed to update support settings');
     } finally {
       setSupportLoading(false);
+    }
+  };
+
+  // Save branding settings
+  const handleBrandingSave = async (e) => {
+    e.preventDefault();
+    setBrandingLoading(true);
+    try {
+      const res = await updateSettings(brandingSettings);
+      if (res.success) {
+        toast.success('App Branding & Identity updated successfully!');
+        if (refreshBrandSettings) refreshBrandSettings();
+      } else {
+        toast.error(res.message || 'Failed to update branding');
+      }
+    } catch (error) {
+      console.error('Error updating branding settings:', error);
+      toast.error('Failed to update branding settings');
+    } finally {
+      setBrandingLoading(false);
     }
   };
 
@@ -471,6 +610,18 @@ const AdminSettings = () => {
           </div>
           <h3 className="text-lg font-bold text-gray-800 mb-2">System & Support</h3>
           <p className="text-sm text-gray-500">Manage auto-assignment and help contact info</p>
+        </div>
+      )}
+
+      {/* Branding & App Identity Card - Super Admin Only */}
+      {isSuperAdmin && (
+        <div onClick={() => setActiveView('branding')}
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group">
+          <div className="w-12 h-12 bg-amber-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-amber-100 transition-colors">
+            <FiGlobe className="w-6 h-6 text-amber-600" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-800 mb-2">Branding & App Identity</h3>
+          <p className="text-sm text-gray-500">Change App Name, Logo, Tagline & Browser Favicon</p>
         </div>
       )}
 
@@ -827,6 +978,138 @@ const AdminSettings = () => {
                       className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center gap-2 disabled:opacity-60 shadow-lg shadow-blue-200">
                       {supportLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSave className="w-4 h-4" />}
                       Save Details
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          )
+        }
+
+        {/* Branding & App Identity View */}
+        {
+          activeView === 'branding' && (
+            <motion.div key="branding" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
+              <div className="max-w-3xl mx-auto bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b">
+                  <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                    <FiGlobe className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800">App Branding & Identity</h2>
+                    <p className="text-xs text-gray-500">Changes will instantly update Chrome Tab Title, Favicon Icon & App Logo</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleBrandingSave} className="space-y-6">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">App Name (System Title)</label>
+                    <input
+                      type="text"
+                      name="appName"
+                      value={brandingSettings.appName}
+                      onChange={(e) => setBrandingSettings(prev => ({ ...prev, appName: e.target.value }))}
+                      placeholder="e.g. AgroYilt"
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-amber-500 focus:bg-white transition-all"
+                      required
+                    />
+                    <p className="text-[11px] text-gray-400 mt-1">This updates the system branding, Chrome browser tab title, and headers everywhere.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">App Tagline</label>
+                    <input
+                      type="text"
+                      name="appTagline"
+                      value={brandingSettings.appTagline}
+                      onChange={(e) => setBrandingSettings(prev => ({ ...prev, appTagline: e.target.value }))}
+                      placeholder="e.g. Smart Agriculture Equipment Booking"
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-amber-500 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                    {/* App Logo Field */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">App Logo Path / Image File</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          name="appLogo"
+                          value={brandingSettings.appLogo}
+                          onChange={(e) => setBrandingSettings(prev => ({ ...prev, appLogo: e.target.value }))}
+                          placeholder="/AgroyiltLogo.png or https://..."
+                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:border-amber-500 focus:bg-white transition-all"
+                        />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          ref={logoInputRef}
+                          onChange={handleLogoFileUpload}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => logoInputRef.current?.click()}
+                          disabled={uploadingLogo}
+                          className="px-4 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-semibold hover:bg-gray-800 transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-sm disabled:opacity-60"
+                        >
+                          {uploadingLogo ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiUpload className="w-3.5 h-3.5" />}
+                          {uploadingLogo ? 'Uploading...' : 'Choose File'}
+                        </button>
+                      </div>
+                      {/* Logo Preview */}
+                      <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
+                        <span className="text-xs text-gray-500 font-medium">Logo Preview:</span>
+                        <img src={brandingSettings.appLogo || "/AgroyiltLogo.png"} alt="Preview" className="h-10 w-10 object-contain rounded-full border bg-white shadow-sm" onError={(e) => { e.target.src = "/AgroyiltLogo.png"; }} />
+                      </div>
+                    </div>
+
+                    {/* App Favicon Field */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Browser Tab Favicon File / Icon URL</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          name="appFavicon"
+                          value={brandingSettings.appFavicon}
+                          onChange={(e) => setBrandingSettings(prev => ({ ...prev, appFavicon: e.target.value }))}
+                          placeholder="/AgroyiltLogo.png or https://..."
+                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:border-amber-500 focus:bg-white transition-all"
+                        />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          ref={faviconInputRef}
+                          onChange={handleFaviconFileUpload}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => faviconInputRef.current?.click()}
+                          disabled={uploadingFavicon}
+                          className="px-4 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-semibold hover:bg-gray-800 transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-sm disabled:opacity-60"
+                        >
+                          {uploadingFavicon ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiUpload className="w-3.5 h-3.5" />}
+                          {uploadingFavicon ? 'Uploading...' : 'Choose File'}
+                        </button>
+                      </div>
+                      {/* Favicon Preview */}
+                      <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
+                        <span className="text-xs text-gray-500 font-medium">Favicon Preview:</span>
+                        <img src={brandingSettings.appFavicon || "/AgroyiltLogo.png"} alt="Favicon" className="h-6 w-6 object-contain rounded border bg-white shadow-sm" onError={(e) => { e.target.src = "/AgroyiltLogo.png"; }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-4 border-t">
+                    <button
+                      type="submit"
+                      disabled={brandingLoading}
+                      className="px-8 py-3 bg-amber-600 text-white font-bold rounded-xl text-sm hover:bg-amber-700 flex items-center gap-2 shadow-lg shadow-amber-200 transition-all disabled:opacity-60"
+                    >
+                      {brandingLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSave className="w-5 h-5" />}
+                      Save Branding & Update App
                     </button>
                   </div>
                 </form>

@@ -371,7 +371,22 @@ const JobMap = () => {
             map.setCenter(currentLocation);
             map.setZoom(15);
           } else {
-            setRouteError('Could not calculate a driving route to this location.');
+            // Fallback: If worker is nearby (<300m), at destination (16m), or API key lacks Directions Service
+            const riderPoint = new window.google.maps.LatLng(currentLocation);
+            const destPoint = new window.google.maps.LatLng(coords);
+            const distanceMeters = window.google.maps.geometry.spherical.computeDistanceBetween(riderPoint, destPoint);
+
+            if (distanceMeters < 500 || status === 'ZERO_RESULTS' || status === 'REQUEST_DENIED') {
+              setRouteError(null);
+              fullRoutePathRef.current = [currentLocation, coords];
+              setRoutePath([currentLocation, coords]);
+              setDistance(distanceMeters < 1000 ? `${Math.round(distanceMeters)} m` : `${(distanceMeters / 1000).toFixed(1)} km`);
+              setDuration(distanceMeters < 500 ? '< 1 min' : `${Math.round((distanceMeters / 1000 / 30) * 60)} min`);
+              map.setCenter(currentLocation);
+              map.setZoom(16);
+            } else {
+              setRouteError('Could not calculate a driving route to this location.');
+            }
           }
         }
       );

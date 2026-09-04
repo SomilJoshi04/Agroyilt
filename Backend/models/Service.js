@@ -36,7 +36,7 @@ const serviceSchema = new mongoose.Schema({
   },
   basePrice: {
     type: Number,
-    required: [true, 'Base price is required'],
+    required: false,
     min: [0, 'Price cannot be negative']
   },
   gstPercentage: {
@@ -56,12 +56,27 @@ const serviceSchema = new mongoose.Schema({
     trim: true
   },
   // ==========================================
-  // EQUIPMENT RENTAL SPECIFIC FIELDS
+  // EQUIPMENT RENTAL SPECIFIC FIELDS (UPDATED)
   // ==========================================
   rental_type: {
     type: String,
     enum: ['hourly', 'land_based', 'monthly'],
     default: 'hourly'
+  },
+  priceRangeMin: {
+    type: Number,
+    required: false,
+    min: 0
+  },
+  priceRangeMax: {
+    type: Number,
+    required: false,
+    min: 0
+  },
+  pricingUnit: {
+    type: String,
+    enum: ['per_acre', 'per_hour', 'per_day'],
+    required: false
   },
   hourly_price: {
     type: Number,
@@ -71,13 +86,13 @@ const serviceSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  land_unit: {
-    type: String,
-    default: 'acre'
-  },
   daily_price: {
     type: Number,
     default: 0
+  },
+  land_unit: {
+    type: String,
+    default: 'acre'
   },
   // ==========================================
   // CONTEXTUAL PRICING (New)

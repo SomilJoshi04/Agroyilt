@@ -14,7 +14,7 @@ export const LanguageProvider = ({ children }) => {
     const [language, setLanguage] = useState(localStorage.getItem('userLanguage') || 'English');
     const [isChangingLanguage, setIsChangingLanguage] = useState(false);
 
-    // List of Supported Languages for GrooAgri
+    // List of Supported Languages for Agroyilt
     const languages = {
         'English': { label: 'English', code: 'en', flag: '🇬🇧' },
         'Hindi': { label: 'Hindi', code: 'hi', flag: '🇮🇳' },

@@ -19,6 +19,11 @@ const categorySchema = new mongoose.Schema({
     default: 'service',
     index: true
   },
+  bookingType: {
+    type: String,
+    enum: ['VENDOR', 'WORKER'],
+    default: 'VENDOR'
+  },
   slug: {
     type: String,
     required: true,
@@ -127,6 +132,21 @@ const categorySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin',
     default: null
+  },
+  priceRangeMin: {
+    type: Number,
+    required: false,
+    min: 0
+  },
+  priceRangeMax: {
+    type: Number,
+    required: false,
+    min: 0
+  },
+  pricingUnit: {
+    type: String,
+    enum: ['per_acre', 'per_hour', 'per_day'],
+    required: false
   }
 }, {
   timestamps: true

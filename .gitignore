@@ -1,3 +1,43 @@
+# Dependencies & Logs
+node_modules/
+*.log
+*.log.*
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Temporary, Scratch & Environment Folders
+scratch/
+tmp/
+temp/
+*.tmp
+
+# Test, Scratch & Debug Scripts
+test*.js
+test_*.js
+check*.js
+check_*.js
+inspect_*.js
+fix_*.js
+fix*.js
+migrate*.js
+migrate_*.js
+debug_*.js
+diagnose-*.js
+cleanup_*.js
+query_*.js
+sync_*.js
+scratch_*.js
+db_test_*.js
+
+# Helper Scripts & Output Dumps
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
+plan*.txt
+make_transparent.py
+replace_*.cjs
+build_output.txt
+build_error_output.txt

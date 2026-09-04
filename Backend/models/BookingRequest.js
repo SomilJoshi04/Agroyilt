@@ -12,10 +12,21 @@ const bookingRequestSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  providerType: {
+    type: String,
+    enum: ['VENDOR', 'WORKER'],
+    default: 'VENDOR'
+  },
   vendorId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Vendor',
-    required: true,
+    required: false,
+    index: true
+  },
+  workerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Worker',
+    required: false,
     index: true
   },
   status: {

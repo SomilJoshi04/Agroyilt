@@ -215,14 +215,8 @@ export const publicCatalogService = {
     if (normalizedParams.type) queryParams.append('type', normalizedParams.type);
     
     const queryStr = queryParams.toString() ? `?${queryParams.toString()}` : '';
-    const cacheKey = `public:categories:${queryStr || 'default'}`;
-    const cached = apiCache.get(cacheKey);
-    if (cached) return cached;
 
     const response = await api.get(`/public/categories${queryStr}`);
-    if (response.data.success) {
-      apiCache.set(cacheKey, response.data, 300); // 5 minutes
-    }
     return response.data;
   },
 

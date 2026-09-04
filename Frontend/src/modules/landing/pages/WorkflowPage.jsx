@@ -13,8 +13,8 @@ const WorkflowPage = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Helmet>
-        <title>Workflow | GrooAgri</title>
-        <meta name="description" content="Discover how GrooAgri works and our ecosystem flow." />
+        <title>Workflow | Agroyilt</title>
+        <meta name="description" content="Discover how Agroyilt works and our ecosystem flow." />
       </Helmet>
       <Navbar />
       <div className="flex-grow pt-20">

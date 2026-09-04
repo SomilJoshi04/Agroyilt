@@ -8,7 +8,7 @@ const getCart = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    let cart = await Cart.findOne({ userId }).populate('items.serviceId', 'title iconUrl basePrice discountPrice');
+    let cart = await Cart.findOne({ userId });
 
     if (!cart) {
       // Create empty cart if doesn't exist
@@ -34,9 +34,15 @@ const getCart = async (req, res) => {
 const addToCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { serviceId, title, category, price, unitPrice, serviceCount = 1, icon, description, categoryId, vendorId, sectionId, brandId } = req.body;
+    const {
+      serviceId, title, category, price, unitPrice, serviceCount = 1,
+      icon, description, categoryId, vendorId, sectionId, brandId,
+      hourly_price, land_price, land_unit, daily_price,
+      scheduledDate, timeSlot, pricing_context, parentSourceId, categoryTitle
+    } = req.body;
 
-    if (!title || !category || !price) {
+    if (!title || !category || price === undefined || price === null) {
+      console.log('Cart add failed:', { title, category, price });
       return res.status(400).json({
         success: false,
         message: 'Missing required fields'
@@ -71,7 +77,16 @@ const addToCart = async (req, res) => {
         price,
         unitPrice: unitPrice || price,
         serviceCount,
-        vendorId: vendorId || null
+        vendorId: vendorId || null,
+        hourly_price: hourly_price || 0,
+        land_price: land_price || 0,
+        land_unit: land_unit || 'acre',
+        daily_price: daily_price || 0,
+        scheduledDate: scheduledDate || null,
+        timeSlot: timeSlot || null,
+        pricing_context: pricing_context || null,
+        parentSourceId: parentSourceId || null,
+        categoryTitle: categoryTitle || ''
       });
     }
 

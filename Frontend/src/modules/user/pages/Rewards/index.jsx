@@ -49,7 +49,7 @@ const Rewards = () => {
 
   const handleShareWhatsApp = () => {
     const url = getReferralLink();
-    const text = `GrooAgri join karein aur apni pehli service par ₹100 ka discount payein! 🎁\n\nIs link se abhi register karein:\n${url}\n\nPhir hamari app Play Store se download karke farming aur agri services ka fayda uthayein!`;
+    const text = `Agroyilt join karein aur apni pehli service par ₹100 ka discount payein! 🎁\n\nIs link se abhi register karein:\n${url}\n\nPhir hamari app Play Store se download karke farming aur agri services ka fayda uthayein!`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 

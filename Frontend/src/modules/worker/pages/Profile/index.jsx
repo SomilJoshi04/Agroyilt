@@ -42,7 +42,7 @@ const Profile = () => {
           const workerData = response.worker;
           // Format address
           const addressString = workerData.address
-            ? `${workerData.address.addressLine1 || ''} ${workerData.address.addressLine2 || ''} ${workerData.address.city || ''} ${workerData.address.state || ''} ${workerData.address.pincode || ''}`.trim() || 'Not set'
+            ? workerData.address.fullAddress || `${workerData.address.addressLine1 || ''} ${workerData.address.addressLine2 || ''} ${workerData.address.city || ''} ${workerData.address.state || ''} ${workerData.address.pincode || ''}`.trim() || 'Not set'
             : 'Not set';
 
           setProfile({

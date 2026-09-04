@@ -114,6 +114,10 @@ const DetailedServiceCard = memo(({ image, title, rating, reviews, price, origin
           <span className="text-[14px] font-bold text-gray-900">₹{displayPrice}</span>
 
           <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddClick?.();
+            }}
             className="ml-auto text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all duration-300"
             style={{
               backgroundColor: `${themeColors.brand.teal}08`,

@@ -13,9 +13,9 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 // Firebase configuration from environment variables
 const firebaseConfig = {
   apiKey: "AIzaSyAEy1vl4BORXfxz0Wl42A5njPAS-yh5UZw",
-  authDomain: "grooagri-d44da.firebaseapp.com",
-  projectId: "grooagri-d44da",
-  storageBucket: "grooagri-d44da.firebasestorage.app",
+  authDomain: "agroyilt-d44da.firebaseapp.com",
+  projectId: "agroyilt-d44da",
+  storageBucket: "agroyilt-d44da.firebasestorage.app",
   messagingSenderId: "730249243780",
   appId: "1:730249243780:web:4e949df44f95c745c726d1",
   measurementId: "G-BRNBN7DK0V"

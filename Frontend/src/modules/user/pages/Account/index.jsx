@@ -429,7 +429,7 @@ const Account = () => {
                   style={{ color: themeColors.brand.teal }}>
                   <span className="font-bold">G</span>
                 </div>
-                <span className="font-semibold text-gray-900">About GrooAgri</span>
+                <span className="font-semibold text-gray-900">About Agroyilt</span>
               </div>
               <FiChevronRight className="w-5 h-5 text-gray-300 group-hover:text-teal-500 transition-colors" />
             </motion.button>

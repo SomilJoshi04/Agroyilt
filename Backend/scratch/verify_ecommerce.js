@@ -6,7 +6,7 @@ dotenv.config();
 async function testModels() {
     try {
         console.log('Connecting to DB...');
-        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/grooagri');
+        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/agroyilt');
         console.log('✅ DB Connected.');
 
         // Load models

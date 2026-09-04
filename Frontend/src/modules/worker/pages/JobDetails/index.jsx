@@ -142,16 +142,26 @@ const JobDetails = () => {
     actionLoadingRef.current = true;
     try {
       setActionLoading(true);
-      const response = (await api.put(`/workers/jobs/${id}/respond`, { status })).data;
-      if (response.success) {
-        toast.success(status === 'ACCEPTED' ? 'Job Accepted' : 'Job Declined');
+      let response;
+      if (status === 'ACCEPTED') {
+        try {
+          response = await workerService.acceptJob(id);
+        } catch (err) {
+          response = await workerService.respondToJob(id, status);
+        }
+      } else {
+        response = await workerService.respondToJob(id, status);
+      }
+
+      if (response && response.success) {
+        toast.success(status === 'ACCEPTED' ? 'Job Accepted Successfully!' : 'Job Declined');
         if (status === 'ACCEPTED') {
           fetchJobDetails();
         } else {
           navigate('/worker/jobs');
         }
       } else {
-        toast.error(response.message || 'Failed');
+        toast.error(response?.message || 'Failed to update job');
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update status');
@@ -271,91 +281,113 @@ const JobDetails = () => {
     return colors[status.toLowerCase()] || '#6B7280';
   };
 
+  const statusLower = job?.status?.toLowerCase() || '';
+  const isAccepted = job?.workerResponse === 'ACCEPTED' || (job?.workerId && !['requested', 'searching', 'pending'].includes(statusLower));
+  const isPendingAcceptance = !isAccepted && job?.workerResponse !== 'REJECTED' && ['requested', 'searching', 'pending', 'confirmed', 'assigned'].includes(statusLower);
+
+  const renderActionButtons = (isSticky = false) => {
+    if (isPendingAcceptance) {
+      return (
+        <div className={`flex gap-3 ${isSticky ? '' : 'mb-4'} animate-in slide-in-from-bottom-2`}>
+          <button
+            onClick={() => handleJobResponse('REJECTED')}
+            disabled={actionLoading}
+            className="flex-1 py-3.5 rounded-xl font-bold text-red-500 bg-red-50 border border-red-200 shadow-sm active:scale-95 transition-all text-base"
+          >
+            DECLINE
+          </button>
+          <button
+            onClick={() => handleJobResponse('ACCEPTED')}
+            disabled={actionLoading}
+            className="flex-1 py-3.5 rounded-xl font-bold text-white shadow-xl active:scale-95 transition-all text-base flex items-center justify-center gap-2"
+            style={{ background: themeColors.button }}
+          >
+            {actionLoading ? 'Loading...' : <>ACCEPT JOB <FiCheck className="w-5 h-5" /></>}
+          </button>
+        </div>
+      );
+    }
+
+    if (isAccepted && (statusLower === 'confirmed' || statusLower === 'assigned')) {
+      return (
+        <button
+          onClick={() => handleStatusUpdate('start')}
+          disabled={actionLoading}
+          className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg ${isSticky ? '' : 'mb-4'}`}
+          style={{ background: themeColors.button }}
+        >
+          {actionLoading ? 'Loading...' : <>START JOURNEY <FiNavigation className="w-5 h-5" /></>}
+        </button>
+      );
+    }
+
+    if (statusLower === 'journey_started') {
+      return (
+        <button
+          onClick={() => navigate(`/worker/job/${id}/map`)}
+          disabled={actionLoading}
+          className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg ${isSticky ? '' : 'mb-4'}`}
+          style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }}
+        >
+          <FiNavigation className="w-5 h-5" /> TRACK JOURNEY / REACHED
+        </button>
+      );
+    }
+
+    if (statusLower === 'visited' || statusLower === 'in_progress') {
+      return (
+        <button
+          onClick={() => handleStatusUpdate('complete')}
+          disabled={actionLoading}
+          className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg ${isSticky ? '' : 'mb-4'}`}
+          style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
+        >
+          {actionLoading ? 'Loading...' : <>COMPLETE WORK <FiCheckCircle className="w-5 h-5" /></>}
+        </button>
+      );
+    }
+
+    if (statusLower === 'work_done') {
+      return (
+        <button
+          onClick={() => handleStatusUpdate('collect')}
+          disabled={actionLoading}
+          className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg ${isSticky ? '' : 'mb-4'}`}
+          style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }}
+        >
+          <FiFileText className="w-5 h-5" /> PREPARE BILL
+        </button>
+      );
+    }
+
+    if (statusLower === 'completed') {
+      return (
+        <div className="bg-green-100 border-2 border-green-500 rounded-xl p-3 text-center text-green-700 font-bold shadow-md">
+          <FiCheckCircle className="w-6 h-6 mx-auto mb-1" />
+          JOB COMPLETED & SETTLED
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
-    <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
+    <div className="min-h-screen pb-32" style={{ background: themeColors.backgroundGradient }}>
       <Header title="Job Details" />
 
       <main className="px-4 py-6">
-        {/* View Timeline Button */}
+        {/* View Timeline Button & Top Action Banner */}
         <div className="mb-6">
           <button
             onClick={() => navigate(`/worker/job/${id}/timeline`)}
-            className="w-full bg-white border border-gray-200 py-4 rounded-2xl font-bold text-gray-700 flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all text-lg mb-4"
+            className="w-full bg-white border border-gray-200 py-3.5 rounded-2xl font-bold text-gray-700 flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all text-base mb-4"
           >
             <FiClock className="w-5 h-5 text-gray-500" />
             View Job Timeline
           </button>
 
-          {(!job.workerResponse || job.workerResponse === 'PENDING') && (job.status === 'confirmed' || job.status === 'assigned' || job.status === 'pending') && (
-            <div className="flex gap-3 mb-4 animate-in slide-in-from-top-2">
-              <button
-                onClick={() => handleJobResponse('REJECTED')}
-                disabled={actionLoading}
-                className="flex-1 py-4 rounded-2xl font-bold text-red-500 bg-red-50 border border-red-100 shadow-sm active:scale-95 transition-all"
-              >
-                DECLINE
-              </button>
-              <button
-                onClick={() => handleJobResponse('ACCEPTED')}
-                disabled={actionLoading}
-                className="flex-1 py-4 rounded-2xl font-bold text-white shadow-xl active:scale-95 transition-all"
-                style={{ background: themeColors.button }}
-              >
-                ACCEPT JOB
-              </button>
-            </div>
-          )}
-
-          {job.workerResponse === 'ACCEPTED' && (job.status === 'confirmed' || job.status === 'assigned') && (
-            <button
-              onClick={() => handleStatusUpdate('start')}
-              disabled={actionLoading}
-              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
-              style={{ background: themeColors.button }}
-            >
-              {actionLoading ? 'Loading...' : <>START JOURNEY <FiNavigation className="w-5 h-5" /></>}
-            </button>
-          )}
-
-          {job.status === 'journey_started' && (
-            <button
-              onClick={() => navigate(`/worker/job/${id}/map`)}
-              disabled={actionLoading}
-              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
-              style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }}
-            >
-              <FiNavigation className="w-5 h-5" /> TRACK JOURNEY / REACHED
-            </button>
-          )}
-
-          {(job.status === 'visited' || job.status === 'in_progress') && (
-            <button
-              onClick={() => handleStatusUpdate('complete')}
-              disabled={actionLoading}
-              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
-              style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
-            >
-              {actionLoading ? 'Loading...' : <>COMPLETE WORK <FiCheckCircle className="w-5 h-5" /></>}
-            </button>
-          )}
-
-          {job.status === 'work_done' && (
-            <button
-              onClick={() => handleStatusUpdate('collect')}
-              disabled={actionLoading}
-              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
-              style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }}
-            >
-              <FiFileText className="w-5 h-5" /> PREPARE BILL
-            </button>
-          )}
-
-          {job.status === 'completed' && (
-            <div className="bg-green-100 border-2 border-green-500 rounded-2xl p-4 text-center text-green-700 font-bold shadow-md">
-              <FiCheckCircle className="w-8 h-8 mx-auto mb-2" />
-              JOB COMPLETED & SETTLED
-            </div>
-          )}
+          {renderActionButtons(false)}
         </div>
 
         {/* Customer Info Card */}
@@ -620,6 +652,13 @@ const JobDetails = () => {
           )}
         </div>
       </main>
+
+      {/* Sticky Bottom Action Bar for Mobile */}
+      {statusLower !== 'completed' && (
+        <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-2xl z-40 max-w-md mx-auto">
+          {renderActionButtons(true)}
+        </div>
+      )}
 
       {/* Unified Worker Completion Modal - REUSABLE COMPONENT */}
       <Suspense fallback={null}>

@@ -88,6 +88,11 @@ const workerService = {
     return response.data;
   },
 
+  acceptJob: async (id) => {
+    const response = await api.put(`/workers/jobs/${id}/accept`);
+    return response.data;
+  },
+
   // Notifications
   getNotifications: async (params) => {
     const response = await api.get('/notifications/worker', { params });

@@ -11,9 +11,9 @@ importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compa
 // Firebase configuration - Production values
 const firebaseConfig = {
   apiKey: "AIzaSyAEy1vl4BORXfxz0Wl42A5njPAS-yh5UZw",
-  authDomain: "grooagri-d44da.firebaseapp.com",
-  projectId: "grooagri-d44da",
-  storageBucket: "grooagri-d44da.firebasestorage.app",
+  authDomain: "agroyilt-d44da.firebaseapp.com",
+  projectId: "agroyilt-d44da",
+  storageBucket: "agroyilt-d44da.firebasestorage.app",
   messagingSenderId: "730249243780",
   appId: "1:730249243780:web:4e949df44f95c745c726d1",
   measurementId: "G-BRNBN7DK0V"
@@ -58,8 +58,8 @@ messaging.onBackgroundMessage((payload) => {
   notificationTitle = notificationTitle || 'App Notification';
   notificationBody = notificationBody || 'You have a new update.';
 
-  let icon = data.icon || notification.icon || '/grooAgri-logo.png';
-  let badge = '/grooAgri-logo.png';
+  let icon = data.icon || notification.icon || '/agroyilt-logo.png';
+  let badge = '/agroyilt-logo.png';
   let tag = data.bookingId || `notification-${Date.now()}`;
   let requireInteraction = false;
   let vibrate = [200, 100, 200];
