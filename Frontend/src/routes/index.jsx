@@ -7,6 +7,7 @@ import UserRoutes from '../modules/user/routes';
 import VendorRoutes from '../modules/vendor/routes';
 import WorkerRoutes from '../modules/worker/routes';
 import AdminRoutes from '../modules/admin/routes';
+import MobileAppRoutes from '../modules/app/routes'; // Mobile-only app module
 import BlogListing from '../modules/landing/pages/BlogListing';
 import ArticleListing from '../modules/landing/pages/ArticleListing';
 import BlogDetail from '../modules/landing/pages/BlogDetail';
@@ -16,22 +17,32 @@ import ServicesPage from '../modules/landing/pages/ServicesPage';
 import WorkflowPage from '../modules/landing/pages/WorkflowPage';
 import FAQPage from '../modules/landing/pages/FAQPage';
 import { LocationPermissionChecker, Chatbot } from '../components/common';
+import { isMobileApp } from '../utils/platformUtils';
 
 const AppRoutes = () => {
   const location = useLocation();
-  
+  const [isMobile, setIsMobile] = React.useState(isMobileApp());
+
   React.useEffect(() => {
-    // console.log('📍 Current Route Path:', location.pathname);
+    const handleResize = () => setIsMobile(isMobileApp());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  React.useEffect(() => {
+    // console.log(' Current Route Path:', location.pathname);
   }, [location.pathname]);
 
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isVendorRoute = location.pathname.startsWith('/vendor');
   const isWorkerRoute = location.pathname.startsWith('/worker');
+  const isAppRoute = location.pathname.startsWith('/app');
 
   const hideGlobalElements =
     isAdminRoute ||
     isVendorRoute ||
     isWorkerRoute ||
+    isAppRoute ||
     [
       '/user/privacy',
       '/user/help-support',
@@ -50,8 +61,23 @@ const AppRoutes = () => {
         <Route path="/worker/*" element={<WorkerRoutes />} />
         <Route path="/admin/*" element={<AdminRoutes />} />
 
-        {/* Landing experience */}
-        <Route path="/" element={<LandingPage />} />
+        {/* Mobile App Routes (/app, /app/register, /app/login) */}
+        <Route path="/app/*" element={<MobileAppRoutes />} />
+
+        {/*
+          Landing experience:
+          - Desktop browser  → shows the existing landing page
+          - Mobile browser   → redirects to /app (native-feel entry screen)
+          - Flutter WebView  → redirects to /app (native-feel entry screen)
+        */}
+        <Route
+          path="/"
+          element={
+            isMobile
+              ? <Navigate to="/app" replace />
+              : <LandingPage />
+          }
+        />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/workflow" element={<WorkflowPage />} />
@@ -81,4 +107,3 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
-

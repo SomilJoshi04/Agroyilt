@@ -1,6 +1,7 @@
 const VendorEquipment = require('../../models/VendorEquipment');
 const Category = require('../../models/Category');
 const Vendor = require('../../models/Vendor');
+const Service = require('../../models/Service');
 const { validationResult } = require('express-validator');
 
 // Helper for pricing validation
@@ -54,12 +55,13 @@ exports.addEquipment = async (req, res) => {
 
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
-    if (vendor.verificationStatus !== 'verified') {
-      return res.status(403).json({ success: false, message: 'Your account must be verified by an admin before you can list machinery.' });
+    if (vendor.approvalStatus !== 'approved') {
+      return res.status(403).json({ success: false, message: 'Your account must be approved by an admin before you can list machinery.' });
     }
 
     const { 
-      categoryId, 
+      categoryId,
+      serviceId, 
       requestedCategoryName,
       subCategoryIds,
       implements: implementsList,
@@ -101,32 +103,25 @@ exports.addEquipment = async (req, res) => {
         }
         allCategories = allCategories.concat(children);
       }
+    }
 
-      // 3. Rate-Card Validation (Intersection of all linked categories)
-      let minAllowed = -Infinity;
-      let maxAllowed = Infinity;
-
-      for (const cat of allCategories) {
-        if (cat.priceRangeMin != null) minAllowed = Math.max(minAllowed, cat.priceRangeMin);
-        if (cat.priceRangeMax != null) maxAllowed = Math.min(maxAllowed, cat.priceRangeMax);
+    // 3. Rate-Card Validation against Admin Service Template (Price Cap)
+    if (serviceId) {
+      const serviceTemplate = await Service.findById(serviceId);
+      if (!serviceTemplate) {
+         return res.status(404).json({ success: false, message: 'Selected Service template not found' });
       }
+      
+      const submittedPrice = pricing?.hourly?.isEnabled ? pricing.hourly.price : (pricing?.land_based?.isEnabled ? pricing.land_based.price : pricing?.daily?.price);
+      
+      // Admin sets the cap via basePrice or hourly_price
+      const maxAllowed = serviceTemplate.basePrice || serviceTemplate.hourly_price || 0;
 
-      if (minAllowed !== -Infinity && maxAllowed !== Infinity) {
-        if (minAllowed > maxAllowed) {
-          return res.status(400).json({
-            success: false,
-            message: 'Conflicting price ranges between main category and sub-categories. Please contact admin.'
-          });
-        }
-
-        const submittedPrice = pricing?.hourly?.isEnabled ? pricing.hourly.price : (pricing?.land_based?.isEnabled ? pricing.land_based.price : pricing?.daily?.price);
-        
-        if (submittedPrice != null && (submittedPrice < minAllowed || submittedPrice > maxAllowed)) {
-          return res.status(400).json({
-            success: false,
-            message: `Your price (₹${submittedPrice}) must be between ₹${minAllowed} and ₹${maxAllowed} according to platform rules.`
-          });
-        }
+      if (maxAllowed > 0 && submittedPrice != null && submittedPrice > maxAllowed) {
+        return res.status(400).json({
+          success: false,
+          message: `Your price (₹${submittedPrice}) exceeds the Admin maximum limit of ₹${maxAllowed}.`
+        });
       }
     }
 
@@ -142,6 +137,7 @@ exports.addEquipment = async (req, res) => {
     const equipment = await VendorEquipment.create({
       vendorId,
       categoryId: categoryId || null,
+      serviceId: serviceId || null,
       requestedCategoryName: requestedCategoryName || null,
       listingType: listingType || 'service',
       implements: implementsList || [],
@@ -194,6 +190,22 @@ exports.updateEquipment = async (req, res) => {
     if (updateData.pricing) {
       const priceError = validatePricing(updateData.pricing);
       if (priceError) return res.status(400).json({ success: false, message: priceError });
+      
+      // Enforce Cap
+      const sId = updateData.serviceId || equipment.serviceId;
+      if (sId) {
+        const serviceTemplate = await Service.findById(sId);
+        if (serviceTemplate) {
+          const submittedPrice = updateData.pricing.hourly?.isEnabled ? updateData.pricing.hourly.price : (updateData.pricing.land_based?.isEnabled ? updateData.pricing.land_based.price : updateData.pricing.daily?.price);
+          const maxAllowed = serviceTemplate.basePrice || serviceTemplate.hourly_price || 0;
+          if (maxAllowed > 0 && submittedPrice != null && submittedPrice > maxAllowed) {
+            return res.status(400).json({
+              success: false,
+              message: `Your price (₹${submittedPrice}) exceeds the Admin maximum limit of ₹${maxAllowed}.`
+            });
+          }
+        }
+      }
     }
     
     // If category changed, reset to pending

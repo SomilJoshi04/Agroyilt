@@ -41,3 +41,13 @@ make_transparent.py
 replace_*.cjs
 build_output.txt
 build_error_output.txt
+
+# JSON Data Dumps & Tests
+*.json
+!package.json
+!package-lock.json
+debug_*.json
+inspect_*.json
+impact_report.json
+restore_*.js
+update_*.js

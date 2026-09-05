@@ -18,6 +18,13 @@ const vendorEquipmentSchema = new mongoose.Schema({
     required: false,
     index: true
   },
+  // Link to Admin's generic Service Template to enforce price caps
+  serviceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service',
+    required: false,
+    index: true
+  },
   requestedCategoryName: {
     type: String,
     default: null

@@ -359,16 +359,29 @@ const EquipmentDetail = () => {
                  <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-2 block">Available Slots</label>
                     <div className="flex flex-wrap gap-2">
-                       {['Early Morning (6AM-10AM)', 'Forenoon (10AM-2PM)', 'Afternoon (2PM-6PM)'].map(slot => (
-                          <button 
-                            key={slot}
-                            onClick={() => setSelectedSlot(slot)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all border
-                              ${selectedSlot === slot ? 'bg-purple-600 border-purple-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-500'}`}
-                          >
-                            {slot}
-                          </button>
-                       ))}
+                       {['Early Morning (6AM-10AM)', 'Forenoon (10AM-2PM)', 'Afternoon (2PM-6PM)'].map(slot => {
+                          let isDisabled = false;
+                          const today = new Date().toISOString().split('T')[0];
+                          if (selectedDate === today) {
+                            const currentHour = new Date().getHours();
+                            if (slot.includes('6AM') && currentHour >= 6) isDisabled = true;
+                            if (slot.includes('10AM-2PM') && currentHour >= 10) isDisabled = true;
+                            if (slot.includes('2PM-6PM') && currentHour >= 14) isDisabled = true;
+                          }
+                          return (
+                            <button 
+                              key={slot}
+                              disabled={isDisabled}
+                              onClick={() => setSelectedSlot(slot)}
+                              className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all border
+                                ${selectedSlot === slot ? 'bg-purple-600 border-purple-600 text-white shadow-lg' : 
+                                  isDisabled ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50' : 
+                                  'bg-white border-slate-100 text-slate-500 hover:border-purple-300'}`}
+                            >
+                              {slot} {isDisabled && '(Past)'}
+                            </button>
+                          );
+                       })}
                     </div>
                  </div>
               </div>

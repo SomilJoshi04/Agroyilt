@@ -3,9 +3,18 @@ const { SERVICE_STATUS } = require('../utils/constants');
 
 /**
  * Service Model (New Structure)
- * Represents individual services strictly under a Brand
+ * Represents individual services strictly under a Brand.
+ * 
+ * IMPORTANT: Services created by Admin are TEMPLATES / REFERENCE DATA.
+ * They are not meant to be booked directly. The prices defined here act
+ * as the MAXIMUM CAPS that vendors cannot exceed when they list their 
+ * actual equipment (VendorEquipment).
  */
 const serviceSchema = new mongoose.Schema({
+  isTemplate: {
+    type: Boolean,
+    default: true
+  },
   brandId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Brand',
@@ -34,6 +43,7 @@ const serviceSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  // This acts as the Maximum Cap for base price
   basePrice: {
     type: Number,
     required: false,

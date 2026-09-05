@@ -16,6 +16,7 @@ const MachineryCheckout = () => {
     const selectedImplements = bookingData?.selectedImplements || [];
 
     const [selectedAddress, setSelectedAddress] = useState(null);
+    const [houseNumber, setHouseNumber] = useState('');
     const [showAddressModal, setShowAddressModal] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState('cash'); // Defaulting to COD
     const [submitting, setSubmitting] = useState(false);
@@ -43,7 +44,8 @@ const MachineryCheckout = () => {
         try {
             setSubmitting(true);
             const payload = {
-                serviceId: equipment._id,
+                serviceId: equipment.serviceId?._id || equipment.serviceId,
+                equipmentId: equipment._id,
                 vendorId: equipment.vendorId?._id || equipment.vendorId,
                 categoryId: equipment.categoryId?._id || equipment.categoryId,
                 bookingType: 'machinery',
@@ -236,7 +238,20 @@ const MachineryCheckout = () => {
             <AddressSelectionModal 
               isOpen={showAddressModal}
               onClose={() => setShowAddressModal(false)}
-              onSelect={(addr) => setSelectedAddress(addr)}
+              houseNumber={houseNumber}
+              onHouseNumberChange={setHouseNumber}
+              onSave={(houseNo, location) => {
+                  setSelectedAddress({
+                      addressLine1: location.address,
+                      addressLine2: houseNo,
+                      city: location.components.find(c => c.types.includes('locality'))?.long_name || '',
+                      state: location.components.find(c => c.types.includes('administrative_area_level_1'))?.long_name || '',
+                      pincode: location.components.find(c => c.types.includes('postal_code'))?.long_name || '',
+                      lat: location.lat,
+                      lng: location.lng
+                  });
+                  setShowAddressModal(false);
+              }}
             />
 
             {/* ══════════ Payment Confirmation Modal ══════════ */}

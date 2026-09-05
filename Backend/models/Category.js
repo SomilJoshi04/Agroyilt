@@ -143,6 +143,21 @@ const categorySchema = new mongoose.Schema({
     required: false,
     min: 0
   },
+  // Alias for clearer meaning: these are CAPS, not fixed prices
+  minPriceCap: {
+    type: Number,
+    default: function() { return this.priceRangeMin; }
+  },
+  maxPriceCap: {
+    type: Number,
+    default: function() { return this.priceRangeMax; }
+  },
+  platformFeePercent: {
+    type: Number,
+    default: 10,
+    min: 0,
+    max: 100
+  },
   pricingUnit: {
     type: String,
     enum: ['per_acre', 'per_hour', 'per_day'],

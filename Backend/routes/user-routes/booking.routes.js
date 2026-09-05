@@ -11,7 +11,8 @@ const {
   rescheduleBooking,
   addReview,
   getUserRatings,
-  checkEquipmentAvailability
+  checkEquipmentAvailability,
+  calculatePrice
 } = require('../../controllers/bookingControllers/userBookingController');
 
 // Validation rules
@@ -54,6 +55,7 @@ const addReviewValidation = [
 
 // Routes
 router.get('/check-availability', authenticate, isUser, checkEquipmentAvailability);
+router.post('/calculate-price', authenticate, isUser, calculatePrice);
 router.get('/ratings', authenticate, isUser, getUserRatings);
 router.post('/', authenticate, isUser, createBookingValidation, createBooking);
 router.get('/', authenticate, isUser, getUserBookings);

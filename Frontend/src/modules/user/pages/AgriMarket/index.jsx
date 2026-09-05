@@ -76,9 +76,7 @@ const AgriMarket = () => {
                     return allowedKeywords.some(kw => title.includes(kw));
                 });
                 setCategories(filteredCats);
-                if (filteredCats.length > 0) {
-                    setSelectedCategory(filteredCats[0]._id);
-                }
+                // Removed auto-selecting the first category because the UI to change it is removed
             }
         } catch (err) {
             console.error('Categories fetch error:', err.message);

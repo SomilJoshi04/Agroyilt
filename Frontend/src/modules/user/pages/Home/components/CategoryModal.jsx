@@ -107,27 +107,10 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
           return;
         }
 
-        // Fallback: If no registered workers exist yet, show admin base services template
-        const mappedServices = rawServices.map(service => ({
-          _id: service.id || service._id,
-          id: service.id || service._id,
-          title: service.title,
-          description: service.description,
-          icon: service.icon || service.iconUrl,
-          basePrice: service.basePrice,
-          hourly_price: service.hourly_price || service.basePrice || 0,
-          land_price: service.land_price || 0,
-          land_unit: service.land_unit || 'Acre',
-          daily_price: service.daily_price || 0,
-          discountPrice: service.discountPrice,
-          originalService: service
-        }));
-
-        if (mappedServices.length > 0) {
-          setServices(mappedServices);
-          setLoading(false);
-          return;
-        }
+        // If no registered workers exist yet, show empty list.
+        setServices([]);
+        setLoading(false);
+        return;
       }
 
       // 2. Fetch machinery/vendor equipment (VENDOR)
@@ -141,12 +124,12 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
         }
       } catch (e) {}
 
-      const response = await api.get('/farmer/search/machinery', {
+      const response = await api.get('/public/equipment/search', {
         params: {
           category: catId,
           lat,
           lng,
-          radius: 100
+          radius: 100 // 100km radius
         }
       });
 
@@ -156,7 +139,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
         const mappedListings = machineryList.map(equipment => ({
           _id: equipment._id,
           title: equipment.name,
-          description: `${equipment.vendorId?.name || 'Vendor'} • ${equipment.distance ? (equipment.distance/1000).toFixed(1) + 'km away' : ''}`,
+          description: `${equipment.vendor?.businessName || equipment.vendor?.name || 'Vendor'} • ${equipment.distance ? (equipment.distance/1000).toFixed(1) + 'km away' : ''}`,
           icon: equipment.images?.[0] || '',
           hourly_price: equipment.pricing?.hourly?.isEnabled ? equipment.pricing.hourly.price : 0,
           land_price: equipment.pricing?.land_based?.isEnabled ? equipment.pricing.land_based.price : 0,
@@ -165,30 +148,8 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
         }));
         setServices(mappedListings);
       } else {
-        // 3. Fallback: If machinery search returns 0 items, check public services
-        const fallbackRes = await api.get('/public/services', {
-          params: { categoryId: catId }
-        });
-        const fallbackServices = fallbackRes.data?.services || fallbackRes.data?.data || [];
-        if (fallbackServices.length > 0) {
-          const mappedServices = fallbackServices.map(service => ({
-            _id: service.id || service._id,
-            id: service.id || service._id,
-            title: service.title,
-            description: service.description,
-            icon: service.icon || service.iconUrl,
-            basePrice: service.basePrice,
-            hourly_price: service.hourly_price || service.basePrice || 0,
-            land_price: service.land_price || 0,
-            land_unit: service.land_unit || 'Acre',
-            daily_price: service.daily_price || 0,
-            discountPrice: service.discountPrice,
-            originalService: service
-          }));
-          setServices(mappedServices);
-        } else {
-          setServices([]);
-        }
+        // If no machinery found, show empty list. We should NOT fall back to admin templates.
+        setServices([]);
       }
     } catch (error) {
       console.error("Failed to load services:", error);

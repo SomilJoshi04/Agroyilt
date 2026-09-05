@@ -283,12 +283,6 @@ const EcommerceManager = () => {
                     >
                         <FiPackage className="w-5 h-5" /> Global Orders
                     </button>
-                    <button
-                        onClick={() => { resetForm(); setShowModal(true); }}
-                        className="flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all active:scale-95"
-                    >
-                        <FiPlus className="w-5 h-5" /> Add Product
-                    </button>
                 </div>
             </div>
 

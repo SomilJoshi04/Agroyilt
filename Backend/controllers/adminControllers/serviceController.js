@@ -129,7 +129,8 @@ const createService = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Service created successfully',
+      message: 'Service Template created successfully. Defined prices will act as caps for vendors.',
+      isPriceCap: true,
       service
     });
   } catch (error) {
@@ -215,7 +216,8 @@ const updateService = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Service updated successfully',
+      message: 'Service Template updated successfully. Defined prices will act as caps for vendors.',
+      isPriceCap: true,
       service
     });
   } catch (error) {

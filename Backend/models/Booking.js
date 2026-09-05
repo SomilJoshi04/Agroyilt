@@ -27,6 +27,12 @@ const bookingSchema = new mongoose.Schema({
     required: false,
     index: true
   },
+  equipmentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'VendorEquipment',
+    default: null,
+    index: true
+  },
   workerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Worker',
@@ -82,11 +88,7 @@ const bookingSchema = new mongoose.Schema({
     required: false,
     index: true
   },
-  equipmentId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'VendorEquipment',
-    default: null
-  },
+
   serviceName: {
     type: String,
     required: true

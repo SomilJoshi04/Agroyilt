@@ -150,25 +150,31 @@ const updateProfile = async (req, res) => {
         };
       }
 
-      // Resolve cityId!
-      if (vendor.address?.city) {
+      // Resolve cityId robustly
+      if (vendor.address?.city || vendor.address?.fullAddress) {
         const City = require('../../models/City');
-        const cityMatch = await City.findOne({ 
-          name: { $regex: new RegExp(`^${vendor.address.city.trim()}$`, 'i') } 
+        const activeCities = await City.find({ isActive: true });
+        
+        const inputCityLower = (vendor.address?.city || '').toLowerCase();
+        const fullAddressLower = (vendor.address?.fullAddress || '').toLowerCase();
+        
+        // Find a city where the input city name contains the DB city name (e.g. "Indore City" contains "Indore")
+        let matchedCity = activeCities.find(c => {
+          const dbCityLower = c.name.toLowerCase();
+          return inputCityLower === dbCityLower || inputCityLower.includes(dbCityLower);
         });
-        if (cityMatch) {
-          vendor.address.cityId = cityMatch._id;
-          vendor.cityId = cityMatch._id;
+
+        // Fallback: Check if the full address contains the city name
+        if (!matchedCity && fullAddressLower) {
+          matchedCity = activeCities.find(c => fullAddressLower.includes(c.name.toLowerCase()));
+        }
+
+        if (matchedCity) {
+          vendor.address.cityId = matchedCity._id;
+          vendor.cityId = matchedCity._id;
         } else {
-          const slug = vendor.address.city.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const citySlugMatch = await City.findOne({ slug: { $regex: new RegExp(slug, 'i') } });
-          if (citySlugMatch) {
-            vendor.address.cityId = citySlugMatch._id;
-            vendor.cityId = citySlugMatch._id;
-          } else {
-            vendor.address.cityId = null;
-            vendor.cityId = null;
-          }
+          vendor.address.cityId = null;
+          vendor.cityId = null;
         }
       }
     }

@@ -137,8 +137,8 @@ const getMyOrders = async (req, res) => {
             if (status === 'packed') updateData['trackingDetails.packedAt'] = new Date();
             if (status === 'shipped') {
                 updateData['trackingDetails.shippedAt'] = new Date();
-                updateData['trackingDetails.trackingNumber'] = trackingNumber;
-                updateData['trackingDetails.courierName'] = courierName;
+                updateData['trackingDetails.trackingNumber'] = trackingNumber || '';
+                updateData['trackingDetails.courierName'] = courierName || 'Seller Delivery';
             }
             if (status === 'delivered') updateData['trackingDetails.deliveredAt'] = new Date();
             if (status === 'cancelled') updateData['trackingDetails.cancelledAt'] = new Date();
@@ -352,7 +352,11 @@ const getMyOrders = async (req, res) => {
             // Notify User
             try {
                 let msg = `Your order status has been updated to ${status}.`;
-                if (status === 'shipped') msg = `Your order has been shipped via ${courierName} (Trk: ${trackingNumber}).`;
+                if (status === 'shipped') {
+                    const courier = courierName || 'Seller Delivery';
+                    const trk = trackingNumber ? ` (Trk: ${trackingNumber})` : '';
+                    msg = `Your order has been shipped via ${courier}${trk}.`;
+                }
                 if (status === 'delivered') msg = `Your order has been delivered!`;
                 
                 await createNotification({

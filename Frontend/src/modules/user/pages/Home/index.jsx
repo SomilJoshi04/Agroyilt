@@ -36,6 +36,8 @@ const toAssetUrl = (url) => {
   if (!url) return '';
   const clean = url.replace('/api/upload', '/upload');
   if (clean.startsWith('http')) return clean;
+  // Local static assets should just be relative to frontend
+  if (clean.startsWith('/landing_images/') || clean.startsWith('/assets/')) return clean;
   const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/api$/, '');
   return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
@@ -361,15 +363,27 @@ const Home = () => {
   };
 
   const handlePromoClick = (promo) => {
+    let cat = null;
     if (promo.targetCategoryId) {
-      const cat = categories.find(c => (c.id === promo.targetCategoryId || c._id === promo.targetCategoryId));
-      if (cat) {
-        handleCategoryClick(cat);
-        return;
-      }
+      cat = categories.find(c => (c.id === promo.targetCategoryId || c._id === promo.targetCategoryId));
     }
+    // Fallback: if category not found by ID (maybe old DB data), try matching by slug
+    if (!cat && promo.slug) {
+      cat = categories.find(c => (c.slug || '').toLowerCase() === (promo.slug || '').toLowerCase());
+    }
+
+    if (cat) {
+      handleCategoryClick(cat);
+      return;
+    }
+
     if (promo.slug) {
-      navigate(`/user/${promo.slug}`);
+      // Don't navigate to undefined routes, only handle known ones
+      if (promo.slug.includes('soil')) {
+        navigate(`/user/soil-testing`);
+      } else {
+        toast.error("Service category not found or unavailable.");
+      }
       return;
     }
     if (promo.route && !promo.slug) {
@@ -611,7 +625,24 @@ const Home = () => {
                         transition={{ delay: idx * 0.05 }}
                         onClick={() => {
                           if (item.actionType === 'navigate' && item.route && item.route.trim() !== '') {
-                            navigate(item.route.trim());
+                            const route = item.route.trim();
+                            // Check if this route is meant to open a category modal instead of navigating
+                            // Only intercept routes that don't have dedicated pages
+                            if (route === '/user/drone-spraying') {
+                              const searchName = 'drone';
+                              const matchedCategory = categories.find(c => 
+                                (c.title && c.title.toLowerCase().includes(searchName)) || 
+                                (c.slug && c.slug.toLowerCase().includes(searchName))
+                              );
+                              if (matchedCategory) {
+                                handleCategoryClick(matchedCategory);
+                                return;
+                              } else {
+                                toast.error("Category not found.");
+                                return;
+                              }
+                            }
+                            navigate(route);
                           } else {
                             // setActiveSectionTab: use title as primary (admin sets category sectionType = tab title)
                             // Fall back to actionPayload if title is missing

@@ -6,8 +6,12 @@ const {
   checkAvailability 
 } = require('../../controllers/publicControllers/publicEquipmentController');
 
+const farmerSearchController = require('../../controllers/farmerControllers/farmerSearchController');
+
 // Public routes - no authentication required
 router.get('/', getPublicEquipment);
+router.get('/search', farmerSearchController.searchMachinery);
+router.get('/search/:id', farmerSearchController.getMachineryDetails);
 router.get('/:id', getPublicEquipmentById);
 router.get('/:id/availability', checkAvailability);
 

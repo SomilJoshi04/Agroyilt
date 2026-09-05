@@ -8,6 +8,8 @@ const User = require('../../models/User');
 const Vendor = require('../../models/Vendor');
 const Worker = require('../../models/Worker');
 const Review = require('../../models/Review');
+const Settings = require('../../models/Settings');
+const VendorEquipment = require('../../models/VendorEquipment');
 const { validationResult } = require('express-validator');
 const { BOOKING_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
 const { createNotification } = require('../notificationControllers/notificationController');
@@ -57,7 +59,8 @@ const createBooking = async (req, res) => {
       landSize,      // Agriculture: extract landSize
       endDate,      // Agriculture: extract range end
       estimatedDuration, // Agriculture: extract hours
-      selectedImplements // MACHINERY: attachments chosen by user
+      selectedImplements, // MACHINERY: attachments chosen by user
+      equipmentId   // NEW: For direct marketplace booking of specific equipment
     } = req.body;
 
     let visitingCharges = reqVisitingCharges !== undefined ? reqVisitingCharges : (reqVisitationFee || 0);
@@ -118,6 +121,24 @@ const createBooking = async (req, res) => {
     }
 
     if (!service) {
+      const equipObj = await VendorEquipment.findById(serviceId);
+      if (equipObj) {
+        equipmentId = equipObj._id; // Set equipmentId for downstream use
+        const catObj = await Category.findById(equipObj.categoryId);
+        service = {
+          _id: equipObj._id,
+          title: equipObj.name,
+          category: catObj ? catObj.title : 'Agriculture',
+          categoryId: equipObj.categoryId,
+          basePrice: equipObj.pricing?.hourly?.price || 500,
+          hourly_price: equipObj.pricing?.hourly?.price || 0,
+          daily_price: equipObj.pricing?.daily?.price || 0,
+          land_price: equipObj.pricing?.land_based?.price || 0
+        };
+      }
+    }
+
+    if (!service) {
       return res.status(404).json({
         success: false,
         message: 'Service, Worker, or Category not found'
@@ -142,12 +163,27 @@ const createBooking = async (req, res) => {
         multiplier = parseFloat(estimatedDuration) || 1;
       }
 
-      // Determine correct unit rate from service model
+      let equipmentObj = null;
+      if (equipmentId) {
+        equipmentObj = await VendorEquipment.findById(equipmentId);
+      }
+
+      // Determine correct unit rate 
+      // NEW: Prioritize vendor's actual equipment price over Admin's template cap
       let unitRate = service.basePrice || 500;
-      if (rental_type === 'hourly' && service.hourly_price) unitRate = service.hourly_price;
-      else if (rental_type === 'land_based' && service.land_price) unitRate = service.land_price;
-      else if ((rental_type === 'daily' || rental_type === 'monthly') && service.daily_price) unitRate = service.daily_price;
-      else if (service.basePrice) unitRate = service.basePrice;
+      
+      if (equipmentObj && equipmentObj.pricing) {
+        const ep = equipmentObj.pricing;
+        if (rental_type === 'hourly' && ep.hourly?.isEnabled) unitRate = ep.hourly.price;
+        else if (rental_type === 'land_based' && ep.land_based?.isEnabled) unitRate = ep.land_based.price;
+        else if (rental_type === 'daily' && ep.daily?.isEnabled) unitRate = ep.daily.price;
+      } else {
+        // Fallback to Admin caps
+        if (rental_type === 'hourly' && service.hourly_price) unitRate = service.hourly_price;
+        else if (rental_type === 'land_based' && service.land_price) unitRate = service.land_price;
+        else if ((rental_type === 'daily' || rental_type === 'monthly') && service.daily_price) unitRate = service.daily_price;
+        else if (service.basePrice) unitRate = service.basePrice;
+      }
 
       let finalMultiplier = multiplier;
       if (rental_type === 'monthly') finalMultiplier = multiplier * 30;
@@ -234,34 +270,44 @@ const createBooking = async (req, res) => {
     const searchRadii = [2, 5, 8, 10, 15, 20, 30];
 
     if (providerType === 'VENDOR') {
-      // Find vendors within dynamic radius
-      const vendorFilters = {
-        ...(category ? { service: category.title } : {}),
-        checkCashLimit: paymentMethod === 'cash'
-      };
-
-      for (const radius of searchRadii) {
-        usedRadius = radius;
-        nearbyVendors = await findNearbyVendors(bookingLocation, radius, vendorFilters);
-        
-        // Allow isOnline to be false so that we can send FCM background pushes to wake them up.
-        nearbyVendors = nearbyVendors.filter(v => v.availability === 'AVAILABLE' || v.availability === 'OFFLINE');
-
-        if (nearbyVendors && nearbyVendors.length > 0) {
-          break; // Stop expanding radius if we found available vendors
+      // If equipmentObj exists (Marketplace flow), we book directly to that vendor
+      if (equipmentObj && equipmentObj.vendorId) {
+        const specificVendor = await Vendor.findById(equipmentObj.vendorId);
+        if (specificVendor) {
+          specificVendor.distance = 0; // Directly assigned
+          nearbyVendors = [specificVendor];
+          console.log(`[CreateBooking] Marketplace booking: Directed strictly to vendor ${specificVendor._id}`);
         }
+      } else {
+        // Standard Broadcast flow (Dynamic radius search)
+        const vendorFilters = {
+          ...(category ? { service: category.title } : {}),
+          checkCashLimit: paymentMethod === 'cash'
+        };
+
+        for (const radius of searchRadii) {
+          usedRadius = radius;
+          nearbyVendors = await findNearbyVendors(bookingLocation, radius, vendorFilters);
+          
+          // Allow isOnline to be false so that we can send FCM background pushes to wake them up.
+          nearbyVendors = nearbyVendors.filter(v => v.availability === 'AVAILABLE' || v.availability === 'OFFLINE');
+
+          if (nearbyVendors && nearbyVendors.length > 0) {
+            break; // Stop expanding radius if we found available vendors
+          }
+        }
+
+        // Deduplicate nearbyVendors by _id to prevent duplicate notifications
+        const uniqueVendorIds = new Set();
+        nearbyVendors = nearbyVendors.filter(vendor => {
+          const idStr = vendor._id.toString();
+          if (uniqueVendorIds.has(idStr)) return false;
+          uniqueVendorIds.add(idStr);
+          return true;
+        });
+
+        console.log(`[CreateBooking] Found ${nearbyVendors.length} nearby vendors for booking within ${usedRadius}km`);
       }
-
-      // Deduplicate nearbyVendors by _id to prevent duplicate notifications
-      const uniqueVendorIds = new Set();
-      nearbyVendors = nearbyVendors.filter(vendor => {
-        const idStr = vendor._id.toString();
-        if (uniqueVendorIds.has(idStr)) return false;
-        uniqueVendorIds.add(idStr);
-        return true;
-      });
-
-      console.log(`[CreateBooking] Found ${nearbyVendors.length} nearby vendors for booking within ${usedRadius}km`);
     } else {
       // Find workers within dynamic radius
       if (requestedWorker) {
@@ -346,6 +392,11 @@ const createBooking = async (req, res) => {
             return String(id);
         };
 
+        let finalCategory = category;
+        if (!finalCategory && service.category) {
+          finalCategory = await Category.findOne({ title: service.category });
+        }
+
         const serviceIdStr = normalizeId(service._id);
         const categoryIdStr = normalizeId(finalCategory?._id || categoryId);
         
@@ -404,46 +455,43 @@ const createBooking = async (req, res) => {
 
     // 3. Standard Pricing (Fallback) if NOT using Plan Benefits
     if (!usePlanBenefits) {
-      if (amount && amount > 0) {
-        // Use amount from frontend logic
-        if (reqBasePrice !== undefined && reqTax !== undefined) {
-          // Use breakdown provided by frontend
-          visitingCharges = (reqVisitingCharges !== undefined) ? reqVisitingCharges : (visitingCharges !== undefined ? visitingCharges : 49);
-          discount = reqDiscount || 0;
-          tax = reqTax || 0;
-          
-          if (isAgriService) {
-             // For Agri, trust the server-side recalculated totalServiceValue but allow 
-             // frontend to pass the breakdown if it matches our logic.
-             // If frontend total is very different, we prioritize server logic for security.
-             basePrice = totalServiceValue;
-          } else {
-             basePrice = reqBasePrice;
-          }
+      const settings = await Settings.findOne({ type: 'global' });
+      
+      // Override visiting charges with settings unless it's a worker booking without conveyance
+      const systemVisitingCharges = settings?.visitedCharges || 49;
+      visitingCharges = reqVisitingCharges !== undefined ? reqVisitingCharges : systemVisitingCharges;
+      
+      const gstPercentage = isAgriService ? (settings?.rentalGstPercentage || 5) : (settings?.serviceGstPercentage || 18);
+      const gstDecMultiplier = gstPercentage / 100;
 
-          finalAmount = (basePrice - discount + tax + visitingCharges) + pendingPenalty;
-        } else {
-          // Backward compatibility: Reverse calculate
-          if (visitingCharges === undefined || visitingCharges === null) visitingCharges = 49;
-          
-          if (isAgriService) {
-            basePrice = totalServiceValue;
-            tax = Math.round(basePrice * 0.18);
-            finalAmount = basePrice + tax + visitingCharges + pendingPenalty;
-          } else {
-            basePrice = Math.round((amount - visitingCharges) / 1.18);
-            tax = amount - basePrice - visitingCharges;
-            finalAmount = amount + pendingPenalty;
-          }
-          discount = 0;
-        }
+      if (isAgriService) {
+        // ALWAYS trust backend for Agri/Equipment Flow. Disregard frontend amounts.
+        basePrice = totalServiceValue;
+        discount = 0; // Standard flow has no discount unless added by admin/coupons (TBD)
+        tax = Math.round(basePrice * gstDecMultiplier);
+        finalAmount = basePrice - discount + tax + visitingCharges + pendingPenalty;
+        console.log(`[CreateBooking] Backend calculated Agri Price: Base=${basePrice}, Tax=${tax}, Total=${finalAmount}`);
       } else {
-        // Fallback to service pricing (if no amount sent)
-        if (visitingCharges === undefined || visitingCharges === null) visitingCharges = 49;
-        basePrice = service.basePrice || 500;
-        discount = service.discountPrice ? (basePrice - service.discountPrice) : 0;
-        tax = Math.round(basePrice * 0.18);
-        finalAmount = (basePrice - discount + tax + visitingCharges) + pendingPenalty;
+        // Standard Services (Wait until we migrate these to full backend authoritativeness too)
+        // For now, doing a safer recalculation
+        if (amount && amount > 0) {
+           if (reqBasePrice !== undefined) {
+               basePrice = reqBasePrice;
+               discount = reqDiscount || 0;
+               tax = Math.round((basePrice - discount) * gstDecMultiplier);
+               finalAmount = (basePrice - discount + tax + visitingCharges) + pendingPenalty;
+           } else {
+               basePrice = Math.round((amount - visitingCharges) / (1 + gstDecMultiplier));
+               tax = amount - basePrice - visitingCharges;
+               finalAmount = amount + pendingPenalty;
+               discount = 0;
+           }
+        } else {
+           basePrice = service.basePrice || 500;
+           discount = service.discountPrice ? (basePrice - service.discountPrice) : 0;
+           tax = Math.round((basePrice - discount) * gstDecMultiplier);
+           finalAmount = (basePrice - discount + tax + visitingCharges) + pendingPenalty;
+        }
       }
     }
 
@@ -513,7 +561,8 @@ const createBooking = async (req, res) => {
     const booking = await Booking.create({
       bookingNumber,
       userId,
-      vendorId: null, // Will be assigned when vendor accepts
+      vendorId: equipmentObj ? equipmentObj.vendorId : null, // Assigned directly if Marketplace flow
+      equipmentId: equipmentId || null,
       workerId: requestedWorker ? requestedWorker._id : null, // Set workerId if directly requested
       providerType,
       serviceId,
@@ -1557,6 +1606,108 @@ const checkEquipmentAvailability = async (req, res) => {
   }
 };
 
+/**
+ * Calculate authoritative price for a booking before confirmation
+ */
+const calculatePrice = async (req, res) => {
+  try {
+    const {
+      serviceId,
+      equipmentId,
+      rental_type,
+      landSize,
+      estimatedDuration,
+      bookedItems
+    } = req.body;
+
+    let totalServiceValue = 0;
+    if (bookedItems && bookedItems.length > 0) {
+      totalServiceValue = bookedItems.reduce((sum, item) => {
+        const itemPrice = item.card?.price || item.price || 0;
+        return sum + (itemPrice * (item.quantity || 1));
+      }, 0);
+    }
+
+    const service = await Service.findById(serviceId);
+    if (!service) {
+      return res.status(404).json({ success: false, message: 'Service not found' });
+    }
+
+    const categoryId = service.categoryId || service.categoryIds?.[0];
+    const category = categoryId ? await Category.findById(categoryId) : null;
+    const isAgriService = service.category === 'Agriculture' || (category && category.title === 'Agriculture');
+
+    let unitRate = service.basePrice || 500;
+    let equipmentObj = null;
+
+    if (equipmentId) {
+      equipmentObj = await VendorEquipment.findById(equipmentId);
+    }
+
+    if (equipmentObj && equipmentObj.pricing) {
+      const ep = equipmentObj.pricing;
+      if (rental_type === 'hourly' && ep.hourly?.isEnabled) unitRate = ep.hourly.price;
+      else if (rental_type === 'land_based' && ep.land_based?.isEnabled) unitRate = ep.land_based.price;
+      else if (rental_type === 'daily' && ep.daily?.isEnabled) unitRate = ep.daily.price;
+    } else {
+      if (rental_type === 'hourly' && service.hourly_price) unitRate = service.hourly_price;
+      else if (rental_type === 'land_based' && service.land_price) unitRate = service.land_price;
+      else if ((rental_type === 'daily' || rental_type === 'monthly') && service.daily_price) unitRate = service.daily_price;
+      else if (service.basePrice) unitRate = service.basePrice;
+    }
+
+    let multiplier = 1;
+    if (rental_type === 'hourly' || rental_type === 'daily') {
+      multiplier = parseFloat(estimatedDuration) || 1;
+    } else if (rental_type === 'land_based') {
+      multiplier = parseFloat(String(landSize).replace(/[^\d.]/g, '')) || 1;
+    }
+
+    const mainAgriPrice = Math.round(unitRate * multiplier);
+    
+    if (isAgriService && (!bookedItems || bookedItems.length === 0)) {
+      totalServiceValue = mainAgriPrice;
+    } else if (isAgriService && bookedItems && bookedItems.length > 0) {
+      // Overwrite main service item price
+      let mainItemHandled = false;
+      totalServiceValue = bookedItems.reduce((sum, item) => {
+        if (!mainItemHandled && (!item.type || item.type !== 'product')) {
+          mainItemHandled = true;
+          return sum + mainAgriPrice;
+        }
+        const itemPrice = item.card?.price || item.price || 0;
+        return sum + (itemPrice * (item.quantity || 1));
+      }, 0);
+    }
+
+    const settings = await Settings.findOne({ type: 'global' });
+    const visitingCharges = settings?.visitedCharges || 49;
+    const gstPercentage = isAgriService ? (settings?.rentalGstPercentage || 5) : (settings?.serviceGstPercentage || 18);
+    const gstDecMultiplier = gstPercentage / 100;
+
+    const basePrice = isAgriService ? totalServiceValue : (totalServiceValue || unitRate);
+    const discount = 0;
+    const tax = Math.round(basePrice * gstDecMultiplier);
+    const finalAmount = basePrice - discount + tax + visitingCharges;
+
+    res.status(200).json({
+      success: true,
+      priceBreakdown: {
+        basePrice,
+        discount,
+        tax,
+        visitingCharges,
+        finalAmount,
+        unitRate,
+        multiplier
+      }
+    });
+  } catch (error) {
+    console.error('Calculate price error:', error);
+    res.status(500).json({ success: false, message: 'Failed to calculate price' });
+  }
+};
+
 module.exports = {
   createBooking,
   getUserBookings,
@@ -1565,6 +1716,7 @@ module.exports = {
   rescheduleBooking,
   addReview,
   getUserRatings,
-  checkEquipmentAvailability
+  checkEquipmentAvailability,
+  calculatePrice
 };
 

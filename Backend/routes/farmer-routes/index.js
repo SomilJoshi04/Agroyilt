@@ -27,9 +27,9 @@ router.get('/farms', profileController.getFarms);
 router.put('/farms/:id', profileController.updateFarm);
 router.delete('/farms/:id', profileController.deleteFarm);
 
-// 2. Search & Discovery
-router.get('/search/machinery', searchController.searchMachinery);
-router.get('/search/machinery/:id', searchController.getMachineryDetails);
+// 2. Search & Discovery (Moved to public routes)
+// router.get('/search/machinery', searchController.searchMachinery);
+// router.get('/search/machinery/:id', searchController.getMachineryDetails);
 
 // 3. Bookings
 router.post('/bookings', bookingController.createBooking);

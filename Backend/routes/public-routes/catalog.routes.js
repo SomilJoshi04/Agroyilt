@@ -17,4 +17,14 @@ router.get('/services', getPublicServices); // New services
 router.get('/workers', getPublicWorkers); // Independent Workers
 router.get('/home-content', getPublicHomeContent);
 
+router.get('/inspect-all', async (req, res) => {
+    try {
+        const Category = require('../../models/Category');
+        const cat = await Category.findOne({ title: 'Drone Spraying' });
+        res.json({ catId: cat?._id });
+    } catch(err) {
+        res.status(500).json({error: err.message});
+    }
+});
+
 module.exports = router;

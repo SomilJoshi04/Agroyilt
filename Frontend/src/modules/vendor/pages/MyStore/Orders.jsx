@@ -16,6 +16,114 @@ import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { format } from 'date-fns';
 
+const ShippingDetailsModal = ({ onConfirm }) => {
+    const [show, setShow] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [courierName, setCourierName] = useState('');
+    const [trackingNumber, setTrackingNumber] = useState('');
+
+    const handleSubmit = async () => {
+        try {
+            setIsSubmitting(true);
+            const success = await onConfirm({ 
+                courierName: courierName.trim() || 'Seller Delivery', 
+                trackingNumber: trackingNumber.trim() 
+            });
+            if (success) {
+                setShow(false);
+                setCourierName('');
+                setTrackingNumber('');
+            }
+        } catch (error) {
+            console.error("Shipping Details Error:", error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <>
+            <button 
+                onClick={() => setShow(true)}
+                className="w-full min-w-[160px] whitespace-nowrap px-4 py-3 bg-teal-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-teal-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+                <FiTruck className="flex-shrink-0 w-4 h-4" /> Mark as Shipped
+            </button>
+            {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {show && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" style={{ position: 'fixed' }}>
+                            <motion.div 
+                                initial={{ opacity: 0 }} 
+                                animate={{ opacity: 1 }} 
+                                exit={{ opacity: 0 }} 
+                                onClick={() => !isSubmitting && setShow(false)} 
+                                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+                            />
+                            <motion.div 
+                                initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+                                animate={{ scale: 1, opacity: 1, y: 0 }} 
+                                exit={{ scale: 0.9, opacity: 0, y: 20 }} 
+                                className="relative bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl"
+                            >
+                                <h2 className="text-xl font-black text-slate-800">Shipping Details</h2>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Enter courier info</p>
+                                
+                                <div className="space-y-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Courier Partner (Optional)</label>
+                                        <input 
+                                            type="text" 
+                                            disabled={isSubmitting}
+                                            className="w-full bg-slate-50 border-none rounded-xl py-4 px-5 font-bold outline-none text-slate-800" 
+                                            placeholder="e.g. Delhivery, DTDC, Self" 
+                                            value={courierName} 
+                                            onChange={e => setCourierName(e.target.value)} 
+                                        />
+                                    </div>
+                                    <div className="space-y-1 mt-3">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Tracking Number (Optional)</label>
+                                        <input 
+                                            type="text" 
+                                            disabled={isSubmitting}
+                                            className="w-full bg-slate-50 border-none rounded-xl py-4 px-5 font-bold outline-none text-slate-800 tracking-wider" 
+                                            placeholder="AWB / Tracking Number" 
+                                            value={trackingNumber} 
+                                            onChange={e => setTrackingNumber(e.target.value)} 
+                                        />
+                                    </div>
+                                    <div className="flex gap-2 mt-6">
+                                        {!isSubmitting && (
+                                            <button 
+                                                onClick={() => setShow(false)}
+                                                className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-[24px] font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={handleSubmit}
+                                            disabled={isSubmitting}
+                                            className="flex-1 py-4 bg-teal-600 text-white rounded-[24px] font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {isSubmitting ? (
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                "Ship Now"
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
+        </>
+    );
+};
+
 const StoreOrders = () => {
     const navigate = useNavigate();
     const [orders, setOrders] = useState([]);
@@ -225,12 +333,9 @@ const StoreOrders = () => {
                                                 </button>
                                             )}
                                             {order.deliveryStatus === 'packed' && (
-                                                <button 
-                                                    onClick={() => handleUpdateStatus(order._id, 'shipped')}
-                                                    className="w-full min-w-[160px] whitespace-nowrap px-4 py-3 bg-teal-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-teal-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-                                                >
-                                                    <FiTruck className="flex-shrink-0 w-4 h-4" /> Mark as Shipped
-                                                </button>
+                                                <ShippingDetailsModal 
+                                                    onConfirm={(shippingData) => handleUpdateStatus(order._id, 'shipped', shippingData)} 
+                                                />
                                             )}
                                             {order.deliveryStatus === 'shipped' && (
                                                 <DeliveryOtpModal 
