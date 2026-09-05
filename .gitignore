@@ -13,6 +13,9 @@ scratch/
 tmp/
 temp/
 *.tmp
+Agroyilt SOP.pdf
+Flutter_Bridge_Requirements.md
+Backend/scripts/
 
 # Test, Scratch & Debug Scripts
 test*.js
@@ -24,6 +27,8 @@ fix_*.js
 fix*.js
 migrate*.js
 migrate_*.js
+seed*.js
+seed_*.js
 debug_*.js
 diagnose-*.js
 cleanup_*.js
