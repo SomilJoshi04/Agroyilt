@@ -152,6 +152,8 @@ const createBooking = async (req, res) => {
     // Calculate total value from booked items or fallback to service base price immediately after service load
     const isAgriService = service.category === 'Agriculture' || (category && category.title === 'Agriculture') || reqServiceCategory === 'Agriculture';
 
+    let equipmentObj = null;
+
     if (isAgriService) {
       // ── Agriculture Dynamic Multiplier Logic ──
       let multiplier = 1;
@@ -163,7 +165,6 @@ const createBooking = async (req, res) => {
         multiplier = parseFloat(estimatedDuration) || 1;
       }
 
-      let equipmentObj = null;
       if (equipmentId) {
         equipmentObj = await VendorEquipment.findById(equipmentId);
       }
@@ -935,7 +936,8 @@ const createBooking = async (req, res) => {
     console.error('Create booking error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create booking. Please try again.'
+      message: 'Failed to create booking. ' + (error.message || 'Unknown error'),
+      stack: error.stack
     });
   }
 };

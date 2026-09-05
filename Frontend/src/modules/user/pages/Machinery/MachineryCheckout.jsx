@@ -44,22 +44,22 @@ const MachineryCheckout = () => {
         try {
             setSubmitting(true);
             const payload = {
-                serviceId: equipment.serviceId?._id || equipment.serviceId,
-                equipmentId: equipment._id,
-                vendorId: equipment.vendorId?._id || equipment.vendorId,
+                serviceId: equipment._id,
+                vendorId: equipment.vendorId?._id || equipment.vendorId || undefined,
                 categoryId: equipment.categoryId?._id || equipment.categoryId,
-                bookingType: 'machinery',
+                bookingType: 'scheduled',
                 rental_type: rateType,
                 landSize: rateType === 'land_based' ? quantity : undefined,
+                estimatedDuration: ['hourly', 'daily', 'monthly'].includes(rateType) ? quantity : undefined,
                 scheduledDate: date,
                 scheduledTime: slot,
                 timeSlot: { start: slot, end: slot, date, time: slot },
                 address: {
                     addressLine1: selectedAddress.addressLine1,
                     addressLine2: selectedAddress.addressLine2 || '',
-                    city: selectedAddress.city,
-                    state: selectedAddress.state,
-                    pincode: selectedAddress.pincode,
+                    city: selectedAddress.city || 'Unknown City',
+                    state: selectedAddress.state || 'Unknown State',
+                    pincode: selectedAddress.pincode || '000000',
                     lat: selectedAddress.lat,
                     lng: selectedAddress.lng
                 },
@@ -99,7 +99,8 @@ const MachineryCheckout = () => {
                 navigate('/user/bookings');
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Booking failed');
+            const errorMsg = err.response?.data?.errors?.[0]?.msg || err.response?.data?.message || 'Booking failed';
+            toast.error(errorMsg);
         } finally {
             setSubmitting(false);
         }

@@ -16,7 +16,9 @@ import {
   startTrip,
   endTrip,
   machineryStartWork,
-  machineryCompleteWork
+  machineryCompleteWork,
+  acceptBooking,
+  rejectBooking
 } from '../../services/bookingService';
 import vendorBillService from '../../../../services/vendorBillService';
 import { CashCollectionModal, ConfirmDialog, OperatorPaymentModal } from '../../components/common';
@@ -524,6 +526,34 @@ export default function BookingDetails() {
       window.location.href = `tel:${phone}`;
     } else {
       alert('Phone number not available');
+    }
+  };
+
+  const handleAccept = async () => {
+    try {
+      setActionLoading(true);
+      await acceptBooking(id);
+      toast.success('Booking accepted successfully!');
+      // Reload booking
+      const res = await getBookingById(id);
+      if (res.success) setBooking(res.data);
+    } catch (err) {
+      toast.error('Failed to accept booking');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    try {
+      setActionLoading(true);
+      await rejectBooking(id, 'Vendor rejected from details page');
+      toast.success('Booking rejected');
+      navigate('/vendor/dashboard');
+    } catch (err) {
+      toast.error('Failed to reject booking');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1631,6 +1661,31 @@ export default function BookingDetails() {
 
         {/* Action Buttons */}
         <div className="space-y-3 mb-4">
+          {(booking.status === 'pending' || booking.status === 'searching') && (
+            <div className="flex gap-3">
+              <button
+                onClick={handleReject}
+                disabled={actionLoading}
+                className="flex-1 py-4 rounded-xl font-bold text-red-600 bg-red-50 border border-red-100 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              >
+                <FiXCircle className="w-5 h-5" />
+                Reject
+              </button>
+              <button
+                onClick={handleAccept}
+                disabled={actionLoading}
+                className="flex-1 py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                style={{
+                  background: 'linear-gradient(135deg, #10B981, #059669)',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                }}
+              >
+                <FiCheckCircle className="w-5 h-5" />
+                Accept
+              </button>
+            </div>
+          )}
+          
           <button
             onClick={handleViewTimeline}
             className="w-full py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95"
