@@ -17,38 +17,17 @@ const getPublicCategories = async (req, res) => {
     const { cityId, type } = req.query;
     const mongoose = require('mongoose');
 
-    // Build query - Match cityObjectId OR categories with no city restrictions
-    const query = { status: 'active' };
-    if (cityId) {
-      let cityObjectId;
-      try {
-        cityObjectId = new mongoose.Types.ObjectId(cityId);
-      } catch (e) {
-        cityObjectId = cityId; // fallback if invalid ObjectId format
-      }
-      
-      query.$or = [
-        { cityIds: cityObjectId },
-        { cityIds: { $exists: false } },
-        { cityIds: { $size: 0 } },
-        { cityIds: null }
-      ];
-    }
+    let query = { status: 'active', showOnHome: true };
+    // We remove city filtering here to ensure global categories always appear.
+
+    // Calculate total count
+    let homeCatsCount = await Category.countDocuments(query);
 
     let categories = await Category.find(query)
       .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver sectionType bookingType')
       .populate('parentCategories', 'title slug')
       .sort({ homeOrder: 1, createdAt: -1 })
       .lean();
-
-    // Fallback: If city-filtered query returned 0 categories, fallback to all active categories
-    if (categories.length === 0 && cityId) {
-      categories = await Category.find({ status: 'active' })
-        .select('title slug homeIconUrl homeBadge hasSaleBadge homeOrder showOnHome parentCategory parentCategories isAlwaysMain trackingType requiresDriver sectionType bookingType')
-        .populate('parentCategories', 'title slug')
-        .sort({ homeOrder: 1, createdAt: -1 })
-        .lean();
-    }
 
     const initialCategories = categories.map(cat => ({
       id: cat._id?.toString() || '',

@@ -302,6 +302,9 @@ const Home = () => {
             requiresDriver: cat.requiresDriver,
             sectionType: cat.sectionType || 'General',
             showOnHome: cat.showOnHome ?? true,
+            isAlwaysMain: cat.isAlwaysMain,
+            parentCategory: cat.parentCategory,
+            parentCategories: cat.parentCategories,
             bookingType: cat.bookingType || (/labour|labor|worker|manpower|service|shramik|majdoor/i.test(cat.title || '') ? 'WORKER' : 'VENDOR')
           }));
           setCategories(mappedCategories);
@@ -358,6 +361,20 @@ const Home = () => {
         return;
       }
     }
+    // SOP: Direct navigation for 4 master categories
+    const slug = (category.slug || '').toLowerCase();
+    
+    if (category.bookingType === 'WORKER' || slug.includes('worker')) {
+      navigate('/user/worker-explorer', { state: { category } });
+      return;
+    }
+    
+    if (slug.includes('tractor') || slug.includes('harvester') || slug.includes('rental')) {
+      navigate('/user/machinery-explorer', { state: { category } });
+      return;
+    }
+
+    // Fallback for legacy categories or soil testing
     setSelectedCategory(category);
     setIsCategoryModalOpen(true);
   };
@@ -675,7 +692,25 @@ const Home = () => {
 
               {/* Categories Sections */}
               {homeContent?.isCategoriesVisible !== false && categories.length > 0 && (() => {
-                const activeCategories = categories.filter(c => c.showOnHome !== false);
+                const activeCategories = categories.filter(c => {
+                  if (c.showOnHome === false) return false;
+                  // If it has a parent category, it should ONLY show if isAlwaysMain is true
+                  const hasParent = c.parentCategory || (c.parentCategories && c.parentCategories.length > 0);
+                  
+                  if (c.title === 'Rotavator') {
+                    console.log('Rotavator data:', {
+                      parentCategory: c.parentCategory,
+                      parentCategories: c.parentCategories,
+                      isAlwaysMain: c.isAlwaysMain,
+                      hasParent
+                    });
+                  }
+
+                  if (hasParent) {
+                    return c.isAlwaysMain === true;
+                  }
+                  return true;
+                });
 
                 if (activeCategories.length === 0) return null;
 

@@ -96,7 +96,12 @@ const MachineryCheckout = () => {
             const res = await bookingService.create(payload);
             if (res.success) {
                 toast.success('Booking Successful!');
-                navigate('/user/bookings');
+                const newBookingId = res.booking?._id || res.data?._id || res.data?.booking?._id || res._id || res.booking?.id || res.data?.id;
+                if (newBookingId) {
+                    navigate(`/user/booking/${newBookingId}`);
+                } else {
+                    navigate('/user/my-bookings');
+                }
             }
         } catch (err) {
             const errorMsg = err.response?.data?.errors?.[0]?.msg || err.response?.data?.message || 'Booking failed';

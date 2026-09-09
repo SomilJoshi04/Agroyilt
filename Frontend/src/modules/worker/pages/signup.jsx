@@ -188,7 +188,8 @@ const WorkerSignup = () => {
           aadhar: formData.aadhar,
           aadharDocument: aadharDoc,
           aadharBackDocument: aadharBackDoc,
-          verificationToken
+          verificationToken,
+          workerType: new URLSearchParams(location.search).get('type') || 'WORKER'
         };
 
         const response = await workerAuthService.register(registerData);
@@ -278,7 +279,8 @@ const WorkerSignup = () => {
         aadharDocument: aadharDoc,
         aadharBackDocument: aadharBackDoc,
         otp: otpValue,
-        token: otpToken
+        token: otpToken,
+        workerType: new URLSearchParams(location.search).get('type') || 'WORKER'
       };
 
       const response = await workerAuthService.register(registerData);

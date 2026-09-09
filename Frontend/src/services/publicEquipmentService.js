@@ -6,15 +6,16 @@ import api from './api';
  */
 export const publicEquipmentService = {
   // Get all approved machinery (with city filter)
-  getAllEquipment: async (params = {}) => {
-    // Construct query params
-    const queryParams = new URLSearchParams();
-    if (params.cityId) queryParams.append('cityId', params.cityId);
-    if (params.categoryId) queryParams.append('categoryId', params.categoryId);
-    if (params.search) queryParams.append('search', params.search);
-    if (params.isFeatured) queryParams.append('isFeatured', params.isFeatured);
+  getAllEquipment: async (filters = {}) => {
+    const { cityId, categoryId, implementId, search, isFeatured } = filters;
+    const params = {};
+    if (cityId) params.cityId = cityId;
+    if (categoryId) params.categoryId = categoryId;
+    if (implementId) params.implementId = implementId;
+    if (search) params.search = search;
+    if (isFeatured) params.isFeatured = true;
 
-    const response = await api.get(`/public/equipment?${queryParams.toString()}`);
+    const response = await api.get('/public/equipment', { params });
     return response.data;
   },
 
@@ -41,8 +42,34 @@ export const publicEquipmentService = {
     if (response.data.success && Array.isArray(response.data.categories)) {
       return {
         success: true,
-        // Show main categories + any sub-category with isAlwaysMain:true
-        data: response.data.categories.filter(c => !c.parentCategory || c.isAlwaysMain)
+        // Show main categories + filter out WORKER for machinery specific views
+        data: response.data.categories.filter(c => (!c.parentCategory || c.isAlwaysMain) && c.bookingType !== 'WORKER' && !c.slug.includes('worker'))
+      };
+    }
+    return { success: false, data: [] };
+  },
+
+  // Get implements (subcategories) for a specific main category
+  getImplementsForCategory: async (categoryId) => {
+    const response = await api.get('/public/categories');
+    if (response.data.success && Array.isArray(response.data.categories)) {
+      return {
+        success: true,
+        data: response.data.categories.filter(c => {
+          // Check legacy single parent category
+          const hasLegacyParent = c.parentCategory && (
+            c.parentCategory === categoryId || 
+            c.parentCategory.id === categoryId || 
+            c.parentCategory._id === categoryId
+          );
+          
+          // Check new multiple parent categories array
+          const hasArrayParent = Array.isArray(c.parentCategories) && c.parentCategories.some(p => 
+            p === categoryId || p.id === categoryId || p._id === categoryId
+          );
+
+          return hasLegacyParent || hasArrayParent;
+        })
       };
     }
     return { success: false, data: [] };

@@ -39,7 +39,7 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
 
       {/* Professional Grid Layout */}
       <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-y-7 gap-x-3">
-      {serviceCategories.map((category, index) => {
+        {serviceCategories.map((category, index) => {
           const iconSrc = toAssetUrl(category.icon || category.image);
           return (
             <div key={category.id} className="flex justify-center h-full">
@@ -68,6 +68,24 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
             </div>
           );
         })}
+
+        {/* Static Worker Section Card */}
+        <div className="flex justify-center h-full">
+          <CategoryCard
+            title="Worker"
+            icon={
+              <img
+                src="https://images.unsplash.com/photo-1605000797499-95a51c5269ae?q=80&w=600&auto=format&fit=crop"
+                alt="Worker"
+                className="w-full h-full object-cover transition-transform duration-500"
+                loading="lazy"
+                decoding="async"
+              />
+            }
+            onClick={() => onCategoryClick?.({ slug: 'worker', title: 'Worker', bookingType: 'WORKER' })}
+            index={serviceCategories.length}
+          />
+        </div>
       </div>
 
       {/* Subtle Bottom Separator */}

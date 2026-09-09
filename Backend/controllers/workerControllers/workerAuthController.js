@@ -148,7 +148,7 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { name, email, verificationToken, aadharNumber, aadharDocument, aadharBackDocument } = req.body;
+    const { name, email, verificationToken, aadharNumber, aadharDocument, aadharBackDocument, workerType } = req.body;
     let phone = req.body.phone;
 
     if (verificationToken) {
@@ -185,6 +185,9 @@ const register = async (req, res) => {
       if (uploadRes.success) aadharBackUrl = uploadRes.url;
     }
 
+    // Validate workerType
+    const validWorkerType = ['TEAM_LEADER', 'WORKER'].includes(workerType) ? workerType : 'WORKER';
+
     // Create worker
     const worker = await Worker.create({
       name, email, phone,
@@ -194,7 +197,8 @@ const register = async (req, res) => {
         document: aadharUrl,
         backDocument: aadharBackUrl
       },
-      status: WORKER_STATUS.OFFLINE
+      status: WORKER_STATUS.OFFLINE,
+      workerType: validWorkerType
     });
 
     const tokens = generateTokenPair({

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiChevronRight, FiChevronLeft, FiUser, FiTruck, FiTool } from 'react-icons/fi';
+import { FiChevronRight, FiChevronLeft, FiUser, FiTruck, FiTool, FiUsers, FiX } from 'react-icons/fi';
 import { useBrand } from '../../../context/BrandContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const roles = [
   {
@@ -37,9 +38,14 @@ const AppRegister = () => {
   const navigate = useNavigate();
   const { appLogo, appName } = useBrand();
   const [selected, setSelected] = useState(null);
+  const [showWorkerTypeModal, setShowWorkerTypeModal] = useState(false);
 
   const handleProceed = () => {
     if (!selected) return;
+    if (selected === 'worker') {
+      setShowWorkerTypeModal(true);
+      return;
+    }
     const role = roles.find(r => r.id === selected);
     if (role) navigate(role.route);
   };
@@ -234,6 +240,98 @@ const AppRegister = () => {
           </button>
         </p>
       </div>
+
+      {/* Worker Type Selection Bottom Sheet */}
+      <AnimatePresence>
+        {showWorkerTypeModal && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowWorkerTypeModal(false)}
+              style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+                zIndex: 100,
+              }}
+            />
+            {/* Bottom Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              style={{
+                position: 'fixed', bottom: 0, left: 0, right: 0,
+                background: '#fff',
+                borderTopLeftRadius: '24px', borderTopRightRadius: '24px',
+                padding: '24px', zIndex: 101,
+                boxShadow: '0 -10px 40px rgba(0,0,0,0.1)',
+                display: 'flex', flexDirection: 'column', gap: '16px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#1B5E20' }}>Choose Worker Type</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#78909C' }}>How do you want to work on AgroYilt?</p>
+                </div>
+                <button
+                  onClick={() => setShowWorkerTypeModal(false)}
+                  style={{
+                    background: '#F5F5F5', border: 'none', width: '36px', height: '36px',
+                    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: '#607D8B'
+                  }}
+                >
+                  <FiX size={20} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+                <button
+                  onClick={() => navigate('/worker/signup?type=TEAM_LEADER')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '16px',
+                    background: '#fff', border: '2px solid #E3F2FD', borderRadius: '16px',
+                    padding: '16px', cursor: 'pointer', textAlign: 'left',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#1976D2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <FiUsers size={24} color="#fff" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1565C0', marginBottom: '4px' }}>Team Leader</div>
+                    <div style={{ fontSize: '0.8rem', color: '#78909C', lineHeight: 1.4 }}>Create a team, invite workers, and manage large farming contracts.</div>
+                  </div>
+                  <FiChevronRight size={20} color="#90CAF9" />
+                </button>
+
+                <button
+                  onClick={() => navigate('/worker/signup?type=WORKER')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '16px',
+                    background: '#fff', border: '2px solid #FFF3E0', borderRadius: '16px',
+                    padding: '16px', cursor: 'pointer', textAlign: 'left',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F57C00', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <FiTool size={24} color="#fff" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#E65100', marginBottom: '4px' }}>Independent Worker</div>
+                    <div style={{ fontSize: '0.8rem', color: '#78909C', lineHeight: 1.4 }}>Work independently or join a Team Leader to find more jobs.</div>
+                  </div>
+                  <FiChevronRight size={20} color="#FFCC80" />
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

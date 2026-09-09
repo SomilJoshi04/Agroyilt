@@ -227,8 +227,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       };
 
       if (!editing) {
-        const minOrder = Math.min(...categoriesBase.map(c => c.homeOrder || 0), 0);
-        data.homeOrder = minOrder - 1;
+        data.homeOrder = categoriesBase.length;
       }
 
       const response = editing
@@ -344,7 +343,6 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest w-20">Icon</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Category Name</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Parent Categories</th>
-                <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Booking Type</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Section Tab</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Hierarchy</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Tracking</th>
@@ -404,11 +402,6 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
                           <span className="text-[10px] text-gray-400 font-bold uppercase italic">No Parent</span>
                         )}
                       </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className={`inline-block whitespace-nowrap px-2 py-1 rounded text-[10px] font-black border ${c.bookingType === 'WORKER' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
-                        {c.bookingType || 'VENDOR'}
-                      </span>
                     </td>
                     <td className="py-4 px-4">
                       <span className="inline-block whitespace-nowrap px-2 py-1 bg-purple-50 text-purple-700 rounded text-[10px] font-black border border-purple-200">
@@ -508,6 +501,27 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
             </div>
           </div>
 
+          <div className="space-y-1 bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-base font-bold text-gray-900">Category Status</label>
+                <p className="text-[11px] text-gray-500 leading-tight mt-0.5">Control if this category/subcategory is visible to Vendors and Farmers.</p>
+              </div>
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-300 shadow-sm">
+                <input
+                  type="checkbox"
+                  id="showOnHome"
+                  checked={form.showOnHome}
+                  onChange={e => setForm({ ...form, showOnHome: e.target.checked })}
+                  className="h-5 w-5 accent-emerald-500 cursor-pointer"
+                />
+                <label htmlFor="showOnHome" className={`text-sm font-black uppercase cursor-pointer ${form.showOnHome ? 'text-emerald-600' : 'text-gray-500'}`}>
+                  {form.showOnHome ? 'Visible' : 'Hidden'}
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <input
@@ -523,18 +537,6 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           </div>
 
           <div>
-            <label className="block text-base font-bold text-gray-900 mb-2">Booking Type</label>
-            <select
-              value={form.bookingType}
-              onChange={e => setForm({ ...form, bookingType: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold mb-4"
-            >
-              <option value="VENDOR">VENDOR (Machinery/Equipment)</option>
-              <option value="WORKER">WORKER (Independent Workers)</option>
-            </select>
-          </div>
-
-          <div>
             <label className="block text-base font-bold text-gray-900 mb-2">Home Page Tab Section</label>
             <select
               value={form.sectionType}
@@ -542,7 +544,13 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
             >
               <option value="General">General (Default scrolling list)</option>
-              {premiumOfferings.filter(o => o.actionPayload || o.title).map(o => {
+              {premiumOfferings
+                .filter(o => o.actionPayload || o.title)
+                .filter(o => {
+                  const sectionName = (o.actionPayload || o.title || '').toLowerCase();
+                  return sectionName !== 'drone spraying' && sectionName !== 'dronespraying';
+                })
+                .map(o => {
                 const sectionName = o.actionPayload || o.title;
                 return <option key={o._id || o.id} value={sectionName}>{o.title} - ({sectionName})</option>
               })}

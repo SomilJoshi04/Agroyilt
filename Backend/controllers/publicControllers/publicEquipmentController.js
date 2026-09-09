@@ -8,13 +8,20 @@ const VendorEquipment = require('../../models/VendorEquipment');
 // GET /api/public/equipment
 exports.getPublicEquipment = async (req, res) => {
   try {
-    const { cityId, categoryId, search, isFeatured } = req.query;
+    const { cityId, categoryId, implementId, search, isFeatured } = req.query;
 
-    const query = { status: 'approved' }; // Only show approved equipment
+    const query = { status: { $in: ['active', 'approved'] } }; // Only show active/approved equipment
 
     if (cityId) query.cityIds = cityId;
     if (categoryId) query.categoryId = categoryId;
     if (isFeatured) query.isFeatured = true;
+
+    if (implementId) {
+      query.$or = [
+        { 'implements.subCategoryId': implementId },
+        { subCategoryIds: implementId } // For backward compatibility
+      ];
+    }
 
     if (search) {
       const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -47,7 +54,7 @@ exports.getPublicEquipmentById = async (req, res) => {
   try {
     const equipment = await VendorEquipment.findOne({
       _id: req.params.id,
-      status: 'approved'
+      status: { $in: ['active', 'approved'] }
     })
       .populate('categoryId', 'title slug homeIconUrl')
       .populate('subCategoryIds', 'title slug')

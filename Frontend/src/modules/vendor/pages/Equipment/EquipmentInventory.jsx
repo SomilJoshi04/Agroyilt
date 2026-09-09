@@ -144,14 +144,14 @@ const EquipmentInventory = () => {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider mb-0.5">
+                  <div className="flex justify-between items-start mb-2 gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider mb-0.5 truncate">
                         {item.categoryId?.title || 'Machinery'}
                       </p>
                       <h3 className="font-black text-slate-800 text-base truncate">{item.name}</h3>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 flex-shrink-0">
                       <button onClick={() => navigate(`/vendor/equipment/edit/${item._id}`)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
                         <FiEdit2 className="w-4 h-4" />
                       </button>

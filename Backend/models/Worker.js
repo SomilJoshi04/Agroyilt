@@ -26,6 +26,16 @@ const workerSchema = new mongoose.Schema({
     enum: ['worker'],
     default: 'worker'
   },
+  workerType: {
+    type: String,
+    enum: ['WORKER', 'TEAM_LEADER'],
+    default: 'WORKER'
+  },
+  teamId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Team',
+    default: null
+  },
   password: {
     type: String,
     select: false

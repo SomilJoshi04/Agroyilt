@@ -83,6 +83,17 @@ const notificationSchema = new mongoose.Schema({
       'ecommerce_order',
       'ecommerce_order_update',
       'ecommerce_out_of_stock',
+      'team_invite_received',
+      'team_invite_accepted',
+      'team_invite_rejected',
+      'team_invite_cancelled',
+      'team_merge_request',
+      'team_merge_accepted',
+      'team_merge_rejected',
+      'team_migration_request',
+      'team_member_joined',
+      'team_member_left',
+      'team_member_removed',
       'general'
     ],
     index: true
@@ -105,7 +116,7 @@ const notificationSchema = new mongoose.Schema({
   },
   relatedType: {
     type: String,
-    enum: ['booking', 'payment', 'user', 'vendor', 'worker', 'service', 'scrap', 'withdrawal'],
+    enum: ['booking', 'payment', 'user', 'vendor', 'worker', 'service', 'scrap', 'withdrawal', 'team', 'team_request'],
     default: null
   },
   // Notification Status

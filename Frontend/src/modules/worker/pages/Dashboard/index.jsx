@@ -53,6 +53,8 @@ const Dashboard = () => {
     categories: [],
     skills: [],
     address: null,
+    workerType: 'WORKER',
+    teamId: null,
   });
   const [recentJobs, setRecentJobs] = useState([]);
 
@@ -101,6 +103,8 @@ const Dashboard = () => {
           categories: profile.serviceCategory ? [profile.serviceCategory] : (profile.serviceCategories || []),
           skills: profile.skills || [],
           address: profile.address,
+          workerType: profile.workerType || 'WORKER',
+          teamId: profile.teamId || null,
         });
       }
 
@@ -478,6 +482,47 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Team Management Card (For all workers) */}
+          <div className="px-4 mt-6">
+            <div 
+              onClick={() => navigate('/worker/team')}
+              className="relative overflow-hidden rounded-2xl p-5 cursor-pointer shadow-sm active:scale-[0.98] transition-transform duration-200"
+              style={{
+                background: workerProfile.workerType === 'TEAM_LEADER' ? 'linear-gradient(135deg, #1565C0 0%, #1976D2 100%)' : 'linear-gradient(135deg, #F57C00 0%, #FF9800 100%)',
+                color: '#fff'
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    {workerProfile.workerType === 'TEAM_LEADER' ? (
+                      <FiUser size={24} color="#fff" />
+                    ) : (
+                      <FiBriefcase size={24} color="#fff" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">
+                      {workerProfile.workerType === 'TEAM_LEADER' ? 'Manage Your Team' : 'My Team'}
+                    </h3>
+                    <p className="text-white/80 text-sm font-medium">
+                      {workerProfile.workerType === 'TEAM_LEADER' 
+                        ? 'View members, requests & merges' 
+                        : (workerProfile.teamId ? 'View your team leader' : 'Join or Create a team')}
+                    </p>
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <FiArrowRight size={18} />
+                </div>
+              </div>
+              
+              {/* Decorative Background Elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/3 blur-xl"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full translate-y-1/2 -translate-x-1/4 blur-lg"></div>
+            </div>
+          </div>
 
         {/* Recent Jobs Section */}
         <div className="px-4 pt-4 pb-6">

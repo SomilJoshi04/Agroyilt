@@ -38,6 +38,8 @@ const getProfile = async (req, res) => {
         completedJobs: worker.completedJobs || 0,
         status: worker.status,
         profilePhoto: worker.profilePhoto || null,
+        workerType: worker.workerType || 'WORKER',
+        teamId: worker.teamId || null,
         settings: worker.settings || { notifications: true, language: 'en' },
         isPhoneVerified: worker.isPhoneVerified || false,
         isEmailVerified: worker.isEmailVerified || false,

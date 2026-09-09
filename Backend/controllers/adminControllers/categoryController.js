@@ -63,7 +63,12 @@ const getAllCategories = async (req, res) => {
         cityObjectId = cityId;
       }
       
-      query.cityIds = cityObjectId;
+      // Return categories that belong to the selected city OR are global (empty cityIds array)
+      query.$or = [
+        { cityIds: cityObjectId },
+        { cityIds: { $exists: true, $size: 0 } },
+        { cityIds: { $exists: false } }
+      ];
     }
 
     const categories = await Category.find(query)

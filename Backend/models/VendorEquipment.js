@@ -95,6 +95,16 @@ const vendorEquipmentSchema = new mongoose.Schema({
       isEnabled: { type: Boolean, default: false }
     }
   },
+  rating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  totalReviews: {
+    type: Number,
+    default: 0
+  },
   cityIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'City',

@@ -47,7 +47,10 @@ export const vendorEquipmentService = {
         success: true,
         data: response.data.categories
           .filter(c => {
+            // Must NOT have a parent category (check both single and array forms)
             if (c.parentCategory) return false;
+            if (Array.isArray(c.parentCategories) && c.parentCategories.length > 0) return false;
+            
             const slug = (c.slug || '').trim().toLowerCase();
             return !excludeSlugs.includes(slug);
           })
@@ -67,8 +70,18 @@ export const vendorEquipmentService = {
         success: true,
         data: response.data.categories
           .filter(c => {
+            // Check legacy single parent category
             const pid = c.parentCategory?._id || c.parentCategory?.id || c.parentCategory?.$oid || c.parentCategory;
-            return pid?.toString() === parentId?.toString();
+            if (pid?.toString() === parentId?.toString()) return true;
+            
+            // Check new multiple parent categories array
+            if (Array.isArray(c.parentCategories)) {
+              return c.parentCategories.some(parent => {
+                const parentIdVal = parent?._id || parent?.id || parent?.$oid || parent;
+                return parentIdVal?.toString() === parentId?.toString();
+              });
+            }
+            return false;
           })
           .map(c => ({
             ...c,

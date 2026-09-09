@@ -49,6 +49,7 @@ const Notifications = lazyLoad(() => import('../pages/Notifications'));
 const JobMap = lazyLoad(() => import('../pages/JobMap'));
 const JobTimeline = lazyLoad(() => import('../pages/JobTimeline'));
 const Wallet = lazyLoad(() => import('../pages/Wallet'));
+const Team = lazyLoad(() => import('../pages/Team'));
 
 // Lightweight loading fallback - no logo to avoid iOS rejection
 const LoadingFallback = () => (
@@ -96,6 +97,7 @@ const WorkerRoutes = () => {
               <Route path="/settings/mpin-setup" element={<ProtectedRoute userType="worker"><MpinSetup /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute userType="worker"><Notifications /></ProtectedRoute>} />
               <Route path="/wallet" element={<ProtectedRoute userType="worker"><Wallet /></ProtectedRoute>} />
+              <Route path="/team" element={<ProtectedRoute userType="worker"><Team /></ProtectedRoute>} />
             </Routes>
           </PageTransition>
         </Suspense>

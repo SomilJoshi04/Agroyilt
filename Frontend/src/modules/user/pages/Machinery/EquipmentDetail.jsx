@@ -47,6 +47,9 @@ const EquipmentDetail = () => {
   };
 
   // Toggle an implement selection
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // ... (existing code for toggleImplement and getImplementAddon)
   const toggleImplement = (impl) => {
     setSelectedImplements(prev => {
       const exists = prev.find(i => i.subCategoryId === impl.subCategoryId);
@@ -57,7 +60,6 @@ const EquipmentDetail = () => {
     });
   };
 
-  // Calculate implement add-on cost for selected rate type
   const getImplementAddon = () => {
     return selectedImplements.reduce((sum, impl) => {
       const p = impl.pricing?.[selectedRateType];
@@ -118,28 +120,52 @@ const EquipmentDetail = () => {
       </div>
 
       <div className="max-w-4xl mx-auto">
-        {/* Images Frame */}
-        <div className="h-[40vh] md:h-[50vh] relative bg-slate-200">
-           {equipment.images?.[0] ? (
-             <img src={equipment.images[0]} className="w-full h-full object-cover" />
+        {/* Images Frame with Swipe capability */}
+        <div className="h-[40vh] md:h-[50vh] relative bg-slate-200 overflow-hidden">
+           {equipment.images?.length > 0 ? (
+             <div 
+               className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
+               onScroll={(e) => {
+                 const scrollLeft = e.target.scrollLeft;
+                 const width = e.target.clientWidth;
+                 setCurrentImageIndex(Math.round(scrollLeft / width));
+               }}
+             >
+               {equipment.images.map((img, i) => (
+                 <img key={i} src={img} className="w-full h-full flex-shrink-0 object-cover snap-center" alt={`${equipment.name} - View ${i+1}`} />
+               ))}
+             </div>
            ) : (
              <div className="w-full h-full flex items-center justify-center"><FiTruck size={60} className="text-white" /></div>
            )}
-           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
+           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent pointer-events-none" />
            
-           <div className="absolute bottom-10 left-6 right-6">
+           {/* Image Dots Indicator */}
+           {equipment.images?.length > 1 && (
+             <div className="absolute bottom-[110px] left-0 right-0 flex justify-center gap-1.5 z-10">
+               {equipment.images.map((_, i) => (
+                 <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${currentImageIndex === i ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`} />
+               ))}
+             </div>
+           )}
+
+           <div className="absolute bottom-8 left-6 right-6 pointer-events-none">
               <div className="flex items-center gap-2 mb-3">
                  <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-[9px] font-black uppercase tracking-widest">
                    {equipment.categoryId?.title}
                  </span>
-                 <span className="px-3 py-1 bg-white/20 backdrop-blur-md text-white border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest">
+                 <span className="px-3 py-1 bg-white/20 backdrop-blur-md text-white border border-white/20 rounded-full text-[9px] font-black uppercase tracking-widest">
                    Verified Asset
                  </span>
               </div>
-              <h2 className="text-3xl font-black text-white leading-tight mb-2">{equipment.name}</h2>
-              <div className="flex items-center gap-4 text-white/80 text-xs font-bold">
+              <h2 className="text-3xl font-black text-white leading-tight mb-2 drop-shadow-md">{equipment.name}</h2>
+              <div className="flex items-center gap-4 text-white/90 text-xs font-bold">
                  <span className="flex items-center gap-1.5"><FiMapPin className="text-orange-400" /> Nearby Available</span>
-                 <span className="flex items-center gap-1.5"><FiStar className="text-amber-400 fill-amber-400" /> {equipment.vendorId?.rating || 'New'} Rating</span>
+                 <span className="flex items-center gap-1.5">
+                   <FiStar className="text-amber-400 fill-amber-400" /> 
+                   {equipment.rating || equipment.vendorId?.rating || 'New'} Rating
+                   {equipment.totalReviews ? <span className="text-[10px] opacity-75 ml-1">({equipment.totalReviews} reviews)</span> : null}
+                 </span>
               </div>
            </div>
         </div>

@@ -20,7 +20,7 @@ const workerProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   phone: z.string().optional(), // Read-only but good to have in schema
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
-  serviceCategories: z.array(z.string()).min(1, "Select at least one category"),
+  serviceCategories: z.array(z.string()).optional(),
   skills: z.array(z.string()).min(1, "Select at least one skill"),
   address: z.object({
     addressLine1: z.string().optional(),
@@ -44,6 +44,7 @@ const EditProfile = () => {
   const [categories, setCategories] = useState([]);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
+  const [customSkill, setCustomSkill] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -216,6 +217,16 @@ const EditProfile = () => {
     });
   };
 
+  const addCustomSkill = () => {
+    if (customSkill.trim() && !formData.skills.includes(customSkill.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        skills: [...prev.skills, customSkill.trim()]
+      }));
+    }
+    setCustomSkill('');
+  };
+
   const handleAddressSave = (houseNumber, location) => {
     // Extract components from Google Maps location
     let city = '';
@@ -322,13 +333,18 @@ const EditProfile = () => {
            /labour|labor|worker|manpower|service|shramik|majdoor|crop|planting|field|harvest|pruning/i.test(slug);
   });
 
-  // Get aggregated sub-services (skills) from selected WORKER categories only
-  const availableSkills = workerCategories
-    .filter(c => formData.serviceCategories.includes(c.title))
-    .flatMap(c => c.subServices || []);
-
-  // Remove duplicates
-  const uniqueAvailableSkills = [...new Set(availableSkills.map(s => typeof s === 'string' ? s : (s.name || s.title)))];
+  // Hardcoded farming skills as requested
+  const uniqueAvailableSkills = [
+    "Drive Tractor",
+    "Drive Harvester",
+    "Ploughing",
+    "Sowing / Seeding",
+    "Harvesting (Crop Cutting)",
+    "Crop Spraying",
+    "Weeding",
+    "Loading / Unloading",
+    "General Farm Helper"
+  ];
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -500,6 +516,7 @@ const EditProfile = () => {
             <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Work Profile</h2>
           </div>
 
+          {/*
           <div>
             <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">
               Categories
@@ -551,10 +568,11 @@ const EditProfile = () => {
             </div>
             {errors.serviceCategories && <p className="text-red-500 text-[10px] mt-1">{errors.serviceCategories}</p>}
           </div>
+          */}
 
-          {formData.serviceCategories.length > 0 && (
-            <div>
-              <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">Services (Skills)</label>
+          {/* Services (Skills) - Always visible so worker can add custom skills */}
+          <div>
+            <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">Services (Skills)</label>
 
               {/* Multi-select Dropdown for Services */}
               <div className="relative mb-3">
@@ -596,29 +614,38 @@ const EditProfile = () => {
               </div>
 
               {/* Selected Services Tags */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mb-3">
                 {formData.skills.map((skill, idx) => (
-                  <div
-                    key={skill || idx}
-                    className="pl-3 pr-2 py-1.5 rounded-full text-[11px] font-bold bg-blue-600 text-white flex items-center gap-1 shadow-sm"
-                  >
+                  <span key={idx} className="bg-green-50 text-green-700 px-2 py-1 rounded text-xs font-bold flex items-center gap-1 shadow-sm">
                     {skill}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleSkill(skill);
-                      }}
-                      className="p-0.5 hover:bg-white/20 rounded-full transition-colors"
-                    >
+                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleSkill(skill); }} className="p-0.5 hover:bg-green-200 rounded-full">
                       <FiX className="w-3 h-3" />
                     </button>
-                  </div>
+                  </span>
                 ))}
+              </div>
+
+              {/* Custom Skill Input */}
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={customSkill}
+                  onChange={(e) => setCustomSkill(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomSkill())}
+                  placeholder="Other skill? Type here..."
+                  className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={addCustomSkill}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm"
+                >
+                  Add
+                </button>
               </div>
 
               {errors.skills && <p className="text-red-500 text-[10px] mt-1">Select at least one service</p>}
             </div>
-          )}
 
           {/* Custom Labour Pricing / Rates */}
           <div className="pt-4 border-t border-gray-100 space-y-3">

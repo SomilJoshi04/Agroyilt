@@ -1450,6 +1450,11 @@ const addReview = async (req, res) => {
       await updateCumulativeRating(Worker, booking.workerId, rating);
     }
 
+    // Update Equipment Rating (Only if equipment was booked)
+    if (booking.equipmentId) {
+      await updateCumulativeRating(VendorEquipment, booking.equipmentId, rating);
+    }
+
     // Send notification to vendor
     await createNotification({
       vendorId: booking.vendorId,
