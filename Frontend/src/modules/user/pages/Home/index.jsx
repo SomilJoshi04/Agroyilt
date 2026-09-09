@@ -353,30 +353,24 @@ const Home = () => {
   };
 
   const handleCategoryClick = (category) => {
-    if (category) {
-      const slug = (category.slug || '').toLowerCase();
-      const title = (category.title || '').toLowerCase();
-      if (slug.includes('soil') || title.includes('soil')) {
-        navigate('/user/soil-testing');
-        return;
-      }
-    }
-    // SOP: Direct navigation for 4 master categories
-    const slug = (category.slug || '').toLowerCase();
+    if (!category) return;
     
+    const slug = (category.slug || '').toLowerCase();
+    const title = (category.title || '').toLowerCase();
+    
+    if (slug.includes('soil') || title.includes('soil')) {
+      navigate('/user/soil-testing');
+      return;
+    }
+    
+    // SOP: Direct navigation for master categories
     if (category.bookingType === 'WORKER' || slug.includes('worker')) {
       navigate('/user/worker-explorer', { state: { category } });
       return;
     }
     
-    if (slug.includes('tractor') || slug.includes('harvester') || slug.includes('rental')) {
-      navigate('/user/machinery-explorer', { state: { category } });
-      return;
-    }
-
-    // Fallback for legacy categories or soil testing
-    setSelectedCategory(category);
-    setIsCategoryModalOpen(true);
+    // Default fallback for any newly added equipment category (like Dron)
+    navigate('/user/machinery-explorer', { state: { category } });
   };
 
   const handlePromoClick = (promo) => {
@@ -678,7 +672,9 @@ const Home = () => {
                            )}
                          </div>
                          <div className="flex-1 min-w-0 z-10">
-                            <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">{item.title}</p>
+                            <p className="text-[13px] sm:text-sm font-black text-slate-800 leading-tight truncate tracking-tight">
+                              {item.title === 'Rent Machinery' ? 'Machinery Catalog' : item.title}
+                            </p>
                             <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate tracking-wide">{item.subtitle}</p>
                          </div>
                       </motion.div>

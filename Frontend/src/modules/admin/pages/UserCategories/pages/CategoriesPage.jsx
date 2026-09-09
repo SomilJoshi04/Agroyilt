@@ -481,7 +481,9 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
             <div>
               <label className="block text-base font-bold text-gray-900 mb-2">Parent Categories (Select multiple)</label>
               <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-xl p-3 bg-white space-y-2">
-                {categoriesBase.filter(c => c.id !== editingId).map(c => (
+                {categoriesBase
+                  .filter(c => c.id !== editingId && (!c.parentCategories || c.parentCategories.length === 0))
+                  .map(c => (
                   <label key={c.id} className="flex items-center gap-3 cursor-pointer group">
                     <input
                       type="checkbox"
@@ -498,7 +500,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
                     <span className="text-sm font-semibold text-gray-700 group-hover:text-primary-600">{c.title}</span>
                   </label>
                 ))}
-                {categoriesBase.filter(c => c.id !== editingId).length === 0 && (
+                {categoriesBase.filter(c => c.id !== editingId && (!c.parentCategories || c.parentCategories.length === 0)).length === 0 && (
                   <p className="text-xs text-gray-400 italic">No main categories available</p>
                 )}
               </div>

@@ -480,41 +480,7 @@ const AddEquipment = () => {
                                 <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${selected ? 'right-0.5' : 'left-0.5'}`} />
                               </button>
                             </div>
-                            {/* Per-implement Pricing Inputs */}
-                            {selected && (
-                              <div className="mt-2 pl-2 space-y-1.5">
-                                {['hourly', 'land_based', 'daily'].map(key => {
-                                  if (!form.pricing[key].isEnabled) return null;
-                                  return (
-                                    <div key={key} className="flex items-center justify-between py-1 border-t border-slate-50/50">
-                                      <span className="text-[10px] font-black text-slate-400 uppercase">
-                                        {key === 'land_based' ? 'Per Acre' : key === 'hourly' ? 'Hourly' : 'Daily'} Rate
-                                      </span>
-                                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 max-w-[120px] transition-all">
-                                        <span className="text-slate-500 font-bold text-xs">₹</span>
-                                        <input
-                                          type="number"
-                                          className="w-full bg-transparent border-none p-0 text-xs font-black text-slate-800 outline-none text-right placeholder:text-slate-400"
-                                          placeholder="0"
-                                          value={selected.pricing[key]?.price || ""}
-                                          onFocus={(e) => e.target.select()}
-                                          onChange={e => {
-                                            setForm(p => ({
-                                              ...p,
-                                              implements: p.implements.map(i =>
-                                                i.subCategoryId === impl.id
-                                                  ? { ...i, pricing: { ...i.pricing, [key]: { ...i.pricing[key], price: parseFloat(e.target.value) || 0 } } }
-                                                  : i
-                                              )
-                                            }));
-                                          }}
-                                        />
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                            {/* Per-implement pricing has been removed to use master service pricing only */}
                           </div>
                         );
                       })}

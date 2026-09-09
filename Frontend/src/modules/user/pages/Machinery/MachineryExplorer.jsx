@@ -133,18 +133,18 @@ const MachineryExplorer = () => {
               {(() => {
                 let displayCategories = categories.slice(0, 10);
                 // Ensure selected category is always visible
-                if (selectedCat && !displayCategories.find(c => c.id === selectedCat.id || c.id === selectedCat._id)) {
+                if (selectedCat && !displayCategories.find(c => (c.id || c._id) === (selectedCat.id || selectedCat._id))) {
                   displayCategories = [
-                    categories.find(c => c.id === selectedCat.id || c.id === selectedCat._id) || selectedCat,
+                    categories.find(c => (c.id || c._id) === (selectedCat.id || selectedCat._id)) || selectedCat,
                     ...categories.slice(0, 9)
                   ];
                 }
                 return displayCategories.map(cat => (
                   <button 
-                    key={cat.id}
+                    key={cat.id || cat._id}
                     onClick={() => setSelectedCat(cat)}
                     className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap
-                      ${selectedCat?.id === cat.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}
+                      ${(selectedCat?.id || selectedCat?._id) === (cat.id || cat._id) ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}
                   >
                     {cat.title}
                   </button>
