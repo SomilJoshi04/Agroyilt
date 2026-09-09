@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiMapPin } from 'react-icons/fi';
 import { Helmet } from 'react-helmet-async';
 import { useCity } from '../../../../context/CityContext';
-import { publicCatalogService } from '../../../../services/publicCatalogService';
+import { publicCatalogService } from '../../../../services/catalogService';
 import LogoLoader from '../../../../components/common/LogoLoader';
-import CategoryCard from '../Home/components/common/CategoryCard';
+import CategoryCard from '../../components/common/CategoryCard';
 
 const toAssetUrl = (url) => {
   if (!url) return '';
