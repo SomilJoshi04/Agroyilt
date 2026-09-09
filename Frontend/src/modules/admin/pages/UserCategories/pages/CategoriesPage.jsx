@@ -312,31 +312,36 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
   return (
     <div className="space-y-6">
       <CardShell icon={FiGrid}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-gray-600 font-bold uppercase tracking-tight">{categoriesFiltered.length} Items</div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text" placeholder="Search..." value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm bg-white"
-              />
-            </div>
-            <button onClick={() => setShowReorderModal(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-bold flex items-center gap-2">
-              <FiMove /> Reorder
-            </button>
+        <div className="flex flex-col gap-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600 font-bold uppercase tracking-tight">{categoriesFiltered.length} Items</div>
             <button
               onClick={() => { reset(); setIsModalOpen(true); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shrink-0 shadow-sm"
             >
               <FiPlus /> Add Category
             </button>
           </div>
+          
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative flex-1">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text" placeholder="Search..." value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
+              <button onClick={() => setShowReorderModal(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shrink-0">
+                <FiMove /> Reorder
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[800px]">
             <thead>
               <tr className="border-b-2 border-gray-200 bg-gray-50/50">
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest w-12">#</th>

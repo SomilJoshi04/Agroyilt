@@ -204,8 +204,8 @@ const ManageSoilTests = () => {
     });
 
     return (
-        <div className="p-8">
-            <div className="flex justify-between items-start mb-8">
+        <div className="p-4 sm:p-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-800">Soil Testing</h1>
                     <p className="text-slate-500 font-medium tracking-tight">Review requests, assign labs, and track revenue</p>
@@ -219,7 +219,7 @@ const ManageSoilTests = () => {
             {viewMode === 'requests' ? (
                 <>
                     {/* Stats */}
-            <div className="grid grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
                 {[
                     { label: 'Total',     value: stats.total,     color: 'slate',   icon: FiActivity },
                     { label: 'Pending',   value: stats.pending,   color: 'amber',   icon: FiClock },
@@ -241,7 +241,7 @@ const ManageSoilTests = () => {
             </div>
 
             {/* Filters */}
-            <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm mb-8 flex gap-4">
+            <div className="bg-white p-4 sm:p-6 rounded-[32px] border border-slate-100 shadow-sm mb-6 sm:mb-8 flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 relative">
                     <FiSearch className="absolute left-4 top-4 text-slate-400" />
                     <input type="text" placeholder="Search by Farmer name or Request ID..."
@@ -264,8 +264,8 @@ const ManageSoilTests = () => {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
-                <table className="w-full text-left">
+            <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-x-auto">
+                <table className="w-full text-left min-w-[1000px]">
                     <thead>
                         <tr className="border-b border-slate-50">
                             {['Farmer', 'Details', 'Status', 'Report', 'Actions'].map(h => (
@@ -365,7 +365,7 @@ const ManageSoilTests = () => {
             ) : (
                 <>
                     {/* Transaction Stats */}
-                    <div className="grid grid-cols-4 gap-6 mb-8">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
                         {[
                             { label: 'Total Transactions', value: txnStats.transactions, color: 'blue', icon: FiCreditCard, prefix: '' },
                             { label: 'Total Collections', value: txnStats.collections.toFixed(2), color: 'emerald', icon: FiDollarSign, prefix: '₹' },
@@ -387,7 +387,7 @@ const ManageSoilTests = () => {
                     </div>
 
                     {/* Transaction Filters */}
-                    <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm mb-8 flex gap-4">
+                    <div className="bg-white p-4 sm:p-6 rounded-[32px] border border-slate-100 shadow-sm mb-6 sm:mb-8 flex flex-col sm:flex-row gap-4">
                         <div className="flex-1 relative">
                             <FiSearch className="absolute left-4 top-4 text-slate-400" />
                             <input type="text" placeholder="Search by Farmer Name or Transaction ID..."
@@ -397,8 +397,8 @@ const ManageSoilTests = () => {
                     </div>
 
                     {/* Transactions Table */}
-                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
-                        <table className="w-full text-left">
+                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-x-auto">
+                        <table className="w-full text-left min-w-[900px]">
                             <thead>
                                 <tr className="border-b border-slate-50 bg-slate-50/30">
                                     {['Date & Txn ID', 'Farmer Details', 'Payment Method', 'Amounts (₹)'].map(h => (

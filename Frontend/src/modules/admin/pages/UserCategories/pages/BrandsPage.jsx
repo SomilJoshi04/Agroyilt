@@ -327,7 +327,7 @@ const BrandsPage = ({ catalog, setCatalog, selectedCity }) => {
           <div className="text-center py-4 text-gray-500">Loading brands...</div>
         )}
 
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
           <div className="text-sm text-gray-600">{services.length} brands in catalog</div>
 
           <button
@@ -335,7 +335,7 @@ const BrandsPage = ({ catalog, setCatalog, selectedCity }) => {
               reset();
               setIsModalOpen(true);
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm w-full sm:w-auto justify-center"
           >
             <FiPlus className="w-4 h-4" />
             <span>Add Brand</span>
@@ -384,7 +384,7 @@ const BrandsPage = ({ catalog, setCatalog, selectedCity }) => {
           </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-            <table className="w-full">
+            <table className="w-full min-w-[800px]">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="text-left py-4 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-12">#</th>

@@ -98,7 +98,7 @@ const logout = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const adminId = req.user.id;
-    const { email, currentPassword, newPassword } = req.body;
+    const { email, name, profilePhoto, currentPassword, newPassword } = req.body;
 
     const admin = await Admin.findById(adminId).select('+password');
     if (!admin) {
@@ -118,6 +118,8 @@ const updateProfile = async (req, res) => {
 
     // Update fields
     if (email) admin.email = email;
+    if (name) admin.name = name;
+    if (profilePhoto) admin.profilePhoto = profilePhoto;
     if (newPassword) admin.password = newPassword;
 
     await admin.save();
@@ -129,7 +131,8 @@ const updateProfile = async (req, res) => {
         id: admin._id,
         name: admin.name,
         email: admin.email,
-        role: admin.role
+        role: admin.role,
+        profilePhoto: admin.profilePhoto
       }
     });
 
@@ -153,7 +156,8 @@ const getProfile = async (req, res) => {
         email: admin.email,
         role: admin.role,
         cityId: admin.cityId,
-        cityName: admin.cityName
+        cityName: admin.cityName,
+        profilePhoto: admin.profilePhoto
       }
     });
   } catch (error) {

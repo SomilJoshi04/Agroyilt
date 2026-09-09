@@ -167,16 +167,16 @@ const AdminHeader = ({ onMenuClick }) => {
     >
       <div className="flex items-center justify-between px-4 lg:px-6 py-6">
         {/* Left: Menu Button & Page Title */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
           <Button
             onClick={onMenuClick}
             variant="icon"
-            className="lg:hidden text-gray-700"
+            className="lg:hidden text-gray-700 shrink-0"
             icon={FiMenu}
           />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-1">{title}</h1>
-            <p className="text-[10px] sm:text-xs text-gray-500 font-medium">{description}</p>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">{title}</h1>
+            <p className="text-[10px] sm:text-xs text-gray-500 font-medium truncate hidden sm:block">{description}</p>
           </div>
         </div>
 
@@ -228,9 +228,9 @@ const AdminHeader = ({ onMenuClick }) => {
             variant="ghost"
             icon={FiLogOut}
             size="sm"
-            className="text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-gray-200 ml-1"
+            className="text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-gray-200 ml-1 px-2 sm:px-3"
           >
-            Logout
+            <span className="hidden sm:inline">Logout</span>
           </Button>
         </div>
       </div>

@@ -531,44 +531,50 @@ const AllOwners = () => {
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search equipment owners..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-xs"
-            />
-          </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            {['all', 'pending', 'approved', 'rejected'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilterStatus(status)}
-                className={`px-3 py-2 rounded-lg text-xs font-bold capitalize transition-all whitespace-nowrap ${filterStatus === status
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-              >
-                {status}
-              </button>
-            ))}
+        <div className="flex flex-col gap-4">
+          {/* Top row for actions */}
+          <div className="flex justify-end w-full">
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="px-3 py-2 bg-[#347989] hover:bg-[#2c6573] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-sm whitespace-nowrap ml-auto"
+              className="px-4 py-2 bg-[#347989] hover:bg-[#2c6573] text-white rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm shrink-0"
             >
-              <FiPlus className="w-3.5 h-3.5" />
+              <FiPlus className="w-4 h-4" />
               Add Owner
             </button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search equipment owners..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-sm"
+              />
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
+              {['all', 'pending', 'approved', 'rejected'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold capitalize transition-all whitespace-nowrap ${filterStatus === status
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden mt-4">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Owner Details</th>

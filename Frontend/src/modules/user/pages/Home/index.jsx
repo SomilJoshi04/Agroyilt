@@ -551,7 +551,7 @@ const Home = () => {
           </div>
         </motion.div>
 
-        <main className="pt-6 space-y-8 pb-24 max-w-screen-xl mx-auto w-full">
+        <main className="pt-6 space-y-8 pb-6 max-w-screen-xl mx-auto w-full">
           {!isLocationSupported && (
             <div
               className="flex items-center justify-between gap-3 py-2.5 px-4 mx-4 rounded-2xl"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone, FiHeadphones, FiMessageCircle, FiEdit, FiLock, FiUnlock, FiX, FiGlobe, FiUpload } from 'react-icons/fi';
+import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone, FiHeadphones, FiMessageCircle, FiEdit, FiLock, FiUnlock, FiX, FiGlobe, FiUpload, FiCamera } from 'react-icons/fi';
 import { getSettings, updateSettings, updateAdminProfile, getAdminProfile, getAllAdmins, createAdmin, deleteAdmin, updateAdminDetails, toggleAdminStatus } from '../../services/settingsService';
 import { cityService } from '../../services/cityService';
 import CityManagement from '../Cities';
@@ -158,6 +158,32 @@ const AdminSettings = () => {
     }
   };
 
+  const [uploadingProfile, setUploadingProfile] = useState(false);
+  const profileInputRef = useRef(null);
+
+  const handleProfileImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingProfile(true);
+    try {
+      const compressedBase64 = await compressImage(file, 256, 256, 0.85);
+      const res = await api.post('/admin/upload', { image: compressedBase64 });
+      if (res.data && res.data.imageUrl) {
+        setProfile(prev => ({ ...prev, profilePhoto: res.data.imageUrl }));
+        toast.success('Profile photo uploaded successfully!');
+      } else {
+        toast.error('Failed to upload profile photo');
+      }
+    } catch (error) {
+      console.error('Error uploading profile photo:', error);
+      toast.error(error.response?.data?.message || 'Failed to upload profile photo');
+    } finally {
+      setUploadingProfile(false);
+      if (profileInputRef.current) profileInputRef.current.value = '';
+    }
+  };
+
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -165,7 +191,8 @@ const AdminSettings = () => {
     assignedCity: '',
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    profilePhoto: null
   });
 
   // Admin Management State
@@ -191,6 +218,7 @@ const AdminSettings = () => {
             email: res.data.email,
             name: res.data.name || 'Admin',
             role: res.data.role || 'admin',
+            profilePhoto: res.data.profilePhoto || null,
             assignedCity: res.data.cityName || res.data.cityId?.name || ''
           }));
           const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
@@ -478,7 +506,11 @@ const AdminSettings = () => {
 
     setProfileLoading(true);
     try {
-      const updateData = { email: profile.email };
+      const updateData = { 
+        email: profile.email,
+        name: profile.name,
+        profilePhoto: profile.profilePhoto
+      };
       if (profile.newPassword) {
         updateData.currentPassword = profile.currentPassword;
         updateData.newPassword = profile.newPassword;
@@ -487,9 +519,11 @@ const AdminSettings = () => {
       }
 
       await updateAdminProfile(updateData);
-      const adminData = JSON.parse(localStorage.getItem('adminUser') || '{}');
+      const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
       adminData.email = profile.email;
-      localStorage.setItem('adminUser', JSON.stringify(adminData));
+      adminData.name = profile.name;
+      adminData.profilePhoto = profile.profilePhoto;
+      localStorage.setItem('adminData', JSON.stringify(adminData));
 
       toast.success('Profile updated');
       setProfile(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
@@ -672,8 +706,30 @@ const AdminSettings = () => {
           <motion.div key="profile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
             <div className="max-w-2xl mx-auto bg-white rounded-xl p-8 shadow-sm border border-gray-100">
               <div className="flex items-center gap-4 mb-8">
-                <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-2xl">
-                  {profile.name ? profile.name.charAt(0).toUpperCase() : <FiUser />}
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-2xl overflow-hidden border-2 border-white shadow-md">
+                    {profile.profilePhoto ? (
+                      <img src={profile.profilePhoto} alt="Admin" className="w-full h-full object-cover" />
+                    ) : profile.name ? (
+                      profile.name.charAt(0).toUpperCase()
+                    ) : (
+                      <FiUser />
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    ref={profileInputRef}
+                    onChange={handleProfileImageUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => profileInputRef.current?.click()}
+                    disabled={uploadingProfile}
+                    className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center border-2 border-white shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {uploadingProfile ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiCamera size={10} />}
+                  </button>
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-800">{profile.name || 'Admin'}</h2>
@@ -697,11 +753,18 @@ const AdminSettings = () => {
               </div>
 
               <form onSubmit={handleProfileUpdate} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                  <input type="email" name="email" value={profile.email} onChange={handleProfileChange} required
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
-                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                      <input type="text" name="name" value={profile.name} onChange={handleProfileChange} required
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                      <input type="email" name="email" value={profile.email} onChange={handleProfileChange} required
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
+                    </div>
+                  </div>
 
                 <div className="pt-6 border-t border-gray-100 space-y-4">
                   <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Change Password</h3>

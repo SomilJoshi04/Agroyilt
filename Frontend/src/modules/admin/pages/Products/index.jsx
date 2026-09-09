@@ -531,9 +531,9 @@ const ManageProducts = () => {
                 </button>
             </div>
 
-            <div className="bg-white border-t border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-white border-t border-slate-100 shadow-sm overflow-hidden mt-4">
                 <div className="overflow-x-auto pb-28">
-                <table className="w-full text-left">
+                <table className="w-full text-left border-collapse min-w-[900px]">
                     <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-100">
                             <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Machine</th>

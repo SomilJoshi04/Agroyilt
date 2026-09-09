@@ -114,46 +114,47 @@ const AllFarmers = () => {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex flex-col md:flex-row gap-3 items-center justify-between">
-        <div className="relative w-full md:w-80">
-          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search farmers..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-xs"
-          />
+      <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex flex-col gap-3">
+        <div className="flex justify-between items-center w-full">
+          <div className="px-3 py-2 bg-green-50 rounded-lg border border-green-100">
+            <span className="text-xs font-bold text-green-700">{totalUsers} Farmers</span>
+          </div>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shrink-0"
+          >
+            <FiPlus className="w-4 h-4" />
+            Add Farmer
+          </button>
         </div>
+        
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search farmers..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-sm"
+            />
+          </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 focus:outline-none focus:border-green-500 cursor-pointer"
+            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:border-green-500 cursor-pointer w-full sm:w-auto"
           >
             <option value="all">All Status</option>
             <option value="active">Active Only</option>
             <option value="inactive">Blocked Only</option>
           </select>
-
-          <div className="px-3 py-2 bg-green-50 rounded-lg border border-green-100">
-            <span className="text-xs font-bold text-green-700">{totalUsers} Farmers</span>
-          </div>
-          
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors"
-          >
-            <FiPlus className="w-3.5 h-3.5" />
-            Add Farmer
-          </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-4">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50">
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Farmer</th>

@@ -291,15 +291,15 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                   <p className="text-sm text-gray-500">Manage individual equipment models directly under this category</p>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="relative">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                  <div className="relative flex-1">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
                       placeholder="Search equipment..."
                       value={searchTerm}
                       onChange={e => setSearchTerm(e.target.value)}
-                      className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-48"
+                      className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-full sm:w-48"
                     />
                   </div>
                   <button
@@ -307,7 +307,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                       resetForm();
                       setIsModalOpen(true);
                     }}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-md hover:bg-primary-700 transition-all flex items-center gap-2"
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-md hover:bg-primary-700 transition-all flex items-center justify-center gap-2 shrink-0"
                   >
                     <FiPlus className="w-4 h-4" />
                     Add Equipment Type
@@ -499,7 +499,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-black text-blue-600 uppercase tracking-wider">Equipment Rental Pricing (Guidelines)</span>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Hourly (₹)</label>
                 <input

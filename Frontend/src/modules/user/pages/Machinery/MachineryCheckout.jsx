@@ -98,9 +98,9 @@ const MachineryCheckout = () => {
                 toast.success('Booking Successful!');
                 const newBookingId = res.booking?._id || res.data?._id || res.data?.booking?._id || res._id || res.booking?.id || res.data?.id;
                 if (newBookingId) {
-                    navigate(`/user/booking/${newBookingId}`);
+                    navigate(`/user/booking/${newBookingId}`, { replace: true });
                 } else {
-                    navigate('/user/my-bookings');
+                    navigate('/user/my-bookings', { replace: true });
                 }
             }
         } catch (err) {

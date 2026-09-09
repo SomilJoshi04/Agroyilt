@@ -105,7 +105,7 @@ const EquipmentApproval = () => {
       {/* Data Table */}
       <div className="bg-white rounded-[40px] shadow-2xl shadow-blue-900/5 border border-white overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-slate-50/50">
                 <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Asset Details</th>
@@ -240,10 +240,10 @@ const EquipmentApproval = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-6xl bg-white rounded-[48px] shadow-2xl overflow-hidden max-h-[95vh] flex flex-col md:flex-row mx-4"
+              className="relative w-full max-w-6xl bg-white rounded-3xl sm:rounded-[48px] shadow-2xl overflow-hidden max-h-[90vh] sm:max-h-[95vh] flex flex-col md:flex-row mx-4"
             >
               {/* Image Rail */}
-              <div className="w-full md:w-[40%] h-64 md:h-full bg-slate-100 flex-shrink-0">
+              <div className="w-full md:w-[40%] h-48 sm:h-64 md:h-full bg-slate-100 flex-shrink-0">
                 <div className="h-full grid grid-cols-2 gap-1 overflow-y-auto">
                   {selectedItem.images?.map((img, i) => (
                     <img key={i} src={img} className={`w-full h-full object-cover min-h-[150px] ${selectedItem.images.length === 1 ? 'col-span-2 row-span-2 h-full' : ''}`} />
@@ -255,14 +255,14 @@ const EquipmentApproval = () => {
               </div>
 
               {/* Data Panel */}
-              <div className="w-full md:w-[60%] p-8 md:p-14 overflow-y-auto bg-white">
-                <div className="flex justify-between items-start mb-8">
+              <div className="w-full md:w-[60%] p-6 sm:p-8 md:p-14 overflow-y-auto bg-white flex-1 min-h-0">
+                <div className="flex justify-between items-start mb-6 sm:mb-8 gap-4">
                   <div>
                     <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 inline-block shadow-sm
                       ${selectedItem.categoryId ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
                       {selectedItem.categoryId ? selectedItem.categoryId.title : `Requested Type: ${selectedItem.requestedCategoryName}`}
                     </span>
-                    <h2 className="text-4xl font-black text-slate-900 leading-none">{selectedItem.name}</h2>
+                    <h2 className="text-2xl sm:text-4xl font-black text-slate-900 leading-none">{selectedItem.name}</h2>
                     <div className="flex flex-wrap gap-2 mt-4">
                       {selectedItem.subCategoryIds?.map(sub => (
                         <span key={sub._id} className="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold border border-slate-200">
@@ -294,7 +294,7 @@ const EquipmentApproval = () => {
 
                   {/* Driver Section */}
                   {selectedItem?.includesDriver && selectedItem?.driver && (
-                    <div className="bg-purple-50 rounded-[40px] p-6 md:p-8 border border-purple-100 shadow-xl shadow-purple-900/5">
+                    <div className="bg-purple-50 rounded-3xl sm:rounded-[40px] p-5 sm:p-6 md:p-8 border border-purple-100 shadow-xl shadow-purple-900/5">
                       <div className="flex flex-col sm:flex-row items-center gap-6 mb-8 text-center sm:text-left">
                         <div className="relative flex-shrink-0">
                           <div className="w-24 h-24 rounded-[32px] overflow-hidden bg-white shadow-lg border-4 border-white">
@@ -310,7 +310,7 @@ const EquipmentApproval = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[11px] font-black text-purple-600 uppercase tracking-widest leading-none mb-2">Registered Operator</p>
-                          <h4 className="text-3xl font-black text-purple-900 break-words">{selectedItem.driver.name}</h4>
+                          <h4 className="text-2xl sm:text-3xl font-black text-purple-900 break-words">{selectedItem.driver.name}</h4>
                           <h4 className="text-sm font-bold text-purple-400 mt-2 tracking-tight flex items-center justify-center sm:justify-start gap-1.5">
                             <FiSmartphone size={14} /> {selectedItem.driver.phone}
                           </h4>
@@ -330,7 +330,7 @@ const EquipmentApproval = () => {
                   )}
 
                   {/* Rates Detail */}
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
                     {Object.entries(selectedItem?.pricing || {}).map(([key, val]) => (
                       val && (
                         <div key={key} className={`p-6 rounded-[32px] border-2 transition-all ${val.isEnabled ? 'bg-white border-emerald-500/10 shadow-xl shadow-emerald-900/5' : 'bg-slate-50 border-transparent opacity-20'}`}>
@@ -348,7 +348,7 @@ const EquipmentApproval = () => {
 
                   {/* Audit Actions */}
                   {selectedItem.status === 'pending' && (
-                    <div className="flex gap-4 pt-4">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
                       <button 
                         onClick={() => handleStatusUpdate(selectedItem._id, 'approved')}
                         className="flex-3 py-6 bg-emerald-600 text-white rounded-[32px] font-black uppercase tracking-widest shadow-2xl shadow-emerald-200 active:scale-95 transition-all text-sm flex items-center justify-center gap-3 flex-[2]"
