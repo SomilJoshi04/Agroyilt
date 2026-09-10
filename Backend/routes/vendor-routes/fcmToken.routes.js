@@ -20,66 +20,42 @@ const MAX_TOKENS = 10; // Maximum tokens per platform
  */
 router.post('/save', authenticate, async (req, res) => {
   try {
-    const { token, platform = 'web' } = req.body;
+    const { token, platform = 'web', deviceId = null, browser = null, appVersion = null } = req.body;
     const vendorId = req.user._id;
 
     if (!token) {
       return res.status(400).json({ success: false, error: 'Token is required' });
     }
 
-    // Use atomic updates to prevent VersionError (Race Conditions)
-
-    // 1. Remove token if it exists (to avoid duplicates)
-    const pullQuery = platform === 'mobile'
-      ? { $pull: { fcmTokenMobile: token } }
-      : { $pull: { fcmTokens: token } };
-
-    await Vendor.findByIdAndUpdate(vendorId, pullQuery);
-
-    // 2. Add token to front with limit
-    const pushQuery = platform === 'mobile'
-      ? {
-        $push: {
-          fcmTokenMobile: {
-            $each: [token],
-            $position: 0,
-            $slice: MAX_TOKENS
-          }
-        }
-      }
-      : {
-        $push: {
-          fcmTokens: {
-            $each: [token],
-            $position: 0,
-            $slice: MAX_TOKENS
-          }
-        }
-      };
-
-    const vendor = await Vendor.findByIdAndUpdate(vendorId, pushQuery, { new: true });
-
+    const vendor = await Vendor.findById(vendorId);
     if (!vendor) {
       return res.status(404).json({ success: false, error: 'Vendor not found' });
     }
 
-    // Remove this token from User and Worker collections to prevent cross-account notifications
-    // COMMENTED OUT to allow testing on same device
-    /*
-    try {
-      await User.updateMany(
-        { $or: [{ fcmTokens: token }, { fcmTokenMobile: token }] },
-        { $pull: { fcmTokens: token, fcmTokenMobile: token } }
-      );
+    // Filter out old token if it exists anywhere
+    vendor.fcmTokens = vendor.fcmTokens.filter(t => t.token !== token);
 
-      await Worker.updateMany(
-        { $or: [{ fcmTokens: token }, { fcmTokenMobile: token }] },
-        { $pull: { fcmTokens: token, fcmTokenMobile: token } }
-      );
-    } catch (cleanupError) {
-      console.error('Error removing token from other collections:', cleanupError);
+    // Filter out old device if same deviceId exists (to replace token on same device)
+    if (deviceId) {
+      vendor.fcmTokens = vendor.fcmTokens.filter(t => t.deviceId !== deviceId);
     }
-    */
+
+    // Add new token object to front
+    vendor.fcmTokens.unshift({
+      token,
+      platform,
+      deviceId,
+      browser,
+      appVersion,
+      updatedAt: new Date()
+    });
+
+    // Enforce max tokens
+    if (vendor.fcmTokens.length > MAX_TOKENS) {
+      vendor.fcmTokens = vendor.fcmTokens.slice(0, MAX_TOKENS);
+    }
+
+    await vendor.save();
 
     res.json({ success: true, message: 'FCM token saved successfully' });
   } catch (error) {
@@ -95,26 +71,22 @@ router.post('/save', authenticate, async (req, res) => {
  */
 router.delete('/remove', authenticate, async (req, res) => {
   try {
-    const { token, platform = 'web' } = req.body;
+    const { token } = req.body;
     const vendorId = req.user._id;
 
     if (!token) {
       return res.status(400).json({ success: false, error: 'Token is required' });
     }
 
-    const vendor = await Vendor.findById(vendorId);
+    const vendor = await Vendor.findByIdAndUpdate(
+      vendorId,
+      { $pull: { fcmTokens: { token: token } } },
+      { new: true }
+    );
+
     if (!vendor) {
       return res.status(404).json({ success: false, error: 'Vendor not found' });
     }
-
-    // Remove token based on platform
-    if (platform === 'web' && vendor.fcmTokens) {
-      vendor.fcmTokens = vendor.fcmTokens.filter(t => t !== token);
-    } else if (platform === 'mobile' && vendor.fcmTokenMobile) {
-      vendor.fcmTokenMobile = vendor.fcmTokenMobile.filter(t => t !== token);
-    }
-
-    await vendor.save();
 
     res.json({ success: true, message: 'FCM token removed successfully' });
   } catch (error) {
@@ -133,12 +105,11 @@ router.delete('/remove-all', authenticate, async (req, res) => {
     const vendorId = req.user._id;
     const { platform = 'web' } = req.body;
 
-    // Clear only the specified platform's tokens
-    const updateQuery = platform === 'mobile'
-      ? { $set: { fcmTokenMobile: [] } }
-      : { $set: { fcmTokens: [] } };
-
-    const vendor = await Vendor.findByIdAndUpdate(vendorId, updateQuery, { new: true });
+    const vendor = await Vendor.findByIdAndUpdate(
+      vendorId,
+      { $pull: { fcmTokens: { platform: platform } } },
+      { new: true }
+    );
 
     if (!vendor) {
       return res.status(404).json({ success: false, error: 'Vendor not found' });

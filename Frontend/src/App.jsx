@@ -58,6 +58,7 @@ function App() {
         window.dispatchEvent(new Event('workerJobsUpdated'));
         window.dispatchEvent(new Event('userBookingsUpdated'));
         window.dispatchEvent(new Event('appNotificationReceived'));
+
       });
     } catch (error) {
       // Silently ignore — expected on iOS where messaging is null

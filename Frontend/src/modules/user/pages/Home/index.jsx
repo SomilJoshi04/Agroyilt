@@ -724,7 +724,7 @@ const Home = () => {
                             subtitle={sectionType === 'General' ? 'EXPLORE CATEGORIES' : `EXPLORE ${sectionType.toUpperCase()}`}
                             categories={sectionCategories}
                             onCategoryClick={handleCategoryClick}
-                            onSeeAllClick={() => { }}
+                            onSeeAllClick={() => navigate('/user/machinery-categories')}
                           />
                         </motion.section>
                       );

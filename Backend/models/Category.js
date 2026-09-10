@@ -57,12 +57,25 @@ const categorySchema = new mongoose.Schema({
     default: 0,
     index: true
   },
-  // Cities where this category is available
+  // Legacy city support (keep for backward compatibility temporarily)
   cityIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'City',
     index: true
   }],
+  // New Scope and City Architecture
+  scope: {
+    type: String,
+    enum: ['GLOBAL', 'CITY_SPECIFIC'],
+    default: 'GLOBAL',
+    index: true
+  },
+  city: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'City',
+    default: null,
+    index: true
+  },
   // For dynamic subcategories (e.g. Tractor -> Rotavator)
   // DEPRECATED: use parentCategories instead for new logic
   parentCategory: {

@@ -294,7 +294,7 @@ const UpdateProfile = () => {
   };
 
   const handleBack = () => {
-    navigate('/user/account');
+    navigate(-1);
   };
 
   return (

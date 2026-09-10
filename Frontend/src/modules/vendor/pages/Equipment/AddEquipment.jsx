@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { 
   FiChevronLeft, FiPlus, FiTrash2, FiUpload, 
   FiSettings, FiCheckCircle, FiInfo, FiUser,
-  FiZap, FiMapPin, FiClock, FiCalendar, FiSmartphone, FiCreditCard, FiChevronDown, FiActivity
+  FiZap, FiMapPin, FiClock, FiCalendar, FiSmartphone, FiCreditCard, FiChevronDown, FiActivity, FiSearch
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,6 +29,7 @@ const AddEquipment = () => {
   const [isRequestingCategory, setIsRequestingCategory] = useState(false);
   const [isRequestingCity, setIsRequestingCity] = useState(false);
   const [cities, setCities] = useState([]);
+  const [implementSearch, setImplementSearch] = useState('');
 
   const [form, setForm] = useState({
     categoryId: '',
@@ -98,6 +99,10 @@ const AddEquipment = () => {
             requestedCityName: item.requestedCityName || '',
             cityIds: item.cityIds || [],
             subCategoryIds: item.subCategoryIds?.map(s => s._id || s) || [],
+            implements: item.implements?.map(i => ({
+              ...i,
+              subCategoryId: i.subCategoryId?._id || i.subCategoryId
+            })) || [],
             driver: item.driver || {
               name: '',
               phone: '',
@@ -263,6 +268,10 @@ const AddEquipment = () => {
     }
 
     if (!submissionData.name || submissionData.name.length < 3) return toast.error('Please enter a valid machine name');
+
+    if (machineImplements.length > 0 && form.implements.length === 0) {
+      return toast.error('Please select at least one implement for this machine');
+    }
     
     // 2. Pricing Validation
     const enabledModes = Object.keys(form.pricing).filter(k => form.pricing[k].isEnabled);
@@ -447,8 +456,23 @@ const AddEquipment = () => {
                 {machineImplements.length > 0 && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-3">
                      <p className="text-slate-400 text-[9px] font-bold uppercase ml-1">Implements & Pricing</p>
-                     <div className="space-y-1">
-                      {machineImplements.map(impl => {
+                     
+                     {machineImplements.length > 5 && (
+                       <div className="relative mb-2">
+                         <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                         <input 
+                           type="text"
+                           placeholder="Search implements..."
+                           className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 pl-9 text-xs font-bold focus:bg-white focus:border-blue-500/20 outline-none transition-all placeholder:text-slate-400"
+                           onChange={(e) => setImplementSearch(e.target.value.toLowerCase())}
+                         />
+                       </div>
+                     )}
+
+                     <div className="space-y-1 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+                      {machineImplements
+                        .filter(impl => !implementSearch || impl.title.toLowerCase().includes(implementSearch))
+                        .map(impl => {
                         const selected = form.implements.find(i => i.subCategoryId === impl.id);
                         return (
                           <div key={impl.id} className="py-2 border-b border-slate-100 last:border-0">

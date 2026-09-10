@@ -51,8 +51,10 @@ const Header = memo(({
   const handleBack = () => {
     if (onBack) {
       onBack();
-    } else {
+    } else if (window.history.state && window.history.state.idx > 0) {
       navigate(-1);
+    } else {
+      navigate('/vendor/dashboard'); // Fallback route if opened in new tab or hard refreshed
     }
   };
 

@@ -14,6 +14,7 @@ const { validationResult } = require('express-validator');
 const { BOOKING_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
 const { createNotification } = require('../notificationControllers/notificationController');
 const { sendNotificationToUser, sendNotificationToVendor, sendNotificationToWorker } = require('../../services/firebaseAdmin');
+const { sendNewBookingNotification } = require('../../services/firebaseNotificationService');
 
 /**
  * Create a new booking
@@ -62,6 +63,43 @@ const createBooking = async (req, res) => {
       selectedImplements, // MACHINERY: attachments chosen by user
       equipmentId   // NEW: For direct marketplace booking of specific equipment
     } = req.body;
+
+    // --- TIME VALIDATION ---
+    if (timeSlot && timeSlot.start && timeSlot.end) {
+      // Validate that end time is strictly after start time
+      if (timeSlot.end <= timeSlot.start) {
+        return res.status(400).json({
+          success: false,
+          message: 'End time must be later than start time'
+        });
+      }
+
+      // Check if booking is for today and validate against current time
+      if (scheduledDate) {
+        const localNow = new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000);
+        const today = localNow.toISOString().split('T')[0];
+        // Ensure scheduledDate can be parsed safely
+        const scheduledDateObj = new Date(scheduledDate);
+        if (!isNaN(scheduledDateObj.getTime())) {
+          const selectedDateString = scheduledDateObj.toISOString().split('T')[0];
+  
+          if (selectedDateString === today) {
+            const now = new Date();
+            const currentHours = now.getHours();
+            const currentMinutes = now.getMinutes();
+            const [startHours, startMinutes] = timeSlot.start.split(':').map(Number);
+            
+            if (startHours < currentHours || (startHours === currentHours && startMinutes <= currentMinutes)) {
+              return res.status(400).json({
+                success: false,
+                message: 'This time slot has already passed. Please select a future time.'
+              });
+            }
+          }
+        }
+      }
+    }
+    // --- END TIME VALIDATION ---
 
     let visitingCharges = reqVisitingCharges !== undefined ? reqVisitingCharges : (reqVisitationFee || 0);
 
@@ -668,8 +706,9 @@ const createBooking = async (req, res) => {
 
         if (io) {
           wave1Vendors.forEach(vendor => {
-            io.to(`vendor_${vendor._id}`).emit('new_booking_request', {
+            const bookingData = {
               bookingId: booking._id,
+              bookingNumber: booking.bookingNumber,
               serviceName: service.title,
               serviceCategory: category ? category.title : 'Category',
               customerName: user.name,
@@ -687,8 +726,24 @@ const createBooking = async (req, res) => {
               landSize: address.landSize || '',
               playSound: true,
               message: `New booking request within ${vendor.distance?.toFixed(1) || '?'}km!`
+            };
+            
+            const room = `vendor_${vendor._id}`;
+            const socketsInRoom = io.sockets.adapter.rooms.get(room);
+            console.log(`[BOOKING SOCKET] Emitting new_booking_request to room: ${room}`);
+            console.log(`[BOOKING SOCKET] Booking ID: ${booking._id}`);
+            console.log(`[BOOKING SOCKET] Sockets in room ${room}: ${socketsInRoom ? socketsInRoom.size : 0}`);
+            
+            io.to(room).emit('new_booking_request', bookingData);
+            console.log(`[BOOKING SOCKET] ✅ Emitted new_booking_request to ${room}`);
+
+            // Trigger FCM Push Notification
+            sendNewBookingNotification(vendor, bookingData).catch(err => {
+              console.error('[FCM] Push notification failed for vendor', vendor._id, err);
             });
           });
+        } else {
+          console.error('[BOOKING SOCKET] ❌ io is null/undefined! Socket.io not initialized. Booking ID:', booking._id);
         }
       } else {
         console.warn(`[CreateBooking] NO VENDORS FOUND nearby! Push notifications will not be sent.`);

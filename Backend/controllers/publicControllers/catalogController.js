@@ -18,7 +18,23 @@ const getPublicCategories = async (req, res) => {
     const mongoose = require('mongoose');
 
     let query = { status: 'active', showOnHome: true };
-    // We remove city filtering here to ensure global categories always appear.
+    
+    if (cityId) {
+      const mongoose = require('mongoose');
+      let cityObjectId;
+      try {
+        cityObjectId = new mongoose.Types.ObjectId(cityId);
+      } catch (e) {
+        cityObjectId = cityId;
+      }
+      
+      query.$or = [
+        { scope: 'GLOBAL' },
+        { scope: 'CITY_SPECIFIC', city: cityObjectId }
+      ];
+    } else {
+      query.scope = 'GLOBAL';
+    }
 
     // Calculate total count
     let homeCatsCount = await Category.countDocuments(query);
@@ -136,7 +152,19 @@ const getPublicBrands = async (req, res) => {
     if (categorySlug) {
       const catQuery = { slug: categorySlug, status: 'active' };
       if (cityId) {
-        catQuery.cityIds = cityId;
+        const mongoose = require('mongoose');
+        let cityObjectId;
+        try {
+          cityObjectId = new mongoose.Types.ObjectId(cityId);
+        } catch (e) {
+          cityObjectId = cityId;
+        }
+        catQuery.$or = [
+          { scope: 'GLOBAL' },
+          { scope: 'CITY_SPECIFIC', city: cityObjectId }
+        ];
+      } else {
+        catQuery.scope = 'GLOBAL';
       }
 
       let category = await Category.findOne(catQuery).lean();

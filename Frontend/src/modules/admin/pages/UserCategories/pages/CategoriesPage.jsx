@@ -3,6 +3,7 @@ import { FiGrid, FiPlus, FiEdit2, FiTrash2, FiSave, FiChevronUp, FiChevronDown, 
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
+import SearchableCitySelect from "../components/SearchableCitySelect";
 import { saveCatalog, slugify, toAssetUrl } from "../utils";
 
 import { categoryService, serviceService, homeContentService } from "../../../../../services/catalogService";
@@ -22,9 +23,11 @@ const categorySchema = z.object({
   sectionType: z.string().default('General'),
   trackingType: z.string().default('none'),
   bookingType: z.enum(['VENDOR', 'WORKER']).default('VENDOR'),
+  scope: z.enum(['GLOBAL', 'CITY_SPECIFIC']).default('GLOBAL'),
+  city: z.string().nullable().optional(),
 });
 
-const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
+const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -49,6 +52,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
     requiresDriver: false,
     sectionType: "General",
     bookingType: "VENDOR",
+    scope: "GLOBAL",
+    city: "",
   });
 
   const categoriesBase = useMemo(() => {
@@ -85,6 +90,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       setFetching(true);
       const params = { status: 'active' };
       if (selectedCity) params.cityId = selectedCity;
+      if (searchTerm) params.search = searchTerm;
 
       const response = await categoryService.getAll(params);
 
@@ -112,6 +118,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           requiresDriver: cat.requiresDriver || false,
           sectionType: cat.sectionType || 'General',
           bookingType: cat.bookingType || 'VENDOR',
+          scope: cat.scope || 'GLOBAL',
+          city: getCategoryId(cat.city),
         }));
 
         setCatalog({ ...catalog, categories: mapped });
@@ -146,6 +154,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
         hasSaleBadge: false, showOnHome: true, parentCategory: "",
         parentCategories: [], isAlwaysMain: false,
         trackingType: "none", requiresDriver: false,
+        sectionType: "General", bookingType: "VENDOR",
+        scope: "GLOBAL", city: "",
       });
       return;
     }
@@ -165,6 +175,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       requiresDriver: Boolean(editing.requiresDriver),
       sectionType: editing.sectionType || "General",
       bookingType: editing.bookingType || "VENDOR",
+      scope: editing.scope || "GLOBAL",
+      city: editing.city || "",
     });
   }, [editingId, editing]);
 
@@ -175,7 +187,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       hasSaleBadge: false, showOnHome: true, parentCategory: "",
       parentCategories: [], isAlwaysMain: false,
       trackingType: "none", requiresDriver: false,
-      sectionType: "General",
+      sectionType: "General", bookingType: "VENDOR",
+      scope: "GLOBAL", city: "",
     });
     setIsModalOpen(false);
   };
@@ -203,6 +216,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
     requiresDriver: cat.requiresDriver || false,
     sectionType: cat.sectionType || 'General',
     bookingType: cat.bookingType || 'VENDOR',
+    scope: cat.scope || 'GLOBAL',
+    city: getCategoryId(cat.city),
   });
 
   const upsert = async () => {
@@ -222,8 +237,9 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       const data = {
         ...val.data,
         parentCategories: form.parentCategories || [],
-        cityIds: selectedCity ? [selectedCity] : [],
-        homeOrder: editing?.homeOrder || 0
+        homeOrder: editing?.homeOrder || 0,
+        scope: form.scope || 'GLOBAL',
+        city: form.scope === 'CITY_SPECIFIC' ? form.city : null,
       };
 
       if (!editing) {
@@ -348,6 +364,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest w-20">Icon</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Category Name</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Parent Categories</th>
+                <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Scope</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Section Tab</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Hierarchy</th>
                 <th className="text-left py-3 px-4 text-xs font-black text-gray-400 uppercase tracking-widest">Tracking</th>
@@ -405,6 +422,19 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
                           </>
                         ) : (
                           <span className="text-[10px] text-gray-400 font-bold uppercase italic">No Parent</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex flex-col gap-1">
+                        {(c.scope || 'GLOBAL') === 'GLOBAL' ? (
+                          <span className="inline-block whitespace-nowrap px-2 py-1 bg-green-50 text-green-700 rounded text-[10px] font-black border border-green-200 w-fit">
+                             GLOBAL
+                          </span>
+                        ) : (
+                          <span className="inline-block whitespace-nowrap px-2 py-1 bg-blue-50 text-blue-700 rounded text-[10px] font-black border border-blue-200 w-fit">
+                             {cities?.find(cty => cty._id === c.city || cty.id === c.city)?.name || c.city || 'CITY SPECIFIC'}
+                          </span>
                         )}
                       </div>
                     </td>
@@ -506,6 +536,36 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
               </div>
               <p className="text-[10px] text-gray-500 mt-1">If none selected, this will be a Main Category.</p>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+            <div>
+              <label className="block text-base font-bold text-gray-900 mb-2">Catalog Scope</label>
+              <select
+                value={form.scope}
+                onChange={e => setForm({ ...form, scope: e.target.value, city: e.target.value === 'GLOBAL' ? '' : form.city })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold bg-white"
+              >
+                <option value="GLOBAL"> Global (All India)</option>
+                <option value="CITY_SPECIFIC"> City Specific</option>
+              </select>
+              <p className="text-[11px] text-gray-500 mt-1">Global categories are visible in all cities.</p>
+            </div>
+            
+            {form.scope === 'CITY_SPECIFIC' && (
+              <div>
+                <label className="block text-base font-bold text-gray-900 mb-2">Select City</label>
+                <SearchableCitySelect 
+                  cities={cities}
+                  value={form.city || ''}
+                  onChange={(val) => setForm({ ...form, city: val })}
+                  defaultOptionValue=""
+                  placeholder="Select a city"
+                  theme="light"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">This category will only be visible in this city.</p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1 bg-gray-50 p-4 rounded-xl border border-gray-200">

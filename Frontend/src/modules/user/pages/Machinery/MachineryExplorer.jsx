@@ -22,13 +22,34 @@ const MachineryExplorer = () => {
   
   // SOP: Initialize from Home navigation state if present
   const [selectedCat, setSelectedCat] = useState(location.state?.category || null);
-  const [selectedImplement, setSelectedImplement] = useState(null);
+  const [selectedImplement, setSelectedImplement] = useState(location.state?.preSelectedImplement || null);
   const [search, setSearch] = useState('');
 
-  // Clear implement when category changes
+  // Clear implement when category changes, but ONLY if it wasn't just set via navigation state
   useEffect(() => {
+    if (location.state?.preSelectedImplement && location.state?.category?.id === selectedCat?.id) {
+      // It's from navigation, don't clear
+      return;
+    }
     setSelectedImplement(null);
   }, [selectedCat]);
+
+  // Auto-scroll selected implement into view
+  useEffect(() => {
+    if (selectedImplement) {
+      setTimeout(() => {
+        const selectedBtn = document.getElementById(`implement-btn-${selectedImplement.id || selectedImplement._id}`);
+        const container = document.getElementById('implement-scroll-container');
+        if (selectedBtn && container) {
+          const containerWidth = container.clientWidth;
+          const btnLeft = selectedBtn.offsetLeft;
+          const btnWidth = selectedBtn.clientWidth;
+          const scrollLeft = btnLeft - (containerWidth / 2) + (btnWidth / 2);
+          container.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+        }
+      }, 150); // slight delay to ensure DOM is updated
+    }
+  }, [selectedImplement, equipmentImplements]);
 
   useEffect(() => {
     fetchData();
@@ -51,7 +72,7 @@ const MachineryExplorer = () => {
 
       // Only fetch equipmentImplements if a main category is selected
       if (catId) {
-        promises.push(publicEquipmentService.getImplementsForCategory(catId));
+        promises.push(publicEquipmentService.getImplementsForCategory(catId, cityId));
       }
 
       const [equipsRes, catsRes, impsRes] = await Promise.all(promises);
@@ -77,7 +98,8 @@ const MachineryExplorer = () => {
     const nameMatch = (e.name || '').toLowerCase().includes(searchLower);
     const catMatch = (e.categoryId?.title || '').toLowerCase().includes(searchLower);
     const modelMatch = (e.modelNumber || '').toLowerCase().includes(searchLower);
-    return nameMatch || catMatch || modelMatch;
+    const vendorMatch = (e.vendorId?.name || '').toLowerCase().includes(searchLower);
+    return nameMatch || catMatch || modelMatch || vendorMatch;
   });
 
   return (
@@ -162,7 +184,7 @@ const MachineryExplorer = () => {
            
            {/* Horizontal Implement Filters (Subcategories) */}
            {selectedCat && equipmentImplements.length > 0 && (
-             <div className="flex gap-2 overflow-x-auto no-scrollbar pt-2 pb-1 border-t border-slate-100/50 mt-2">
+             <div id="implement-scroll-container" className="flex gap-2 overflow-x-auto no-scrollbar pt-2 pb-1 border-t border-slate-100/50 mt-2 scroll-smooth">
                 <button 
                   onClick={() => setSelectedImplement(null)}
                   className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all whitespace-nowrap
@@ -170,16 +192,35 @@ const MachineryExplorer = () => {
                 >
                   All {selectedCat.title}
                 </button>
-                {equipmentImplements.map(imp => (
-                  <button 
-                    key={imp.id}
-                    onClick={() => setSelectedImplement(imp)}
-                    className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all whitespace-nowrap
-                      ${selectedImplement?.id === imp.id ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
-                  >
-                    {imp.title}
-                  </button>
-                ))}
+                {(() => {
+                  const displayLimit = 7;
+                  const showMore = equipmentImplements.length > displayLimit;
+                  const displayedImplements = showMore ? equipmentImplements.slice(0, displayLimit) : equipmentImplements;
+
+                  return (
+                    <>
+                      {displayedImplements.map(imp => (
+                        <button 
+                          key={imp.id || imp._id}
+                          id={`implement-btn-${imp.id || imp._id}`}
+                          onClick={() => setSelectedImplement(imp)}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all whitespace-nowrap
+                            ${(selectedImplement?.id || selectedImplement?._id) === (imp.id || imp._id) ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
+                        >
+                          {imp.title}
+                        </button>
+                      ))}
+                      {showMore && (
+                        <button
+                          onClick={() => navigate('/user/machinery-implements', { state: { category: selectedCat } })}
+                          className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+                        >
+                          View All
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
              </div>
            )}
         </div>

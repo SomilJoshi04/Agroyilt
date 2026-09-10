@@ -10,15 +10,15 @@
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
-// Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyAEy1vl4BORXfxz0Wl42A5njPAS-yh5UZw",
-  authDomain: "agroyilt-d44da.firebaseapp.com",
-  projectId: "agroyilt-d44da",
-  storageBucket: "agroyilt-d44da.firebasestorage.app",
-  messagingSenderId: "730249243780",
-  appId: "1:730249243780:web:4e949df44f95c745c726d1",
-  measurementId: "G-BRNBN7DK0V"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 /**
@@ -46,7 +46,7 @@ try {
     // console.log('ℹ️ iOS device detected — Firebase Messaging skipped (not supported)');
   }
 } catch (error) {
-  console.error('❌ Firebase initialization failed:', error);
+  console.warn('❌ [ATTENTION] Firebase initialization failed:', error);
   messaging = null; // Ensure messaging is null on failure
 }
 

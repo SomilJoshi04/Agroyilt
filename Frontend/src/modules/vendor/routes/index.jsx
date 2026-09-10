@@ -9,6 +9,7 @@ import CashLimitModal from '../components/common/CashLimitModal';
 import { SkeletonProfileHeader, SkeletonDashboardStats } from '../../../components/common/SkeletonLoaders';
 import { VendorDashboardProvider } from '../../../context/VendorDashboardContext';
 
+
 // Dynamic imports for code splitting (reduces initial bundle size and fixes massive load delay)
 const Login = lazy(() => import('../pages/login'));
 const Signup = lazy(() => import('../pages/signup'));
@@ -158,6 +159,9 @@ const VendorRoutes = () => {
 
         {/* Global Alert for Cash Limit */}
         {!shouldHideBottomNav && <CashLimitModal />}
+        
+        {/* Real-time Incoming Booking Popup */}
+
       </VendorDashboardProvider>
     </ErrorBoundary>
   );

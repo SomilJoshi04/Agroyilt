@@ -185,14 +185,15 @@ const userSchema = new mongoose.Schema({
   },
 
   // FCM Push Notification Tokens
-  fcmTokens: {
-    type: [String],
-    default: []
-  },
-  fcmTokenMobile: {
-    type: [String],
-    default: []
-  },
+  fcmTokens: [{
+    token: { type: String, required: true },
+    platform: { type: String, enum: ["web", "android", "ios"], required: true },
+    deviceId: { type: String, default: null },
+    browser: { type: String, default: null },
+    appVersion: { type: String, default: null },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+  }],
 
 }, {
   timestamps: true

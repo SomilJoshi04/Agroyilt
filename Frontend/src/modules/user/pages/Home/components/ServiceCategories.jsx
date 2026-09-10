@@ -16,7 +16,11 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
     return null;
   }
 
-  const serviceCategories = categories.map((cat) => ({
+  const displayLimit = 6;
+  const showMore = categories.length > displayLimit;
+  const displayedCategories = showMore ? categories.slice(0, displayLimit) : categories;
+
+  const serviceCategories = displayedCategories.map((cat) => ({
     ...cat,
     icon: toAssetUrl(cat.icon || cat.image),
   }));
@@ -86,6 +90,23 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
             index={serviceCategories.length}
           />
         </div>
+
+        {/* View All / More Button */}
+        {showMore && (
+          <div className="flex justify-center h-full">
+            <CategoryCard
+              title="View All"
+              icon={
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-50 text-blue-600 text-sm font-black flex-col gap-1 shadow-inner rounded-2xl">
+                  <span className="text-xl leading-none block font-black">+</span>
+                  <span className="text-[9px] uppercase tracking-widest block font-black text-center leading-tight opacity-70">More</span>
+                </div>
+              }
+              onClick={onSeeAllClick}
+              index={serviceCategories.length + 1}
+            />
+          </div>
+        )}
       </div>
 
       {/* Subtle Bottom Separator */}

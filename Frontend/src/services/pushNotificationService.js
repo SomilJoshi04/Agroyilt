@@ -9,7 +9,7 @@
 
 import { messaging, getToken, onMessage } from '../firebase';
 
-const VAPID_KEY = "BDhzn_g9ilMnVa2DuhfMoFxqXLZJhGv7NB2tWpQrdzRYlRoiU9ptryralC6IHuZ24AIm5CNP91AxePRf0GZw6Z8";
+const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
 /**
  * Check if running on iOS (iPhone, iPad, iPod)
@@ -49,6 +49,14 @@ async function registerServiceWorker() {
 
   if ('serviceWorker' in navigator) {
     try {
+      // Force unregister existing service workers to fix the "stuck in waiting to activate" Chrome DevTools bug
+      const existingRegistrations = await navigator.serviceWorker.getRegistrations();
+      for (let reg of existingRegistrations) {
+        console.log('[SW] Unregistering old/stuck service worker:', reg.scope);
+        await reg.unregister();
+      }
+
+      // Register a fresh Service Worker
       const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
       // console.log('✅ Service Worker registered:', registration.scope);
       return registration;
@@ -82,24 +90,29 @@ async function requestNotificationPermission() {
   return false;
 }
 
-/**
- * Get FCM token from Firebase
- * @returns {Promise<string|null>}
- */
 async function getFCMToken() {
   try {
     if (!messaging) {
-      console.error('Firebase messaging not initialized');
+      console.warn('❌ [ATTENTION] Firebase messaging not initialized. Check firebase.js for errors.');
       return null;
     }
 
     const registration = await registerServiceWorker();
-    await registration.update(); // Update service worker
+    
+    // Do NOT await registration.update() as it can hang indefinitely in some browsers
+    registration.update().catch(err => console.warn('SW update failed/ignored', err));
 
-    const token = await getToken(messaging, {
+    // Wrap getToken in a timeout to prevent indefinite hangs
+    const tokenPromise = getToken(messaging, {
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: registration
     });
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('FCM getToken timed out after 10 seconds')), 10000);
+    });
+
+    const token = await Promise.race([tokenPromise, timeoutPromise]);
 
     if (token) {
       console.log('✅ FCM Token obtained:', token.substring(0, 20) + '...');
@@ -109,8 +122,9 @@ async function getFCMToken() {
       return null;
     }
   } catch (error) {
-    console.error('❌ Error getting FCM token:', error);
-    throw error;
+    console.warn('❌ [ATTENTION] Error getting FCM token:', error.message || error);
+    console.warn('❌ [ATTENTION] Full Error Object:', error);
+    return null;
   }
 }
 
@@ -175,6 +189,27 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
   }
 }
 
+// Helper to generate a stable device ID
+function getOrCreateDeviceId() {
+  let deviceId = localStorage.getItem('fcm_device_id');
+  if (!deviceId) {
+    deviceId = 'web-' + Math.random().toString(36).substring(2, 15) + '-' + Date.now();
+    localStorage.setItem('fcm_device_id', deviceId);
+  }
+  return deviceId;
+}
+
+// Helper to get browser name
+function getBrowserName() {
+  const agent = window.navigator.userAgent.toLowerCase();
+  if (agent.indexOf('edge') > -1 || agent.indexOf('edg') > -1) return 'Edge';
+  if (agent.indexOf('opr') > -1 || agent.indexOf('opera') > -1) return 'Opera';
+  if (agent.indexOf('chrome') > -1 && agent.indexOf('edge') === -1 && agent.indexOf('opr') === -1) return 'Chrome';
+  if (agent.indexOf('safari') > -1 && agent.indexOf('chrome') === -1) return 'Safari';
+  if (agent.indexOf('firefox') > -1) return 'Firefox';
+  return 'Unknown Web';
+}
+
 /**
  * Helper to save FCM token to the backend
  * @param {string} token 
@@ -214,16 +249,24 @@ async function saveTokenToBackend(token, userType, platform) {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
     console.log(`[FCM] Saving token (${platform}) to backend: ${baseUrl}${endpoint}`);
 
+    const payload = {
+      token: token,
+      platform: platform,
+      appVersion: '1.0.0'
+    };
+
+    if (platform === 'web') {
+      payload.deviceId = getOrCreateDeviceId();
+      payload.browser = getBrowserName();
+    }
+
     const response = await fetch(`${baseUrl}${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       },
-      body: JSON.stringify({
-        token: token,
-        platform: platform
-      })
+      body: JSON.stringify(payload)
     });
 
     if (response.ok) {

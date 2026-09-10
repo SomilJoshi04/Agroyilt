@@ -50,8 +50,10 @@ export const publicEquipmentService = {
   },
 
   // Get implements (subcategories) for a specific main category
-  getImplementsForCategory: async (categoryId) => {
-    const response = await api.get('/public/categories');
+  getImplementsForCategory: async (categoryId, cityId = null) => {
+    const params = {};
+    if (cityId) params.cityId = cityId;
+    const response = await api.get('/public/categories', { params });
     if (response.data.success && Array.isArray(response.data.categories)) {
       return {
         success: true,

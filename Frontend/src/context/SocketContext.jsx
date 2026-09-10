@@ -158,35 +158,38 @@ export const SocketProvider = ({ children }) => {
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      // console.log(`✅ ${userType.toUpperCase()} App Socket connected`);
+      console.log(`[SOCKET] ✅ ${userType?.toUpperCase()} Socket connected. Socket ID: ${newSocket.id}`);
 
       // Register FCM token for push notifications (on page load/refresh)
       if (userType && token) {
-        // console.log(`[SocketContext] Registering FCM token for ${userType}...`);
         registerFCMToken(userType, true).then((fcmToken) => {
           if (fcmToken) {
-            // console.log(`[SocketContext] ✅ FCM token registered for ${userType}`);
-          } else {
-            // console.log(`[SocketContext] ⚠️ FCM token registration returned null for ${userType}`);
+            console.log(`[SOCKET] ✅ FCM token registered for ${userType}`);
           }
         }).catch(() => {});
       }
 
-      // If vendor, join vendor-specific room just in case backend expects it
+      // If vendor, join vendor-specific room
       if (userType === 'vendor') {
         const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
         const vendorId = vendorData.id || vendorData._id;
+        console.log(`[SOCKET] Vendor ID from localStorage: ${vendorId}`);
         if (vendorId) {
           newSocket.emit('join_vendor_room', vendorId);
+          console.log(`[SOCKET] ✅ Emitted join_vendor_room for vendor_${vendorId}`);
+        } else {
+          console.error('[SOCKET] ❌ Vendor ID not found in localStorage! Cannot join vendor room.');
         }
       }
     });
 
-    newSocket.on('disconnect', () => {
-      // console.log(`❌ ${userType.toUpperCase()} App Socket disconnected`);
+    newSocket.on('disconnect', (reason) => {
+      console.warn(`[SOCKET] ❌ ${userType?.toUpperCase()} Socket disconnected. Reason: ${reason}`);
     });
 
-    newSocket.on('connect_error', () => {});
+    newSocket.on('connect_error', (err) => {
+      console.error(`[SOCKET] ❌ Connection error: ${err.message}`);
+    });
 
     // Listen for generic notifications
     newSocket.on('notification', (data) => {
@@ -244,6 +247,17 @@ export const SocketProvider = ({ children }) => {
         window.dispatchEvent(new Event('vendorJobsUpdated'));
         window.dispatchEvent(new Event('vendorNotificationsUpdated'));
         window.dispatchEvent(new Event('vendorStatsUpdated'));
+
+        // Fallback: Dispatch specific event for Incoming Booking Popup from notification
+        if (data.type === 'booking_request' || data.type === 'new_booking') {
+          // ensure we pass it in the shape IncomingBookingPopup expects
+          window.dispatchEvent(new CustomEvent('vendorIncomingBooking', { 
+            detail: {
+              data: data.data || data,
+              relatedId: data.relatedId || (data.data && data.data.bookingId)
+            }
+          }));
+        }
       }
       if (userType === 'user') {
         window.dispatchEvent(new Event('userBookingsUpdated'));
@@ -261,63 +275,60 @@ export const SocketProvider = ({ children }) => {
     // Listen for special Vendor Booking Requests
     if (userType === 'vendor') {
       newSocket.on('new_booking_request', (data) => {
-        // console.log('🚨 New Booking Request Alert:', data);
+        console.log('[SOCKET] 🚨 new_booking_request received! Booking ID:', data?.bookingId);
+        
+        try {
+          // Save to localStorage for the Alert screen and Dashboard to read
+          const newJob = {
+            ...data,
+            id: data.bookingId,
+            serviceType: data.serviceName,
+            location: {
+              address: data.address?.addressLine1 || 'Location shared',
+              distance: (data.distance !== undefined && data.distance !== null && !isNaN(Number(data.distance)))
+                ? (Number(data.distance) < 1
+                  ? `${Math.round(Number(data.distance) * 1000)} m`
+                  : `${Number(data.distance).toFixed(1)} km`)
+                : (data.distance || 'Near you')
+            },
+            timeSlot: {
+              date: data.scheduledDate, // Raw string to avoid RangeError on invalid format
+              time: data.scheduledTime
+            },
+            status: 'requested',
+            createdAt: new Date().toISOString()
+          };
 
-        // Play urgent alert ring
-        playAlertRing();
+          const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
+          if (!pendingJobs.find(job => job.id === newJob.id)) {
+            pendingJobs.unshift(newJob);
+            localStorage.setItem('vendorPendingJobs', JSON.stringify(pendingJobs));
 
-        // Save to localStorage for the Alert screen and Dashboard to read
-        // Note: Even though we are moving to backend, keeping this for immediate UI responsiveness before potential refresh lag
-        const newJob = {
-          ...data,
-          id: data.bookingId,
-          serviceType: data.serviceName,
-          location: {
-            address: data.address?.addressLine1 || 'Location shared',
-            distance: (data.distance !== undefined && data.distance !== null && !isNaN(Number(data.distance)))
-              ? (Number(data.distance) < 1
-                ? `${Math.round(Number(data.distance) * 1000)} m`
-                : `${Number(data.distance).toFixed(1)} km`)
-              : (data.distance || 'Near you')
-          },
-          timeSlot: {
-            date: new Date(data.scheduledDate).toLocaleDateString(),
-            time: data.scheduledTime
-          },
-          status: 'requested',
-          createdAt: new Date().toISOString()
-        };
+            // Update stats
+            const stats = JSON.parse(localStorage.getItem('vendorStats') || '{}');
+            stats.pendingAlerts = (stats.pendingAlerts || 0) + 1;
+            localStorage.setItem('vendorStats', JSON.stringify(stats));
+          }
 
-        const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-        if (!pendingJobs.find(job => job.id === newJob.id)) {
-          pendingJobs.unshift(newJob);
-          localStorage.setItem('vendorPendingJobs', JSON.stringify(pendingJobs));
+          // Trigger the Vendor Dashboard Alert Context
+          console.log(`[SOCKET] 📢 Dispatching showDashboardBookingAlert for booking ${newJob.id}`);
+          window.dispatchEvent(new CustomEvent('showDashboardBookingAlert', { 
+            detail: newJob
+          }));
 
-          // Update stats
-          const stats = JSON.parse(localStorage.getItem('vendorStats') || '{}');
-          stats.pendingAlerts = (stats.pendingAlerts || 0) + 1;
-          localStorage.setItem('vendorStats', JSON.stringify(stats));
+        } catch (error) {
+          console.error("Error processing new_booking_request storage:", error);
         }
 
         // Notify app components to refresh
         window.dispatchEvent(new Event('vendorJobsUpdated'));
         window.dispatchEvent(new Event('vendorStatsUpdated'));
         window.dispatchEvent(new Event('vendorNotificationsUpdated'));
-
-        // If on Dashboard, show modal there instead of navigating
-        const isDashboard = window.location.pathname.replace(/\/$/, '') === '/vendor/dashboard';
-        if (isDashboard) {
-          const event = new CustomEvent('showDashboardBookingAlert', { detail: newJob });
-          window.dispatchEvent(event);
-        } else {
-          // Navigate to Alert Page (using replace to avoid history loops)
-          navigate(`/vendor/booking-alert/${data.bookingId}`, { replace: true });
-        }
       });
 
       // Listen for booking_taken - when another vendor accepts a job
       newSocket.on('booking_taken', (data) => {
-        // console.log('⚡ Booking taken by another vendor:', data);
+      
         const takenBookingId = String(data.bookingId);
 
         // Remove from localStorage

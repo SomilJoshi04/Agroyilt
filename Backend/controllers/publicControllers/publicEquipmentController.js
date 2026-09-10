@@ -1,4 +1,5 @@
 const VendorEquipment = require('../../models/VendorEquipment');
+const Vendor = require('../../models/Vendor');
 
 /**
  * Public Equipment Controllers (For Farmers)
@@ -25,12 +26,33 @@ exports.getPublicEquipment = async (req, res) => {
 
     if (search) {
       const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      query.name = { $regex: escapedSearch, $options: 'i' };
+      const searchRegex = new RegExp(escapedSearch, 'i');
+
+      const matchingVendors = await Vendor.find({ name: searchRegex }).select('_id');
+      const vendorIds = matchingVendors.map(v => v._id);
+
+      const searchCondition = {
+        $or: [
+          { name: searchRegex },
+          { vendorId: { $in: vendorIds } }
+        ]
+      };
+
+      if (query.$or) {
+        query.$and = [
+          { $or: query.$or },
+          searchCondition
+        ];
+        delete query.$or;
+      } else {
+        query.$or = searchCondition.$or;
+      }
     }
 
     const equipment = await VendorEquipment.find(query)
       .populate('categoryId', 'title slug homeIconUrl')
       .populate('subCategoryIds', 'title slug')
+      .populate('implements.subCategoryId', 'title slug')
       .populate('vendorId', 'name phone rating avatar')
       .sort({ createdAt: -1 })
       .lean();
@@ -58,6 +80,7 @@ exports.getPublicEquipmentById = async (req, res) => {
     })
       .populate('categoryId', 'title slug homeIconUrl')
       .populate('subCategoryIds', 'title slug')
+      .populate('implements.subCategoryId', 'title slug')
       .populate('vendorId', 'name phone rating avatar')
       .lean();
 

@@ -20,68 +20,42 @@ const MAX_TOKENS = 10; // Maximum tokens per platform
  */
 router.post('/save', authenticate, async (req, res) => {
   try {
-    const { token, platform = 'web' } = req.body;
+    const { token, platform = 'web', deviceId = null, browser = null, appVersion = null } = req.body;
     const userId = req.user._id;
 
     if (!token) {
       return res.status(400).json({ success: false, error: 'Token is required' });
     }
 
-    // Use atomic updates to prevent VersionError (Race Conditions)
-
-    // 1. Remove token if it exists (to avoid duplicates)
-    const pullQuery = platform === 'mobile'
-      ? { $pull: { fcmTokenMobile: token } }
-      : { $pull: { fcmTokens: token } };
-
-    await User.findByIdAndUpdate(userId, pullQuery);
-
-    // 2. Add token to front with limit
-    const pushQuery = platform === 'mobile'
-      ? {
-        $push: {
-          fcmTokenMobile: {
-            $each: [token],
-            $position: 0,
-            $slice: MAX_TOKENS
-          }
-        }
-      }
-      : {
-        $push: {
-          fcmTokens: {
-            $each: [token],
-            $position: 0,
-            $slice: MAX_TOKENS
-          }
-        }
-      };
-
-    const user = await User.findByIdAndUpdate(userId, pushQuery, { new: true });
-
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    // Remove this token from Vendor and Worker collections to prevent cross-account notifications
-    // Remove this token from Vendor and Worker collections to prevent cross-account notifications
-    // COMMENTED OUT to allow testing on same device (e.g. localhost) without tokens getting deleted
-    /*
-    try {
-      await Vendor.updateMany(
-        { $or: [{ fcmTokens: token }, { fcmTokenMobile: token }] },
-        { $pull: { fcmTokens: token, fcmTokenMobile: token } }
-      );
+    // Filter out old token if it exists anywhere
+    user.fcmTokens = user.fcmTokens.filter(t => t.token !== token);
 
-      await Worker.updateMany(
-        { $or: [{ fcmTokens: token }, { fcmTokenMobile: token }] },
-        { $pull: { fcmTokens: token, fcmTokenMobile: token } }
-      );
-    } catch (cleanupError) {
-      console.error('Error removing token from other collections:', cleanupError);
-      // Don't fail the request if cleanup fails
+    // Filter out old device if same deviceId exists (to replace token on same device)
+    if (deviceId) {
+      user.fcmTokens = user.fcmTokens.filter(t => t.deviceId !== deviceId);
     }
-    */
+
+    // Add new token object to front
+    user.fcmTokens.unshift({
+      token,
+      platform,
+      deviceId,
+      browser,
+      appVersion,
+      updatedAt: new Date()
+    });
+
+    // Enforce max tokens
+    if (user.fcmTokens.length > MAX_TOKENS) {
+      user.fcmTokens = user.fcmTokens.slice(0, MAX_TOKENS);
+    }
+
+    await user.save();
 
     res.json({ success: true, message: 'FCM token saved successfully' });
   } catch (error) {
@@ -97,26 +71,22 @@ router.post('/save', authenticate, async (req, res) => {
  */
 router.delete('/remove', authenticate, async (req, res) => {
   try {
-    const { token, platform = 'web' } = req.body;
+    const { token } = req.body;
     const userId = req.user._id;
 
     if (!token) {
       return res.status(400).json({ success: false, error: 'Token is required' });
     }
 
-    const user = await User.findById(userId);
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { fcmTokens: { token: token } } },
+      { new: true }
+    );
+
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
-
-    // Remove token based on platform
-    if (platform === 'web' && user.fcmTokens) {
-      user.fcmTokens = user.fcmTokens.filter(t => t !== token);
-    } else if (platform === 'mobile' && user.fcmTokenMobile) {
-      user.fcmTokenMobile = user.fcmTokenMobile.filter(t => t !== token);
-    }
-
-    await user.save();
 
     res.json({ success: true, message: 'FCM token removed successfully' });
   } catch (error) {
@@ -135,12 +105,11 @@ router.delete('/remove-all', authenticate, async (req, res) => {
     const userId = req.user._id;
     const { platform = 'web' } = req.body;
 
-    // Clear only the specified platform's tokens
-    const updateQuery = platform === 'mobile'
-      ? { $set: { fcmTokenMobile: [] } }
-      : { $set: { fcmTokens: [] } };
-
-    const user = await User.findByIdAndUpdate(userId, updateQuery, { new: true });
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { fcmTokens: { platform: platform } } },
+      { new: true }
+    );
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });

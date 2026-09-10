@@ -8,15 +8,15 @@
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
-// Firebase configuration - Production values
 const firebaseConfig = {
-  apiKey: "AIzaSyAEy1vl4BORXfxz0Wl42A5njPAS-yh5UZw",
-  authDomain: "agroyilt-d44da.firebaseapp.com",
-  projectId: "agroyilt-d44da",
-  storageBucket: "agroyilt-d44da.firebasestorage.app",
-  messagingSenderId: "730249243780",
-  appId: "1:730249243780:web:4e949df44f95c745c726d1",
-  measurementId: "G-BRNBN7DK0V"
+  apiKey: "AIzaSyAyp1WH-pdFkg5MD-5-ysyi3qUHq3ir4hM",
+  authDomain: "yatika-farm-service.firebaseapp.com",
+  databaseURL: "https://yatika-farm-service-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "yatika-farm-service",
+  storageBucket: "yatika-farm-service.firebasestorage.app",
+  messagingSenderId: "882047767510",
+  appId: "1:882047767510:web:580aa4ccce5108139e4a77",
+  measurementId: "G-CEQVJNZ58F"
 };
 
 // Initialize Firebase

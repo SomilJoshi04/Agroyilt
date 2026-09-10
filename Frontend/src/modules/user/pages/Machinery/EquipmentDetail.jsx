@@ -21,8 +21,25 @@ const EquipmentDetail = () => {
   const [selectedRateType, setSelectedRateType] = useState('hourly');
   const [quantity, setQuantity] = useState(1);
   const [selectedDate, setSelectedDate] = useState('');
-  const [selectedSlot, setSelectedSlot] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [selectedImplements, setSelectedImplements] = useState([]); // NEW: selected sub-categories
+
+  // Auto-calculate quantity for hourly rate
+  useEffect(() => {
+    if (selectedRateType === 'hourly' && startTime && endTime) {
+      const [startHours, startMinutes] = startTime.split(':').map(Number);
+      const [endHours, endMinutes] = endTime.split(':').map(Number);
+      
+      let diffMinutes = (endHours * 60 + endMinutes) - (startHours * 60 + startMinutes);
+      
+      if (diffMinutes > 0) {
+        // Calculate total hours, rounding up to nearest hour
+        const hours = Math.max(1, Math.ceil(diffMinutes / 60));
+        setQuantity(hours);
+      }
+    }
+  }, [startTime, endTime, selectedRateType]);
 
   useEffect(() => {
     fetchDetail();
@@ -34,6 +51,9 @@ const EquipmentDetail = () => {
       const res = await publicEquipmentService.getEquipmentById(id);
       if (res.success) {
         setEquipment(res.data);
+        if (res.data.implements && Array.isArray(res.data.implements)) {
+          setSelectedImplements(res.data.implements);
+        }
         // Default rate type based on availability
         if (!res.data.pricing?.hourly?.isEnabled && res.data.pricing?.land_based?.isEnabled) {
           setSelectedRateType('land_based');
@@ -54,6 +74,14 @@ const EquipmentDetail = () => {
     setSelectedImplements(prev => {
       const exists = prev.find(i => i.subCategoryId === impl.subCategoryId);
       if (exists) {
+        // Prevent deselecting the last implement
+        if (prev.length === 1) {
+          toast('You must select at least one implement for this machine.', { 
+            icon: 'ℹ️',
+            id: 'implement-limit-toast'
+          });
+          return prev;
+        }
         return prev.filter(i => i.subCategoryId !== impl.subCategoryId);
       }
       return [...prev, impl];
@@ -237,10 +265,10 @@ const EquipmentDetail = () => {
                    <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600">
                      <FiLayers size={16} />
                    </div>
-                   <div>
-                     <h3 className="text-base font-black text-slate-800">Add Implements</h3>
-                     <p className="text-[10px] font-medium text-slate-400">Optional add-ons for this machine</p>
-                   </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-800">Machine Implements</h3>
+                      <p className="text-[10px] font-medium text-slate-400">Implements provided with this machine</p>
+                    </div>
                  </div>
 
                  <div className="space-y-3">
@@ -270,7 +298,7 @@ const EquipmentDetail = () => {
                            </div>
                            <div>
                              <p className={`text-sm font-black ${isSelected ? 'text-violet-800' : 'text-slate-700'}`}>
-                               {impl.title}
+                               {impl.subCategoryId?.title || impl.title || 'Unknown Implement'}
                              </p>
                              {!hasPrice && (
                                <p className="text-[10px] text-slate-400 font-medium">Included (no extra charge)</p>
@@ -332,14 +360,16 @@ const EquipmentDetail = () => {
                  <div className="flex items-center gap-4 bg-slate-100 p-1 rounded-2xl">
                     <button 
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-800 font-bold active:scale-90 transition-all shadow-sm"
+                      disabled={selectedRateType === 'hourly'}
+                      className={`w-10 h-10 bg-white rounded-xl flex items-center justify-center font-bold transition-all shadow-sm ${selectedRateType === 'hourly' ? 'text-slate-400 opacity-50 cursor-not-allowed' : 'text-slate-800 active:scale-90'}`}
                     >
                       <FiMinus size={14} />
                     </button>
                     <span className="text-lg font-black text-slate-800 w-8 text-center">{quantity}</span>
                     <button 
                       onClick={() => setQuantity(quantity + 1)}
-                      className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-800 font-bold active:scale-90 transition-all shadow-sm"
+                      disabled={selectedRateType === 'hourly'}
+                      className={`w-10 h-10 bg-white rounded-xl flex items-center justify-center font-bold transition-all shadow-sm ${selectedRateType === 'hourly' ? 'text-slate-400 opacity-50 cursor-not-allowed' : 'text-slate-800 active:scale-90'}`}
                     >
                       <FiPlus size={14} />
                     </button>
@@ -378,37 +408,65 @@ const EquipmentDetail = () => {
                       type="date" 
                       className="w-full bg-slate-50 border-slate-100 rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500/20"
                       value={selectedDate}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}
                       onChange={e => setSelectedDate(e.target.value)}
                     />
                  </div>
                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-2 block">Available Slots</label>
-                    <div className="flex flex-wrap gap-2">
-                       {['Early Morning (6AM-10AM)', 'Forenoon (10AM-2PM)', 'Afternoon (2PM-6PM)'].map(slot => {
-                          let isDisabled = false;
-                          const today = new Date().toISOString().split('T')[0];
-                          if (selectedDate === today) {
-                            const currentHour = new Date().getHours();
-                            if (slot.includes('6AM') && currentHour >= 6) isDisabled = true;
-                            if (slot.includes('10AM-2PM') && currentHour >= 10) isDisabled = true;
-                            if (slot.includes('2PM-6PM') && currentHour >= 14) isDisabled = true;
-                          }
-                          return (
-                            <button 
-                              key={slot}
-                              disabled={isDisabled}
-                              onClick={() => setSelectedSlot(slot)}
-                              className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all border
-                                ${selectedSlot === slot ? 'bg-purple-600 border-purple-600 text-white shadow-lg' : 
-                                  isDisabled ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50' : 
-                                  'bg-white border-slate-100 text-slate-500 hover:border-purple-300'}`}
-                            >
-                              {slot} {isDisabled && '(Past)'}
-                            </button>
-                          );
-                       })}
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-2 block">Service Time</label>
+                    <div className="flex gap-3">
+                       <div className="flex-1">
+                          <label className="text-[10px] font-bold text-slate-500 mb-1 block">Start Time</label>
+                          <input 
+                            type="time" 
+                            className="w-full bg-slate-50 border-slate-100 rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500/20"
+                            value={startTime}
+                            onChange={e => setStartTime(e.target.value)}
+                          />
+                       </div>
+                       <div className="flex-1">
+                          <label className="text-[10px] font-bold text-slate-500 mb-1 block">End Time</label>
+                          <input 
+                            type="time" 
+                            className="w-full bg-slate-50 border-slate-100 rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500/20"
+                            value={endTime}
+                            onChange={e => setEndTime(e.target.value)}
+                          />
+                       </div>
                     </div>
+
+                    {/* Validation Message */}
+                    {(() => {
+                      if (!selectedDate || !startTime || !endTime) return null;
+                      
+                      const localNow = new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000);
+                      const today = localNow.toISOString().split('T')[0];
+                      
+                      let startError = null;
+                      if (selectedDate === today) {
+                        const now = new Date();
+                        const currentHours = now.getHours();
+                        const currentMinutes = now.getMinutes();
+                        const [startHours, startMinutes] = startTime.split(':').map(Number);
+                        
+                        if (startHours < currentHours || (startHours === currentHours && startMinutes <= currentMinutes)) {
+                          startError = "Start time has already passed. Please select a future time.";
+                        }
+                      }
+
+                      let endError = null;
+                      if (endTime <= startTime) {
+                        endError = "End time must be later than start time.";
+                      }
+                  
+                      if (startError) {
+                        return <p className="text-xs text-red-500 font-bold mt-2">{startError}</p>;
+                      }
+                      if (endError) {
+                        return <p className="text-xs text-red-500 font-bold mt-2">{endError}</p>;
+                      }
+                      return null;
+                    })()}
                  </div>
               </div>
            </div>
@@ -454,10 +512,47 @@ const EquipmentDetail = () => {
                whileHover={{ scale: 1.02 }}
                whileTap={{ scale: 0.98 }}
                onClick={() => {
-                  if (!selectedDate || !selectedSlot) {
-                    toast.error('Please select date and slot');
+                  if (!selectedDate || !startTime || !endTime) {
+                    toast.error('Please select date, start time, and end time');
                     return;
                   }
+
+                  if (availableImplements.length > 0 && selectedImplements.length === 0) {
+                    toast.error('Please select at least one implement for this machine.');
+                    return;
+                  }
+
+                  const localNow = new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000);
+                  const today = localNow.toISOString().split('T')[0];
+                  
+                  if (selectedDate === today) {
+                    const now = new Date();
+                    const currentHours = now.getHours();
+                    const currentMinutes = now.getMinutes();
+                    const [startHours, startMinutes] = startTime.split(':').map(Number);
+                    
+                    if (startHours < currentHours || (startHours === currentHours && startMinutes <= currentMinutes)) {
+                      toast.error('Start time has already passed. Please select a future time.');
+                      return;
+                    }
+                  }
+
+                  if (endTime <= startTime) {
+                    toast.error('End time must be later than start time.');
+                    return;
+                  }
+
+                  // Format 24h to 12h AM/PM for display
+                  const format12Hour = (time24) => {
+                    const [h, m] = time24.split(':');
+                    const hours = parseInt(h, 10);
+                    const suffix = hours >= 12 ? 'PM' : 'AM';
+                    const displayHours = hours % 12 || 12;
+                    return `${displayHours.toString().padStart(2, '0')}:${m} ${suffix}`;
+                  };
+
+                  const formattedSlot = `${format12Hour(startTime)} - ${format12Hour(endTime)}`;
+
                   navigate('/user/machinery/checkout', { 
                     state: { 
                       equipment, 
@@ -465,9 +560,11 @@ const EquipmentDetail = () => {
                         rateType: selectedRateType,
                         quantity,
                         date: selectedDate,
-                        slot: selectedSlot,
+                        slot: formattedSlot,
+                        startTime,
+                        endTime,
                         total,
-                        selectedImplements  // NEW: pass selected implements
+                        selectedImplements
                       }
                     } 
                   });

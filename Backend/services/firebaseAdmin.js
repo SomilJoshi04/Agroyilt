@@ -5,6 +5,7 @@
 
 const admin = require('firebase-admin');
 const path = require('path');
+require('dotenv').config();
 
 // Initialize Firebase Admin SDK
 // Initialize Firebase Admin SDK
@@ -21,6 +22,10 @@ try {
     // Local: Use file path
     const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './config/firebase-service-account.json';
     serviceAccount = require(path.resolve(__dirname, '..', serviceAccountPath));
+  }
+  
+  if (serviceAccount && serviceAccount.private_key) {
+    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
   }
 } catch (error) {
   console.error('❌ Failed to load Firebase credentials:', error.message);
@@ -201,16 +206,15 @@ async function removeInvalidTokens(tokens) {
 
     const updateQuery = {
       $pull: {
-        fcmTokens: { $in: tokens },
-        fcmTokenMobile: { $in: tokens }
+        fcmTokens: { token: { $in: tokens } }
       }
     };
 
     // We run updates in parallel for all collections as a token might belong to any
     await Promise.all([
-      User.updateMany({ $or: [{ fcmTokens: { $in: tokens } }, { fcmTokenMobile: { $in: tokens } }] }, updateQuery),
-      Vendor.updateMany({ $or: [{ fcmTokens: { $in: tokens } }, { fcmTokenMobile: { $in: tokens } }] }, updateQuery),
-      Worker.updateMany({ $or: [{ fcmTokens: { $in: tokens } }, { fcmTokenMobile: { $in: tokens } }] }, updateQuery)
+      User.updateMany({ "fcmTokens.token": { $in: tokens } }, updateQuery),
+      Vendor.updateMany({ "fcmTokens.token": { $in: tokens } }, updateQuery),
+      Worker.updateMany({ "fcmTokens.token": { $in: tokens } }, updateQuery)
     ]);
 
     console.log('[FCM Cleanup] ✅ Invalid tokens removed from database');
@@ -237,10 +241,7 @@ async function sendNotificationToUser(userId, payload, includeMobile = true) {
 
     let tokens = [];
     if (user.fcmTokens && user.fcmTokens.length > 0) {
-      tokens = [...tokens, ...user.fcmTokens];
-    }
-    if (includeMobile && user.fcmTokenMobile && user.fcmTokenMobile.length > 0) {
-      tokens = [...tokens, ...user.fcmTokenMobile];
+      tokens = user.fcmTokens.map(t => t.token);
     }
 
     if (tokens.length === 0) {
@@ -282,10 +283,7 @@ async function sendNotificationToVendor(vendorId, payload, includeMobile = true)
 
     let tokens = [];
     if (vendor.fcmTokens && vendor.fcmTokens.length > 0) {
-      tokens = [...tokens, ...vendor.fcmTokens];
-    }
-    if (includeMobile && vendor.fcmTokenMobile && vendor.fcmTokenMobile.length > 0) {
-      tokens = [...tokens, ...vendor.fcmTokenMobile];
+      tokens = vendor.fcmTokens.map(t => t.token);
     }
 
     if (tokens.length === 0) {
@@ -324,10 +322,7 @@ async function sendNotificationToWorker(workerId, payload, includeMobile = true)
 
     let tokens = [];
     if (worker.fcmTokens && worker.fcmTokens.length > 0) {
-      tokens = [...tokens, ...worker.fcmTokens];
-    }
-    if (includeMobile && worker.fcmTokenMobile && worker.fcmTokenMobile.length > 0) {
-      tokens = [...tokens, ...worker.fcmTokenMobile];
+      tokens = worker.fcmTokens.map(t => t.token);
     }
 
     if (tokens.length === 0) {

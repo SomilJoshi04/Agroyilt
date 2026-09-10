@@ -48,7 +48,9 @@ const initializeSocket = (server) => {
     if (socket.userRole === 'USER') {
       socket.join(`user_${socket.userId.toString()}`);
     } else if (socket.userRole === 'VENDOR') {
-      socket.join(`vendor_${socket.userId.toString()}`);
+      const room = `vendor_${socket.userId.toString()}`;
+      socket.join(room);
+      console.log(`[SOCKET SERVER] ✅ VENDOR ${socket.userId} auto-joined room: ${room}`);
       // Update vendor online status
       updateVendorOnlineStatus(socket.userId, true, socket.id);
     } else if (socket.userRole === 'WORKER') {

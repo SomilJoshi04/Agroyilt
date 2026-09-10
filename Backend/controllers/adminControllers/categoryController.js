@@ -30,6 +30,8 @@ const formatCategory = (cat) => ({
       }))
     : [],
   isAlwaysMain: cat.isAlwaysMain || false,
+  scope: cat.scope || 'GLOBAL',
+  city: cat.city || null,
   cityIds: cat.cityIds || [],
   trackingType: cat.trackingType || 'none',
   requiresDriver: cat.requiresDriver || false,
@@ -47,13 +49,18 @@ const formatCategory = (cat) => ({
  */
 const getAllCategories = async (req, res) => {
   try {
-    const { status, showOnHome, isPopular, cityId } = req.query;
+    const { status, showOnHome, isPopular, cityId, search } = req.query;
 
     // Build query
     const query = {};
     if (status) query.status = status;
     if (showOnHome !== undefined) query.showOnHome = showOnHome === 'true';
     if (isPopular !== undefined) query.isPopular = isPopular === 'true';
+    
+    if (search) {
+      query.title = { $regex: search, $options: 'i' };
+    }
+    
     if (cityId) {
       const mongoose = require('mongoose');
       let cityObjectId;
@@ -63,11 +70,10 @@ const getAllCategories = async (req, res) => {
         cityObjectId = cityId;
       }
       
-      // Return categories that belong to the selected city OR are global (empty cityIds array)
+      // Return categories that belong to the selected city OR are global
       query.$or = [
-        { cityIds: cityObjectId },
-        { cityIds: { $exists: true, $size: 0 } },
-        { cityIds: { $exists: false } }
+        { scope: 'GLOBAL' },
+        { scope: 'CITY_SPECIFIC', city: cityObjectId }
       ];
     }
 
@@ -83,6 +89,7 @@ const getAllCategories = async (req, res) => {
       count: categories.length,
       categories: categories.map(formatCategory)
     });
+    console.log("SENDING TO FRONTEND:", categories.map(formatCategory)[0]);
   } catch (error) {
     console.error('Get all categories error:', error);
     res.status(500).json({
@@ -157,6 +164,8 @@ const createCategory = async (req, res) => {
       metaTitle,
       metaDescription,
       cityIds,
+      scope,
+      city,
       parentCategory,
       parentCategories,
       isAlwaysMain,
@@ -169,30 +178,26 @@ const createCategory = async (req, res) => {
     console.log('Creating category with payload:', req.body);
 
     const slugToCheck = slug?.trim().toLowerCase() || title.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    const finalScope = scope || (cityIds && cityIds.length > 0 ? 'CITY_SPECIFIC' : 'GLOBAL');
+    const finalCity = city || (cityIds && cityIds.length > 0 ? cityIds[0] : null);
 
-    // Find ALL categories with same slug to properly check city overlaps
+    // Find ALL categories with same slug to properly check city/scope overlaps
     const existingCategories = await Category.find({ slug: slugToCheck });
 
     let isDuplicate = false;
     for (const existingCategory of existingCategories) {
-      const existingCities = existingCategory.cityIds.map(id => id.toString());
-      const newCities = (cityIds || []).map(id => id.toString());
-
-      if (newCities.length === 0) {
-        // New category is global → duplicate only if an existing global one found
-        if (existingCities.length === 0) { isDuplicate = true; break; }
+      if (finalScope === 'GLOBAL') {
+        if (existingCategory.scope === 'GLOBAL') { isDuplicate = true; break; }
       } else {
-        // New category is city-specific
-        const hasOverlap = newCities.some(cityId => existingCities.includes(cityId));
-        if (hasOverlap) { isDuplicate = true; break; }          // Same city → duplicate
-        if (existingCities.length === 0) { isDuplicate = true; break; } // Existing is global → duplicate
+        if (existingCategory.scope === 'GLOBAL') { isDuplicate = true; break; }
+        if (existingCategory.scope === 'CITY_SPECIFIC' && existingCategory.city?.toString() === finalCity?.toString()) { isDuplicate = true; break; }
       }
     }
 
     if (isDuplicate) {
       return res.status(400).json({
         success: false,
-        message: 'Category with this title or slug already exists'
+        message: 'Category with this title or slug already exists for this scope/city.'
       });
     }
 
@@ -213,7 +218,9 @@ const createCategory = async (req, res) => {
       parentCategory: Array.isArray(parentCategories) && parentCategories.length > 0 ? parentCategories[0] : (parentCategory || null),
       parentCategories: Array.isArray(parentCategories) ? parentCategories : (parentCategory ? [parentCategory] : []),
       isAlwaysMain: Boolean(isAlwaysMain),
-      cityIds: cityIds || [],
+      scope: finalScope,
+      city: finalCity,
+      cityIds: finalCity ? [finalCity] : [], // maintain backward compatibility
       trackingType: trackingType || 'none',
       requiresDriver: Boolean(requiresDriver),
       sectionType: sectionType || 'General',
@@ -277,6 +284,8 @@ const updateCategory = async (req, res) => {
       isPopular,
       metaDescription,
       cityIds: updateCityIds,
+      scope,
+      city,
       parentCategory,
       parentCategories,
       isAlwaysMain,
@@ -298,30 +307,36 @@ const updateCategory = async (req, res) => {
       });
     }
 
-    if (title || slug || updateCityIds) {
+    let finalScope = scope !== undefined ? scope : category.scope;
+    let finalCity = city !== undefined ? city : category.city;
+    
+    // Handle legacy frontend still sending cityIds
+    if (scope === undefined && updateCityIds !== undefined) {
+      finalScope = updateCityIds.length > 0 ? 'CITY_SPECIFIC' : 'GLOBAL';
+      finalCity = updateCityIds.length > 0 ? updateCityIds[0] : null;
+    }
+
+    if (title || slug || scope !== undefined || city !== undefined || updateCityIds !== undefined) {
       const slugToCheck = slug?.trim().toLowerCase() || (title ? title.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-') : category.slug);
 
       // Find ALL other categories with same slug (exclude current one being updated)
       const existingCategories = await Category.find({ _id: { $ne: id }, slug: slugToCheck });
 
       let isDuplicate = false;
-      const newCities = (updateCityIds ? updateCityIds : category.cityIds).map(cityId => cityId.toString());
 
       for (const existingCategory of existingCategories) {
-        const existingCities = existingCategory.cityIds.map(cityId => cityId.toString());
-
-        if (newCities.length === 0) {
-          if (existingCities.length === 0) { isDuplicate = true; break; }
+        if (finalScope === 'GLOBAL') {
+          if (existingCategory.scope === 'GLOBAL') { isDuplicate = true; break; }
         } else {
-          if (newCities.some(cityId => existingCities.includes(cityId))) { isDuplicate = true; break; }
-          if (existingCities.length === 0) { isDuplicate = true; break; }
+          if (existingCategory.scope === 'GLOBAL') { isDuplicate = true; break; }
+          if (existingCategory.scope === 'CITY_SPECIFIC' && existingCategory.city?.toString() === finalCity?.toString()) { isDuplicate = true; break; }
         }
       }
 
       if (isDuplicate) {
         return res.status(400).json({
           success: false,
-          message: 'Category with this title or slug already exists'
+          message: 'Category with this title or slug already exists for this scope/city.'
         });
       }
     }
@@ -363,9 +378,11 @@ const updateCategory = async (req, res) => {
     if (requiresDriver !== undefined) category.requiresDriver = Boolean(requiresDriver);
     if (sectionType !== undefined) category.sectionType = sectionType;
     if (bookingType !== undefined) category.bookingType = bookingType;
-
-    if (updateCityIds !== undefined) {
-      category.cityIds = updateCityIds;
+    
+    if (scope !== undefined || city !== undefined || updateCityIds !== undefined) {
+      category.scope = finalScope;
+      category.city = finalCity;
+      category.cityIds = finalCity ? [finalCity] : [];
       category.markModified('cityIds');
     }
 

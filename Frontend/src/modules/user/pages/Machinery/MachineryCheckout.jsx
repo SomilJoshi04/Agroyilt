@@ -32,7 +32,7 @@ const MachineryCheckout = () => {
         );
     }
 
-    const { rateType, quantity, date, slot, total } = bookingData;
+    const { rateType, quantity, date, slot, startTime, endTime, total } = bookingData;
 
     const handleConfirmBooking = async () => {
         if (!selectedAddress) {
@@ -53,7 +53,7 @@ const MachineryCheckout = () => {
                 estimatedDuration: ['hourly', 'daily', 'monthly'].includes(rateType) ? quantity : undefined,
                 scheduledDate: date,
                 scheduledTime: slot,
-                timeSlot: { start: slot, end: slot, date, time: slot },
+                timeSlot: { start: startTime || slot, end: endTime || slot, date, time: slot },
                 address: {
                     addressLine1: selectedAddress.addressLine1,
                     addressLine2: selectedAddress.addressLine2 || '',
@@ -68,8 +68,8 @@ const MachineryCheckout = () => {
                 basePrice: total,
                 // Selected implements (sub-categories like Rotavator, Cultivator etc.)
                 selectedImplements: selectedImplements.map(impl => ({
-                    subCategoryId: impl.subCategoryId,
-                    title: impl.title,
+                    subCategoryId: impl.subCategoryId?._id || impl.subCategoryId,
+                    title: impl.subCategoryId?.title || impl.title || 'Unknown Implement',
                     pricing: impl.pricing
                 })),
                 bookedItems: [
@@ -85,10 +85,10 @@ const MachineryCheckout = () => {
                     },
                     // Add implements as additional line items
                     ...selectedImplements.map(impl => ({
-                        title: impl.title,
+                        title: impl.subCategoryId?.title || impl.title || 'Unknown Implement',
                         price: impl.pricing?.[rateType]?.price || 0,
                         quantity: quantity,
-                        description: `${impl.title} add-on`
+                        description: `${impl.subCategoryId?.title || impl.title || 'Unknown Implement'} add-on`
                     }))
                 ]
             };

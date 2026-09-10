@@ -8,6 +8,7 @@ import ServicesPage from "./pages/ServicesPage";
 import BrandsPage from "./pages/BrandsPage";
 
 
+import SearchableCitySelect from "./components/SearchableCitySelect";
 import { cityService } from "../../services/cityService";
 
 const UserCategories = () => {
@@ -83,17 +84,13 @@ const UserCategories = () => {
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <label className="text-sm font-medium text-slate-200 whitespace-nowrap">Selected City:</label>
-            <select
+            <SearchableCitySelect 
+              cities={cities}
               value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className="px-4 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 w-full sm:min-w-[200px]"
-            >
-              <option value="" className="font-bold text-yellow-300">Default (All India) - Fallback</option>
-              {cities.map(city => {
-                const cityId = city._id || city.id;
-                return <option key={cityId} value={cityId}>{city.name}</option>
-              })}
-            </select>
+              onChange={setSelectedCity}
+              defaultLabel="Default (All India) - Fallback"
+              theme="dark"
+            />
           </div>
         </div>
       )}
@@ -102,7 +99,7 @@ const UserCategories = () => {
         <Routes>
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={<HomePage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} />} />
-          <Route path="categories" element={<CategoriesPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} />} />
+          <Route path="categories" element={<CategoriesPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} cities={cities} />} />
           <Route path="sections" element={<ServicesPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} />} />
           <Route path="brands" element={<BrandsPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} />} />
 
