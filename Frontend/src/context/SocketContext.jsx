@@ -145,7 +145,7 @@ export const SocketProvider = ({ children }) => {
       },
       transports: ['websocket', 'polling'], // WebSocket first for instant real-time alerts
       path: '/socket.io/',
-      secure: true,
+      secure: socketBaseUrl.startsWith('https://') || window.location.protocol === 'https:',
       rejectUnauthorized: false,
       reconnection: true,
       reconnectionAttempts: 10,
@@ -278,6 +278,27 @@ export const SocketProvider = ({ children }) => {
         console.log('[SOCKET] 🚨 new_booking_request received! Booking ID:', data?.bookingId);
         
         try {
+          // Play alert ringtone
+          try {
+            playAlertRing(true);
+          } catch (soundErr) {
+            console.warn('[SOCKET] Could not play alert ringtone:', soundErr);
+          }
+
+          // Show immediate toast banner
+          toast.success(
+            `🔔 New Booking: ${data.serviceName || 'Equipment Service'} (₹${data.price || ''})`,
+            {
+              duration: 8000,
+              icon: '🚜',
+              style: {
+                background: '#047857',
+                color: '#fff',
+                fontWeight: 'bold'
+              }
+            }
+          );
+
           // Save to localStorage for the Alert screen and Dashboard to read
           const newJob = {
             ...data,
@@ -300,7 +321,7 @@ export const SocketProvider = ({ children }) => {
           };
 
           const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-          if (!pendingJobs.find(job => job.id === newJob.id)) {
+          if (!pendingJobs.find(job => String(job.id || job._id) === String(newJob.id))) {
             pendingJobs.unshift(newJob);
             localStorage.setItem('vendorPendingJobs', JSON.stringify(pendingJobs));
 
@@ -314,6 +335,14 @@ export const SocketProvider = ({ children }) => {
           console.log(`[SOCKET] 📢 Dispatching showDashboardBookingAlert for booking ${newJob.id}`);
           window.dispatchEvent(new CustomEvent('showDashboardBookingAlert', { 
             detail: newJob
+          }));
+
+          // Also dispatch vendorIncomingBooking for any popup modal listening
+          window.dispatchEvent(new CustomEvent('vendorIncomingBooking', { 
+            detail: {
+              data: newJob,
+              relatedId: newJob.id
+            }
           }));
 
         } catch (error) {

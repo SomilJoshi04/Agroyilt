@@ -11,13 +11,9 @@ const { sendNotificationToVendor } = require('./firebaseAdmin');
  */
 async function sendNewBookingNotification(vendor, bookingData) {
   try {
-    if (!vendor || !vendor._id) {
+    const vendorId = vendor._id || vendor.id || vendor;
+    if (!vendorId) {
       console.error('[FCM] Cannot send booking notification: Invalid vendor provided.');
-      return;
-    }
-
-    if (!vendor.fcmTokens || vendor.fcmTokens.length === 0) {
-      console.log(`[FCM] Vendor ${vendor._id} has no registered FCM tokens.`);
       return;
     }
 
@@ -25,10 +21,11 @@ async function sendNewBookingNotification(vendor, bookingData) {
       title: "New Booking Request",
       body: `You have a new service request for ${bookingData.serviceName || 'a service'}!`,
       data: {
-        type: "NEW_BOOKING_REQUEST",
+        type: "new_booking_request",
+        notificationType: "new_booking",
         bookingId: String(bookingData.bookingId || ""),
         bookingNumber: String(bookingData.bookingNumber || ""),
-        vendorId: String(vendor._id),
+        vendorId: String(vendorId),
         serviceName: String(bookingData.serviceName || ""),
         categoryName: String(bookingData.serviceCategory || ""),
         date: String(bookingData.scheduledDate || ""),
@@ -43,8 +40,8 @@ async function sendNewBookingNotification(vendor, bookingData) {
       priority: 'high'
     };
 
-    // sendNotificationToVendor automatically loops through all vendor devices
-    await sendNotificationToVendor(vendor._id, payload);
+    // sendNotificationToVendor automatically loops through all vendor devices and fetches fresh tokens from DB
+    await sendNotificationToVendor(vendorId, payload);
 
   } catch (error) {
     console.error(`[FCM] Failed to send new booking notification to vendor ${vendor._id}:`, error);

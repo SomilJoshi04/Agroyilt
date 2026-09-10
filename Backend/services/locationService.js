@@ -98,20 +98,25 @@ const findNearbyVendors = async (centerLocation, radiusKm = 10, filters = {}) =>
     };
 
     // Filter by vendor's selected categories (what they set in their profile) or fallback to their service list
-    // Use case-insensitive regex to handle mismatches like "Tractor" vs "tractor"
+    // Use flexible regex to match specific category or broader "Agriculture"/"Machinery"
     if (serviceCategory) {
-      const categoryRegex = new RegExp(`^${serviceCategory.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+      const cleanCategory = serviceCategory.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const categoryRegex = new RegExp(cleanCategory, 'i');
       baseQuery.$or = [
         { categories: { $in: [categoryRegex] } },
-        { service: { $in: [categoryRegex] } }
+        { service: { $in: [categoryRegex] } },
+        { service: { $in: [/^agriculture$/i, /^machinery$/i, /^tractor/i] } },
+        { categories: { $in: [/^agriculture$/i, /^machinery$/i, /^tractor/i] } }
       ];
-      console.log(`[LocationService] Filtering vendors by category/service (case-insensitive): "${serviceCategory}"`);
+      console.log(`[LocationService] Filtering vendors by category/service (flexible regex): "${serviceCategory}"`);
     }
 
     // Apply Cash Limit Check if requested
     if (checkCashLimit) {
       baseQuery.$expr = { $lte: ["$wallet.dues", "$wallet.cashLimit"] };
     }
+
+    const VENDOR_SELECT_FIELDS = 'name businessName phone address profilePhoto service categories rating isOnline availability geoLocation fcmTokens';
 
     // OPTION 1: Try Redis geo cache first (fastest - <5ms)
     if (isRedisConnected()) {
@@ -120,14 +125,12 @@ const findNearbyVendors = async (centerLocation, radiusKm = 10, filters = {}) =>
       if (cachedVendors && cachedVendors.length > 0) {
         console.log(`[LocationService] Found ${cachedVendors.length} vendors from Redis cache`);
 
-        // Fetch full vendor details from MongoDB
         const vendorIds = cachedVendors.map(v => v.vendorId);
         const vendors = await Vendor.find({
           _id: { $in: vendorIds },
           ...baseQuery
-        }).select('name businessName phone address profilePhoto service rating isOnline availability geoLocation');
+        }).select(VENDOR_SELECT_FIELDS);
 
-        // Merge distance from cache
         const vendorMap = new Map(vendors.map(v => [v._id.toString(), v.toObject()]));
         const result = cachedVendors
           .filter(cv => vendorMap.has(cv.vendorId))
@@ -136,7 +139,7 @@ const findNearbyVendors = async (centerLocation, radiusKm = 10, filters = {}) =>
             distance: cv.distance
           }));
 
-        return result;
+        if (result.length > 0) return result;
       }
     }
 
@@ -144,30 +147,27 @@ const findNearbyVendors = async (centerLocation, radiusKm = 10, filters = {}) =>
     let nearbyVendors = [];
 
     try {
-      // Check if any vendors have geoLocation set
       const hasGeoVendors = await Vendor.countDocuments({
         ...baseQuery,
         'geoLocation.coordinates': { $ne: [0, 0] }
       });
 
       if (hasGeoVendors > 0) {
-        // Use fast 2dsphere query
         nearbyVendors = await Vendor.find({
           ...baseQuery,
           geoLocation: {
             $near: {
               $geometry: {
                 type: 'Point',
-                coordinates: [centerLocation.lng, centerLocation.lat] // GeoJSON is [lng, lat]
+                coordinates: [centerLocation.lng, centerLocation.lat]
               },
-              $maxDistance: radiusKm * 1000 // Convert km to meters
+              $maxDistance: radiusKm * 1000
             }
           }
         })
-          .select('name businessName phone address profilePhoto service rating isOnline availability geoLocation')
-          .limit(20); // Limit to top 20 closest
+          .select(VENDOR_SELECT_FIELDS)
+          .limit(20);
 
-        // Calculate distance for each vendor
         nearbyVendors = nearbyVendors.map(vendor => {
           const vendorObj = vendor.toObject();
           if (vendor.geoLocation && vendor.geoLocation.coordinates) {
@@ -181,26 +181,30 @@ const findNearbyVendors = async (centerLocation, radiusKm = 10, filters = {}) =>
           return vendorObj;
         });
 
-        console.log(`[LocationService] Found ${nearbyVendors.length} vendors using 2dsphere query`);
-        return nearbyVendors;
+        if (nearbyVendors.length > 0) {
+          console.log(`[LocationService] Found ${nearbyVendors.length} vendors using 2dsphere query`);
+          return nearbyVendors;
+        }
       }
     } catch (geoError) {
       console.warn('[LocationService] 2dsphere query failed, falling back to Haversine:', geoError.message);
     }
 
     // Fallback: Use Haversine formula (slower but works without geo index)
-    const vendors = await Vendor.find(baseQuery)
-      .select('name businessName phone address profilePhoto service rating isOnline availability');
+    const vendors = await Vendor.find(baseQuery).select(VENDOR_SELECT_FIELDS);
 
-    // Calculate distances and filter by radius
     nearbyVendors = vendors.map(vendor => {
       let distance = null;
 
-      // If vendor has coordinates in address
       if (vendor.address && vendor.address.lat && vendor.address.lng) {
         distance = calculateDistance(centerLocation, {
           lat: vendor.address.lat,
           lng: vendor.address.lng
+        });
+      } else if (vendor.location && vendor.location.lat && vendor.location.lng) {
+        distance = calculateDistance(centerLocation, {
+          lat: vendor.location.lat,
+          lng: vendor.location.lng
         });
       }
 
@@ -211,8 +215,32 @@ const findNearbyVendors = async (centerLocation, radiusKm = 10, filters = {}) =>
       };
     }).filter(vendor => vendor.withinRange);
 
-    console.log(`[LocationService] Found ${nearbyVendors.length} vendors using Haversine (fallback)`);
-    return nearbyVendors;
+    if (nearbyVendors.length > 0) {
+      console.log(`[LocationService] Found ${nearbyVendors.length} vendors using Haversine`);
+      return nearbyVendors;
+    }
+
+    // FALLBACK FOR DEVELOPMENT / TESTING:
+    // If strict radius returned 0 vendors and search expanded to >= 30km,
+    // find available active approved vendors so dispatch is never silently dropped in dev/testing
+    if (radiusKm >= 30) {
+      console.log(`[LocationService] No vendors within ${radiusKm}km. Fallback to active approved vendors for testing dispatch...`);
+      const fallbackVendors = await Vendor.find({
+        approvalStatus: VENDOR_STATUS.APPROVED,
+        isActive: true
+      }).select(VENDOR_SELECT_FIELDS).limit(5);
+
+      if (fallbackVendors.length > 0) {
+        console.log(`[LocationService] Fallback found ${fallbackVendors.length} vendors for dispatch`);
+        return fallbackVendors.map(v => {
+          const vObj = v.toObject();
+          vObj.distance = vObj.distance || 5;
+          return vObj;
+        });
+      }
+    }
+
+    return [];
   } catch (error) {
     console.error('Find nearby vendors error:', error);
     return [];
@@ -234,8 +262,6 @@ const findNearbyWorkers = async (centerLocation, radiusKm = 10, filters = {}) =>
     // Build base query
     const baseQuery = {
       status: WORKER_STATUS.AVAILABLE, // Only available workers are eligible
-      // Assuming you might have an isActive or approvalStatus on Worker. If not, omit it.
-      // isActive: true, 
       ...filters
     };
 

@@ -309,44 +309,42 @@ const createBooking = async (req, res) => {
     const searchRadii = [2, 5, 8, 10, 15, 20, 30];
 
     if (providerType === 'VENDOR') {
-      // If equipmentObj exists (Marketplace flow), we book directly to that vendor
+      // If equipmentObj exists (Marketplace flow), include the specific equipment vendor
       if (equipmentObj && equipmentObj.vendorId) {
         const specificVendor = await Vendor.findById(equipmentObj.vendorId);
         if (specificVendor) {
           specificVendor.distance = 0; // Directly assigned
-          nearbyVendors = [specificVendor];
-          console.log(`[CreateBooking] Marketplace booking: Directed strictly to vendor ${specificVendor._id}`);
+          nearbyVendors.push(specificVendor);
+          console.log(`[CreateBooking] Equipment vendor added: ${specificVendor._id}`);
         }
-      } else {
-        // Standard Broadcast flow (Dynamic radius search)
-        const vendorFilters = {
-          ...(category ? { service: category.title } : {}),
-          checkCashLimit: paymentMethod === 'cash'
-        };
-
-        for (const radius of searchRadii) {
-          usedRadius = radius;
-          nearbyVendors = await findNearbyVendors(bookingLocation, radius, vendorFilters);
-          
-          // Allow isOnline to be false so that we can send FCM background pushes to wake them up.
-          nearbyVendors = nearbyVendors.filter(v => v.availability === 'AVAILABLE' || v.availability === 'OFFLINE');
-
-          if (nearbyVendors && nearbyVendors.length > 0) {
-            break; // Stop expanding radius if we found available vendors
-          }
-        }
-
-        // Deduplicate nearbyVendors by _id to prevent duplicate notifications
-        const uniqueVendorIds = new Set();
-        nearbyVendors = nearbyVendors.filter(vendor => {
-          const idStr = vendor._id.toString();
-          if (uniqueVendorIds.has(idStr)) return false;
-          uniqueVendorIds.add(idStr);
-          return true;
-        });
-
-        console.log(`[CreateBooking] Found ${nearbyVendors.length} nearby vendors for booking within ${usedRadius}km`);
       }
+
+      // Also search nearby vendors for broadcast so surrounding vendors get the alert
+      const vendorFilters = {
+        ...(category ? { service: category.title } : {}),
+        checkCashLimit: paymentMethod === 'cash'
+      };
+
+      for (const radius of searchRadii) {
+        usedRadius = radius;
+        const found = await findNearbyVendors(bookingLocation, radius, vendorFilters);
+        const filtered = (found || []).filter(v => v.availability === 'AVAILABLE' || v.availability === 'OFFLINE');
+        if (filtered.length > 0) {
+          nearbyVendors = [...nearbyVendors, ...filtered];
+          break; // Stop expanding radius if we found available vendors
+        }
+      }
+
+      // Deduplicate nearbyVendors by _id to prevent duplicate notifications
+      const uniqueVendorIds = new Set();
+      nearbyVendors = nearbyVendors.filter(vendor => {
+        const idStr = (vendor._id || vendor.id).toString();
+        if (uniqueVendorIds.has(idStr)) return false;
+        uniqueVendorIds.add(idStr);
+        return true;
+      });
+
+      console.log(`[CreateBooking] Found ${nearbyVendors.length} nearby vendors for booking within ${usedRadius}km`);
     } else {
       // Find workers within dynamic radius
       if (requestedWorker) {
@@ -728,18 +726,20 @@ const createBooking = async (req, res) => {
               message: `New booking request within ${vendor.distance?.toFixed(1) || '?'}km!`
             };
             
-            const room = `vendor_${vendor._id}`;
+            const vendorIdStr = (vendor._id || vendor.id || vendor).toString();
+            const room = `vendor_${vendorIdStr}`;
             const socketsInRoom = io.sockets.adapter.rooms.get(room);
             console.log(`[BOOKING SOCKET] Emitting new_booking_request to room: ${room}`);
             console.log(`[BOOKING SOCKET] Booking ID: ${booking._id}`);
             console.log(`[BOOKING SOCKET] Sockets in room ${room}: ${socketsInRoom ? socketsInRoom.size : 0}`);
             
             io.to(room).emit('new_booking_request', bookingData);
+            io.to(room).emit('booking_updated', { bookingId: booking._id, status: 'requested' });
             console.log(`[BOOKING SOCKET] ✅ Emitted new_booking_request to ${room}`);
 
             // Trigger FCM Push Notification
             sendNewBookingNotification(vendor, bookingData).catch(err => {
-              console.error('[FCM] Push notification failed for vendor', vendor._id, err);
+              console.error('[FCM] Push notification failed for vendor', vendorIdStr, err);
             });
           });
         } else {

@@ -41,7 +41,7 @@ messaging.onBackgroundMessage((payload) => {
 
   const data = payload.data || {};
   const notification = payload.notification || {};
-  const notificationType = data.type || 'default';
+  const notificationType = (data.type || data.notificationType || 'default').toLowerCase();
 
   // Determine notification style based on type
   // Prioritize data properties for data-only notifications
@@ -77,6 +77,7 @@ messaging.onBackgroundMessage((payload) => {
       break;
 
     case 'new_booking':
+    case 'new_booking_request':
       // High priority booking alert - like Ola/Uber
       notificationTitle = data.title || notification.title || '🔔 New Booking Request!';
       notificationBody = data.body || notification.body || 'You have a new service request.';
@@ -243,7 +244,8 @@ self.addEventListener('notificationclick', (event) => {
 
     default:
       // Default click - for vendor booking alerts, open the alert page
-      if (data.bookingId && (data.notificationType === 'new_booking' || data.notificationType === 'new_booking_request')) {
+      const clickNotifType = (data.notificationType || data.type || '').toLowerCase();
+      if (data.bookingId && (clickNotifType === 'new_booking' || clickNotifType === 'new_booking_request')) {
         urlToOpen = `/vendor/booking-alert/${data.bookingId}`;
       } else {
         urlToOpen = data.link || data.url || '/';

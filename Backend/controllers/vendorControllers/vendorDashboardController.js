@@ -17,6 +17,19 @@ const getDashboardStats = async (req, res) => {
     const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
     const vendor = await require('../../models/Vendor').findById(vendorId);
     const vendorCategories = vendor?.service || [];
+    const categoryRegexPatterns = (vendorCategories || []).map(cat => new RegExp(`^${cat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'));
+
+    const unassignedAlertCondition = {
+      vendorId: null,
+      status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] },
+      $or: [
+        ...(categoryRegexPatterns.length > 0 ? [{ serviceCategory: { $in: categoryRegexPatterns } }] : []),
+        { notifiedVendors: vendorObjectId },
+        { 'potentialVendors.vendorId': vendorObjectId },
+        { notifiedVendors: vendorId },
+        { 'potentialVendors.vendorId': vendorId }
+      ]
+    };
 
     // Optimize by running all independent DB queries in parallel
     const [
@@ -38,11 +51,7 @@ const getDashboardStats = async (req, res) => {
       Booking.countDocuments({
         $or: [
           { vendorId, status: BOOKING_STATUS.REQUESTED },
-          {
-            vendorId: null,
-            status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] },
-            serviceCategory: { $in: vendorCategories }
-          }
+          unassignedAlertCondition
         ]
       }),
       // Completed bookings
@@ -92,11 +101,7 @@ const getDashboardStats = async (req, res) => {
       Booking.find({
         $or: [
           { vendorId, status: { $ne: BOOKING_STATUS.AWAITING_PAYMENT } },
-          {
-            vendorId: null,
-            status: { $in: [BOOKING_STATUS.REQUESTED, BOOKING_STATUS.SEARCHING] },
-            serviceCategory: { $in: vendorCategories }
-          }
+          unassignedAlertCondition
         ]
       })
         .populate('userId', 'name phone')
