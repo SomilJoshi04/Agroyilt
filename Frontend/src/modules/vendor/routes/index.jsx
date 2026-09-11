@@ -13,6 +13,7 @@ import { VendorDashboardProvider } from '../../../context/VendorDashboardContext
 // Dynamic imports for code splitting (reduces initial bundle size and fixes massive load delay)
 const Login = lazy(() => import('../pages/login'));
 const Signup = lazy(() => import('../pages/signup'));
+const ForgotMpin = lazy(() => import('../pages/ForgotMpin'));
 const Dashboard = lazy(() => import('../pages/Dashboard'));
 const BookingAlert = lazy(() => import('../pages/BookingAlert'));
 const BookingAlerts = lazy(() => import('../pages/BookingAlerts'));
@@ -93,6 +94,7 @@ const VendorRoutes = () => {
   // Check if current route should hide bottom nav (auth routes or map or booking alert)
   const shouldHideBottomNav = location.pathname === '/vendor/login' ||
     location.pathname === '/vendor/signup' ||
+    location.pathname === '/vendor/forgot-mpin' ||
     location.pathname.endsWith('/map') ||
     location.pathname.includes('/booking-alert/');
 
@@ -109,6 +111,7 @@ const VendorRoutes = () => {
                 {/* Public routes */}
                 <Route path="/login" element={<PublicRoute userType="vendor"><Login /></PublicRoute>} />
                 <Route path="/signup" element={<PublicRoute userType="vendor"><Signup /></PublicRoute>} />
+                <Route path="/forgot-mpin" element={<PublicRoute userType="vendor"><ForgotMpin /></PublicRoute>} />
 
                 {/* Protected routes (auth required) */}
                 <Route path="/" element={<ProtectedRoute userType="vendor"><Navigate to="dashboard" replace /></ProtectedRoute>} />

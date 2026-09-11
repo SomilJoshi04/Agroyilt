@@ -368,7 +368,7 @@ const VendorSignup = () => {
             </div>,
             { icon: <FiCheckCircle className="text-[#D68F35]" />, duration: 5000 }
           );
-          navigate('/vendor/login');
+          navigate('/vendor/settings/mpin-setup', { state: { isFirstTime: true } });
         } else {
           toast.error(response.message || 'Registration failed');
         }
@@ -495,7 +495,7 @@ const VendorSignup = () => {
         setIsLoading(false);
         localStorage.removeItem('vendor_signup_form_data');
         toast.success('Successfully Registered! Pending admin approval.');
-        navigate('/vendor/login');
+        navigate('/vendor/settings/mpin-setup', { state: { isFirstTime: true } });
       } else {
         setIsLoading(false);
         toast.error(response.message || 'Registration failed');

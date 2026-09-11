@@ -37,6 +37,14 @@ const farmerSearchController = {
               query: {
                 'approvalStatus': { $in: ['approved', 'verified'] },
                 'isActive': true
+              },
+              distanceMultiplier: 0.001 // Convert to km
+            }
+          },
+          {
+            $match: {
+              $expr: {
+                $lte: ["$distance", { $ifNull: ["$shopDetails.deliveryRadius", 50] }]
               }
             }
           },

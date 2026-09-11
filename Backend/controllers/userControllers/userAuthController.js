@@ -21,10 +21,10 @@ const sendOTP = async (req, res) => {
       });
     }
 
-    const { phone, email, isLogin } = req.body;
+    const { phone, email, purpose } = req.body; // purpose: 'register' | 'forgotMpin'
 
-    // If this is a login attempt, verify user exists first
-    if (isLogin) {
+    // If this is a forgot MPIN attempt, verify user exists first
+    if (purpose === 'forgotMpin') {
       const userExists = await User.findOne({ phone });
       if (!userExists) {
         return res.status(404).json({
@@ -101,46 +101,16 @@ const verifyLogin = async (req, res) => {
     // 2. Check if user exists
     const user = await User.findOne({ phone });
 
-    if (user) {
-      // EXISTING USER -> LOGIN
-      if (!user.isActive) {
-        return res.status(403).json({
-          success: false,
-          message: 'Your account has been deactivated.'
-        });
-      }
+    // NEW FLOW: Always return a verification token, whether new or existing user.
+    // The frontend will then either go to Register (if new) or Set MPIN / Reset MPIN.
+    const verificationToken = generateVerificationToken(phone);
 
-      const tokens = generateTokenPair({
-        userId: user._id,
-        role: USER_ROLES.USER
-      });
-
-      return res.status(200).json({
-        success: true,
-        isNewUser: false,
-        message: 'Login successful',
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          isPhoneVerified: user.isPhoneVerified,
-          isEmailVerified: user.isEmailVerified
-        },
-        ...tokens
-      });
-
-    } else {
-      // NEW USER -> RETURN VERIFICATION TOKEN
-      const verificationToken = generateVerificationToken(phone);
-
-      return res.status(200).json({
-        success: true,
-        isNewUser: true,
-        message: 'OTP verified. Please complete registration.',
-        verificationToken
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      isNewUser: !user,
+      message: 'OTP verified successfully.',
+      verificationToken
+    });
 
   } catch (error) {
     console.error('Verify Login error:', error);
@@ -242,71 +212,10 @@ const register = async (req, res) => {
 
 /**
  * Login user with OTP
+ * DEPRECATED: Normal login must use MPIN.
  */
 const login = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
-    const { phone, otp } = req.body;
-
-    // Verify OTP (checks Redis first, falls back to MongoDB)
-    const verification = await verifyOTP(phone, otp);
-    if (!verification.success) {
-      return res.status(400).json({
-        success: false,
-        message: verification.message
-      });
-    }
-
-    // Find user
-    const user = await User.findOne({ phone });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found. Please sign up first.'
-      });
-    }
-
-    if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account has been deactivated. Please contact support.'
-      });
-    }
-
-    // Generate JWT tokens
-    const tokens = generateTokenPair({
-      userId: user._id,
-      role: USER_ROLES.USER
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        isPhoneVerified: user.isPhoneVerified,
-        isEmailVerified: user.isEmailVerified
-      },
-      ...tokens
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Login failed. Please try again.'
-    });
-  }
+  return res.status(400).json({ success: false, message: 'OTP login is disabled. Please login using MPIN.' });
 };
 
 /**
@@ -468,7 +377,14 @@ const loginWithMpin = async (req, res) => {
     }
 
     if (!user.isMpinSet) {
-      return res.status(400).json({ success: false, mpinNotSet: true, message: 'MPIN is not set for this account. Please login with OTP.' });
+      // Return a special flag to force MPIN setup
+      return res.status(400).json({ 
+        success: false, 
+        mpinNotSet: true, 
+        requiresMpinSetup: true,
+        message: 'MPIN is not set for this account. Please setup your MPIN.',
+        user: { phone: user.phone }
+      });
     }
 
     if (mpinService.isMpinLocked(user)) {

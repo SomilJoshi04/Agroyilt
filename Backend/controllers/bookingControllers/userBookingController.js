@@ -196,11 +196,12 @@ const createBooking = async (req, res) => {
       // ── Agriculture Dynamic Multiplier Logic ──
       let multiplier = 1;
       if (rental_type === 'hourly') {
-        multiplier = parseFloat(estimatedDuration) || 1;
+        multiplier = Math.max(1, parseInt(estimatedDuration, 10)) || 1;
       } else if (rental_type === 'land_based') {
-        multiplier = parseFloat(String(landSize).replace(/[^\d.]/g, '')) || 1;
+        const parsedArea = parseFloat(String(landSize).replace(/[^\d.]/g, ''));
+        multiplier = isNaN(parsedArea) ? 1 : Math.max(0.5, parsedArea);
       } else if (rental_type === 'daily' || rental_type === 'monthly') {
-        multiplier = parseFloat(estimatedDuration) || 1;
+        multiplier = Math.max(1, parseInt(estimatedDuration, 10)) || 1;
       }
 
       if (equipmentId) {

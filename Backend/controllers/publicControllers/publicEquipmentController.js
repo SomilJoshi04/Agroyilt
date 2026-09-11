@@ -9,11 +9,62 @@ const Vendor = require('../../models/Vendor');
 // GET /api/public/equipment
 exports.getPublicEquipment = async (req, res) => {
   try {
-    const { cityId, categoryId, implementId, search, isFeatured } = req.query;
+    const { cityId, categoryId, implementId, search, isFeatured, lat, lng, radius } = req.query;
 
     const query = { status: { $in: ['active', 'approved'] } }; // Only show active/approved equipment
 
-    if (cityId) query.cityIds = cityId;
+    let vendorDistanceMap = {};
+    let hasGeoFilter = false;
+
+    // Dynamic Vendor/Service distance logic
+    if (lat && lng && lat !== 'undefined' && lng !== 'undefined') {
+        hasGeoFilter = true;
+        const userLat = parseFloat(lat);
+        const userLng = parseFloat(lng);
+        const searchRadius = (parseInt(radius) || 50) * 1000; // Search within 50km by default
+
+        const nearbyVendors = await Vendor.aggregate([
+            {
+                $geoNear: {
+                    near: { type: "Point", coordinates: [userLng, userLat] },
+                    distanceField: "calculatedDistance", 
+                    maxDistance: searchRadius,
+                    spherical: true,
+                    distanceMultiplier: 0.001 // Convert meters to km
+                }
+            },
+            {
+                $match: {
+                    $expr: {
+                        // Ensure user is within the vendor's delivery radius (default 50km if not set)
+                        $lte: ["$calculatedDistance", { $ifNull: ["$shopDetails.deliveryRadius", 50] }]
+                    }
+                }
+            },
+            {
+                $project: { _id: 1, calculatedDistance: 1 }
+            }
+        ]);
+
+        nearbyVendors.forEach(v => {
+            vendorDistanceMap[v._id.toString()] = v.calculatedDistance;
+        });
+
+        const geoVendorIds = nearbyVendors.map(v => v._id);
+        query.vendorId = { $in: geoVendorIds };
+    }
+
+    if (cityId) {
+        if (hasGeoFilter) {
+            // Intersect with city vendors if both are present
+            const vendorsInCity = await Vendor.find({ cityId }).select('_id');
+            const cityVendorIds = vendorsInCity.map(v => v._id.toString());
+            query.vendorId.$in = query.vendorId.$in.filter(id => cityVendorIds.includes(id.toString()));
+        } else {
+            query.cityIds = cityId;
+        }
+    }
+    
     if (categoryId) query.categoryId = categoryId;
     if (isFeatured) query.isFeatured = true;
 
@@ -49,13 +100,23 @@ exports.getPublicEquipment = async (req, res) => {
       }
     }
 
-    const equipment = await VendorEquipment.find(query)
+    let equipment = await VendorEquipment.find(query)
       .populate('categoryId', 'title slug homeIconUrl')
       .populate('subCategoryIds', 'title slug')
       .populate('implements.subCategoryId', 'title slug')
       .populate('vendorId', 'name phone rating avatar')
       .sort({ createdAt: -1 })
       .lean();
+
+    // Map calculated distances to equipment
+    if (hasGeoFilter) {
+        equipment = equipment.map(eq => ({
+            ...eq,
+            distance: eq.vendorId && vendorDistanceMap[eq.vendorId._id.toString()] !== undefined 
+                        ? vendorDistanceMap[eq.vendorId._id.toString()] 
+                        : null
+        }));
+    }
 
     res.status(200).json({
       success: true,
@@ -81,7 +142,7 @@ exports.getPublicEquipmentById = async (req, res) => {
       .populate('categoryId', 'title slug homeIconUrl')
       .populate('subCategoryIds', 'title slug')
       .populate('implements.subCategoryId', 'title slug')
-      .populate('vendorId', 'name phone rating avatar')
+      .populate('vendorId', 'name phone rating avatar address')
       .lean();
 
     if (!equipment) {

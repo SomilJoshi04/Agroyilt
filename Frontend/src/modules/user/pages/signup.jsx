@@ -153,7 +153,7 @@ const Signup = () => {
             </div>,
             { icon: <FiCheckCircle className="text-green-500" /> }
           );
-          navigate('/user');
+          navigate('/user/settings/mpin-setup', { state: { isFirstTime: true } });
         } else {
           toast.error(response.message || 'Registration failed');
         }
@@ -258,7 +258,7 @@ const Signup = () => {
           </div>,
           { icon: <FiCheckCircle className="text-green-500" /> }
         );
-        navigate('/user');
+        navigate('/user/settings/mpin-setup', { state: { isFirstTime: true } });
       } else {
         setIsLoading(false);
         toast.error(response.message || 'Registration failed');

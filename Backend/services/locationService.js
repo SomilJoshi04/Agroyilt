@@ -153,37 +153,36 @@ const findNearbyVendors = async (centerLocation, radiusKm = 10, filters = {}) =>
       });
 
       if (hasGeoVendors > 0) {
-        nearbyVendors = await Vendor.find({
-          ...baseQuery,
-          geoLocation: {
-            $near: {
-              $geometry: {
-                type: 'Point',
-                coordinates: [centerLocation.lng, centerLocation.lat]
-              },
-              $maxDistance: radiusKm * 1000
+        // Enforce deliveryRadius using geoNear aggregation
+        const geoResults = await Vendor.aggregate([
+          {
+            $geoNear: {
+              near: { type: 'Point', coordinates: [centerLocation.lng, centerLocation.lat] },
+              distanceField: 'distance',
+              maxDistance: radiusKm * 1000,
+              spherical: true,
+              query: baseQuery,
+              distanceMultiplier: 0.001 // Convert meters to km
             }
-          }
-        })
-          .select(VENDOR_SELECT_FIELDS)
-          .limit(20);
+          },
+          {
+            $match: {
+              $expr: {
+                $lte: ["$distance", { $ifNull: ["$shopDetails.deliveryRadius", 50] }]
+              }
+            }
+          },
+          { $limit: 20 }
+        ]);
 
-        nearbyVendors = nearbyVendors.map(vendor => {
-          const vendorObj = vendor.toObject();
-          if (vendor.geoLocation && vendor.geoLocation.coordinates) {
-            vendorObj.distance = calculateDistance(centerLocation, {
-              lat: vendor.geoLocation.coordinates[1],
-              lng: vendor.geoLocation.coordinates[0]
-            });
-          } else {
-            vendorObj.distance = null;
-          }
-          return vendorObj;
-        });
-
-        if (nearbyVendors.length > 0) {
-          console.log(`[LocationService] Found ${nearbyVendors.length} vendors using 2dsphere query`);
-          return nearbyVendors;
+        if (geoResults.length > 0) {
+          console.log(`[LocationService] Found ${geoResults.length} vendors using geoNear aggregation with deliveryRadius filter`);
+          
+          // Re-map to mongoose documents with distance property if needed,
+          // though for our usage returning the plain object with distance is usually fine
+          return geoResults.map(v => {
+             return { ...v, id: v._id.toString() };
+          });
         }
       }
     } catch (geoError) {
@@ -201,19 +200,20 @@ const findNearbyVendors = async (centerLocation, radiusKm = 10, filters = {}) =>
           lat: vendor.address.lat,
           lng: vendor.address.lng
         });
-      } else if (vendor.location && vendor.location.lat && vendor.location.lng) {
+      } else if (vendor.geoLocation && vendor.geoLocation.coordinates) {
         distance = calculateDistance(centerLocation, {
-          lat: vendor.location.lat,
-          lng: vendor.location.lng
+          lat: vendor.geoLocation.coordinates[1],
+          lng: vendor.geoLocation.coordinates[0]
         });
       }
 
-      return {
-        ...vendor.toObject(),
-        distance: distance,
-        withinRange: distance === null || distance <= radiusKm
-      };
-    }).filter(vendor => vendor.withinRange);
+      const vendorObj = vendor.toObject();
+      vendorObj.distance = distance;
+      return vendorObj;
+    }).filter(vendor => {
+       const limit = vendor.shopDetails?.deliveryRadius || 50;
+       return vendor.distance !== null && vendor.distance <= radiusKm && vendor.distance <= limit;
+    });
 
     if (nearbyVendors.length > 0) {
       console.log(`[LocationService] Found ${nearbyVendors.length} vendors using Haversine`);

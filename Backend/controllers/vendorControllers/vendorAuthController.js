@@ -21,7 +21,18 @@ const sendOTP = async (req, res) => {
       });
     }
 
-    const { phone, email } = req.body;
+    const { phone, email, purpose } = req.body; // purpose: 'register' | 'forgotMpin'
+
+    // If this is a forgot MPIN attempt, verify vendor exists first
+    if (purpose === 'forgotMpin') {
+      const vendorExists = await Vendor.findOne({ phone });
+      if (!vendorExists) {
+        return res.status(404).json({
+          success: false,
+          message: 'Vendor not found with this number'
+        });
+      }
+    }
 
     // Check existing vendor status to prevent OTP if restricted
     const existingVendor = await Vendor.findOne({ phone });
@@ -97,63 +108,18 @@ const verifyLogin = async (req, res) => {
     }
 
     // 2. Check if vendor exists
+    // 2. Check if vendor exists
     const vendor = await Vendor.findOne({ phone });
 
-    if (vendor) {
-      // EXISTING VENDOR
+    // NEW FLOW: Always return a verification token.
+    const verificationToken = generateVerificationToken(phone);
 
-      // Check status checks (Login Logic)
-      if (vendor.approvalStatus === VENDOR_STATUS.REJECTED) {
-        return res.status(403).json({ success: false, message: 'Account rejected.' });
-      }
-      if (vendor.approvalStatus === VENDOR_STATUS.SUSPENDED) {
-        return res.status(403).json({ success: false, message: 'Account suspended.' });
-      }
-      if (!vendor.isActive) {
-        return res.status(403).json({ success: false, message: 'Account deactivated.' });
-      }
-
-      // BLOCK PENDING VENDORS
-      if (vendor.approvalStatus === VENDOR_STATUS.PENDING) {
-        return res.status(200).json({
-          success: true,
-          message: 'Your account is currently under review. Please wait for admin approval.',
-          vendor: { adminApproval: 'pending' }
-        });
-      }
-
-      const tokens = generateTokenPair({
-        userId: vendor._id,
-        role: USER_ROLES.VENDOR
-      });
-
-      return res.status(200).json({
-        success: true,
-        isNewUser: false,
-        message: 'Login successful',
-        vendor: {
-          id: vendor._id,
-          name: vendor.name,
-          email: vendor.email,
-          phone: vendor.phone,
-          businessName: vendor.businessName,
-          service: vendor.service,
-          approvalStatus: vendor.approvalStatus
-        },
-        ...tokens
-      });
-
-    } else {
-      // NEW VENDOR -> RETURN VERIFICATION TOKEN
-      const verificationToken = generateVerificationToken(phone);
-
-      return res.status(200).json({
-        success: true,
-        isNewUser: true,
-        message: 'OTP verified. Please complete registration.',
-        verificationToken
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      isNewUser: !vendor,
+      message: 'OTP verified successfully.',
+      verificationToken
+    });
 
   } catch (error) {
     console.error('Verify Login error:', error);
@@ -325,94 +291,11 @@ const register = async (req, res) => {
 };
 
 /**
- * Login vendor with OTP (only if approved)
+ * Login vendor with OTP
+ * DEPRECATED: Normal login must use MPIN.
  */
 const login = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
-    const { phone, otp } = req.body;
-
-    // Verify OTP (checks Redis first, falls back to MongoDB)
-    const verification = await verifyOTP(phone, otp);
-    if (!verification.success) {
-      return res.status(400).json({
-        success: false,
-        message: verification.message
-      });
-    }
-
-    // Find vendor
-    const vendor = await Vendor.findOne({ phone });
-    if (!vendor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Vendor not found. Please sign up first.'
-      });
-    }
-
-    // Check approval status
-    if (vendor.approvalStatus === VENDOR_STATUS.PENDING) {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account is pending admin approval. Please wait for approval.'
-      });
-    }
-
-    if (vendor.approvalStatus === VENDOR_STATUS.REJECTED) {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account has been rejected. Please contact support.'
-      });
-    }
-
-    if (vendor.approvalStatus === VENDOR_STATUS.SUSPENDED) {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account has been suspended. Please contact support.'
-      });
-    }
-
-    if (!vendor.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account has been deactivated. Please contact support.'
-      });
-    }
-
-    // Generate JWT tokens
-    const tokens = generateTokenPair({
-      userId: vendor._id,
-      role: USER_ROLES.VENDOR
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      vendor: {
-        id: vendor._id,
-        name: vendor.name,
-        email: vendor.email,
-        phone: vendor.phone,
-        businessName: vendor.businessName,
-        service: vendor.service
-      },
-      ...tokens
-    });
-  } catch (error) {
-    console.error('Vendor login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Login failed. Please try again.'
-    });
-  }
+  return res.status(400).json({ success: false, message: 'OTP login is disabled. Please login using MPIN.' });
 };
 
 /**
@@ -572,7 +455,14 @@ const loginWithMpin = async (req, res) => {
     }
 
     if (!vendor.isMpinSet) {
-      return res.status(400).json({ success: false, mpinNotSet: true, message: 'MPIN is not set for this account. Please login with OTP.' });
+      // Return a special flag to force MPIN setup
+      return res.status(400).json({ 
+        success: false, 
+        mpinNotSet: true, 
+        requiresMpinSetup: true,
+        message: 'MPIN is not set for this account. Please setup your MPIN.',
+        vendor: { phone: vendor.phone }
+      });
     }
 
     if (mpinService.isMpinLocked(vendor)) {

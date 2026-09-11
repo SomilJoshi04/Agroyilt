@@ -16,29 +16,13 @@ const phoneSchema = z.object({
 
 const Login = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState('phone'); // 'phone', 'otp', or 'mpin'
-  const [loginMethod, setLoginMethod] = useState('otp'); // 'otp' or 'mpin'
+  const [step, setStep] = useState('phone'); // 'phone' or 'mpin'
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [mpin, setMpin] = useState(['', '', '', '']);
-  const [otpToken, setOtpToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
-
-  // Timer countdown effect
-  useEffect(() => {
-    let interval;
-    if (resendTimer > 0) {
-      interval = setInterval(() => {
-        setResendTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [resendTimer]);
 
   // Refs for focus management
   const phoneInputRef = useRef(null);
-  const otpInputRefs = useRef([]);
   const mpinInputRefs = useRef([]);
 
   // Auto-focus logic
@@ -51,8 +35,6 @@ const Login = () => {
 
     if (step === 'phone' && phoneInputRef.current) {
       setTimeout(() => phoneInputRef.current.focus(), 100);
-    } else if (step === 'otp' && otpInputRefs.current[0]) {
-      setTimeout(() => otpInputRefs.current[0].focus(), 100);
     } else if (step === 'mpin' && mpinInputRefs.current[0]) {
       setTimeout(() => mpinInputRefs.current[0].focus(), 100);
     }
@@ -68,126 +50,7 @@ const Login = () => {
       return;
     }
 
-    if (loginMethod === 'mpin') {
-      setStep('mpin');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Clean phone number
-      const cleanPhone = phoneNumber.replace(/\D/g, '');
-      const response = await userAuthService.sendOTP(cleanPhone, null, true);
-
-      if (response.success) {
-        setOtpToken(response.token);
-        setIsLoading(false);
-        setStep('otp');
-        setResendTimer(120); // Start 2 min timer
-        toast.success(
-          <div className="flex items-center gap-2">
-            <FiCheckCircle className="text-green-500" />
-            <span>OTP sent successfully!</span>
-          </div>
-        );
-      } else {
-        setIsLoading(false);
-        toast.error(response.message || 'Failed to send OTP');
-      }
-    } catch (error) {
-      setIsLoading(false);
-      const errorMessage = error.response?.data?.message || 'Failed to send OTP. Please try again.';
-      toast.error(errorMessage);
-      
-      if (error.response?.status === 404) {
-        navigate('/user/signup', { state: { phone: phoneNumber } });
-      }
-    }
-  };
-
-  const handleOtpChange = (index, value) => {
-    // Allow only numbers
-    if (value && !/^\d+$/.test(value)) return;
-
-    if (value.length > 1) {
-      // Handle paste of full OTP
-      if (index === 0 && value.length === 6) {
-        const chars = value.split('');
-        setOtp(chars);
-        // Focus the last input or verify button
-        otpInputRefs.current[5]?.focus();
-        return;
-      }
-      return;
-    }
-
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    // Auto focus next input
-    if (value && index < 5) {
-      otpInputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      otpInputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  // Auto-verify as last digit enters
-  useEffect(() => {
-    const otpValue = otp.join('');
-    if (otpValue.length === 6 && !isLoading && otpToken) {
-      handleOtpSubmit();
-    }
-  }, [otp]);
-
-  const handleOtpSubmit = async (e) => {
-    if (e) e.preventDefault();
-    const otpValue = otp.join('');
-    if (otpValue.length !== 6) {
-      toast.error('Please enter complete OTP');
-      return;
-    }
-    if (!otpToken) {
-      toast.error('Please request OTP first');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const response = await userAuthService.verifyLogin({
-        phone: phoneNumber.replace(/\D/g, ''),
-        otp: otpValue
-      });
-
-      if (response.success) {
-        if (response.isNewUser) {
-          toast.success('Phone verified! Please complete your registration.');
-          navigate('/user/signup', {
-            state: {
-              phone: phoneNumber,
-              verificationToken: response.verificationToken
-            }
-          });
-        } else {
-          toast.success('Welcome back!');
-          if (!response.user?.isMpinSet) {
-            navigate('/user/settings/mpin-setup', { state: { isFirstTime: true } });
-          } else {
-            navigate('/user', { replace: true });
-          }
-        }
-      } else {
-        setIsLoading(false);
-        toast.error(response.message || 'Verification failed');
-      }
-    } catch (error) {
-      setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Verification failed. Please try again.');
-    }
+    setStep('mpin');
   };
 
   const handleMpinChange = (index, value) => {
@@ -240,11 +103,12 @@ const Login = () => {
       }
     } catch (error) {
       setIsLoading(false);
-      if (error.response?.data?.mpinNotSet) {
-        toast.error('MPIN not set. Please login with OTP.');
-        setLoginMethod('otp');
-        setStep('phone');
-        setMpin(['', '', '', '']);
+      if (error.response?.status === 404) {
+        toast.error('Account not found. Please register.');
+        navigate('/user/signup', { state: { phone: phoneNumber } });
+      } else if (error.response?.data?.requiresMpinSetup) {
+        toast.error('MPIN not set. Please setup your MPIN.');
+        navigate('/user/forgot-mpin', { state: { phone: phoneNumber, isSetup: true } });
       } else {
         toast.error(error.response?.data?.message || 'Invalid MPIN');
         setMpin(['', '', '', '']);
@@ -320,26 +184,7 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="flex bg-gray-100 p-1 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setLoginMethod('otp')}
-                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
-                  loginMethod === 'otp' ? 'bg-white shadow text-[#426B4F]' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Login with OTP
-              </button>
-              <button
-                type="button"
-                onClick={() => setLoginMethod('mpin')}
-                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
-                  loginMethod === 'mpin' ? 'bg-white shadow text-[#426B4F]' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Login with MPIN
-              </button>
-            </div>
+
 
             <div className="flex items-center justify-between text-xs px-2 mt-2">
               <label className="flex items-center text-[#426B4F] font-medium cursor-pointer">
@@ -358,7 +203,7 @@ const Login = () => {
                 {isLoading ? (
                   <LogoLoader fullScreen={false} inline={true} size="w-6 h-6" />
                 ) : (
-                  <span>{loginMethod === 'mpin' ? 'Next' : 'Login'}</span>
+                  <span>Next</span>
                 )}
               </button>
             </div>
@@ -370,83 +215,6 @@ const Login = () => {
               <Link to="/user/signup" className="text-[#426B4F] font-bold hover:underline">
                 Sign up
               </Link>
-            </div>
-          </form>
-        ) : step === 'otp' ? (
-          <form className="space-y-8" onSubmit={handleOtpSubmit}>
-            <div className="flex justify-center gap-2 sm:gap-3 py-4">
-              {otp.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(el) => (otpInputRefs.current[index] = el)}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleOtpChange(index, e.target.value)}
-                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                  className="w-12 h-12 text-center text-xl font-bold rounded-xl focus:ring-0 border-transparent transition-all duration-300"
-                  style={{ backgroundColor: inputBgColor, color: brandColor }}
-                />
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between px-2 text-sm font-medium">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setOtp(['', '', '', '', '', '']);
-                  setOtpToken('');
-                  setStep('phone');
-                  setResendTimer(0);
-                }}
-                className="flex items-center text-gray-400 hover:text-[#426B4F] transition-colors"
-              >
-                <FiChevronLeft className="mr-1" /> Change Number
-              </button>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  if (isLoading || resendTimer > 0) return;
-                  try {
-                    setIsLoading(true);
-                    const response = await userAuthService.sendOTP(phoneNumber.replace(/\D/g, ''), null, true);
-                    if (response.success) {
-                      setOtpToken(response.token);
-                      setResendTimer(120);
-                      toast.success('OTP resent!');
-                    }
-                  } catch (err) {
-                    toast.error('Error sending OTP');
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                disabled={isLoading || resendTimer > 0}
-                className="text-[#426B4F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold"
-              >
-                {resendTimer > 0
-                  ? `Resend in ${Math.floor(resendTimer / 60)}:${String(resendTimer % 60).padStart(2, '0')}`
-                  : 'Resend OTP'}
-              </button>
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading || otp.join('').length !== 6}
-                className="w-full flex justify-center py-4 px-4 rounded-3xl text-sm font-bold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:-translate-y-0.5"
-                style={{ backgroundColor: brandColor }}
-              >
-                {isLoading ? (
-                  <LogoLoader fullScreen={false} inline={true} size="w-6 h-6" />
-                ) : (
-                  <span>Verify</span>
-                )}
-              </button>
             </div>
           </form>
         ) : (
@@ -484,9 +252,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setLoginMethod('otp');
-                  setStep('phone');
-                  handlePhoneSubmit({ preventDefault: () => {} });
+                  navigate('/user/forgot-mpin', { state: { phone: phoneNumber } });
                 }}
                 className="text-[#426B4F] hover:underline font-bold"
               >

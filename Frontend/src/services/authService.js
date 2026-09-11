@@ -32,8 +32,8 @@ function getPlatformType() {
  */
 export const userAuthService = {
   // Send OTP
-  sendOTP: async (phone, email = null, isLogin = false) => {
-    const response = await api.post('/users/auth/send-otp', { phone, email, isLogin });
+  sendOTP: async (phone, email = null, isLogin = false, purpose = 'register') => {
+    const response = await api.post('/users/auth/send-otp', { phone, email, isLogin, purpose });
     return response.data;
   },
 
@@ -157,8 +157,8 @@ export const userAuthService = {
  */
 export const vendorAuthService = {
   // Send OTP
-  sendOTP: async (phone, email = null) => {
-    const response = await api.post('/vendors/auth/send-otp', { phone, email });
+  sendOTP: async (phone, email = null, purpose = 'register') => {
+    const response = await api.post('/vendors/auth/send-otp', { phone, email, purpose });
     return response.data;
   },
 
@@ -307,8 +307,8 @@ export const vendorAuthService = {
  */
 export const workerAuthService = {
   // Send OTP
-  sendOTP: async (phone, email = null) => {
-    const response = await api.post('/workers/auth/send-otp', { phone, email });
+  sendOTP: async (phone, email = null, isLogin = false, purpose = 'register') => {
+    const response = await api.post('/workers/auth/send-otp', { phone, email, isLogin, purpose });
     return response.data;
   },
 

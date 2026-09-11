@@ -58,6 +58,7 @@ const UpdateProfile = lazyLoad(() => import('../pages/UpdateProfile'));
 const Login = lazyLoad(() => import('../pages/login'));
 const Signup = lazyLoad(() => import('../pages/signup'));
 const MpinSetup = lazyLoad(() => import('../pages/MpinSetup'));
+const ForgotMpin = lazyLoad(() => import('../pages/ForgotMpin'));
 const Privacy = lazyLoad(() => import('../pages/Privacy'));
 
 const Notifications = lazyLoad(() => import('../pages/Notifications'));
@@ -108,6 +109,7 @@ const UserRoutes = () => {
   // Check if we are on public pages (login/signup) where we shouldn't fetch bookings
   const isPublicPage = location.pathname.includes('/login') || 
                        location.pathname.includes('/signup') ||
+                       location.pathname.includes('/forgot-mpin') ||
                        location.pathname.includes('/privacy') ||
                        location.pathname.includes('/faq') ||
                        location.pathname.includes('/help-support') ||
@@ -123,6 +125,7 @@ const UserRoutes = () => {
               {/* Public routes */}
               <Route path="/login" element={<PublicRoute userType="user"><Login /></PublicRoute>} />
               <Route path="/signup" element={<PublicRoute userType="user"><Signup /></PublicRoute>} />
+              <Route path="/forgot-mpin" element={<PublicRoute userType="user"><ForgotMpin /></PublicRoute>} />
 
               {/* Protected routes (auth required) */}
               <Route path="/" element={<ProtectedRoute userType="user"><Home /></ProtectedRoute>} />

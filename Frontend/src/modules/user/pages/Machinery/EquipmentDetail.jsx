@@ -41,6 +41,15 @@ const EquipmentDetail = () => {
     }
   }, [startTime, endTime, selectedRateType]);
 
+  // Normalize quantity when rate type changes
+  useEffect(() => {
+    if (selectedRateType !== 'land_based' && !Number.isInteger(quantity)) {
+      setQuantity(Math.max(1, Math.floor(quantity)));
+    } else if (selectedRateType === 'land_based' && quantity < 0.5) {
+      setQuantity(0.5);
+    }
+  }, [selectedRateType, quantity]);
+
   useEffect(() => {
     fetchDetail();
   }, [id]);
@@ -115,7 +124,7 @@ const EquipmentDetail = () => {
   const availableImplements = Array.isArray(equipment.implements) ? equipment.implements : [];
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-32">
+    <div className="min-[100dvh] bg-slate-50 pb-32">
       <Helmet>
         <title>{`${equipment.name} Booking | Agroyilt`}</title>
         <meta name="description" content={`Book ${equipment.name} machinery for your farm. Verified professional operator, affordable rates starting at ₹${currentRate}.`} />
@@ -187,8 +196,11 @@ const EquipmentDetail = () => {
                  </span>
               </div>
               <h2 className="text-3xl font-black text-white leading-tight mb-2 drop-shadow-md">{equipment.name}</h2>
-              <div className="flex items-center gap-4 text-white/90 text-xs font-bold">
-                 <span className="flex items-center gap-1.5"><FiMapPin className="text-orange-400" /> Nearby Available</span>
+               <div className="flex items-center gap-4 text-white/90 text-xs font-bold">
+                 <span className="flex items-center gap-1.5">
+                   <FiMapPin className="text-orange-400" /> 
+                   {equipment.vendorId?.address?.city || equipment.vendorId?.address?.addressLine1 || 'Available Nearby'}
+                 </span>
                  <span className="flex items-center gap-1.5">
                    <FiStar className="text-amber-400 fill-amber-400" /> 
                    {equipment.rating || equipment.vendorId?.rating || 'New'} Rating
@@ -358,8 +370,12 @@ const EquipmentDetail = () => {
                     </h3>
                  </div>
                  <div className="flex items-center gap-4 bg-slate-100 p-1 rounded-2xl">
-                    <button 
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                     <button 
+                      onClick={() => {
+                        const step = selectedRateType === 'land_based' ? 0.5 : 1;
+                        const min = selectedRateType === 'land_based' ? 0.5 : 1;
+                        setQuantity(Math.max(min, quantity - step));
+                      }}
                       disabled={selectedRateType === 'hourly'}
                       className={`w-10 h-10 bg-white rounded-xl flex items-center justify-center font-bold transition-all shadow-sm ${selectedRateType === 'hourly' ? 'text-slate-400 opacity-50 cursor-not-allowed' : 'text-slate-800 active:scale-90'}`}
                     >
@@ -367,7 +383,10 @@ const EquipmentDetail = () => {
                     </button>
                     <span className="text-lg font-black text-slate-800 w-8 text-center">{quantity}</span>
                     <button 
-                      onClick={() => setQuantity(quantity + 1)}
+                      onClick={() => {
+                        const step = selectedRateType === 'land_based' ? 0.5 : 1;
+                        setQuantity(quantity + step);
+                      }}
                       disabled={selectedRateType === 'hourly'}
                       className={`w-10 h-10 bg-white rounded-xl flex items-center justify-center font-bold transition-all shadow-sm ${selectedRateType === 'hourly' ? 'text-slate-400 opacity-50 cursor-not-allowed' : 'text-slate-800 active:scale-90'}`}
                     >

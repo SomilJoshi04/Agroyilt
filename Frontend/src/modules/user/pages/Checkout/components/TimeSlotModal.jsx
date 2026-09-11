@@ -100,7 +100,7 @@ const TimeSlotModal = ({
           className={`bg-white rounded-t-3xl ${isClosing ? 'animate-slide-down' : 'animate-slide-up'
             }`}
           style={{
-            maxHeight: '90vh',
+            maxHeight: '90dvh',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden'
@@ -346,7 +346,9 @@ const TimeSlotModal = ({
             </div>
             )}
 
-            {/* Proceed Button */}
+          </div>
+          {/* Proceed Button - Fixed at bottom */}
+          <div className="p-4 border-t border-gray-100 bg-white shrink-0">
             <button
               onClick={() => {
                 let extraArgs = {
@@ -376,7 +378,7 @@ const TimeSlotModal = ({
                 (rentalType === 'hourly' && (!selectedTime || !localHours)) ||
                 (rentalType === 'land_based' && (!selectedDate || !localAcres || !selectedTime))
               }
-              className="w-full py-3.5 rounded-lg text-base font-semibold transition-colors mb-4"
+              className="w-full py-3.5 rounded-lg text-base font-semibold transition-colors"
               style={(selectedDate && (
                 (rentalType === 'daily' && localDays && selectedTime) ||
                 (rentalType === 'hourly' && selectedTime && localHours) ||

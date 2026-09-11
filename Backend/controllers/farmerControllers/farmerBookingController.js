@@ -37,7 +37,9 @@ const farmerBookingController = {
       let basePrice = equipment.pricing?.hourly?.price || equipment.pricing?.fixed?.price || 500;
       let finalAmount = basePrice;
       if (area && equipment.pricing?.land_based?.price) {
-         basePrice = equipment.pricing.land_based.price * area;
+         const parsedArea = parseFloat(String(area).replace(/[^\d.]/g, ''));
+         const safeArea = isNaN(parsedArea) ? 1 : Math.max(0.5, parsedArea);
+         basePrice = equipment.pricing.land_based.price * safeArea;
          finalAmount = basePrice;
       }
 

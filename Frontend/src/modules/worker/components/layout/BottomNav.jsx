@@ -4,6 +4,7 @@ import { FiHome, FiBriefcase, FiUser, FiDollarSign } from 'react-icons/fi';
 import { HiHome, HiBriefcase, HiUser } from 'react-icons/hi';
 import { FiBell } from 'react-icons/fi';
 import { gsap } from 'gsap';
+import { useKeyboardVisibility } from '../../../../hooks/useKeyboardVisibility';
 import { workerTheme as themeColors } from '../../../../theme';
 import api from '../../../../services/api';
 
@@ -14,26 +15,7 @@ const BottomNav = memo(() => {
   const activeAnimations = useRef({});
   const [pendingJobsCount, setPendingJobsCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-
-  useEffect(() => {
-    const originalHeight = window.innerHeight;
-    const handleResize = () => {
-      const activeEl = document.activeElement;
-      const isInputFocused = activeEl && (
-        activeEl.tagName === 'INPUT' || 
-        activeEl.tagName === 'TEXTAREA' || 
-        activeEl.hasAttribute('contenteditable')
-      );
-      if (isInputFocused && window.innerHeight < originalHeight - 150) {
-        setIsKeyboardVisible(true);
-      } else {
-        setIsKeyboardVisible(false);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const { isKeyboardOpen, keyboardHeight } = useKeyboardVisibility();
 
   // Load counts
   useEffect(() => {
@@ -92,31 +74,12 @@ const BottomNav = memo(() => {
     }
   };
 
-
-
-  if (isKeyboardVisible) {
-    return null;
-  }
-
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-white"
+      className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 pb-[env(safe-area-inset-bottom,20px)] pt-2 z-[60] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
       style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        width: '100%',
-        zIndex: 40,
-        willChange: 'transform',
-        transform: 'translateZ(0)',
-        backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
-        borderTop: '2px solid rgba(0, 0, 0, 0.35)',
-        borderTopLeftRadius: '20px',
-        borderTopRightRadius: '20px',
-        boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.15), 0 -4px 12px rgba(0, 0, 0, 0.1), 0 -2px 6px rgba(0, 0, 0, 0.08)',
-        background: 'linear-gradient(to top, #FFFFFF 0%, #FAFAFA 100%)',
+        bottom: isKeyboardOpen ? `-${keyboardHeight}px` : undefined,
       }}
     >
       <div className="flex items-center justify-around px-2 py-2">

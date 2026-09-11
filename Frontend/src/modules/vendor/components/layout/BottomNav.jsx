@@ -3,32 +3,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FiHome, FiBriefcase, FiUsers, FiUser, FiBarChart2, FiTruck } from 'react-icons/fi';
 import { HiHome, HiBriefcase, HiUsers, HiUser, HiChartBar } from 'react-icons/hi';
 import { FaWallet } from 'react-icons/fa';
+import { useKeyboardVisibility } from '../../../../hooks/useKeyboardVisibility';
 import { vendorTheme as themeColors } from '../../../../theme';
 
 const BottomNav = memo(({ isGlobal = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingJobsCount, setPendingJobsCount] = useState(0);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-
-  useEffect(() => {
-    const originalHeight = window.innerHeight;
-    const handleResize = () => {
-      const activeEl = document.activeElement;
-      const isInputFocused = activeEl && (
-        activeEl.tagName === 'INPUT' || 
-        activeEl.tagName === 'TEXTAREA' || 
-        activeEl.hasAttribute('contenteditable')
-      );
-      if (isInputFocused && window.innerHeight < originalHeight - 150) {
-        setIsKeyboardVisible(true);
-      } else {
-        setIsKeyboardVisible(false);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const { isKeyboardOpen, keyboardHeight } = useKeyboardVisibility();
 
   if (isGlobal) {
     window.__hasGlobalBottomNav = true;
@@ -93,24 +75,21 @@ const BottomNav = memo(({ isGlobal = false }) => {
     (location.pathname.includes('/map') || location.pathname.includes('/alert/'))
   );
 
-  if (shouldHideNav || isKeyboardVisible) {
+  if (shouldHideNav) {
     return null;
   }
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-white"
+      className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 pb-[env(safe-area-inset-bottom,20px)] pt-2 z-[60] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
       style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
         width: '100%',
         zIndex: 40,
         willChange: 'transform',
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
+        bottom: isKeyboardOpen ? `-${keyboardHeight}px` : undefined,
         borderTop: '2px solid rgba(0, 0, 0, 0.35)',
         borderTopLeftRadius: '20px',
         borderTopRightRadius: '20px',

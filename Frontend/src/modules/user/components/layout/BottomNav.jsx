@@ -4,6 +4,7 @@ import { FiHome, FiGift, FiShoppingCart, FiUser, FiCalendar } from 'react-icons/
 import { HiHome, HiGift, HiShoppingCart, HiUser, HiCalendar } from 'react-icons/hi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../../../context/CartContext';
+import { useKeyboardVisibility } from '../../../../hooks/useKeyboardVisibility';
 import { themeColors } from '../../../../theme';
 
 // Agriculture-themed colors for each nav item (layout unchanged)
@@ -45,6 +46,7 @@ const BottomNav = React.memo(() => {
   const navRef = useRef(null);
   const { cartCount } = useCart();
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const { isKeyboardOpen, keyboardHeight } = useKeyboardVisibility();
 
   const navItems = useMemo(() => [
     { id: 'home', label: 'Home', icon: FiHome, filledIcon: HiHome, path: '/user' },
@@ -93,6 +95,7 @@ const BottomNav = React.memo(() => {
       className="fixed bottom-0 left-0 right-0 z-40 w-full"
       style={{
         WebkitBackfaceVisibility: 'hidden',
+        bottom: isKeyboardOpen ? `-${keyboardHeight}px` : undefined,
       }}
     >
       <div
