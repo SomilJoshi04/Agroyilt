@@ -195,8 +195,27 @@ const createBooking = async (req, res) => {
     if (isAgriService) {
       // ── Agriculture Dynamic Multiplier Logic ──
       let multiplier = 1;
+      let calculatedDurationMinutes = null;
+
       if (rental_type === 'hourly') {
-        multiplier = Math.max(1, parseInt(estimatedDuration, 10)) || 1;
+        if (timeSlot && timeSlot.start && timeSlot.end) {
+          const [startHours, startMinutes] = timeSlot.start.split(':').map(Number);
+          const [endHours, endMinutes] = timeSlot.end.split(':').map(Number);
+          calculatedDurationMinutes = (endHours * 60 + endMinutes) - (startHours * 60 + startMinutes);
+          
+          if (calculatedDurationMinutes <= 0) {
+            return res.status(400).json({ success: false, message: 'End time must be after start time' });
+          }
+          if (calculatedDurationMinutes < 30) {
+            return res.status(400).json({ success: false, message: 'Hourly booking must be at least 30 minutes.' });
+          }
+          if (calculatedDurationMinutes % 30 !== 0) {
+            return res.status(400).json({ success: false, message: 'Hourly booking duration must be in 30-minute increments.' });
+          }
+          multiplier = calculatedDurationMinutes / 60;
+        } else {
+          return res.status(400).json({ success: false, message: 'Start and end time required for hourly bookings.' });
+        }
       } else if (rental_type === 'land_based') {
         const parsedArea = parseFloat(String(landSize).replace(/[^\d.]/g, ''));
         multiplier = isNaN(parsedArea) ? 1 : Math.max(0.5, parsedArea);
@@ -618,6 +637,7 @@ const createBooking = async (req, res) => {
       landSize: landSize || null,
       endDate: (endDate && !isNaN(new Date(endDate).getTime())) ? new Date(endDate) : null,
       estimatedDuration: (estimatedDuration !== undefined && estimatedDuration !== null && !isNaN(Number(estimatedDuration))) ? Number(estimatedDuration) : null,
+      durationMinutes: typeof calculatedDurationMinutes !== 'undefined' ? calculatedDurationMinutes : null,
 
       description: service.description,
       serviceImages: service.images || [],

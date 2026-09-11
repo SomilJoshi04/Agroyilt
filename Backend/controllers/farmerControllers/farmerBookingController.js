@@ -33,13 +33,29 @@ const farmerBookingController = {
       }
 
       // Calculate server-side price (e.g. hourly * hours)
-      // For simplicity, using basePrice directly or fallback to 500
       let basePrice = equipment.pricing?.hourly?.price || equipment.pricing?.fixed?.price || 500;
       let finalAmount = basePrice;
+      let calculatedDurationMinutes = null;
+
       if (area && equipment.pricing?.land_based?.price) {
          const parsedArea = parseFloat(String(area).replace(/[^\d.]/g, ''));
          const safeArea = isNaN(parsedArea) ? 1 : Math.max(0.5, parsedArea);
          basePrice = equipment.pricing.land_based.price * safeArea;
+         finalAmount = basePrice;
+      } else if (timeSlot && timeSlot.start && timeSlot.end) {
+         const [startHours, startMinutes] = timeSlot.start.split(':').map(Number);
+         const [endHours, endMinutes] = timeSlot.end.split(':').map(Number);
+         calculatedDurationMinutes = (endHours * 60 + endMinutes) - (startHours * 60 + startMinutes);
+         if (calculatedDurationMinutes <= 0) {
+            throw new Error('End time must be after start time');
+         }
+         if (calculatedDurationMinutes < 30) {
+            throw new Error('Hourly booking must be at least 30 minutes.');
+         }
+         if (calculatedDurationMinutes % 30 !== 0) {
+            throw new Error('Hourly booking duration must be in 30-minute increments.');
+         }
+         basePrice = (equipment.pricing?.hourly?.price || 500) * (calculatedDurationMinutes / 60);
          finalAmount = basePrice;
       }
 
@@ -58,6 +74,7 @@ const farmerBookingController = {
         address: location,
         cropType,
         landSize: area ? `${area} Acres` : null,
+        durationMinutes: typeof calculatedDurationMinutes !== 'undefined' ? calculatedDurationMinutes : null,
         status: BOOKING_STATUS.PENDING
       });
 

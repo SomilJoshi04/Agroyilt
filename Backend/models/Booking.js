@@ -306,6 +306,10 @@ const bookingSchema = new mongoose.Schema({
     type: Number, // for hourly: number of hours
     default: null
   },
+  durationMinutes: {
+    type: Number,
+    default: null
+  },
   startReminderSent: {
     type: Boolean,
     default: false

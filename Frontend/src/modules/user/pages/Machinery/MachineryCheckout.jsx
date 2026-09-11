@@ -34,6 +34,19 @@ const MachineryCheckout = () => {
 
     const { rateType, quantity, date, slot, startTime, endTime, total } = bookingData;
 
+    const formatDuration = (qty, type) => {
+        if (type === 'hourly') {
+            const totalMinutes = Math.round(qty * 60);
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            let parts = [];
+            if (hours > 0) parts.push(`${hours} Hour${hours > 1 ? 's' : ''}`);
+            if (minutes > 0) parts.push(`${minutes} Minutes`);
+            return parts.join(' ');
+        }
+        return `${qty} ${type === 'land_based' ? 'Acres' : type}`;
+    };
+
     const handleConfirmBooking = async () => {
         if (!selectedAddress) {
             toast.error('Please select an address first');
@@ -96,6 +109,8 @@ const MachineryCheckout = () => {
             const res = await bookingService.create(payload);
             if (res.success) {
                 toast.success('Booking Successful!');
+                // Clear persisted form state so the form starts fresh next time
+                sessionStorage.removeItem(`machinery_booking_${equipment._id}`);
                 const newBookingId = res.booking?._id || res.data?._id || res.data?.booking?._id || res._id || res.booking?.id || res.data?.id;
                 if (newBookingId) {
                     navigate(`/user/booking/${newBookingId}`, { replace: true });
@@ -175,7 +190,7 @@ const MachineryCheckout = () => {
                         </div>
                         <div className="flex justify-between text-xs">
                            <span className="font-bold text-slate-400">Duration/Area</span>
-                           <span className="font-black text-slate-800 uppercase">{quantity} {rateType}</span>
+                           <span className="font-black text-slate-800 uppercase">{formatDuration(quantity, rateType)}</span>
                         </div>
                         {selectedImplements.length > 0 && (
                           <div className="flex justify-between text-xs pt-2 border-t border-slate-200">

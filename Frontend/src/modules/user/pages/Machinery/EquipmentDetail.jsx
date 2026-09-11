@@ -18,12 +18,23 @@ const EquipmentDetail = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [equipment, setEquipment] = useState(null);
-  const [selectedRateType, setSelectedRateType] = useState('hourly');
-  const [quantity, setQuantity] = useState(1);
-  const [selectedDate, setSelectedDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+
+  // Restore state from sessionStorage (so navigating back doesn't clear the form)
+  const savedKey = `machinery_booking_${id}`;
+  const saved = (() => { try { return JSON.parse(sessionStorage.getItem(savedKey) || 'null'); } catch { return null; } })();
+
+  const [selectedRateType, setSelectedRateType] = useState(saved?.selectedRateType || 'hourly');
+  const [quantity, setQuantity] = useState(saved?.quantity || 1);
+  const [selectedDate, setSelectedDate] = useState(saved?.selectedDate || '');
+  const [startTime, setStartTime] = useState(saved?.startTime || '');
+  const [endTime, setEndTime] = useState(saved?.endTime || '');
   const [selectedImplements, setSelectedImplements] = useState([]); // NEW: selected sub-categories
+
+  // Persist state to sessionStorage whenever relevant fields change
+  useEffect(() => {
+    const data = { selectedRateType, quantity, selectedDate, startTime, endTime };
+    sessionStorage.setItem(savedKey, JSON.stringify(data));
+  }, [selectedRateType, quantity, selectedDate, startTime, endTime, savedKey]);
 
   // Auto-calculate quantity for hourly rate
   useEffect(() => {
@@ -34,21 +45,22 @@ const EquipmentDetail = () => {
       let diffMinutes = (endHours * 60 + endMinutes) - (startHours * 60 + startMinutes);
       
       if (diffMinutes > 0) {
-        // Calculate total hours, rounding up to nearest hour
-        const hours = Math.max(1, Math.ceil(diffMinutes / 60));
+        // Calculate exact hours (30-min minimum)
+        const hours = Math.max(0.5, diffMinutes / 60);
         setQuantity(hours);
       }
     }
   }, [startTime, endTime, selectedRateType]);
 
-  // Normalize quantity when rate type changes
+  // Normalize quantity when rate type changes (NOT for hourly — hourly uses exact fractional hours)
   useEffect(() => {
-    if (selectedRateType !== 'land_based' && !Number.isInteger(quantity)) {
-      setQuantity(Math.max(1, Math.floor(quantity)));
-    } else if (selectedRateType === 'land_based' && quantity < 0.5) {
+    if (selectedRateType === 'land_based' && quantity < 0.5) {
       setQuantity(0.5);
+    } else if (selectedRateType !== 'land_based' && selectedRateType !== 'hourly' && !Number.isInteger(quantity)) {
+      // Only snap to integer for daily/monthly — hourly stays fractional (e.g. 0.5 = 30 min)
+      setQuantity(Math.max(1, Math.floor(quantity)));
     }
-  }, [selectedRateType, quantity]);
+  }, [selectedRateType]);
 
   useEffect(() => {
     fetchDetail();
