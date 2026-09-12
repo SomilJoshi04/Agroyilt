@@ -37,6 +37,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const [premiumOfferings, setPremiumOfferings] = useState([]);
+  const [selectedStateFilter, setSelectedStateFilter] = useState("");
 
   const [form, setForm] = useState({
     title: "",
@@ -82,6 +83,16 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
       c.slug?.toLowerCase().includes(lower)
     );
   }, [categoriesBase, searchTerm]);
+
+  const uniqueStates = useMemo(() => {
+    const states = cities.map(c => c.state).filter(Boolean);
+    return [...new Set(states)].sort();
+  }, [cities]);
+
+  const filteredCitiesByState = useMemo(() => {
+    if (!selectedStateFilter) return cities;
+    return cities.filter(c => c.state === selectedStateFilter);
+  }, [cities, selectedStateFilter]);
 
   const editing = useMemo(() => categoriesBase.find((c) => c.id === editingId) || null, [categoriesBase, editingId]);
 
@@ -157,6 +168,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
         sectionType: "General", bookingType: "VENDOR",
         scope: "GLOBAL", city: "",
       });
+      setSelectedStateFilter("");
       return;
     }
     setForm({
@@ -178,7 +190,18 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
       scope: editing.scope || "GLOBAL",
       city: editing.city || "",
     });
-  }, [editingId, editing]);
+    
+    if (editing.city && cities.length > 0) {
+      const cityObj = cities.find(c => c._id === editing.city || c.id === editing.city);
+      if (cityObj && cityObj.state) {
+        setSelectedStateFilter(cityObj.state);
+      } else {
+        setSelectedStateFilter("");
+      }
+    } else {
+      setSelectedStateFilter("");
+    }
+  }, [editingId, editing, cities]);
 
   const reset = () => {
     setEditingId(null);
@@ -190,6 +213,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
       sectionType: "General", bookingType: "VENDOR",
       scope: "GLOBAL", city: "",
     });
+    setSelectedStateFilter("");
     setIsModalOpen(false);
   };
 
@@ -553,17 +577,35 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
             </div>
 
             {form.scope === 'CITY_SPECIFIC' && (
-              <div>
-                <label className="block text-base font-bold text-gray-900 mb-2">Select City</label>
-                <SearchableCitySelect
-                  cities={cities}
-                  value={form.city || ''}
-                  onChange={(val) => setForm({ ...form, city: val })}
-                  defaultOptionValue=""
-                  placeholder="Select a city"
-                  theme="light"
-                />
-                <p className="text-[11px] text-gray-500 mt-1">This category will only be visible in this city.</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-base font-bold text-gray-900 mb-2">Select State</label>
+                  <select
+                    value={selectedStateFilter}
+                    onChange={(e) => {
+                      setSelectedStateFilter(e.target.value);
+                      setForm({ ...form, city: '' }); // Reset city when state changes
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold bg-white"
+                  >
+                    <option value="">All States</option>
+                    {uniqueStates.map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-base font-bold text-gray-900 mb-2">Select City</label>
+                  <SearchableCitySelect
+                    cities={filteredCitiesByState}
+                    value={form.city || ''}
+                    onChange={(val) => setForm({ ...form, city: val })}
+                    defaultOptionValue=""
+                    placeholder="Select a city"
+                    theme="light"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">This category will only be visible in this city.</p>
+                </div>
               </div>
             )}
           </div>
