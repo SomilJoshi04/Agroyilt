@@ -5,7 +5,7 @@ import { FaWallet } from 'react-icons/fa';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import { vendorDashboardService } from '../../services/dashboardService';
-import { acceptBooking, rejectBooking, assignWorker } from '../../services/bookingService';
+import { acceptBooking, rejectBooking } from '../../services/bookingService';
 import { BookingAlertModal } from '../../components/bookings';
 import { toast } from 'react-hot-toast';
 import { io } from 'socket.io-client';
@@ -148,7 +148,7 @@ const Dashboard = memo(() => {
       path: '/vendor/store/orders',
       subtitle: `₹${(stats.ecommerceEarnings || 0).toLocaleString()} Earnings`,
     },
-  ], [stats.activeJobs, stats.workersOnline, stats.totalEarnings, stats.machinesInMaintenance, stats.ecommerceEarnings]);
+  ], [stats.activeJobs, stats.totalEarnings, stats.machinesInMaintenance, stats.ecommerceEarnings]);
 
   const getStatusColor = (status) => {
     const s = String(status).toLowerCase();

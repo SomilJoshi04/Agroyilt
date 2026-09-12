@@ -597,9 +597,9 @@ const completeJob = async (req, res) => {
     // Update booking
     booking.status = BOOKING_STATUS.WORK_DONE;
 
-    // Generate Payment OTP
-    const payOtp = Math.floor(1000 + Math.random() * 9000).toString();
-    booking.paymentOtp = payOtp;
+    // Generate Payment OTP (Moved to Offline Payment selection step)
+    // const payOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    // booking.paymentOtp = payOtp;
 
     if (workPhotos && Array.isArray(workPhotos)) {
       booking.workPhotos = workPhotos;
@@ -613,35 +613,18 @@ const completeJob = async (req, res) => {
     // Notify user
     const { createNotification } = require('../notificationControllers/notificationController');
 
-    // 1. Notify user that work is completed and billing is being prepared
+    // 1. Notify user that work is completed and await amount confirmation
     await createNotification({
       userId: booking.userId,
       type: 'work_completed',
       title: 'Work Completed',
-      message: `Work finished!  Please wait for the bill expert is preparing !`,
+      message: `Work finished! Please confirm the final payable amount.`,
       relatedId: booking._id,
       relatedType: 'booking',
       priority: 'high',
       pushData: {
         type: 'work_completed',
         bookingId: booking._id.toString(),
-        link: `/user/booking/${booking._id}`
-      }
-    });
-
-    // 2. Notify user with Final Bill and OTP
-    await createNotification({
-      userId: booking.userId,
-      type: 'work_done',
-      title: 'Billing Ready',
-      message: `Bill Generated: ₹${booking.finalAmount}. Your verification OTP is ${payOtp}. Please verify and share OTP to complete.`,
-      relatedId: booking._id,
-      relatedType: 'booking',
-      priority: 'high',
-      pushData: {
-        type: 'work_done',
-        bookingId: booking._id.toString(),
-        paymentOtp: payOtp,
         link: `/user/booking/${booking._id}`
       }
     });
@@ -702,7 +685,9 @@ const collectCash = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
 
-    if (booking.status !== BOOKING_STATUS.WORK_DONE) {
+    // Allow both work_done (vendor flow) and awaiting_payment (independent worker flow)
+    const isIndependentWorker = !booking.vendorId && !!booking.workerId;
+    if (booking.status !== BOOKING_STATUS.WORK_DONE && booking.status !== BOOKING_STATUS.AWAITING_PAYMENT) {
       return res.status(400).json({ success: false, message: 'Work is not marked as done yet' });
     }
 
@@ -710,15 +695,24 @@ const collectCash = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
 
-    // Fetch VendorBill (single source of truth)
-    const VendorBill = require('../../models/VendorBill');
-    const bill = await VendorBill.findOne({ bookingId: booking._id });
-    if (!bill) {
-      return res.status(500).json({ success: false, message: 'Bill not found — cannot process payment' });
-    }
+    let grandTotal = 0;
+    let vendorEarning = 0;
+    let bill = null;
 
-    const grandTotal = bill.grandTotal;
-    const vendorEarning = bill.vendorTotalEarning;
+    if (isIndependentWorker) {
+      // Independent Worker: No VendorBill — use finalAmount directly
+      grandTotal = booking.finalAmount || booking.totalAmount || booking.basePrice || 0;
+      vendorEarning = 0; // Platform handles worker earnings separately
+    } else {
+      // Vendor flow: Use VendorBill as single source of truth
+      const VendorBill = require('../../models/VendorBill');
+      bill = await VendorBill.findOne({ bookingId: booking._id });
+      if (!bill) {
+        return res.status(500).json({ success: false, message: 'Bill not found — cannot process payment' });
+      }
+      grandTotal = bill.grandTotal;
+      vendorEarning = bill.vendorTotalEarning;
+    }
 
     // Update Booking Status
     booking.status = BOOKING_STATUS.COMPLETED;
@@ -732,14 +726,16 @@ const collectCash = async (req, res) => {
     booking.paymentOtp = undefined;
     await booking.save();
 
-    // Mark bill as paid
-    bill.status = 'paid';
-    bill.paidAt = new Date();
-    await bill.save();
+    // Mark bill as paid (only for vendor flow)
+    if (bill) {
+      bill.status = 'paid';
+      bill.paidAt = new Date();
+      await bill.save();
+    }
 
-    // Update Vendor Wallet
+    // Update Vendor Wallet (only for vendor flow)
     const Vendor = require('../../models/Vendor');
-    if (booking.vendorId) {
+    if (booking.vendorId && bill) {
       const vendorDoc = await Vendor.findById(booking.vendorId).select('wallet');
       if (vendorDoc) {
         const currentDues = (vendorDoc.wallet.dues || 0) + grandTotal;

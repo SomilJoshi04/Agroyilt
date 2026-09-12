@@ -12,7 +12,9 @@ const {
   addReview,
   getUserRatings,
   checkEquipmentAvailability,
-  calculatePrice
+  calculatePrice,
+  farmerConfirmFinalAmount,
+  farmerSelectOfflinePayment
 } = require('../../controllers/bookingControllers/userBookingController');
 
 // Validation rules
@@ -63,6 +65,8 @@ router.get('/:id', authenticate, isUser, getBookingById);
 router.post('/:id/cancel', authenticate, isUser, cancelBookingValidation, cancelBooking);
 router.put('/:id/reschedule', authenticate, isUser, rescheduleBookingValidation, rescheduleBooking);
 router.post('/:id/review', authenticate, isUser, addReviewValidation, addReview);
+router.post('/:id/confirm-amount', authenticate, isUser, farmerConfirmFinalAmount);
+router.post('/:id/select-offline-payment', authenticate, isUser, farmerSelectOfflinePayment);
 
 module.exports = router;
 

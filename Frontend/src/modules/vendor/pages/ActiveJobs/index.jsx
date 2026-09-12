@@ -7,7 +7,7 @@ import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
-import { getBookings, assignWorker as assignWorkerApi } from '../../services/bookingService';
+import { getBookings } from '../../services/bookingService';
 import { ConfirmDialog } from '../../components/common';
 
 const ActiveJobs = memo(() => {
@@ -91,25 +91,7 @@ const ActiveJobs = memo(() => {
     };
   }, [loadJobs]);
 
-  const handleAssignToSelf = async (jobId) => {
-    setConfirmDialog({
-      isOpen: true,
-      title: 'Assign to Self',
-      message: 'Are you sure you want to do this job yourself?',
-      onConfirm: async () => {
-        try {
-          const response = await assignWorkerApi(jobId, 'SELF');
-          if (response && response.success) {
-            toast.success("Assigned to yourself!");
-            window.location.reload();
-          }
-        } catch (error) {
-          console.error("Error assigning to self:", error);
-          toast.error("Failed to assign to yourself");
-        }
-      }
-    });
-  };
+  // Worker assignment removed — Workers are independent users, not Vendor-managed
 
   // Memoize hexToRgba helper to prevent recreation
   const hexToRgba = useCallback((hex, alpha) => {

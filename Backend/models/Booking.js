@@ -39,11 +39,13 @@ const bookingSchema = new mongoose.Schema({
     default: null,
     index: true
   },
-  providerType: {
-    type: String,
-    enum: ['VENDOR', 'WORKER'],
-    default: 'VENDOR'
+  workerRequestId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'WorkerBookingRequest',
+    default: null
   },
+  agreedRate: { type: Number, default: null },
+  rateUnit: { type: String, default: null },
   notifiedVendors: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Vendor'
@@ -79,7 +81,7 @@ const bookingSchema = new mongoose.Schema({
   serviceId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Service',
-    required: [true, 'Service is required'],
+    required: function() { return !this.workerId; },
     index: true
   },
   categoryId: {
@@ -91,11 +93,11 @@ const bookingSchema = new mongoose.Schema({
 
   serviceName: {
     type: String,
-    required: true
+    required: function() { return !this.workerId; }
   },
   serviceCategory: {
     type: String,
-    required: [true, 'Service category is required']
+    required: function() { return !this.workerId; }
   },
   // Visual Identity (For easier UI access)
   categoryIcon: { type: String, default: null }, // URL to category icon
@@ -145,10 +147,18 @@ const bookingSchema = new mongoose.Schema({
   // ==========================================
   // 3. PRICING & BILLING
   // ==========================================
+  minRate: {
+    type: Number,
+    default: null
+  },
+  maxRate: {
+    type: Number,
+    default: null
+  },
   basePrice: {
     type: Number,
-    required: [true, 'Base price is required'],
-    min: 0
+    required: false,
+    default: null
   },
   discount: {
     type: Number,
@@ -199,8 +209,8 @@ const bookingSchema = new mongoose.Schema({
   // Total Value of the Booking (set after bill generation)
   finalAmount: {
     type: Number,
-    required: [true, 'Final amount is required'],
-    min: 0
+    required: false,
+    default: null
   },
   // Amount specifically payable by the user (might differ from finalAmount in plan cases)
   userPayableAmount: {
@@ -265,11 +275,11 @@ const bookingSchema = new mongoose.Schema({
   // ==========================================
   address: {
     type: { type: String, default: 'home' },
-    addressLine1: { type: String, required: true },
+    addressLine1: { type: String, default: '' },
     addressLine2: { type: String, default: '' },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    pincode: { type: String, required: true },
+    city: { type: String, default: '' },
+    state: { type: String, default: '' },
+    pincode: { type: String, default: '' },
     landmark: { type: String, default: '' },
     lat: { type: Number, default: null },
     lng: { type: Number, default: null }
@@ -285,13 +295,13 @@ const bookingSchema = new mongoose.Schema({
   },
   scheduledTime: {
     type: String,
-    required: [true, 'Scheduled time is required']
+    default: null
   },
   timeSlot: {
-    start: { type: String, required: true },
-    end: { type: String, required: true },
-    date: { type: String }, // redundant but kept for frontend convenience format
-    time: { type: String }  // redundant but kept for frontend convenience format
+    start: { type: String, default: '' },
+    end: { type: String, default: '' },
+    date: { type: String },
+    time: { type: String }
   },
   rental_type: {
     type: String,

@@ -67,7 +67,7 @@ const notify = async ({
 };
 
 /** Check if a worker has a conflicting confirmed booking or accepted request */
-const hasTimeConflict = async (workerId, scheduledDate, startTime, endTime) => {
+const hasTimeConflict = async (workerId, scheduledDate, startTime, endTime, excludeRequestId = null) => {
   const dateStart = new Date(scheduledDate);
   dateStart.setHours(0, 0, 0, 0);
   const dateEnd = new Date(dateStart);
@@ -84,7 +84,7 @@ const hasTimeConflict = async (workerId, scheduledDate, startTime, endTime) => {
   if (bookingConflict) return true;
 
   // Check accepted broadcast requests this worker is part of
-  const reqConflict = await WorkerBookingRequest.findOne({
+  const reqQuery = {
     'dispatchedTo': {
       $elemMatch: { workerId, status: 'accepted' }
     },
@@ -92,7 +92,13 @@ const hasTimeConflict = async (workerId, scheduledDate, startTime, endTime) => {
     status: { $in: ['pending', 'awaiting_farmer_confirmation', 'confirmed'] },
     startTime: { $lt: endTime },
     endTime:   { $gt: startTime }
-  });
+  };
+  
+  if (excludeRequestId) {
+    reqQuery._id = { $ne: excludeRequestId };
+  }
+  
+  const reqConflict = await WorkerBookingRequest.findOne(reqQuery);
   return !!reqConflict;
 };
 
@@ -603,8 +609,8 @@ exports.getFarmerRequestById = async (req, res) => {
       farmerId,
       requestType: { $in: ['independent_broadcast', 'team_leader'] }
     })
-      .populate('dispatchedTo.workerId', 'name profilePhoto skills rating location status')
-      .populate('finalWorkers',          'name profilePhoto skills rating');
+      .populate('dispatchedTo.workerId', 'name profilePhoto skills rating location status phone')
+      .populate('finalWorkers',          'name profilePhoto skills rating phone');
 
     if (!request) {
       return res.status(404).json({ success: false, message: 'Request not found.' });
@@ -722,7 +728,7 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
     if (action === 'accept') {
       // Final availability re-check for this worker
       const conflict = await hasTimeConflict(
-        workerId, updated.scheduledDate, updated.startTime, updated.endTime
+        workerId, updated.scheduledDate, updated.startTime, updated.endTime, request._id
       );
       if (conflict) {
         // Rollback this worker's acceptance
@@ -880,7 +886,7 @@ exports.farmerConfirmRequest = async (req, res) => {
 
     for (const entry of acceptedEntries) {
       const conflict = await hasTimeConflict(
-        entry.workerId, request.scheduledDate, request.startTime, request.endTime
+        entry.workerId, request.scheduledDate, request.startTime, request.endTime, request._id
       );
       if (!conflict) {
         stillAvailable.push(entry.workerId);
@@ -904,19 +910,33 @@ exports.farmerConfirmRequest = async (req, res) => {
       userId:        farmerId,
       workerId:      wId,
       providerType:  'WORKER',
-      workerRequestId: request._id, // reference back
+      workerRequestId: request._id,
       scheduledDate: request.scheduledDate,
+      scheduledTime: request.startTime,
       timeSlot: {
         start: request.startTime,
         end:   request.endTime
       },
-      location: request.location,
+      serviceName:     request.workTitle,
+      serviceCategory: request.workCategory || 'Worker',
+      basePrice:    null,
+      minRate:      request.minRate,
+      maxRate:      request.maxRate || request.minRate,
+      finalAmount:  null,
+      totalAmount:  null,
+      address: {
+        addressLine1: request.location?.addressLine1 || request.location?.city || '',
+        city:         request.location?.city || '',
+        state:        request.location?.state || '',
+        pincode:      request.location?.pincode || '',
+        lat:          request.location?.lat || null,
+        lng:          request.location?.lng || null,
+      },
       agreedRate:  request.minRate,
-      rateUnit:    request.rateUnit,
-      totalAmount: 0,
-      finalAmount: 0,
+      rateUnit:    request.rateUnit || 'hourly',
       status:      'confirmed',
-      notes:       `${request.workTitle}: ${request.workDescription}`.substring(0, 500)
+      paymentMethod: null,
+      notes:       `${request.workTitle}: ${request.workDescription || ''}`.substring(0, 500)
     }));
 
     const createdBookings = await Booking.insertMany(bookingDocs);

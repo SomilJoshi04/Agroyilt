@@ -152,7 +152,9 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
                   <div className="flex-1">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Offered Rate</p>
                     <p className="text-sm font-black text-gray-800">
-                      ₹{requestData.farmerOfferedRate || 0}
+                      ₹{requestData.minRate || requestData.farmerOfferedRate || 0}
+                      {requestData.maxRate && requestData.maxRate > requestData.minRate ? ` - ₹${requestData.maxRate}` : ''}
+                      {requestData.rateUnit ? <span className="text-[10px] text-gray-500 font-bold uppercase ml-1">/ {requestData.rateUnit}</span> : ''}
                     </p>
                   </div>
                 </div>
@@ -164,7 +166,7 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
                   <div className="flex-1">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date & Time</p>
                     <p className="text-sm font-bold text-gray-800">
-                      {requestData.scheduledDate ? new Date(requestData.scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }) : 'N/A'} • {requestData.startTime || 'N/A'}
+                      {requestData.scheduledDate ? new Date(requestData.scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }) : 'N/A'} • {requestData.startTime || 'N/A'}{requestData.endTime ? ` - ${requestData.endTime}` : ''}
                     </p>
                   </div>
                 </div>

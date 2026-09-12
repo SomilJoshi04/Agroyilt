@@ -68,6 +68,14 @@ const JobDetails = () => {
 
   useEffect(() => {
     fetchJobDetails();
+    
+    // Listen for socket events that update worker jobs
+    const handleUpdate = () => {
+      fetchJobDetails();
+    };
+    
+    window.addEventListener('workerJobsUpdated', handleUpdate);
+    return () => window.removeEventListener('workerJobsUpdated', handleUpdate);
   }, [id]);
 
   // Socket for live location tracking
@@ -349,15 +357,33 @@ const JobDetails = () => {
 
     if (statusLower === 'work_done') {
       return (
-        <button
-          onClick={() => handleStatusUpdate('collect')}
-          disabled={actionLoading}
-          className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg ${isSticky ? '' : 'mb-4'}`}
-          style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }}
-        >
-          <FiFileText className="w-5 h-5" /> PREPARE BILL
-        </button>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+          <p className="text-blue-800 font-bold mb-1">Waiting for Farmer to Pay</p>
+          <p className="text-blue-600 text-sm">The farmer is selecting the payment method. You'll be notified when they choose cash or online payment.</p>
+        </div>
       );
+    }
+
+    if (statusLower === 'awaiting_payment') {
+      if (job.paymentMethod === 'cash') {
+        return (
+          <button
+            onClick={() => handleStatusUpdate('collect')}
+            disabled={actionLoading}
+            className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg ${isSticky ? '' : 'mb-4'}`}
+            style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }}
+          >
+            <FiDollarSign className="w-5 h-5" /> COLLECT CASH
+          </button>
+        );
+      } else {
+        return (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
+            <p className="text-yellow-800 font-bold mb-1">Waiting for Payment</p>
+            <p className="text-yellow-600 text-sm">The farmer is completing the online payment.</p>
+          </div>
+        );
+      }
     }
 
     if (statusLower === 'completed') {
@@ -666,26 +692,24 @@ const JobDetails = () => {
           isOpen={isCompletionModalOpen}
           onClose={() => setIsCompletionModalOpen(false)}
           job={job}
-          onComplete={(photos) => {
-            // Pass photos to the handler
-            setWorkPhotos(photos);
-            (async () => {
-              try {
-                setActionLoading(true);
-                const response = await workerService.completeJob(id, { workPhotos: photos });
-                if (response && response.success) {
-                  toast.success(response.message || 'Updated successfully');
-                  setIsCompletionModalOpen(false);
-                  fetchJobDetails();
-                }
-                setActionLoading(false);
-              } catch (error) {
-                toast.error(error.response?.data?.message || 'Action failed');
-                setActionLoading(false);
-              }
-            })();
-          }}
           loading={actionLoading}
+          onComplete={async (photos) => {
+            try {
+              setActionLoading(true);
+              const response = await workerService.completeJob(id, { workPhotos: photos });
+              if (response && response.success) {
+                toast.success(response.message || 'Job Completed successfully');
+                setIsCompletionModalOpen(false);
+                fetchJobDetails();
+              } else {
+                toast.error(response?.message || 'Failed to complete job');
+              }
+            } catch (error) {
+              toast.error(error.response?.data?.message || 'Failed to complete job');
+            } finally {
+              setActionLoading(false);
+            }
+          }}
         />
       </Suspense>
 

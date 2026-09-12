@@ -71,21 +71,8 @@ export const rejectBooking = async (bookingId, reason = '') => {
   }
 };
 
-/**
- * Assign worker to booking
- * @param {string} bookingId - Booking ID
- * @param {string} workerId - Worker ID (or 'SELF')
- * @returns {Promise<Object>} Updated booking
- */
-export const assignWorker = async (bookingId, workerId) => {
-  try {
-    const response = await api.post(`/vendors/bookings/${bookingId}/assign-worker`, { workerId });
-    return response.data;
-  } catch (error) {
-    console.error('Error assigning worker:', error);
-    throw error;
-  }
-};
+// assignWorker removed — Workers are independent users, not Vendor-managed
+
 
 /**
  * Update booking status

@@ -202,7 +202,7 @@ app.use('/api/vendors', require('./routes/vendor-routes/dashboard.routes'));
 app.use('/api/vendors/ledger', require('./routes/vendor-routes/vendorLedger.routes'));
 app.use('/api/vendors', require('./routes/vendor-routes/service.routes'));
 app.use('/api/vendors/bookings', require('./routes/vendor-routes/booking.routes'));
-app.use('/api/vendors/workers', require('./routes/vendor-routes/worker.routes'));
+// NOTE: Vendor Worker management removed — Workers are independent users, not Vendor-owned
 app.use('/api/vendors/fcm-tokens', require('./routes/vendor-routes/fcmToken.routes'));
 app.use('/api/vendors', require('./routes/vendor-routes/vendorBill.routes'));
 

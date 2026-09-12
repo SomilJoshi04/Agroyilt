@@ -269,14 +269,29 @@ const verifyPaymentWebhook = async (req, res) => {
     }
 
     if (booking.workerId) {
+      let workerTitle = vendorTitle;
+      let workerMsg = vendorMsg;
+      if (!booking.vendorId) {
+        // Independent Worker
+        const workerEarning = bill ? bill.vendorTotalEarning : (booking.finalAmount * 0.8);
+        workerTitle = 'Payment Received (Online)';
+        workerMsg = booking.status === BOOKING_STATUS.COMPLETED ? 
+          `Payment of ₹${booking.finalAmount} received successfully. Earnings of ₹${workerEarning} credited to your wallet.` : 
+          `Payment of ₹${booking.finalAmount} received successfully.`;
+      }
+      
       await createNotification({
         workerId: booking.workerId,
         type: 'payment_success',
-        title: vendorTitle,
-        message: vendorMsg,
+        title: workerTitle,
+        message: workerMsg,
         relatedId: booking._id,
         relatedType: 'booking',
-        priority: 'high'
+        priority: 'high',
+        pushData: {
+          type: 'payment_success',
+          bookingId: booking._id.toString()
+        }
       });
     }
 
@@ -285,6 +300,14 @@ const verifyPaymentWebhook = async (req, res) => {
     if (io) {
       if (booking.vendorId) {
         io.to(`vendor_${booking.vendorId}`).emit('booking_updated', {
+          bookingId: booking._id,
+          status: booking.status,
+          paymentStatus: booking.paymentStatus,
+          paymentMethod: booking.paymentMethod
+        });
+      }
+      if (booking.workerId) {
+        io.to(`worker_${booking.workerId}`).emit('booking_updated', {
           bookingId: booking._id,
           status: booking.status,
           paymentStatus: booking.paymentStatus,

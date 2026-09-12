@@ -70,6 +70,16 @@ export const bookingService = {
   calculatePrice: async (payload) => {
     const response = await api.post('/users/bookings/calculate-price', payload);
     return response.data;
+  },
+
+  // ── INDEPENDENT WORKER FLOW ──
+  confirmFinalAmount: async (id, payload) => {
+    const response = await api.post(`/users/bookings/${id}/confirm-amount`, payload);
+    return response.data;
+  },
+  selectOfflinePayment: async (id) => {
+    const response = await api.post(`/users/bookings/${id}/select-offline-payment`);
+    return response.data;
   }
 };
 

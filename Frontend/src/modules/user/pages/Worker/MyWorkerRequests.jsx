@@ -275,7 +275,7 @@ const MyWorkerRequests = () => {
       <div className="bg-white sticky top-0 z-40 border-b border-slate-100">
         <div className="px-5 py-4 max-w-xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600">
+            <button onClick={() => navigate('/user')} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600">
               <FiArrowLeft size={20} />
             </button>
             <h1 className="text-xl font-black text-slate-800">Worker Requests</h1>

@@ -132,7 +132,13 @@ const FarmerRequestDetail = () => {
       <div className="bg-white sticky top-0 z-40 border-b border-slate-100 px-5 py-4">
         <div className="max-w-xl mx-auto flex items-center gap-4">
           <button
-            onClick={() => navigate('/user/my-worker-requests')}
+            onClick={() => {
+              if (window.history.length > 2) {
+                navigate(-1);
+              } else {
+                navigate('/user/my-worker-requests', { replace: true });
+              }
+            }}
             className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 active:scale-95"
           >
             <FiArrowLeft size={20} />
@@ -279,23 +285,44 @@ const FarmerRequestDetail = () => {
               {request.dispatchedTo.map((entry, i) => {
                 const worker = entry.workerId;
                 const wConf  = WORKER_STATUS_CONFIG[entry.status] || { color: 'bg-slate-100 text-slate-600', label: entry.status };
+                const isAccepted = entry.status === 'accepted';
                 return (
-                  <div key={entry._id || i} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
-                    {/* Avatar */}
-                    <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-black text-sm shrink-0">
-                      {worker?.name ? worker.name.charAt(0).toUpperCase() : '?'}
+                  <div key={entry._id || i} className={`py-3 border-b border-slate-50 last:border-0 ${isAccepted ? 'bg-emerald-50/50 rounded-2xl px-3 -mx-1' : ''}`}>
+                    <div className="flex items-center gap-3">
+                      {/* Avatar */}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${isAccepted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {worker?.name ? worker.name.charAt(0).toUpperCase() : '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-800 truncate">
+                          {worker?.name || 'Worker'}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {worker?.rating > 0 && (
+                            <span className="text-xs text-slate-400">⭐ {worker.rating.toFixed(1)}</span>
+                          )}
+                          {isAccepted && worker?.phone && (
+                            <span className="text-xs text-slate-500 font-medium">📞 {worker.phone}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isAccepted && worker?.phone && (
+                          <a
+                            href={`tel:${worker.phone}`}
+                            className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center active:scale-95 transition-transform"
+                            title={`Call ${worker.name}`}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                              <path fillRule="evenodd" d="M1.5 4.5a3 3 0 013-3h1.372c.86 0 1.61.586 1.819 1.42l1.105 4.423a1.875 1.875 0 01-.694 1.955l-1.293.97c-.135.101-.164.249-.126.352a11.285 11.285 0 006.697 6.697c.103.038.25.009.352-.126l.97-1.293a1.875 1.875 0 011.955-.694l4.423 1.105c.834.209 1.42.959 1.42 1.82V19.5a3 3 0 01-3 3h-2.25C8.552 22.5 1.5 15.448 1.5 6.75V4.5z" clipRule="evenodd" />
+                            </svg>
+                          </a>
+                        )}
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${wConf.color}`}>
+                          {wConf.label}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-800 truncate">
-                        {worker?.name || 'Worker'}
-                      </p>
-                      {worker?.rating > 0 && (
-                        <p className="text-xs text-slate-400">⭐ {worker.rating.toFixed(1)}</p>
-                      )}
-                    </div>
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${wConf.color}`}>
-                      {wConf.label}
-                    </span>
                   </div>
                 );
               })}
@@ -324,13 +351,27 @@ const FarmerRequestDetail = () => {
             <div className="space-y-2">
               {request.finalWorkers.map((w, i) => (
                 <div key={w._id || i} className="flex items-center gap-3 bg-white rounded-2xl px-3 py-2.5">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-sm">
+                  <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-sm shrink-0">
                     {w.name?.charAt(0) || '?'}
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-slate-800">{w.name || 'Worker'}</p>
-                    {w.rating > 0 && <p className="text-xs text-slate-400">⭐ {w.rating.toFixed(1)}</p>}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {w.rating > 0 && <span className="text-xs text-slate-400">⭐ {w.rating.toFixed(1)}</span>}
+                      {w.phone && <span className="text-xs text-slate-500 font-medium">📞 {w.phone}</span>}
+                    </div>
                   </div>
+                  {w.phone && (
+                    <a
+                      href={`tel:${w.phone}`}
+                      className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center active:scale-95 transition-transform shrink-0"
+                      title={`Call ${w.name}`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                        <path fillRule="evenodd" d="M1.5 4.5a3 3 0 013-3h1.372c.86 0 1.61.586 1.819 1.42l1.105 4.423a1.875 1.875 0 01-.694 1.955l-1.293.97c-.135.101-.164.249-.126.352a11.285 11.285 0 006.697 6.697c.103.038.25.009.352-.126l.97-1.293a1.875 1.875 0 011.955-.694l4.423 1.105c.834.209 1.42.959 1.42 1.82V19.5a3 3 0 01-3 3h-2.25C8.552 22.5 1.5 15.448 1.5 6.75V4.5z" clipRule="evenodd" />
+                      </svg>
+                    </a>
+                  )}
                 </div>
               ))}
             </div>

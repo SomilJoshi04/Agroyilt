@@ -26,7 +26,8 @@ import {
   FiAlertCircle,
   FiCamera,
   FiAlertTriangle,
-  FiCheckSquare
+  FiCheckSquare,
+  FiDollarSign
 } from 'react-icons/fi';
 import { FaRupeeSign } from 'react-icons/fa';
 import { bookingService } from '../../../../services/bookingService';
@@ -160,6 +161,10 @@ const BookingDetails = () => {
     email: 'agroyilt@gmail.com',
     phone: '+91 91177 04450'
   });
+
+  const [farmerFinalAmount, setFarmerFinalAmount] = useState('');
+  const [confirmingAmount, setConfirmingAmount] = useState(false);
+  const [isEditingAmount, setIsEditingAmount] = useState(false);
 
   const socket = useAppNotifications();
 
@@ -508,11 +513,16 @@ const BookingDetails = () => {
   const handlePayAtHome = async () => {
     try {
       toast.loading('Confirming request...');
-      const response = await paymentService.confirmPayAtHome(booking._id || booking.id);
+      let response;
+      if (booking.workerId && !booking.vendorId) {
+        response = await bookingService.selectOfflinePayment(booking._id || booking.id);
+      } else {
+        response = await paymentService.confirmPayAtHome(booking._id || booking.id);
+      }
       toast.dismiss();
 
       if (response.success) {
-        toast.success('Booking confirmed!');
+        toast.success('Offline payment selected! Provide the OTP to the worker.');
         loadBooking();
       } else {
         toast.error(response.message || 'Failed to confirm booking');
@@ -520,6 +530,34 @@ const BookingDetails = () => {
     } catch (error) {
       toast.dismiss();
       toast.error('Failed to process request');
+    }
+  };
+
+  const handleConfirmFinalAmount = async () => {
+    if (!farmerFinalAmount || isNaN(farmerFinalAmount)) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    const amount = Number(farmerFinalAmount);
+    if (amount < (booking.minRate || 0) || amount > (booking.maxRate || Infinity)) {
+      toast.error(`Amount must be between ₹${booking.minRate} and ₹${booking.maxRate}`);
+      return;
+    }
+
+    try {
+      setConfirmingAmount(true);
+      const response = await bookingService.confirmFinalAmount(booking._id || booking.id, { finalAmount: amount });
+      if (response.success) {
+        toast.success('Final amount confirmed!');
+        loadBooking();
+      } else {
+        toast.error(response.message || 'Failed to confirm amount');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to confirm amount');
+    } finally {
+      setConfirmingAmount(false);
+      setIsEditingAmount(false);
     }
   };
 
@@ -1721,15 +1759,19 @@ const BookingDetails = () => {
             </div>
           </section>
 
-          {/* Action Card for Awaiting Payment */}
-          {booking.status === 'awaiting_payment' && (
+          {/* Action Card for Payment — shows for work_done (independent worker) or awaiting_payment (all) */}
+          {(booking.status === 'awaiting_payment' || (booking.status === 'work_done' && !booking.vendorId && booking.workerId)) && (
             <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 p-6 space-y-4">
               <div className="text-center mb-4">
                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <FiDollarSign className="w-8 h-8 text-orange-600" />
                 </div>
                 <h3 className="text-lg font-bold text-black">Payment Required</h3>
-                <p className="text-sm text-gray-500">The vendor has accepted your request. Please choose a payment method to confirm your booking.</p>
+                <p className="text-sm text-gray-500">
+                  {!booking.vendorId && booking.workerId
+                    ? `The worker has completed the job. Pay ₹${booking.finalAmount || booking.totalAmount || booking.basePrice || '—'} to settle.`
+                    : 'The service is complete. Please choose a payment method to settle the bill.'}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 gap-3">
@@ -1747,8 +1789,81 @@ const BookingDetails = () => {
                   className="w-full py-4 rounded-xl font-bold text-gray-700 bg-gray-100 flex items-center justify-center gap-2 active:scale-95 transition-transform"
                 >
                   <FiHome className="w-5 h-5" />
-                  Pay at Home (After Service)
+                  Pay Offline (Cash)
                 </button>
+              </div>
+              
+              {/* Show OTP for Independent Worker Offline Payment */}
+              {booking.paymentMethod === 'cash' && (booking.customerConfirmationOTP || booking.paymentOtp) && (
+                <div className="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-2xl text-center">
+                   <p className="text-sm font-bold text-teal-800 mb-2">Share this OTP with the worker to confirm cash payment</p>
+                   <div className="text-3xl tracking-[0.5em] font-black text-teal-600">{booking.customerConfirmationOTP || booking.paymentOtp}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* If farmer confirmed amount but work not done yet, show waiting message */}
+          {['visited', 'in_progress', 'journey_started'].includes(booking.status) && !booking.vendorId && booking.workerId && booking.finalAmount > 0 && !isEditingAmount && (
+            <div className="bg-blue-50 border border-blue-200 rounded-3xl p-6 text-center">
+              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <FiClock className="w-7 h-7 text-blue-600 animate-spin" style={{ animationDuration: '4s' }} />
+              </div>
+              <h3 className="text-base font-bold text-blue-800">Amount Confirmed ✓</h3>
+              <p className="text-sm text-blue-600 mt-1 mb-4">
+                You've confirmed <span className="font-black">₹{booking.finalAmount}</span>. Waiting for the worker to complete the job.
+              </p>
+              <button
+                onClick={() => {
+                  setFarmerFinalAmount(booking.finalAmount);
+                  setIsEditingAmount(true);
+                }}
+                className="px-6 py-2 bg-white border border-blue-200 text-blue-600 font-bold rounded-xl shadow-sm hover:bg-blue-50 active:scale-95 transition-all text-sm flex items-center gap-2 mx-auto"
+              >
+                <FiEdit2 className="w-4 h-4" /> Edit Amount
+              </button>
+            </div>
+          )}
+
+          {/* Action Card for Confirming Final Amount (Independent Worker) */}
+          {['visited', 'in_progress', 'journey_started', 'accepted', 'confirmed'].includes(booking.status) && !booking.vendorId && booking.workerId && (!booking.finalAmount || isEditingAmount) && (
+            <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 p-6 space-y-4">
+              <div className="text-center mb-4">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <FiCheckSquare className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-bold text-black">Confirm Final Amount</h3>
+                <p className="text-sm text-gray-500">
+                  Please discuss and confirm the final payable amount with the worker (must be between ₹{booking.minRate} and ₹{booking.maxRate}). This must be done before the worker completes the job.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <input
+                  type="number"
+                  placeholder={`Amount (₹${booking.minRate} - ₹${booking.maxRate})`}
+                  value={farmerFinalAmount}
+                  onChange={(e) => setFarmerFinalAmount(e.target.value)}
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-lg font-bold text-center"
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleConfirmFinalAmount}
+                    disabled={confirmingAmount}
+                    className="flex-1 py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform disabled:opacity-50"
+                    style={{ background: themeColors.button }}
+                  >
+                    {confirmingAmount ? 'Confirming...' : 'Confirm Final Amount'}
+                  </button>
+                  {isEditingAmount && (
+                    <button
+                      onClick={() => setIsEditingAmount(false)}
+                      className="px-6 py-4 rounded-xl font-bold text-gray-700 bg-gray-100 flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-transform"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}

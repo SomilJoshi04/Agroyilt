@@ -805,25 +805,32 @@ const createBooking = async (req, res) => {
 
         if (io) {
           wave1Workers.forEach(worker => {
-            io.to(`worker_${worker._id}`).emit('new_job_alert', {
-              bookingId: booking._id,
-              serviceName: service.title,
-              serviceCategory: category ? category.title : 'Category',
-              customerName: user.name,
-              customerPhone: user.phone,
-              scheduledDate: scheduledDate,
-              scheduledTime: scheduledTime,
-              price: finalAmount,
-              basePrice: basePrice,
-              address: address,
-              distance: worker.distance,
-              brandName: service.brand || '',
-              brandIcon: service.brandIcon || '',
-              rental_type: service.pricingType || '',
-              estimatedDuration: booking.estimatedDuration || '',
-              landSize: address.landSize || '',
-              playSound: true,
-              message: `New job request within ${worker.distance?.toFixed(1) || '?'}km!`
+            io.to(`worker_${worker._id}`).emit('notification', {
+              type: 'worker_booking_request',
+              title: 'New Job Alert!',
+              message: `New job request within ${worker.distance?.toFixed(1) || '?'}km!`,
+              relatedId: booking._id,
+              data: {
+                requestId: booking._id, // Map to what the frontend expects
+                bookingId: booking._id,
+                serviceName: service.title,
+                serviceCategory: category ? category.title : 'Category',
+                customerName: user.name,
+                customerPhone: user.phone,
+                scheduledDate: scheduledDate,
+                scheduledTime: scheduledTime,
+                price: finalAmount,
+                basePrice: basePrice,
+                address: address,
+                distance: worker.distance,
+                brandName: service.brand || '',
+                brandIcon: service.brandIcon || '',
+                rental_type: service.pricingType || '',
+                estimatedDuration: booking.estimatedDuration || '',
+                landSize: address.landSize || '',
+                playSound: true,
+                isFarmerBroadcast: false // It's a direct booking request, not a broadcast
+              }
             });
           });
         }
@@ -1803,3 +1810,145 @@ module.exports = {
   calculatePrice
 };
 
+/**
+ * Confirm final amount for Independent Worker booking (by Farmer)
+ */
+const farmerConfirmFinalAmount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { finalAmount } = req.body;
+    const userId = req.user.id;
+
+    const booking = await Booking.findOne({ _id: id, userId });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.vendorId) {
+      return res.status(400).json({ success: false, message: 'This operation is only for Independent Worker bookings' });
+    }
+
+    if (
+      booking.status !== BOOKING_STATUS.WORK_DONE &&
+      booking.status !== BOOKING_STATUS.IN_PROGRESS &&
+      booking.status !== BOOKING_STATUS.ACCEPTED &&
+      booking.status !== BOOKING_STATUS.VISITED &&
+      booking.status !== BOOKING_STATUS.JOURNEY_STARTED
+    ) {
+      return res.status(400).json({ success: false, message: `Cannot confirm amount for booking in status: ${booking.status}` });
+    }
+
+    const amount = Number(finalAmount);
+    const min = booking.minRate || 0;
+    const max = booking.maxRate || booking.minRate || 0;
+
+    if (isNaN(amount) || amount < min || amount > max) {
+      return res.status(400).json({
+        success: false,
+        message: `Final amount must be between ₹${min} and ₹${max}`
+      });
+    }
+
+    booking.finalAmount = amount;
+    booking.userPayableAmount = amount;
+    booking.basePrice = amount;
+    booking.totalAmount = amount;
+    
+    // Only move to AWAITING_PAYMENT if the work was already marked as done
+    if (booking.status === BOOKING_STATUS.WORK_DONE) {
+      booking.status = BOOKING_STATUS.AWAITING_PAYMENT;
+    }
+
+    await booking.save();
+
+    // Notify Worker
+    await createNotification({
+      workerId: booking.workerId,
+      type: 'worker_final_amount_confirmed',
+      title: 'Amount Confirmed',
+      message: `Final amount of ₹${amount} has been confirmed by the Farmer. Waiting for payment.`,
+      relatedId: booking._id,
+      relatedType: 'booking',
+      pushData: {
+        type: 'worker_final_amount_confirmed',
+        bookingId: booking._id.toString()
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Final amount confirmed successfully',
+      data: { finalAmount: amount, status: booking.status }
+    });
+
+  } catch (error) {
+    console.error('Farmer confirm final amount error:', error);
+    res.status(500).json({ success: false, message: 'Failed to confirm amount' });
+  }
+};
+
+/**
+ * Farmer selects Offline Payment (Cash)
+ * This generates the OTP for the Worker to collect cash.
+ */
+const farmerSelectOfflinePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const booking = await Booking.findOne({ _id: id, userId });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.status !== BOOKING_STATUS.AWAITING_PAYMENT && booking.status !== BOOKING_STATUS.WORK_DONE) {
+      return res.status(400).json({ success: false, message: `Cannot select payment for booking in status: ${booking.status}` });
+    }
+
+    if (booking.finalAmount == null) {
+      return res.status(400).json({ success: false, message: 'Final amount not confirmed yet' });
+    }
+
+    // Set payment method to cash
+    booking.paymentMethod = 'cash';
+    booking.status = BOOKING_STATUS.AWAITING_PAYMENT;
+    
+    // Generate OTP
+    const payOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    booking.customerConfirmationOTP = payOtp;
+    booking.paymentOtp = payOtp;
+
+    await booking.save();
+
+    // Notify Worker that Farmer selected offline payment and to collect cash
+    await createNotification({
+      workerId: booking.workerId,
+      type: 'payment_received', // Repurposing or a custom one
+      title: 'Collect Cash',
+      message: `Farmer selected offline payment. Please collect ₹${booking.finalAmount} and enter the OTP provided by the Farmer.`,
+      relatedId: booking._id,
+      relatedType: 'booking',
+      pushData: {
+        type: 'offline_payment_selected',
+        bookingId: booking._id.toString()
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Offline payment selected',
+      data: {
+        paymentOtp: payOtp
+      }
+    });
+
+  } catch (error) {
+    console.error('Farmer select offline payment error:', error);
+    res.status(500).json({ success: false, message: 'Failed to select offline payment' });
+  }
+};
+
+module.exports.farmerConfirmFinalAmount = farmerConfirmFinalAmount;
+module.exports.farmerSelectOfflinePayment = farmerSelectOfflinePayment;

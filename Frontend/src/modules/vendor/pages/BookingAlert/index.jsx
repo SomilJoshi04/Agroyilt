@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { acceptBooking, rejectBooking, assignWorker } from '../../services/bookingService';
+import { acceptBooking, rejectBooking } from '../../services/bookingService';
 import BookingAlertModal from '../../components/bookings/BookingAlertModal';
 import { toast } from 'react-hot-toast';
 import { useSocket } from '../../../../context/SocketContext'; // Import socket context
