@@ -94,6 +94,22 @@ const notificationSchema = new mongoose.Schema({
       'team_member_joined',
       'team_member_left',
       'team_member_removed',
+      // Worker Booking System
+      'worker_booking_request',
+      'worker_booking_accepted',
+      'worker_booking_rejected',
+      'worker_booking_counter',
+      'worker_booking_confirmed',
+      'group_booking_request',
+      'group_booking_accepted',
+      'group_booking_rejected',
+      'group_booking_counter',
+      'group_booking_confirmed',
+      'group_member_request',
+      'group_member_accepted',
+      'group_member_rejected',
+      'group_member_selected',
+      'group_member_not_selected',
       'general'
     ],
     index: true
@@ -116,7 +132,7 @@ const notificationSchema = new mongoose.Schema({
   },
   relatedType: {
     type: String,
-    enum: ['booking', 'payment', 'user', 'vendor', 'worker', 'service', 'scrap', 'withdrawal', 'team', 'team_request'],
+    enum: ['booking', 'payment', 'user', 'vendor', 'worker', 'service', 'scrap', 'withdrawal', 'team', 'team_request', 'worker_booking_request', 'worker_group_request'],
     default: null
   },
   // Notification Status

@@ -52,7 +52,6 @@ async function registerServiceWorker() {
       // Force unregister existing service workers to fix the "stuck in waiting to activate" Chrome DevTools bug
       const existingRegistrations = await navigator.serviceWorker.getRegistrations();
       for (let reg of existingRegistrations) {
-        console.log('[SW] Unregistering old/stuck service worker:', reg.scope);
         await reg.unregister();
       }
 
@@ -74,19 +73,14 @@ async function registerServiceWorker() {
  * @returns {Promise<boolean>}
  */
 async function requestNotificationPermission() {
-  console.log('🔄 Requesting notification permission...');
   if ('Notification' in window) {
     const permission = await Notification.requestPermission();
-    console.log('Permission response:', permission);
     if (permission === 'granted') {
-      console.log('✅ Notification permission granted');
       return true;
     } else {
-      console.warn('❌ Notification permission denied. Current status:', permission);
       return false;
     }
   }
-  console.error('❌ Notifications not supported in this browser environment');
   return false;
 }
 
@@ -115,15 +109,11 @@ async function getFCMToken() {
     const token = await Promise.race([tokenPromise, timeoutPromise]);
 
     if (token) {
-      console.log('✅ FCM Token obtained:', token.substring(0, 20) + '...');
       return token;
     } else {
-      console.log('❌ No FCM token available');
       return null;
     }
   } catch (error) {
-    console.warn('❌ [ATTENTION] Error getting FCM token:', error.message || error);
-    console.warn('❌ [ATTENTION] Full Error Object:', error);
     return null;
   }
 }
@@ -136,24 +126,18 @@ async function getFCMToken() {
  */
 async function registerFCMToken(userType = 'user', forceUpdate = false) {
   try {
-    console.log(`[FCM] Starting registration for ${userType}, forceUpdate: ${forceUpdate}`);
-
     const platform = getPlatformType();
 
     // Check if running in Flutter WebView
     if (isFlutterWebView()) {
-      console.log('[FCM] Running inside Flutter WebView. Checking for native FCM token bridge...');
       try {
         const result = await window.flutter_inappwebview.callHandler('getFCMToken');
         if (result && result.success && result.token) {
-          console.log('[FCM] ✅ Got native FCM token from Flutter Bridge:', result.token.substring(0, 20) + '...');
           return await saveTokenToBackend(result.token, userType, 'mobile');
         }
       } catch (err) {
-        console.warn('[FCM] Native getFCMToken bridge call failed or not implemented:', err);
+        // Flutter bridge not available, continue silently
       }
-      
-      console.log('[FCM] ℹ️ Skipping Web FCM registration in WebView. Native app will handle notifications.');
       return null;
     }
 
@@ -161,26 +145,16 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
     const storageKey = `fcm_token_${userType}_web`;
     const savedToken = localStorage.getItem(storageKey);
     if (savedToken && !forceUpdate) {
-      console.log('[FCM] Token already registered in localStorage');
       return savedToken;
     }
 
     // Request permission
-    console.log('[FCM] Requesting notification permission...');
     const hasPermission = await requestNotificationPermission();
-    if (!hasPermission) {
-      console.log('[FCM] ❌ Notification permission not granted, skipping FCM registration');
-      return null;
-    }
+    if (!hasPermission) return null;
 
     // Get token
-    console.log('[FCM] Getting FCM token from Firebase...');
     const token = await getFCMToken();
-    if (!token) {
-      console.log('[FCM] ❌ Failed to get FCM token from Firebase');
-      return null;
-    }
-    console.log('[FCM] ✅ Got FCM token:', token.substring(0, 30) + '...');
+    if (!token) return null;
 
     return await saveTokenToBackend(token, userType, 'web');
   } catch (error) {
@@ -241,13 +215,11 @@ async function saveTokenToBackend(token, userType, platform) {
     // Get auth token
     const authToken = localStorage.getItem(authTokenKey);
     if (!authToken) {
-      console.log(`[FCM] ❌ No auth token found for ${userType} (${authTokenKey}), skipping registration`);
       return null;
     }
 
     // Save to backend
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-    console.log(`[FCM] Saving token (${platform}) to backend: ${baseUrl}${endpoint}`);
 
     const payload = {
       token: token,
@@ -272,15 +244,11 @@ async function saveTokenToBackend(token, userType, platform) {
     if (response.ok) {
       const storageKey = `fcm_token_${userType}_${platform}`;
       localStorage.setItem(storageKey, token);
-      console.log(`[FCM] ✅ FCM token registered with backend successfully for platform: ${platform}`);
       return token;
     } else {
-      const error = await response.json();
-      console.error('[FCM] ❌ Failed to register token with backend:', error);
       return null;
     }
   } catch (error) {
-    console.error('[FCM] ❌ Error in saveTokenToBackend:', error);
     return null;
   }
 }
@@ -337,12 +305,10 @@ async function removeFCMToken(userType = 'user') {
           platform: platform
         })
       });
-      console.log(`[FCM] ✅ Token removed from backend`);
     }
 
     // Always remove from local storage
     localStorage.removeItem(storageKey);
-    console.log(`[FCM] Token cleared from localStorage`);
   } catch (error) {
     console.error('[FCM] Error removing FCM token:', error);
     // Ensure local cleanup happens even on error
@@ -363,19 +329,6 @@ function setupForegroundNotificationHandler(handler) {
   }
 
   onMessage(messaging, (payload) => {
-    console.log('📬 [FCM Service] Foreground message received:', payload);
-
-    const data = payload.data || {};
-    const notification = payload.notification || {};
-
-    // Use notification fields first, then data fields as fallback (for data-only messages)
-    const title = notification.title || data.title || 'New Notification';
-    const body = notification.body || data.body || '';
-    const icon = notification.icon || data.icon || '/AgroyiltLogo.png';
-    const type = data.type || data.notificationType || 'default';
-
-    console.log(`[FCM Service] Parsed Notification -> Title: "${title}", Body: "${body}", Type: "${type}"`);
-
     // Call custom handler (e.g. for toast)
     if (handler) {
       handler(payload);

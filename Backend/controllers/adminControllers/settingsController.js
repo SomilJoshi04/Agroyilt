@@ -52,7 +52,10 @@ exports.updateSettings = async (req, res, next) => {
       // Support Settings
       supportEmail, supportPhone, supportWhatsapp,
       // Branding Settings
-      appName, appTagline, appLogo, appFavicon
+      appName, appTagline, appLogo, appFavicon,
+      // Worker Hiring Routing Rules
+      maxIndependentWorkerRequest,
+      workerSearchRadiusKm
     } = req.body;
 
     let settings = await Settings.findOne({ type: 'global' });
@@ -123,6 +126,22 @@ exports.updateSettings = async (req, res, next) => {
       if (appTagline !== undefined) settings.appTagline = appTagline;
       if (appLogo !== undefined) settings.appLogo = appLogo;
       if (appFavicon !== undefined) settings.appFavicon = appFavicon;
+
+      // Worker Hiring Routing Rules
+      if (maxIndependentWorkerRequest !== undefined) {
+        const val = parseInt(maxIndependentWorkerRequest, 10);
+        if (isNaN(val) || val < 1) {
+          return res.status(400).json({ success: false, message: 'maxIndependentWorkerRequest must be a positive integer >= 1' });
+        }
+        settings.maxIndependentWorkerRequest = val;
+      }
+      if (workerSearchRadiusKm !== undefined) {
+        const val = Number(workerSearchRadiusKm);
+        if (isNaN(val) || val < 1) {
+          return res.status(400).json({ success: false, message: 'workerSearchRadiusKm must be a positive number >= 1' });
+        }
+        settings.workerSearchRadiusKm = val;
+      }
 
       await settings.save();
     }

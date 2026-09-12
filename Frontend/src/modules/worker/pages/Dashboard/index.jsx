@@ -10,6 +10,7 @@ import { SkeletonProfileHeader, SkeletonDashboardStats, SkeletonList } from '../
 import OptimizedImage from '../../../../components/common/OptimizedImage';
 import { useSocket } from '../../../../context/SocketContext';
 import WorkerJobAlertModal from '../../components/bookings/WorkerJobAlertModal';
+import WorkerBookingRequestAlertModal from '../../components/bookings/WorkerBookingRequestAlertModal';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
 
@@ -55,7 +56,9 @@ const Dashboard = () => {
     address: null,
     workerType: 'WORKER',
     teamId: null,
+    status: 'OFFLINE',
   });
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [recentJobs, setRecentJobs] = useState([]);
 
   // Set background gradient
@@ -81,6 +84,7 @@ const Dashboard = () => {
   const socket = useSocket();
 
   const [alertJobId, setAlertJobId] = useState(null);
+  const [incomingRequestData, setIncomingRequestData] = useState(null);
 
 
   // Fetch Dashboard Data Function
@@ -88,10 +92,11 @@ const Dashboard = () => {
     try {
       setLoading(true);
 
-      // Fetch Profile, Stats and Recent Jobs in parallel (Stats also includes recent jobs but let's be robust)
-      const [profileRes, statsRes] = await Promise.all([
+      // Fetch Profile, Stats, and Pending Requests in parallel
+      const [profileRes, statsRes, pendingRequestsRes] = await Promise.all([
         workerService.getProfile(),
-        workerService.getDashboardStats()
+        workerService.getDashboardStats(),
+        workerService.getPendingFarmerRequests().catch(() => ({ success: false, data: [] }))
       ]);
 
       if (profileRes.success) {
@@ -105,6 +110,7 @@ const Dashboard = () => {
           address: profile.address,
           workerType: profile.workerType || 'WORKER',
           teamId: profile.teamId || null,
+          status: profile.status || 'OFFLINE',
         });
       }
 
@@ -135,11 +141,53 @@ const Dashboard = () => {
         }
       }
 
+      // If there's any pending request, pop it up
+      if (pendingRequestsRes.success && pendingRequestsRes.data?.length > 0) {
+        const reqDoc = pendingRequestsRes.data[0];
+        setIncomingRequestData({
+          requestId:       reqDoc._id,
+          farmerId:        reqDoc.farmerId,
+          workTitle:       reqDoc.workTitle,
+          workCategory:    reqDoc.workCategory,
+          workDescription: reqDoc.workDescription,
+          requiredSkills:  reqDoc.requiredSkills,
+          requiredWorkers: reqDoc.requiredWorkers,
+          scheduledDate:   reqDoc.scheduledDate,
+          startTime:       reqDoc.startTime,
+          endTime:         reqDoc.endTime,
+          location:        reqDoc.location,
+          minRate:         reqDoc.minRate,
+          maxRate:         reqDoc.maxRate,
+          rateUnit:        reqDoc.rateUnit,
+          isFarmerBroadcast: true
+        });
+      }
+
       setLoading(false);
     } catch (err) {
       console.error('Dashboard fetch error:', err);
       setError('Failed to load dashboard data');
       setLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (e) => {
+    e.stopPropagation(); // Prevent clicking the profile card
+    if (isTogglingStatus) return;
+    
+    try {
+      setIsTogglingStatus(true);
+      const newStatus = workerProfile.status === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
+      
+      const res = await workerService.updateProfile({ status: newStatus });
+      
+      if (res.success) {
+        setWorkerProfile(prev => ({ ...prev, status: newStatus }));
+      }
+    } catch (err) {
+      console.error('Failed to toggle status:', err);
+    } finally {
+      setIsTogglingStatus(false);
     }
   };
 
@@ -154,10 +202,18 @@ const Dashboard = () => {
     const handleUpdate = () => {
       fetchDashboardData();
     };
+    
+    const handleIncomingBooking = (e) => {
+      console.log('Incoming Booking Request:', e.detail);
+      setIncomingRequestData(e.detail.data);
+    };
+
     window.addEventListener('workerJobsUpdated', handleUpdate);
+    window.addEventListener('workerIncomingBooking', handleIncomingBooking);
 
     return () => {
       window.removeEventListener('workerJobsUpdated', handleUpdate);
+      window.removeEventListener('workerIncomingBooking', handleIncomingBooking);
     };
 
   }, []);
@@ -252,11 +308,17 @@ const Dashboard = () => {
                   WELCOME !
                 </p>
                 <h2 className="text-base font-bold text-white truncate mb-0.5">{workerProfile.name}</h2>
-                {workerProfile.categories && workerProfile.categories.length > 0 && (
-                  <p className="text-xs text-white truncate font-medium opacity-90">
-                    {workerProfile.categories.join(', ')}
-                  </p>
-                )}
+                
+                {/* Status Toggle in Dashboard */}
+                <div 
+                  onClick={handleToggleStatus}
+                  className="inline-flex items-center gap-1.5 mt-1 bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md px-3 py-1 rounded-full cursor-pointer border border-white/30"
+                >
+                  <div className={`w-2 h-2 rounded-full ${workerProfile.status === 'ONLINE' ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]' : 'bg-red-400'}`}></div>
+                  <span className="text-xs font-bold text-white tracking-wide">
+                    {isTogglingStatus ? 'UPDATING...' : (workerProfile.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE')}
+                  </span>
+                </div>
               </div>
 
               {/* Arrow Icon */}
@@ -276,8 +338,7 @@ const Dashboard = () => {
         </div>
 
         {/* Incomplete Profile Prompt */}
-        {((!workerProfile.categories || workerProfile.categories.length === 0) ||
-          (!workerProfile.skills || workerProfile.skills.length === 0) ||
+        {((!workerProfile.skills || workerProfile.skills.length === 0) ||
           (!workerProfile.address || Object.keys(workerProfile.address).length === 0)) && (
             <div className="px-4 pt-2 -mb-2">
               <div
@@ -291,7 +352,7 @@ const Dashboard = () => {
                   <div className="ml-3">
                     <p className="text-sm font-bold text-orange-700">Profile Incomplete</p>
                     <p className="text-sm text-orange-600">
-                      Complete your profile (Address, Category, Skills) to start receiving jobs.
+                      Complete your profile (Address, Skills) to start receiving jobs.
                     </p>
                   </div>
                   <div className="ml-auto">
@@ -697,8 +758,14 @@ const Dashboard = () => {
         }}
       />
 
+      <WorkerBookingRequestAlertModal
+        isOpen={!!incomingRequestData}
+        requestData={incomingRequestData}
+        onClose={() => setIncomingRequestData(null)}
+        onRequestResponded={() => fetchDashboardData()}
+      />
 
-    </div >
+    </div>
   );
 };
 

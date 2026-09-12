@@ -71,6 +71,13 @@ const MachineryExplorer = lazyLoad(() => import('../pages/Machinery/MachineryExp
 const AllMachineryCategories = lazyLoad(() => import('../pages/Machinery/AllMachineryCategories'));
 const AllImplementsCategories = lazyLoad(() => import('../pages/Machinery/AllImplementsCategories'));
 const WorkerExplorer = lazyLoad(() => import('../pages/Worker/WorkerExplorer'));
+const SingleWorkerList = lazyLoad(() => import('../pages/Worker/SingleWorkerList'));
+const TeamLeaderList = lazyLoad(() => import('../pages/Worker/TeamLeaderList'));
+const WorkerRequestForm = lazyLoad(() => import('../pages/Worker/WorkerRequestForm'));
+const GroupRequestForm = lazyLoad(() => import('../pages/Worker/GroupRequestForm'));
+const MyWorkerRequests = lazyLoad(() => import('../pages/Worker/MyWorkerRequests'));
+const FarmerRequestDetail = lazyLoad(() => import('../pages/Worker/FarmerRequestDetail'));
+
 const MachineryCheckout = lazyLoad(() => import('../pages/Machinery/MachineryCheckout'));
 const EquipmentDetail = lazyLoad(() => import('../pages/Machinery/EquipmentDetail'));
 const SoilTesting = lazyLoad(() => import('../pages/SoilTesting'));
@@ -162,6 +169,19 @@ const UserRoutes = () => {
               <Route path="/machinery-categories" element={<ProtectedRoute userType="user"><AllMachineryCategories /></ProtectedRoute>} />
               <Route path="/machinery-implements" element={<ProtectedRoute userType="user"><AllImplementsCategories /></ProtectedRoute>} />
               <Route path="/worker-explorer" element={<ProtectedRoute userType="user"><WorkerExplorer /></ProtectedRoute>} />
+              {/* Legacy browsable lists — kept for profile viewing but not primary flow */}
+              <Route path="/workers" element={<ProtectedRoute userType="user"><SingleWorkerList /></ProtectedRoute>} />
+              <Route path="/team-leaders" element={<ProtectedRoute userType="user"><TeamLeaderList /></ProtectedRoute>} />
+              {/* Farmer-first: new standalone request form */}
+              <Route path="/worker-request/new" element={<ProtectedRoute userType="user"><WorkerRequestForm /></ProtectedRoute>} />
+              {/* Farmer-first: my requests list */}
+              <Route path="/my-worker-requests" element={<ProtectedRoute userType="user"><MyWorkerRequests /></ProtectedRoute>} />
+              {/* Farmer-first: request detail with confirm/reject partial */}
+              <Route path="/farmer-worker-request/:id" element={<ProtectedRoute userType="user"><FarmerRequestDetail /></ProtectedRoute>} />
+              {/* Legacy: old request form with pre-selected worker (kept for backward compat) */}
+              <Route path="/worker-request/:id" element={<ProtectedRoute userType="user"><WorkerRequestForm /></ProtectedRoute>} />
+              <Route path="/group-request/:id" element={<ProtectedRoute userType="user"><GroupRequestForm /></ProtectedRoute>} />
+
               <Route path="/machinery/checkout" element={<ProtectedRoute userType="user"><MachineryCheckout /></ProtectedRoute>} />
               <Route path="/machinery/:id" element={<ProtectedRoute userType="user"><EquipmentDetail /></ProtectedRoute>} />
               <Route path="/soil-testing" element={<ProtectedRoute userType="user"><SoilTesting /></ProtectedRoute>} />

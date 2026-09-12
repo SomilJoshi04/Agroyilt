@@ -1,0 +1,576 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
+import {
+  FiArrowLeft, FiMapPin, FiCalendar, FiClock,
+  FiUsers, FiTag, FiFileText, FiDollarSign, FiInfo
+} from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import workerBookingService from '../../../../services/workerBookingService';
+import LocationPicker from '../Checkout/components/LocationPicker';
+
+// Common work categories for quick selection
+const WORK_CATEGORIES = [
+  'Harvesting', 'Sowing', 'Planting', 'Irrigation',
+  'Weeding', 'Fertilizing', 'Pesticide Spraying',
+  'Land Preparation', 'Threshing', 'Loading & Unloading',
+  'General Farm Labour', 'Tractor Operation', 'Other'
+];
+
+const COMMON_SKILLS = [
+  'Harvesting', 'Sowing', 'Planting', 'Irrigation',
+  'Weeding', 'Fertilizing', 'Pesticide Spraying',
+  'Tractor Driving', 'General Farm Labour', 'Threshing'
+];
+
+const WorkerRequestForm = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [skillInput, setSkillInput] = useState('');
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const [formData, setFormData] = useState({
+    workCategory:           '',
+    workTitle:              '',
+    workDescription:        '',
+    requiredSkills:         [],   // array
+    requiredWorkers:        '1',
+    scheduledDate:          '',
+    startTime:              '',
+    endTime:                '',
+    rateUnit:               'daily',
+    minRate:                '',
+    maxRate:                '',
+    // Location fields
+    addressLine1:           '',
+    city:                   '',
+    state:                  '',
+    lat:                    '',
+    lng:                    '',
+    additionalInstructions: ''
+  });
+
+  const [errors, setErrors] = useState({});
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const addSkill = (skill) => {
+    const normalized = skill.trim();
+    if (!normalized) return;
+    if (formData.requiredSkills.some(s => s.toLowerCase() === normalized.toLowerCase())) {
+      toast.error('Skill already added');
+      return;
+    }
+    if (formData.requiredSkills.length >= 10) {
+      toast.error('Maximum 10 skills allowed');
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      requiredSkills: [...prev.requiredSkills, normalized]
+    }));
+    setSkillInput('');
+  };
+
+  const removeSkill = (skill) => {
+    setFormData(prev => ({
+      ...prev,
+      requiredSkills: prev.requiredSkills.filter(s => s !== skill)
+    }));
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!formData.workTitle.trim() || formData.workTitle.trim().length < 3)
+      e.workTitle = 'Work title must be at least 3 characters.';
+    if (!formData.workDescription.trim() || formData.workDescription.trim().length < 10)
+      e.workDescription = 'Description must be at least 10 characters.';
+    const qty = parseInt(formData.requiredWorkers, 10);
+    if (!formData.requiredWorkers || isNaN(qty) || qty < 1 || !Number.isInteger(qty))
+      e.requiredWorkers = 'Enter a valid positive number (e.g. 1, 3, 5).';
+    if (!formData.scheduledDate)
+      e.scheduledDate = 'Please select a date.';
+    if (!formData.startTime)
+      e.startTime = 'Start time is required.';
+    if (!formData.endTime)
+      e.endTime = 'End time is required.';
+    if (formData.startTime && formData.endTime) {
+      const [sh, sm] = formData.startTime.split(':').map(Number);
+      const [eh, em] = formData.endTime.split(':').map(Number);
+      if (eh * 60 + em <= sh * 60 + sm)
+        e.endTime = 'End time must be after start time.';
+    }
+    if (!formData.city.trim() && !formData.addressLine1.trim())
+      e.city = 'Please enter at least a city name.';
+    if (!formData.minRate || isNaN(Number(formData.minRate)) || Number(formData.minRate) <= 0)
+      e.minRate = 'Enter a valid offered rate (> 0).';
+    if (formData.maxRate && !isNaN(Number(formData.maxRate)) && Number(formData.minRate) > Number(formData.maxRate))
+      e.maxRate = 'Max rate cannot be less than min rate.';
+    return e;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length) {
+      setErrors(validationErrors);
+      toast.error(Object.values(validationErrors)[0]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const payload = {
+        workCategory:    formData.workCategory,
+        workTitle:       formData.workTitle.trim(),
+        workDescription: formData.workDescription.trim(),
+        requiredSkills:  formData.requiredSkills,
+        requiredWorkers: parseInt(formData.requiredWorkers, 10),
+        scheduledDate:   formData.scheduledDate,
+        startTime:       formData.startTime,
+        endTime:         formData.endTime,
+        rateUnit:        formData.rateUnit,
+        minRate:         Number(formData.minRate),
+        maxRate:         formData.maxRate ? Number(formData.maxRate) : Number(formData.minRate),
+        location: {
+          addressLine1: formData.addressLine1,
+          city:         formData.city,
+          state:        formData.state,
+          lat:          formData.lat !== '' ? Number(formData.lat) : undefined,
+          lng:          formData.lng !== '' ? Number(formData.lng) : undefined
+        },
+        additionalInstructions: formData.additionalInstructions
+      };
+
+      await workerBookingService.createFarmerRequest(payload);
+      toast.success('Request submitted! Finding workers near you...');
+      navigate('/user/my-worker-requests', { replace: true });
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Failed to submit request. Please try again.';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const FieldError = ({ name }) =>
+    errors[name] ? <p className="text-xs text-red-500 mt-1 ml-1">{errors[name]}</p> : null;
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-24">
+      <Helmet>
+        <title>New Work Request | Agroyilt</title>
+        <meta name="description" content="Create a worker request and let AgroYilt find farm workers near your location." />
+      </Helmet>
+
+      {/* Header */}
+      <div className="bg-white sticky top-0 z-40 border-b border-slate-100 px-5 py-4">
+        <div className="max-w-xl mx-auto flex items-center gap-4">
+          <button
+            onClick={() => navigate('/user/worker-explorer')}
+            className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 active:scale-95"
+          >
+            <FiArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 className="text-xl font-black text-slate-800">New Work Request</h1>
+            <p className="text-xs text-slate-500 font-medium">We'll find workers for you</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-xl mx-auto p-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
+
+          {/* Info note */}
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex gap-3 items-start">
+            <FiInfo size={16} className="text-blue-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-blue-700 leading-relaxed">
+              Fill in your requirements below. Based on the number of workers needed, the system will automatically match independent workers or a team — you don't choose workers manually.
+            </p>
+          </div>
+
+          {/* ── Work Details ─────────────────────────────────────────────────── */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+            <h3 className="font-black text-slate-800 mb-4 flex items-center gap-2">
+              <FiFileText size={16} className="text-emerald-600" /> Work Details
+            </h3>
+            <div className="space-y-4">
+
+              {/* Work Category */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">Work Category</label>
+                <select
+                  name="workCategory"
+                  value={formData.workCategory}
+                  onChange={handleChange}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="">Select category (optional)</option>
+                  {WORK_CATEGORIES.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Work Title */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">Work Title *</label>
+                <input
+                  type="text"
+                  name="workTitle"
+                  value={formData.workTitle}
+                  onChange={handleChange}
+                  placeholder="e.g. Wheat Harvesting"
+                  className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.workTitle ? 'border-red-300' : 'border-slate-200'}`}
+                />
+                <FieldError name="workTitle" />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">Description *</label>
+                <textarea
+                  name="workDescription"
+                  value={formData.workDescription}
+                  onChange={handleChange}
+                  placeholder="Describe the work: What needs to be done, field size, tools needed, etc."
+                  rows={3}
+                  className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.workDescription ? 'border-red-300' : 'border-slate-200'}`}
+                />
+                <FieldError name="workDescription" />
+              </div>
+
+              {/* Required Skills */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">
+                  <FiTag size={12} className="inline mr-1" />
+                  Required Skills (optional)
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={skillInput}
+                    onChange={e => setSkillInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSkill(skillInput); } }}
+                    placeholder="Type a skill and press Enter"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addSkill(skillInput)}
+                    className="px-4 py-2.5 bg-emerald-600 text-white rounded-2xl text-sm font-bold"
+                  >
+                    Add
+                  </button>
+                </div>
+                {/* Quick-add common skills */}
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {COMMON_SKILLS.filter(s => !formData.requiredSkills.includes(s)).slice(0, 6).map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => addSkill(s)}
+                      className="text-xs px-3 py-1 bg-slate-100 text-slate-600 rounded-full border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition-all"
+                    >
+                      + {s}
+                    </button>
+                  ))}
+                </div>
+                {/* Added skills */}
+                {formData.requiredSkills.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.requiredSkills.map(s => (
+                      <span
+                        key={s}
+                        className="flex items-center gap-1 text-xs px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-full font-semibold"
+                      >
+                        {s}
+                        <button
+                          type="button"
+                          onClick={() => removeSkill(s)}
+                          className="ml-1 text-emerald-500 hover:text-red-500 font-black text-xs"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Workers Required */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">
+                  <FiUsers size={12} className="inline mr-1" />
+                  Number of Workers Required *
+                </label>
+                <input
+                  type="number"
+                  name="requiredWorkers"
+                  value={formData.requiredWorkers}
+                  onChange={handleChange}
+                  min="1"
+                  max="100"
+                  step="1"
+                  placeholder="e.g. 3"
+                  className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-black focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.requiredWorkers ? 'border-red-300' : 'border-slate-200'}`}
+                />
+                <FieldError name="requiredWorkers" />
+                <p className="text-[10px] text-slate-400 mt-1 ml-1">
+                  The system automatically decides whether to match individual workers or a Team Leader based on this number.
+                </p>
+              </div>
+
+              {/* Additional Instructions */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">Additional Instructions (optional)</label>
+                <textarea
+                  name="additionalInstructions"
+                  value={formData.additionalInstructions}
+                  onChange={handleChange}
+                  placeholder="Any specific instructions, tools to bring, dress code, etc."
+                  rows={2}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Schedule ──────────────────────────────────────────────────────── */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+            <h3 className="font-black text-slate-800 mb-4 flex items-center gap-2">
+              <FiCalendar size={16} className="text-emerald-600" /> Schedule
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">Date *</label>
+                <div className="relative">
+                  <FiCalendar className="absolute left-4 top-3.5 text-slate-400" size={16} />
+                  <input
+                    type="date"
+                    name="scheduledDate"
+                    min={today}
+                    value={formData.scheduledDate}
+                    onChange={handleChange}
+                    className={`w-full bg-slate-50 border rounded-2xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.scheduledDate ? 'border-red-300' : 'border-slate-200'}`}
+                  />
+                </div>
+                <FieldError name="scheduledDate" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 mb-1 block">Start Time *</label>
+                  <div className="relative">
+                    <FiClock className="absolute left-4 top-3.5 text-slate-400" size={14} />
+                    <input
+                      type="time"
+                      name="startTime"
+                      value={formData.startTime}
+                      onChange={handleChange}
+                      className={`w-full bg-slate-50 border rounded-2xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.startTime ? 'border-red-300' : 'border-slate-200'}`}
+                    />
+                  </div>
+                  <FieldError name="startTime" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 mb-1 block">End Time *</label>
+                  <div className="relative">
+                    <FiClock className="absolute left-4 top-3.5 text-slate-400" size={14} />
+                    <input
+                      type="time"
+                      name="endTime"
+                      value={formData.endTime}
+                      onChange={handleChange}
+                      className={`w-full bg-slate-50 border rounded-2xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.endTime ? 'border-red-300' : 'border-slate-200'}`}
+                    />
+                  </div>
+                  <FieldError name="endTime" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Location ──────────────────────────────────────────────────────── */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+            <h3 className="font-black text-slate-800 mb-4 flex items-center gap-2">
+              <FiMapPin size={16} className="text-emerald-600" /> Work Location
+            </h3>
+            
+            <div className="mb-5 rounded-2xl overflow-hidden border border-slate-200">
+              <LocationPicker 
+                onLocationSelect={(loc) => {
+                  let city = '';
+                  let state = '';
+                  if (loc.components) {
+                    const cityComp = loc.components.find(c => c.types.includes('locality') || c.types.includes('administrative_area_level_2'));
+                    const stateComp = loc.components.find(c => c.types.includes('administrative_area_level_1'));
+                    if (cityComp) city = cityComp.long_name;
+                    if (stateComp) state = stateComp.long_name;
+                  }
+                  setFormData(prev => ({
+                    ...prev,
+                    lat: loc.lat.toString(),
+                    lng: loc.lng.toString(),
+                    addressLine1: loc.address || prev.addressLine1,
+                    city: city || prev.city,
+                    state: state || prev.state
+                  }));
+                }}
+              />
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1 block">City / Village *</label>
+                <div className="relative">
+                  <FiMapPin className="absolute left-4 top-3.5 text-slate-400" size={14} />
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    placeholder="e.g. Indore, Madhya Pradesh"
+                    className={`w-full bg-slate-50 border rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.city ? 'border-red-300' : 'border-slate-200'}`}
+                  />
+                </div>
+                <FieldError name="city" />
+              </div>
+              <div>
+                <input
+                  type="text"
+                  name="addressLine1"
+                  value={formData.addressLine1}
+                  onChange={handleChange}
+                  placeholder="Farm address / landmark (optional)"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div>
+                <input
+                  type="text"
+                  name="state"
+                  value={formData.state}
+                  onChange={handleChange}
+                  placeholder="State (optional)"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  name="lat"
+                  value={formData.lat}
+                  onChange={handleChange}
+                  placeholder="Latitude (optional)"
+                  step="any"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <input
+                  type="number"
+                  name="lng"
+                  value={formData.lng}
+                  onChange={handleChange}
+                  placeholder="Longitude (optional)"
+                  step="any"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <p className="text-[10px] text-slate-400 ml-1">
+                Providing coordinates improves radius-based worker matching accuracy.
+              </p>
+            </div>
+          </div>
+
+          {/* ── Budget ────────────────────────────────────────────────────────── */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+            <h3 className="font-black text-slate-800 mb-4 flex items-center gap-2">
+              <FiDollarSign size={16} className="text-emerald-600" /> Budget / Rate per Worker
+            </h3>
+            <div className="space-y-4">
+              {/* Rate Unit Toggle */}
+              <div className="grid grid-cols-2 gap-3">
+                {['daily', 'hourly'].map(unit => (
+                  <button
+                    key={unit}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, rateUnit: unit }))}
+                    className={`py-3 rounded-2xl text-sm font-bold border transition-all capitalize ${
+                      formData.rateUnit === unit
+                        ? 'bg-slate-800 text-white border-slate-800'
+                        : 'bg-white text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    {unit === 'daily' ? 'Daily Rate' : 'Hourly Rate'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 mb-1 block">
+                    Min Rate (₹) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-3 text-slate-400 text-sm font-bold">₹</span>
+                    <input
+                      type="number"
+                      name="minRate"
+                      value={formData.minRate}
+                      onChange={handleChange}
+                      min="1"
+                      placeholder="400"
+                      className={`w-full bg-slate-50 border rounded-2xl pl-8 pr-4 py-3 text-sm font-black focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.minRate ? 'border-red-300' : 'border-slate-200'}`}
+                    />
+                  </div>
+                  <FieldError name="minRate" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 mb-1 block">
+                    Max Rate (₹)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-3 text-slate-400 text-sm font-bold">₹</span>
+                    <input
+                      type="number"
+                      name="maxRate"
+                      value={formData.maxRate}
+                      onChange={handleChange}
+                      min="1"
+                      placeholder="500 (optional)"
+                      className={`w-full bg-slate-50 border rounded-2xl pl-8 pr-4 py-3 text-sm font-black focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.maxRate ? 'border-red-300' : 'border-slate-200'}`}
+                    />
+                  </div>
+                  <FieldError name="maxRate" />
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 ml-1">
+                Workers will see your offered rate range. Final agreed rate is set on backend.
+              </p>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <button
+            id="submit-farmer-request-btn"
+            type="submit"
+            disabled={loading}
+            className="w-full py-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-3xl font-black text-base shadow-lg shadow-emerald-200/60 active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+          >
+            {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+            {loading ? 'Submitting...' : '🌾 Submit Request'}
+          </button>
+
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default WorkerRequestForm;

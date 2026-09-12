@@ -148,8 +148,18 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { name, email, verificationToken, aadhar, pan, businessName, service, labDetails, shopDetails } = req.body;
+    const { name, email, verificationToken, aadhar, pan, businessName, service, labDetails, shopDetails, mpin, confirmMpin } = req.body;
     let phone = req.body.phone;
+
+    if (!mpin || !confirmMpin) {
+      return res.status(400).json({ success: false, message: 'MPIN and Confirm MPIN are required' });
+    }
+    if (mpin !== confirmMpin) {
+      return res.status(400).json({ success: false, message: 'MPINs do not match' });
+    }
+    if (!mpinService.validateMpinFormat(mpin)) {
+      return res.status(400).json({ success: false, message: 'MPIN must be exactly 4 digits' });
+    }
 
     if (verificationToken) {
       const verifiedPhone = verifyVerificationToken(verificationToken);
@@ -217,6 +227,8 @@ const register = async (req, res) => {
       parsedShopDetails.licenseDocument = finalShopLicense;
     }
 
+    const hashedMpin = await mpinService.hashMpin(mpin);
+
     const vendorData = {
       name, phone,
       businessName,
@@ -228,7 +240,9 @@ const register = async (req, res) => {
       },
       otherDocuments: otherUrls,
       approvalStatus: VENDOR_STATUS.PENDING,
-      isPhoneVerified: true
+      isPhoneVerified: true,
+      mpin: hashedMpin,
+      isMpinSet: true
     };
 
     if (parsedLabDetails) vendorData.labDetails = parsedLabDetails;

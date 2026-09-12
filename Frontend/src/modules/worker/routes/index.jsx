@@ -38,6 +38,7 @@ const lazyLoad = (importFunc) => {
 // Lazy load worker pages for code splitting
 const Login = lazyLoad(() => import('../pages/login'));
 const Signup = lazyLoad(() => import('../pages/signup'));
+const ForgotMpin = lazyLoad(() => import('../pages/ForgotMpin'));
 const Dashboard = lazyLoad(() => import('../pages/Dashboard'));
 const AssignedJobs = lazyLoad(() => import('../pages/AssignedJobs'));
 const JobDetails = lazyLoad(() => import('../pages/JobDetails'));
@@ -50,6 +51,8 @@ const JobMap = lazyLoad(() => import('../pages/JobMap'));
 const JobTimeline = lazyLoad(() => import('../pages/JobTimeline'));
 const Wallet = lazyLoad(() => import('../pages/Wallet'));
 const Team = lazyLoad(() => import('../pages/Team'));
+const WorkerBookingRequests = lazyLoad(() => import('../pages/AssignedJobs/WorkerBookingRequests'));
+const WorkerGroupRequests = lazyLoad(() => import('../pages/AssignedJobs/WorkerGroupRequests'));
 
 // Lightweight loading fallback - no logo to avoid iOS rejection
 const LoadingFallback = () => (
@@ -69,6 +72,7 @@ const WorkerRoutes = () => {
   const shouldHideBottomNav =
     location.pathname === '/worker/login' ||
     location.pathname === '/worker/signup' ||
+    location.pathname === '/worker/forgot-mpin' ||
     location.pathname.endsWith('/map');
 
   const shouldShowBottomNav = !shouldHideBottomNav;
@@ -83,6 +87,7 @@ const WorkerRoutes = () => {
               {/* Public routes */}
               <Route path="/login" element={<PublicRoute userType="worker"><Login /></PublicRoute>} />
               <Route path="/signup" element={<PublicRoute userType="worker"><Signup /></PublicRoute>} />
+              <Route path="/forgot-mpin" element={<PublicRoute userType="worker"><ForgotMpin /></PublicRoute>} />
 
               {/* Protected routes (auth required) */}
               <Route path="/" element={<ProtectedRoute userType="worker"><Navigate to="dashboard" replace /></ProtectedRoute>} />
@@ -98,6 +103,8 @@ const WorkerRoutes = () => {
               <Route path="/notifications" element={<ProtectedRoute userType="worker"><Notifications /></ProtectedRoute>} />
               <Route path="/wallet" element={<ProtectedRoute userType="worker"><Wallet /></ProtectedRoute>} />
               <Route path="/team" element={<ProtectedRoute userType="worker"><Team /></ProtectedRoute>} />
+              <Route path="/booking-requests" element={<ProtectedRoute userType="worker"><WorkerBookingRequests /></ProtectedRoute>} />
+              <Route path="/group-requests" element={<ProtectedRoute userType="worker"><WorkerGroupRequests /></ProtectedRoute>} />
             </Routes>
           </PageTransition>
         </Suspense>

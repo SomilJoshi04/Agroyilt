@@ -278,26 +278,7 @@ const Profile = () => {
         >
           <h3 className="font-bold text-gray-800 mb-4">Service Information</h3>
           <div className="space-y-3">
-            {/* Service Categories */}
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg" style={{ background: `${themeColors.icon}15` }}>
-                <FiBriefcase className="w-5 h-5" style={{ color: themeColors.icon }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Service Categories</p>
-                {profile.serviceCategories && profile.serviceCategories.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {profile.serviceCategories.map((cat, idx) => (
-                      <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-sm font-medium border border-gray-200">
-                        {cat}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm font-semibold text-gray-800">Not set</p>
-                )}
-              </div>
-            </div>
+
 
             {/* Skills */}
             <div className="flex items-start gap-3">

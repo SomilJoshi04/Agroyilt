@@ -189,6 +189,7 @@ app.use('/api/users/bookings', require('./routes/user-routes/booking.routes'));
 app.use('/api/users', require('./routes/user-routes/cart.routes'));
 app.use('/api/users/fcm-tokens', require('./routes/user-routes/fcmToken.routes'));
 app.use('/api/users/requirements', require('./routes/user-routes/requirement.routes'));
+app.use('/api/users', require('./routes/user-routes/workerBooking.routes'));
 
 
 
@@ -220,6 +221,8 @@ app.use('/api/workers', require('./routes/worker-routes/dashboard.routes'));
 app.use('/api/workers/wallet', require('./routes/worker-routes/wallet.routes'));
 app.use('/api/workers/fcm-tokens', require('./routes/worker-routes/fcmToken.routes'));
 app.use('/api/workers/team', require('./routes/worker-routes/team.routes'));
+app.use('/api/workers', require('./routes/worker-routes/workerRequests.routes'));
+
 
 // Mobile App Routes (unified login role detection)
 app.use('/api/app', require('./routes/common-routes/appAuth.routes'));
@@ -230,7 +233,7 @@ app.use('/api/admin', require('./routes/admin-routes/cityManagement.routes.js'))
 app.use('/api/admin', require('./routes/admin-routes/dashboard.routes'));
 app.use('/api/admin', require('./routes/admin-routes/userManagement.routes'));
 app.use('/api/admin', require('./routes/admin-routes/vendorManagement.routes'));
-app.use('/api/admin/workers', require('./routes/admin-routes/workerManagement.routes'));
+app.use('/api/admin', require('./routes/admin-routes/workerManagement.routes'));
 app.use('/api/admin/equipment', require('./routes/admin-routes/equipmentManagement.routes'));
 app.use('/api/admin/reports', require('./routes/admin-routes/reportManagement.routes'));
 app.use('/api/admin', require('./routes/admin-routes/categoryManagement.routes'));

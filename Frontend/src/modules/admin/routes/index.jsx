@@ -13,6 +13,7 @@ const Dashboard = lazy(() => import('../pages/Dashboard'));
 const Settings = lazy(() => import('../pages/Settings'));
 const UserCategories = lazy(() => import('../pages/UserCategories'));
 const Users = lazy(() => import('../pages/Users'));
+const Workers = lazy(() => import('../pages/Workers'));
 const Vendors = lazy(() => import('../pages/Vendors'));
 const Bookings = lazy(() => import('../pages/Bookings'));
 const BookingTracking = lazy(() => import('../pages/Bookings/Tracking'));
@@ -68,6 +69,7 @@ const AdminRoutes = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users/*" element={<Users />} />
+          <Route path="workers/*" element={<Workers />} />
           <Route path="vendors/*" element={<Vendors />} />
           <Route path="bookings" element={<Bookings />} />
           <Route path="bookings/:id" element={<BookingDetailsPage />} />

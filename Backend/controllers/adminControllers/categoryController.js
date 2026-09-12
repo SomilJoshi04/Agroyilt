@@ -49,7 +49,11 @@ const formatCategory = (cat) => ({
  */
 const getAllCategories = async (req, res) => {
   try {
-    const { status, showOnHome, isPopular, cityId, search } = req.query;
+    const { status, showOnHome, isPopular, cityId, search, page = 1, limit = 20 } = req.query;
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    const skip = (pageNum - 1) * limitNum;
 
     // Build query
     const query = {};
@@ -58,7 +62,10 @@ const getAllCategories = async (req, res) => {
     if (isPopular !== undefined) query.isPopular = isPopular === 'true';
     
     if (search) {
-      query.title = { $regex: search, $options: 'i' };
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { slug: { $regex: search, $options: 'i' } }
+      ];
     }
     
     if (cityId) {
@@ -71,22 +78,40 @@ const getAllCategories = async (req, res) => {
       }
       
       // Return categories that belong to the selected city OR are global
-      query.$or = [
+      // If there is already an $or from search, we must use $and to combine them
+      const cityOr = [
         { scope: 'GLOBAL' },
         { scope: 'CITY_SPECIFIC', city: cityObjectId }
       ];
+
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: cityOr }];
+        delete query.$or;
+      } else {
+        query.$or = cityOr;
+      }
     }
+
+    const totalCount = await Category.countDocuments(query);
 
     const categories = await Category.find(query)
       .populate('parentCategory', 'title slug')
       .populate('parentCategories', 'title slug')
       .select('-__v')
       .sort({ homeOrder: 1, createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
       .lean();
 
     res.status(200).json({
       success: true,
       count: categories.length,
+      pagination: {
+        total: totalCount,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(totalCount / limitNum)
+      },
       categories: categories.map(formatCategory)
     });
     console.log("SENDING TO FRONTEND:", categories.map(formatCategory)[0]);

@@ -85,44 +85,16 @@ const verifyLogin = async (req, res) => {
     // 2. Check if worker exists
     const worker = await Worker.findOne({ phone });
 
-    if (worker) {
-      // EXISTING WORKER
-      if (!worker.isActive) {
-        return res.status(403).json({ success: false, message: 'Account deactivated.' });
-      }
+    // NEW FLOW: Always return a verification token, whether new or existing user.
+    // The frontend will then either go to Register (if new) or Set MPIN / Reset MPIN.
+    const verificationToken = generateVerificationToken(phone);
 
-      const tokens = generateTokenPair({
-        userId: worker._id,
-        role: USER_ROLES.WORKER
-      });
-
-      return res.status(200).json({
-        success: true,
-        isNewUser: false,
-        message: 'Login successful',
-        worker: {
-          id: worker._id,
-          name: worker.name,
-          email: worker.email,
-          phone: worker.phone,
-          status: worker.status,
-          status: worker.status,
-          serviceCategories: worker.serviceCategories || []
-        },
-        ...tokens
-      });
-
-    } else {
-      // NEW WORKER
-      const verificationToken = generateVerificationToken(phone);
-
-      return res.status(200).json({
-        success: true,
-        isNewUser: true,
-        message: 'OTP verified. Please complete registration.',
-        verificationToken
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      isNewUser: !worker,
+      message: 'OTP verified successfully.',
+      verificationToken
+    });
 
   } catch (error) {
     console.error('Verify Login error:', error);
@@ -148,8 +120,18 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { name, email, verificationToken, aadharNumber, aadharDocument, aadharBackDocument, workerType } = req.body;
+    const { name, email, verificationToken, aadharNumber, aadharDocument, aadharBackDocument, workerType, mpin, confirmMpin } = req.body;
     let phone = req.body.phone;
+
+    if (!mpin || !confirmMpin) {
+      return res.status(400).json({ success: false, message: 'MPIN and Confirm MPIN are required' });
+    }
+    if (mpin !== confirmMpin) {
+      return res.status(400).json({ success: false, message: 'MPINs do not match' });
+    }
+    if (!mpinService.validateMpinFormat(mpin)) {
+      return res.status(400).json({ success: false, message: 'MPIN must be exactly 4 digits' });
+    }
 
     if (verificationToken) {
       const verifiedPhone = verifyVerificationToken(verificationToken);
@@ -188,6 +170,8 @@ const register = async (req, res) => {
     // Validate workerType
     const validWorkerType = ['TEAM_LEADER', 'WORKER'].includes(workerType) ? workerType : 'WORKER';
 
+    const hashedMpin = await mpinService.hashMpin(mpin);
+
     // Create worker
     const worker = await Worker.create({
       name, email, phone,
@@ -198,7 +182,9 @@ const register = async (req, res) => {
         backDocument: aadharBackUrl
       },
       status: WORKER_STATUS.OFFLINE,
-      workerType: validWorkerType
+      workerType: validWorkerType,
+      mpin: hashedMpin,
+      isMpinSet: true
     });
 
     const tokens = generateTokenPair({

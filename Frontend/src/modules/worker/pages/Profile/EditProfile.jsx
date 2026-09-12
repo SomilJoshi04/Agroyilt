@@ -651,7 +651,7 @@ const EditProfile = () => {
           <div className="pt-4 border-t border-gray-100 space-y-3">
             <div className="flex flex-col">
               <label className="text-xs font-extrabold text-gray-800 uppercase tracking-wider">
-                My Pricing & Charges (अपनी रेट दर्ज करें)
+                My Pricing & Charges
               </label>
               <p className="text-[10px] text-gray-400 font-medium">Set custom rate per hour, per day, or per acre for your work.</p>
             </div>

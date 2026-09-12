@@ -29,6 +29,7 @@ import dashboardService from "../../services/dashboardService";
 const iconMap = {
   Dashboard: FiHome,
   Farmers: FiUsers,
+  Workers: FiUser,
   "Equipment Owners": FiBriefcase,
   Bookings: FiShoppingBag,
   "User Catalog": FiGrid,
@@ -55,6 +56,11 @@ const getChildRoute = (parentRoute, childName) => {
       "All Farmers": "/admin/users/all",
       "Farmer Bookings": "/admin/users/bookings",
       "Farmer Analytics": "/admin/users/analytics",
+    },
+    "/admin/workers": {
+      "All Workers": "/admin/workers/all",
+      "Worker Bookings": "/admin/workers/bookings",
+      "Analytics": "/admin/workers/analytics",
     },
     "/admin/vendors": {
       "All Owners": "/admin/vendors/all",

@@ -44,6 +44,12 @@ const AdminSettings = () => {
   });
   const [billingLoading, setBillingLoading] = useState(false);
 
+  const [systemSettings, setSystemSettings] = useState({
+    maxIndependentWorkerRequest: 5,
+    workerSearchRadiusKm: 50
+  });
+  const [systemLoading, setSystemLoading] = useState(false);
+
   // Support Settings State
   const [supportSettings, setSupportSettings] = useState({
     supportEmail: '',
@@ -273,6 +279,11 @@ const AdminSettings = () => {
             invoicePrefix: res.settings.invoicePrefix || 'INV',
             sacCode: res.settings.sacCode || '998599'
           });
+          // Load system settings
+          setSystemSettings({
+            maxIndependentWorkerRequest: res.settings.maxIndependentWorkerRequest ?? 5,
+            workerSearchRadiusKm: res.settings.workerSearchRadiusKm ?? 50
+          });
           // Load support settings
           setSupportSettings({
             supportEmail: res.settings.supportEmail || '',
@@ -452,6 +463,28 @@ const AdminSettings = () => {
       toast.error('Failed to update billing settings');
     } finally {
       setBillingLoading(false);
+    }
+  };
+
+  // Handle system settings change
+  const handleSystemChange = (e) => {
+    const { name, value } = e.target;
+    setSystemSettings(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
+  };
+
+  const handleSystemSave = async (e) => {
+    e.preventDefault();
+    setSystemLoading(true);
+    try {
+      const payload = Object.fromEntries(
+        Object.entries(systemSettings).map(([k, v]) => [k, v === '' ? 0 : Number(v)])
+      );
+      await updateSettings(payload);
+      toast.success('System preferences updated');
+    } catch (error) {
+      toast.error('Failed to update system settings');
+    } finally {
+      setSystemLoading(false);
     }
   };
 
@@ -997,9 +1030,31 @@ const AdminSettings = () => {
                   <h2 className="text-lg font-bold text-gray-800">System Preferences</h2>
                 </div>
 
-                <div className="space-y-4">
-
-                </div>
+                <form onSubmit={handleSystemSave} className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Max Independent Workers / Request</label>
+                      <input type="number" name="maxIndependentWorkerRequest" value={systemSettings.maxIndependentWorkerRequest} onChange={handleSystemChange}
+                        min="1" max="100"
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-500 transition-all" />
+                      <p className="text-[10px] text-gray-400 mt-1">Requests above this go to Team Leaders.</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Worker Search Radius (km)</label>
+                      <input type="number" name="workerSearchRadiusKm" value={systemSettings.workerSearchRadiusKm} onChange={handleSystemChange}
+                        min="1" max="1000"
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-500 transition-all" />
+                      <p className="text-[10px] text-gray-400 mt-1">Radius for matching workers.</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-2">
+                    <button type="submit" disabled={systemLoading}
+                      className="px-6 py-2.5 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 flex items-center gap-2 disabled:opacity-60 shadow-md">
+                      {systemLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSave className="w-4 h-4" />}
+                      Save Preferences
+                    </button>
+                  </div>
+                </form>
               </div>
 
               {/* Support Settings */}

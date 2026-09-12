@@ -22,6 +22,19 @@
     ]
   },
   {
+    "title": "Workers",
+    "route": "/admin/workers",
+    "allowedRoles": [
+      "super_admin",
+      "admin"
+    ],
+    "children": [
+      "All Workers",
+      "Worker Bookings",
+      "Analytics"
+    ]
+  },
+  {
     "title": "Equipment Owners",
     "route": "/admin/vendors",
     "allowedRoles": [

@@ -17,6 +17,9 @@ export const categoryService = {
     if (params.showOnHome !== undefined) queryParams.append('showOnHome', params.showOnHome);
     if (params.isPopular !== undefined) queryParams.append('isPopular', params.isPopular);
     if (params.cityId) queryParams.append('cityId', params.cityId);
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.search) queryParams.append('search', params.search);
 
     const response = await api.get(`/admin/categories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     return response.data;

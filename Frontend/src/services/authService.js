@@ -40,13 +40,6 @@ export const userAuthService = {
   // Verify Login (Unified Flow)
   verifyLogin: async (data) => {
     const response = await api.post('/users/auth/verify-login', data);
-    if (response.data.success && !response.data.isNewUser && response.data.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
-      localStorage.setItem('userData', JSON.stringify(response.data.user));
-      notifyFlutterLogin(response.data);
-      registerFCMToken('user', true).catch(console.error);
-    }
     return response.data;
   },
 
@@ -165,13 +158,6 @@ export const vendorAuthService = {
   // Verify Login (Unified Flow)
   verifyLogin: async (data) => {
     const response = await api.post('/vendors/auth/verify-login', data);
-    if (response.data.success && !response.data.isNewUser && response.data.accessToken) {
-      localStorage.setItem('vendorAccessToken', response.data.accessToken);
-      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
-      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
-      notifyFlutterLogin(response.data);
-      registerFCMToken('vendor', true).catch(console.error);
-    }
     return response.data;
   },
 
@@ -315,13 +301,6 @@ export const workerAuthService = {
   // Verify Login (Unified Flow)
   verifyLogin: async (data) => {
     const response = await api.post('/workers/auth/verify-login', data);
-    if (response.data.success && !response.data.isNewUser && response.data.accessToken) {
-      localStorage.setItem('workerAccessToken', response.data.accessToken);
-      localStorage.setItem('workerRefreshToken', response.data.refreshToken);
-      localStorage.setItem('workerData', JSON.stringify(response.data.worker));
-      notifyFlutterLogin(response.data);
-      registerFCMToken('worker', true).catch(console.error);
-    }
     return response.data;
   },
 

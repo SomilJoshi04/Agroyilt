@@ -67,11 +67,30 @@ const GoogleMapPicker = ({ onLocationSelect, initialPosition = null }) => {
     geocoder.geocode({ location: position }, (results, status) => {
       setLoading(false);
       if (status === 'OK' && results[0]) {
+        let city = '';
+        let state = '';
+        let pincode = '';
+        
+        results[0].address_components.forEach(component => {
+          if (component.types.includes('locality') || component.types.includes('administrative_area_level_2') || component.types.includes('administrative_area_level_3')) {
+             if(!city) city = component.long_name;
+          }
+          if (component.types.includes('administrative_area_level_1')) {
+            state = component.long_name;
+          }
+          if (component.types.includes('postal_code')) {
+            pincode = component.long_name;
+          }
+        });
+
         if (onLocationSelect) {
           onLocationSelect({
             lat: position.lat,
             lng: position.lng,
-            address: results[0].formatted_address
+            address: results[0].formatted_address,
+            city,
+            state,
+            pincode
           });
         }
       }

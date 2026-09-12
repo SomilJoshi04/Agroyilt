@@ -193,6 +193,24 @@ const settingsSchema = new mongoose.Schema({
   appFavicon: {
     type: String,
     default: '/AgroyiltLogo.png'
+  },
+
+  // ==========================================
+  // WORKER HIRING ROUTING RULES
+  // ==========================================
+  // Max workers that can be hired independently (without a Team Leader).
+  // If requiredWorkers <= this value → Independent Worker Flow.
+  // If requiredWorkers >  this value → Team Leader Flow.
+  maxIndependentWorkerRequest: {
+    type: Number,
+    default: 5,
+    min: 1
+  },
+  // Radius (in km) within which to search for nearby workers / team leaders.
+  workerSearchRadiusKm: {
+    type: Number,
+    default: 15,
+    min: 1
   }
 }, { timestamps: true });
 

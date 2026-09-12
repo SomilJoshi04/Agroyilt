@@ -135,8 +135,18 @@ const register = async (req, res) => {
       });
     }
 
-    const { name, email, verificationToken } = req.body;
+    const { name, email, verificationToken, mpin, confirmMpin } = req.body;
     let phone = req.body.phone;
+
+    if (!mpin || !confirmMpin) {
+      return res.status(400).json({ success: false, message: 'MPIN and Confirm MPIN are required' });
+    }
+    if (mpin !== confirmMpin) {
+      return res.status(400).json({ success: false, message: 'MPINs do not match' });
+    }
+    if (!mpinService.validateMpinFormat(mpin)) {
+      return res.status(400).json({ success: false, message: 'MPIN must be exactly 4 digits' });
+    }
 
     // Verify token if provided (New Flow)
     if (verificationToken) {
@@ -168,13 +178,17 @@ const register = async (req, res) => {
       });
     }
 
+    const hashedMpin = await mpinService.hashMpin(mpin);
+
     // Create user
     const user = await User.create({
       name,
       email: email || null,
       phone,
       isPhoneVerified: true,
-      isEmailVerified: email ? false : true
+      isEmailVerified: email ? false : true,
+      mpin: hashedMpin,
+      isMpinSet: true
     });
 
     // Send Welcome Email

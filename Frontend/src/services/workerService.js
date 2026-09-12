@@ -88,6 +88,21 @@ const workerService = {
     return response.data;
   },
 
+  respondToRequest: async (id, action) => {
+    const response = await api.patch(`/workers/booking-request/${id}/respond`, { action });
+    return response.data;
+  },
+
+  respondToFarmerRequest: async (id, action) => {
+    const response = await api.patch(`/workers/farmer-request/${id}/respond`, { action });
+    return response.data;
+  },
+
+  getPendingFarmerRequests: async () => {
+    const response = await api.get('/workers/farmer-requests/pending');
+    return response.data;
+  },
+
   acceptJob: async (id) => {
     const response = await api.put(`/workers/jobs/${id}/accept`);
     return response.data;

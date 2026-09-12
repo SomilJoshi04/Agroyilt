@@ -47,12 +47,39 @@ const getAllWorkers = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
+    const Review = require('../../models/Review');
+
+    const dynamicWorkers = await Promise.all(workers.map(async (w) => {
+      const workerObj = w.toObject();
+      
+      // Calculate dynamic jobs
+      const completedJobs = await Booking.countDocuments({
+        workerId: w._id,
+        status: BOOKING_STATUS.COMPLETED
+      });
+      workerObj.totalJobs = completedJobs || w.totalJobs || 0;
+
+      // Calculate dynamic rating
+      const reviews = await Review.aggregate([
+        { $match: { workerId: w._id } },
+        { $group: { _id: null, avgRating: { $avg: '$rating' } } }
+      ]);
+      
+      if (reviews.length > 0 && reviews[0].avgRating) {
+        workerObj.rating = Number(reviews[0].avgRating.toFixed(1));
+      } else {
+        workerObj.rating = w.rating || 0;
+      }
+      
+      return workerObj;
+    }));
+
     // Get total count
     const total = await Worker.countDocuments(query);
 
     res.status(200).json({
       success: true,
-      data: workers,
+      data: dynamicWorkers,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

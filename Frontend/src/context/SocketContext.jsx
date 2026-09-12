@@ -158,37 +158,27 @@ export const SocketProvider = ({ children }) => {
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      console.log(`[SOCKET] ✅ ${userType?.toUpperCase()} Socket connected. Socket ID: ${newSocket.id}`);
-
       // Register FCM token for push notifications (on page load/refresh)
       if (userType && token) {
-        registerFCMToken(userType, true).then((fcmToken) => {
-          if (fcmToken) {
-            console.log(`[SOCKET] ✅ FCM token registered for ${userType}`);
-          }
-        }).catch(() => {});
+        registerFCMToken(userType, true).catch(() => {});
       }
 
       // If vendor, join vendor-specific room
       if (userType === 'vendor') {
         const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
         const vendorId = vendorData.id || vendorData._id;
-        console.log(`[SOCKET] Vendor ID from localStorage: ${vendorId}`);
         if (vendorId) {
           newSocket.emit('join_vendor_room', vendorId);
-          console.log(`[SOCKET] ✅ Emitted join_vendor_room for vendor_${vendorId}`);
-        } else {
-          console.error('[SOCKET] ❌ Vendor ID not found in localStorage! Cannot join vendor room.');
         }
       }
     });
 
-    newSocket.on('disconnect', (reason) => {
-      console.warn(`[SOCKET] ❌ ${userType?.toUpperCase()} Socket disconnected. Reason: ${reason}`);
+    newSocket.on('disconnect', () => {
+      // disconnected silently
     });
 
-    newSocket.on('connect_error', (err) => {
-      console.error(`[SOCKET] ❌ Connection error: ${err.message}`);
+    newSocket.on('connect_error', () => {
+      // connection error handled silently
     });
 
     // Listen for generic notifications
@@ -242,7 +232,24 @@ export const SocketProvider = ({ children }) => {
       });
 
       // Dispatch update events to refresh UI components
-      if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
+      if (userType === 'worker') {
+        window.dispatchEvent(new Event('workerJobsUpdated'));
+        if (data.type === 'worker_booking_request') {
+          // Play loud alert ring
+          try {
+            playAlertRing(true);
+          } catch (soundErr) {
+            console.warn('[SOCKET] Could not play alert ringtone:', soundErr);
+          }
+          
+          window.dispatchEvent(new CustomEvent('workerIncomingBooking', { 
+            detail: {
+              data: data.data || data,
+              relatedId: data.relatedId || (data.data && data.data.requestId)
+            }
+          }));
+        }
+      }
       if (userType === 'vendor') {
         window.dispatchEvent(new Event('vendorJobsUpdated'));
         window.dispatchEvent(new Event('vendorNotificationsUpdated'));
@@ -275,8 +282,6 @@ export const SocketProvider = ({ children }) => {
     // Listen for special Vendor Booking Requests
     if (userType === 'vendor') {
       newSocket.on('new_booking_request', (data) => {
-        console.log('[SOCKET] 🚨 new_booking_request received! Booking ID:', data?.bookingId);
-        
         try {
           // Play alert ringtone
           try {
@@ -332,7 +337,6 @@ export const SocketProvider = ({ children }) => {
           }
 
           // Trigger the Vendor Dashboard Alert Context
-          console.log(`[SOCKET] 📢 Dispatching showDashboardBookingAlert for booking ${newJob.id}`);
           window.dispatchEvent(new CustomEvent('showDashboardBookingAlert', { 
             detail: newJob
           }));

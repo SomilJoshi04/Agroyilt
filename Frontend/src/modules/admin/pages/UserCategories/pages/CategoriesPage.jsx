@@ -140,9 +140,9 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
       try {
         const response = await homeContentService.get({ cityId: selectedCity });
         if (response.success && response.homeContent) {
-           setPremiumOfferings(response.homeContent.premiumOfferings || []);
+          setPremiumOfferings(response.homeContent.premiumOfferings || []);
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     fetchHomeData();
   }, [selectedCity]);
@@ -338,7 +338,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
               <FiPlus /> Add Category
             </button>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative flex-1">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -429,11 +429,11 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
                       <div className="flex flex-col gap-1">
                         {(c.scope || 'GLOBAL') === 'GLOBAL' ? (
                           <span className="inline-block whitespace-nowrap px-2 py-1 bg-green-50 text-green-700 rounded text-[10px] font-black border border-green-200 w-fit">
-                             GLOBAL
+                            GLOBAL
                           </span>
                         ) : (
                           <span className="inline-block whitespace-nowrap px-2 py-1 bg-blue-50 text-blue-700 rounded text-[10px] font-black border border-blue-200 w-fit">
-                             {cities?.find(cty => cty._id === c.city || cty.id === c.city)?.name || c.city || 'CITY SPECIFIC'}
+                            {cities?.find(cty => cty._id === c.city || cty.id === c.city)?.name || c.city || 'CITY SPECIFIC'}
                           </span>
                         )}
                       </div>
@@ -514,22 +514,22 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
                 {categoriesBase
                   .filter(c => c.id !== editingId && (!c.parentCategories || c.parentCategories.length === 0))
                   .map(c => (
-                  <label key={c.id} className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                      checked={form.parentCategories.includes(c.id)}
-                      onChange={e => {
-                        const checked = e.target.checked;
-                        setForm(p => ({
-                          ...p,
-                          parentCategories: checked ? [...p.parentCategories, c.id] : p.parentCategories.filter(id => id !== c.id)
-                        }));
-                      }}
-                    />
-                    <span className="text-sm font-semibold text-gray-700 group-hover:text-primary-600">{c.title}</span>
-                  </label>
-                ))}
+                    <label key={c.id} className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        checked={form.parentCategories.includes(c.id)}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setForm(p => ({
+                            ...p,
+                            parentCategories: checked ? [...p.parentCategories, c.id] : p.parentCategories.filter(id => id !== c.id)
+                          }));
+                        }}
+                      />
+                      <span className="text-sm font-semibold text-gray-700 group-hover:text-primary-600">{c.title}</span>
+                    </label>
+                  ))}
                 {categoriesBase.filter(c => c.id !== editingId && (!c.parentCategories || c.parentCategories.length === 0)).length === 0 && (
                   <p className="text-xs text-gray-400 italic">No main categories available</p>
                 )}
@@ -551,11 +551,11 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
               </select>
               <p className="text-[11px] text-gray-500 mt-1">Global categories are visible in all cities.</p>
             </div>
-            
+
             {form.scope === 'CITY_SPECIFIC' && (
               <div>
                 <label className="block text-base font-bold text-gray-900 mb-2">Select City</label>
-                <SearchableCitySelect 
+                <SearchableCitySelect
                   cities={cities}
                   value={form.city || ''}
                   onChange={(val) => setForm({ ...form, city: val })}
@@ -618,9 +618,9 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
                   return sectionName !== 'drone spraying' && sectionName !== 'dronespraying';
                 })
                 .map(o => {
-                const sectionName = o.actionPayload || o.title;
-                return <option key={o._id || o.id} value={sectionName}>{o.title} - ({sectionName})</option>
-              })}
+                  const sectionName = o.actionPayload || o.title;
+                  return <option key={o._id || o.id} value={sectionName}>{o.title} - ({sectionName})</option>
+                })}
             </select>
           </div>
 
