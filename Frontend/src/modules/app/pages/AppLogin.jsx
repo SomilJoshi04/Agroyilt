@@ -422,6 +422,7 @@ const AppLogin = () => {
                     flex: 1, border: 'none', outline: 'none', background: 'transparent', 
                     fontSize: '1rem', fontWeight: 500, color: '#263238', padding: '14px 0',
                     fontFamily: "'Inter', 'Segoe UI', sans-serif",
+                    width: '100%', minWidth: 0
                   }}
                 />
               </div>
@@ -453,9 +454,10 @@ const AppLogin = () => {
                     fontSize: '1.2rem', fontWeight: 600, color: '#263238', padding: '14px 0',
                     letterSpacing: mpin ? '4px' : 'normal',
                     fontFamily: "'Inter', 'Segoe UI', sans-serif",
+                    width: '100%', minWidth: 0
                   }}
                 />
-                <button type="button" onClick={() => setShowMpin(!showMpin)} style={{ background: 'none', border: 'none', color: '#9E9E9E', cursor: 'pointer', padding: '4px' }}>
+                <button type="button" onClick={() => setShowMpin(!showMpin)} style={{ background: 'none', border: 'none', color: '#9E9E9E', cursor: 'pointer', padding: '4px', flexShrink: 0 }}>
                   {showMpin ? <FiEyeOff size={20} /> : <FiEye size={20} />}
                 </button>
               </div>
@@ -523,6 +525,7 @@ const AppLogin = () => {
                     flex: 1, border: 'none', outline: 'none', background: 'transparent',
                     fontSize: '1rem', fontWeight: 500, color: '#263238', padding: '14px 0',
                     fontFamily: "'Inter', 'Segoe UI', sans-serif",
+                    width: '100%', minWidth: 0
                   }}
                 />
               </div>
@@ -663,9 +666,10 @@ const AppLogin = () => {
                     flex: 1, border: 'none', outline: 'none', background: 'transparent', 
                     fontSize: '1.2rem', fontWeight: 600, color: '#263238', padding: '14px 0',
                     letterSpacing: newMpin ? '4px' : 'normal', fontFamily: "'Inter', 'Segoe UI', sans-serif",
+                    width: '100%', minWidth: 0
                   }}
                 />
-                <button type="button" onClick={() => setShowMpin(!showMpin)} style={{ background: 'none', border: 'none', color: '#9E9E9E', cursor: 'pointer', padding: '4px' }}>
+                <button type="button" onClick={() => setShowMpin(!showMpin)} style={{ background: 'none', border: 'none', color: '#9E9E9E', cursor: 'pointer', padding: '4px', flexShrink: 0 }}>
                   {showMpin ? <FiEyeOff size={20} /> : <FiEye size={20} />}
                 </button>
               </div>
@@ -693,6 +697,7 @@ const AppLogin = () => {
                     flex: 1, border: 'none', outline: 'none', background: 'transparent', 
                     fontSize: '1.2rem', fontWeight: 600, color: '#263238', padding: '14px 0',
                     letterSpacing: confirmMpin ? '4px' : 'normal', fontFamily: "'Inter', 'Segoe UI', sans-serif",
+                    width: '100%', minWidth: 0
                   }}
                 />
               </div>
