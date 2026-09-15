@@ -17,7 +17,7 @@ const WorkerSelectionPayment = () => {
       try {
         const res = await workerBookingService.getFarmerRequestById(id);
         if (res.data.paymentStatus === 'success') {
-           navigate(`/user/worker-requests/${id}`);
+           navigate(`/user/farmer-worker-request/${id}`);
            return;
         }
         setRequest(res.data);
@@ -74,7 +74,7 @@ const WorkerSelectionPayment = () => {
             });
 
             toast.success('Payment successful! Booking Confirmed.', { id: 'verify-toast' });
-            navigate(`/user/worker-requests/${id}`);
+            navigate(`/user/farmer-worker-request/${id}`);
           } catch (verifyErr) {
             toast.error(verifyErr?.response?.data?.message || 'Payment verification failed', { id: 'verify-toast' });
           }
