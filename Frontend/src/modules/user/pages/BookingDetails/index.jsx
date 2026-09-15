@@ -1058,7 +1058,7 @@ const BookingDetails = () => {
           )}
 
           {/* Waiting for Vendor to initiate Payment */}
-          {!booking.vendorBillId && !booking.customerConfirmationOTP && ['work_done'].includes(booking.status?.toLowerCase()) && !booking.cashCollected && (
+          {!booking.vendorBillId && !booking.customerConfirmationOTP && ['work_done'].includes(booking.status?.toLowerCase()) && !booking.cashCollected && booking.paymentStatus !== 'success' && (
             <div className="bg-white rounded-3xl p-6 shadow-lg border border-teal-100 mb-6 flex items-center gap-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-teal-50 rounded-full -translate-y-12 translate-x-12 blur-2xl"></div>
               <div className="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center shrink-0 border border-teal-100">
@@ -1138,10 +1138,10 @@ const BookingDetails = () => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white tracking-tight">
-                      {booking.paymentStatus === 'success' ? 'Payment Received' : 'Final Payment'}
+                      {booking.paymentStatus === 'success' ? (booking.providerType === 'WORKER' ? 'Payment Confirmed' : 'Payment Received') : 'Final Payment'}
                     </h3>
                     <p className={`text-xs font-medium ${booking.paymentStatus === 'success' ? 'text-green-50' : 'text-orange-100'}`}>
-                      {booking.paymentStatus === 'success' ? 'Transaction verified successfully' : 'Final amount after service completion'}
+                      {booking.paymentStatus === 'success' ? (booking.providerType === 'WORKER' ? 'Worker job payment confirmed' : 'Transaction verified successfully') : 'Final amount after service completion'}
                     </p>
                   </div>
                 </div>
@@ -1192,7 +1192,7 @@ const BookingDetails = () => {
                         ? (
                           booking.paymentMethod === 'plan_benefit'
                             ? <p className="font-medium">Covered by your Membership Plan</p>
-                            : <p className="font-medium">Booking completed successfully. Thank you for choosing us!</p>
+                            : <p className="font-medium">{booking.providerType === 'WORKER' ? 'Worker payment was sent at booking time.' : 'Booking completed successfully. Thank you for choosing us!'}</p>
                         )
                         : <p className="font-medium">Total Amount: <span className="text-lg font-black ml-1">₹{(booking.finalAmount || booking.totalAmount || 0).toLocaleString('en-IN')}</span></p>
                       }
@@ -1656,8 +1656,65 @@ const BookingDetails = () => {
                       </span>
                     </div>
                   </div>
+                ) : booking.providerType === 'WORKER' ? (
+                  // WORKER BOOKING BREAKDOWN (New Flow - Upfront Payment)
+                  <div className="space-y-3">
+                    {/* Worker Agreed Rate */}
+                    <div className="flex justify-between items-center text-gray-700">
+                      <span className="font-medium">Worker Rate</span>
+                      <span className="font-bold text-gray-900">
+                        ₹{(booking.workerGrossEarning || booking.agreedRate || booking.finalAmount || 0).toLocaleString('en-IN')}
+                        <span className="text-xs text-gray-400 ml-1">/{booking.rateUnit || 'day'}</span>
+                      </span>
+                    </div>
+
+                    {/* Platform Fee */}
+                    {booking.platformFeeAmount > 0 && (
+                      <div className="flex justify-between items-center text-gray-600">
+                        <span>Platform Fee ({booking.platformFeeRate || 0}%)</span>
+                        <span className="font-medium text-gray-900">+₹{(booking.platformFeeAmount || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+
+                    {/* Divider */}
+                    <div className="border-t border-dashed border-gray-200 my-1" />
+
+                    {/* Total Paid (maxRate + platformFee) */}
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-gray-900">You Paid (Max Budget)</span>
+                      <span className="text-xl font-black text-gray-900">
+                        ₹{(booking.farmerPaidAmount || booking.totalAmount || booking.finalAmount || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+
+                    {/* Refund if worker rate < max budget */}
+                    {(booking.refundAmount > 0 || (booking.maxRate > 0 && (booking.workerGrossEarning || booking.agreedRate || 0) < booking.maxRate)) && (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mt-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-bold text-emerald-700">✓ Refund Credited</span>
+                          <span className="text-sm font-black text-emerald-700">
+                            +₹{(booking.refundAmount || Math.max(0, (booking.maxRate || 0) - (booking.workerGrossEarning || booking.agreedRate || 0))).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-emerald-600 font-medium">
+                          Worker bid was lower than your max budget. Difference refunded to your AgroYilt wallet.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Net Paid After Refund */}
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Net Amount Paid</span>
+                        <span className="font-black text-teal-700 text-lg">
+                          ₹{(booking.workerGrossEarning || booking.agreedRate || booking.finalAmount || 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Includes platform fee • Paid at booking time</p>
+                    </div>
+                  </div>
                 ) : (
-                  // OLD SIMPLE BREAKDOWN (Fallback)
+                  // OLD SIMPLE BREAKDOWN (Fallback - Vendor/Service flow)
                   <>
                     {/* Base Items */}
                     <div className="flex justify-between items-center text-gray-600">
@@ -1665,7 +1722,7 @@ const BookingDetails = () => {
                       {booking.paymentMethod === 'plan_benefit' ? (
                         <div className="flex items-center gap-2">
                           <span className="line-through text-gray-400 text-xs">₹{(booking.basePrice || 0).toLocaleString('en-IN')}</span>
-                          <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
+                          <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE</span>
                         </div>
                       ) : (
                         <span className="font-medium text-gray-900">₹{(booking.basePrice || 0).toLocaleString('en-IN')}</span>
@@ -1682,7 +1739,7 @@ const BookingDetails = () => {
                         {booking.paymentMethod === 'plan_benefit' ? (
                           <div className="flex items-center gap-2">
                             <span className="line-through text-gray-400 text-xs">₹{(booking.tax || 0).toLocaleString('en-IN')}</span>
-                            <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
+                            <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE</span>
                           </div>
                         ) : (
                           <span className="font-medium text-gray-900">₹{(booking.tax || 0).toLocaleString('en-IN')}</span>
@@ -1695,7 +1752,7 @@ const BookingDetails = () => {
                       {booking.paymentMethod === 'plan_benefit' ? (
                         <div className="flex items-center gap-2">
                           <span className="line-through text-gray-400 text-xs">₹{(booking.visitingCharges || booking.visitationFee || 0).toLocaleString('en-IN')}</span>
-                          <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
+                          <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE</span>
                         </div>
                       ) : (
                         <span className={`font-medium ${(booking.visitingCharges || booking.visitationFee || 0) === 0 ? 'text-gray-400 font-normal italic' : 'text-gray-900'}`}>
@@ -1713,7 +1770,6 @@ const BookingDetails = () => {
                       </div>
                     )}
 
-                    {/* Extra Charges Section */}
                     {booking.extraCharges && booking.extraCharges.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Extra Charges</p>
@@ -1763,7 +1819,7 @@ const BookingDetails = () => {
           </section>
 
           {/* Action Card for Payment — shows for work_done (independent worker) or awaiting_payment (all) */}
-          {(booking.status === 'awaiting_payment' || (booking.status === 'work_done' && !booking.vendorId && booking.workerId)) && (
+          {false && /* Hidden: Farmer already paid at time of worker booking, no need for post-payment prompt */ (booking.status === 'awaiting_payment' || (booking.status === 'work_done' && !booking.vendorId && booking.workerId)) && (
             <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 p-6 space-y-4">
               <div className="text-center mb-4">
                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">

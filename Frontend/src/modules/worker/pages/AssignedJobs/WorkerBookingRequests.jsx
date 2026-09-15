@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { FiArrowLeft, FiClock, FiMapPin, FiCalendar, FiDollarSign, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import workerBookingService from '../../../../services/workerBookingService'; // Use the main booking service
+import workerService from '../../../../services/workerService';
 
 const STATUS_COLORS = {
   pending: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -27,12 +28,10 @@ const WorkerBookingRequests = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      // Wait, workerBookingService has getMyFarmerRequests? We need to use the right service method.
-      // Let's use api directly if service method is missing, or rely on workerRequestService if it existed.
-      // Actually, workerRequestService.getIncomingRequests() was used before. I'll just use the old service name for fetching, but the new service for responding.
-      const workerRequestService = require('../../../../services/workerRequestService').default || require('../../../../services/workerRequestService');
-      const res = await workerRequestService.getIncomingRequests();
-      setRequests(res.data || []);
+      // Fetch farmer broadcast requests pending for this worker (NEW endpoint)
+      const res = await workerService.getPendingFarmerRequests();
+      const data = res?.data || res || [];
+      setRequests(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error('Failed to load requests');
     } finally {

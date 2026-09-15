@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiClock, FiCheckCircle, FiXCircle, FiMapPin, FiChevronRight, FiUser, FiSearch } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
@@ -38,7 +38,7 @@ const AssignedJobs = () => {
 
       const response = await workerService.getAssignedJobs();
       if (response.success) {
-        setJobs(response.data);
+        setJobs([...response.data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
       }
       setLoading(false);
     } catch (err) {
@@ -64,8 +64,15 @@ const AssignedJobs = () => {
   const getStatusColor = (status) => {
     const colors = {
       'pending': '#F59E0B',
+      'searching': '#F59E0B',
+      'requested': '#6366F1',
       'confirmed': '#3B82F6',
+      'assigned': '#3B82F6',
+      'visited': '#8B5CF6',
       'in_progress': '#F59E0B',
+      'on_the_way': '#F59E0B',
+      'work_done': '#10B981',
+      'awaiting_payment': '#EF6820',
       'completed': '#10B981',
       'cancelled': '#EF4444',
       'rejected': '#EF4444',
@@ -78,6 +85,9 @@ const AssignedJobs = () => {
       'pending': 'Pending',
       'confirmed': 'Assigned',
       'in_progress': 'In Progress',
+      'on_the_way': 'On The Way',
+      'work_done': 'Work Done',
+      'awaiting_payment': 'Awaiting Payment',
       'completed': 'Completed',
       'cancelled': 'Cancelled',
       'rejected': 'Rejected',
@@ -101,7 +111,7 @@ const AssignedJobs = () => {
     } else if (filter === 'confirmed') {
       matchesFilter = ['confirmed', 'assigned', 'pending'].includes(status);
     } else if (filter === 'in_progress') {
-      matchesFilter = ['in_progress', 'started', 'reached', 'visited', 'work_done', 'on_the_way'].includes(status);
+      matchesFilter = ['in_progress', 'started', 'reached', 'visited', 'work_done', 'on_the_way', 'awaiting_payment'].includes(status);
     } else if (filter === 'completed') {
       matchesFilter = ['completed', 'worker_paid', 'paid'].includes(status);
     }
@@ -242,7 +252,7 @@ const AssignedJobs = () => {
                           border: `1px solid ${hexToRgba(themeColors.button, 0.2)}`,
                         }}
                       >
-                        ₹{job.finalAmount}
+                        â‚¹{job.finalAmount}
                       </div>
                     </div>
 
@@ -266,7 +276,7 @@ const AssignedJobs = () => {
                         <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
                           <FiClock className="w-4 h-4" style={{ color: statusColor }} />
                         </div>
-                        <span className="text-gray-700 font-medium">{job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'N/A'} • {job.scheduledTime || 'N/A'}</span>
+                        <span className="text-gray-700 font-medium">{job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'N/A'} â€¢ {job.scheduledTime || 'N/A'}</span>
                       </div>
                     </div>
                   </div>
@@ -281,3 +291,6 @@ const AssignedJobs = () => {
 };
 
 export default AssignedJobs;
+
+
+

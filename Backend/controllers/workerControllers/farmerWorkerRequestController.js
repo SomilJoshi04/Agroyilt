@@ -1261,6 +1261,10 @@ exports.verifyWorkerBookingPayment = async (req, res) => {
         workerNetEarning: netEarning,
         finalAmount: offeredRate, 
         totalAmount: offeredRate,
+        farmerPaidAmount: request.financialSnapshot.totalPayable,
+        platformFeeAmount: request.financialSnapshot.platformChargeAmount,
+        platformFeeRate: request.financialSnapshot.platformChargeRate,
+        maxRate: request.maxRate,
         
         address: {
           addressLine1: request.location?.addressLine1 || request.location?.city || '',
@@ -1282,6 +1286,55 @@ exports.verifyWorkerBookingPayment = async (req, res) => {
     request.finalBookingIds = createdBookings.map(b => b._id);
     await request.save();
 
+
+    // REFUND: If workers bid lower than max budget, credit difference to farmer wallet
+    try {
+      const snap = request.financialSnapshot;
+      const maxWorkerTotal = snap.maximumWorkerAmount;
+      const actualWorkerTotal = createdBookings.reduce((sum, b) => sum + (b.workerGrossEarning || b.agreedRate || 0), 0);
+      const refundAmount = Math.max(0, maxWorkerTotal - actualWorkerTotal);
+
+      if (refundAmount > 0) {
+        let farmerWallet = await Wallet.findOne({ userId: farmerId, userModel: 'User' });
+        if (!farmerWallet) {
+          farmerWallet = await Wallet.create({ userId: farmerId, userModel: 'User', balance: 0 });
+        }
+        const refundKey = 'refund_' + request._id.toString() + '_booking';
+        const existingRefund = await WalletTransaction.findOne({ idempotencyKey: refundKey });
+        if (!existingRefund) {
+          farmerWallet.balance += refundAmount;
+          await farmerWallet.save();
+          await WalletTransaction.create({
+            walletId: farmerWallet._id,
+            type: 'credit',
+            amount: refundAmount,
+            reason: 'refund',
+            referenceId: request._id.toString(),
+            gatewayTransactionId: razorpay_payment_id,
+            idempotencyKey: refundKey,
+            status: 'completed'
+          });
+          request.refundAmount = refundAmount;
+          request.refundCredited = true;
+          request.refundCreditedAt = new Date();
+          await request.save();
+          console.log('[REFUND] Farmer refunded Rs.' + refundAmount);
+          const { createNotification } = require('../notificationControllers/notificationController');
+          await createNotification({
+            userId: farmerId,
+            type: 'refund',
+            title: 'Refund Credited to Wallet!',
+            message: 'Rs.' + refundAmount + ' credited to your AgroYilt wallet. Workers bid lower than your max budget of Rs.' + maxWorkerTotal + '.',
+            relatedId: request._id,
+            relatedType: 'WorkerBookingRequest',
+            priority: 'high',
+            pushData: { type: 'refund', amount: refundAmount, link: '/user/wallet' }
+          });
+        }
+      }
+    } catch (refundErr) {
+      console.error('[REFUND] Farmer refund failed:', refundErr);
+    }
     for (const b of createdBookings) {
       await notify({
         recipientType: 'worker',

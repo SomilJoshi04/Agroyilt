@@ -364,6 +364,16 @@ const JobDetails = () => {
     }
 
     if (statusLower === 'work_done') {
+      // NEW FLOW: Farmer already paid upfront at booking time
+      if (job.paymentStatus === 'success') {
+        return (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+            <p className="text-green-800 font-bold mb-1">✅ Payment Already Received</p>
+            <p className="text-green-600 text-sm">Farmer paid upfront at booking time. Your earnings will be credited to your wallet.</p>
+          </div>
+        );
+      }
+      // OLD FLOW: Payment pending after work done
       return (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
           <p className="text-blue-800 font-bold mb-1">Waiting for Farmer to Pay</p>
@@ -407,7 +417,7 @@ const JobDetails = () => {
   };
 
   return (
-    <div className="min-h-screen pb-32" style={{ background: themeColors.backgroundGradient }}>
+    <div className="min-h-screen pb-40" style={{ background: themeColors.backgroundGradient }}>
       <Header title="Job Details" />
 
       <main className="px-4 py-6">
@@ -601,112 +611,196 @@ const JobDetails = () => {
             <React.Fragment>
               {/* Payment Details - Professional Card (Matched with Vendor) */}
 
-        <div
-          className="bg-white rounded-xl p-5 mb-6 shadow-sm border border-gray-100"
-          style={{
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-          }}
-        >
-          <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100">
-            <div className={`p-2 rounded-lg ${job.paymentMethod === 'plan_benefit' ? 'bg-amber-100' : 'bg-gray-100'}`}>
-              <FiDollarSign className="w-5 h-5" style={{ color: job.paymentMethod === 'plan_benefit' ? '#d97706' : themeColors.button }} />
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-800">
-                {job.paymentMethod === 'plan_benefit' ? 'Plan Benefit Summary' : 'Payment Summary'}
-              </h3>
-              {job.paymentMethod === 'plan_benefit' && (
-                <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                  Plan Membership Active
+        {/* ?????????????????????????????????????????????????????
+          NEW FLOW: Worker Booking Payment Summary
+          For WORKER providerType � show agreed rate, commission, net
+          For VENDOR/service providerType � show old base price breakdown
+          ??????????????????????????????????????????????????????? */}
+        {job.providerType === 'WORKER' ? (
+          /* ========== WORKER FLOW: Rate Breakdown Card ========== */
+          <div
+            className="bg-white rounded-xl p-5 mb-6 shadow-sm border border-gray-100"
+            style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)' }}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100">
+              <div className="p-2 rounded-lg bg-emerald-50">
+                <FiDollarSign className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">Job Payment Breakdown</h3>
+                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                  New Flow � Upfront Paid
                 </span>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-3 text-sm">
-            {/* Base Items */}
-            <div className="flex justify-between items-center text-gray-600">
-              <span>Base Price</span>
-              {job.paymentMethod === 'plan_benefit' ? (
-                <div className="flex items-center gap-2">
-                  <span className="line-through text-gray-400 text-xs">₹{(job.basePrice || 0).toFixed(2)}</span>
-                  <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
-                </div>
-              ) : (
-                <span>₹{(job.basePrice || 0).toFixed(2)}</span>
-              )}
+              </div>
             </div>
 
-            {(job.tax > 0 || job.paymentMethod === 'plan_benefit') && (
+            <div className="space-y-3 text-sm">
+              {/* Farmer's agreed rate = what farmer paid for this worker */}
+              <div className="flex justify-between items-center text-gray-700">
+                <span className="font-medium">Worker Agreed Rate</span>
+                <span className="font-bold text-gray-900">
+                  ₹{(job.workerGrossEarning || job.agreedRate || job.workerOfferedRate || 0).toLocaleString('en-IN')}
+                  <span className="text-xs text-gray-400 ml-1">/{job.rateUnit || 'day'}</span>
+                </span>
+              </div>
+
+              {/* Admin Commission deduction */}
               <div className="flex justify-between items-center text-gray-600">
-                <span>Tax</span>
-                {job.paymentMethod === 'plan_benefit' ? (
-                  <div className="flex items-center gap-2">
-                    <span className="line-through text-gray-400 text-xs">₹{(job.tax || 0).toFixed(2)}</span>
-                    <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
+                <span>Admin Commission ({job.commissionRate || 0}%)</span>
+                <span className="font-bold text-red-500">
+                  - ₹{(job.commissionAmount || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t-2 border-dashed border-emerald-200 my-1" />
+
+              {/* Net Earning � what worker actually gets */}
+              <div className="flex justify-between items-end">
+                <span className="font-black text-emerald-800">Your Net Earning</span>
+                <span className="text-2xl font-black text-emerald-700">
+                  ₹{(job.workerNetEarning || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {/* Wallet status badge */}
+              <div className="pt-1">
+                {job.walletCredited ? (
+                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                    <span className="text-emerald-600 text-base">&#10003;</span>
+                    <div>
+                      <p className="text-xs font-black text-emerald-700">Credited to Wallet</p>
+                      <p className="text-[10px] text-emerald-600 font-medium">
+                        ₹{(job.walletCreditAmount || job.workerNetEarning || 0).toLocaleString('en-IN')} added on job completion
+                      </p>
+                    </div>
+                  </div>
+                ) : job.paymentStatus === 'success' ? (
+                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+                    <span className="text-blue-500 text-base">&#8987;</span>
+                    <div>
+                      <p className="text-xs font-black text-blue-700">Will Credit After Job Done</p>
+                      <p className="text-[10px] text-blue-600 font-medium">
+                        Payment is secured. Complete the job to receive earnings.
+                      </p>
+                    </div>
                   </div>
                 ) : (
-                  <span>+₹{(job.tax || 0).toFixed(2)}</span>
+                  <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
+                    <span className="text-orange-500 text-base">!</span>
+                    <p className="text-xs font-bold text-orange-700">Farmer payment pending</p>
+                  </div>
                 )}
               </div>
-            )}
 
-            <div className="flex justify-between items-center text-gray-600">
-              <span>Convenience Fee</span>
-              {job.paymentMethod === 'plan_benefit' ? (
-                <div className="flex items-center gap-2">
-                  <span className="line-through text-gray-400 text-xs">₹{(job.visitingCharges || 0).toFixed(2)}</span>
-                  <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
-                </div>
-              ) : (
-                <span className={`font-medium ${(job.visitingCharges || 0) === 0 ? 'text-gray-400 font-normal italic' : 'text-gray-900'}`}>
-                  {(job.visitingCharges || 0) === 0 
-                    ? 'Not Added' 
-                    : `+₹${(job.visitingCharges || 0).toFixed(2)}`}
-                </span>
-              )}
-            </div>
-
-            {job.paymentMethod !== 'plan_benefit' && job.discount > 0 && (
-              <div className="flex justify-between text-green-600 font-medium">
-                <span>Discount</span>
-                <span>-₹{(job.discount || 0).toFixed(2)}</span>
-              </div>
-            )}
-
-            {/* Extra Charges Section */}
-            {job.extraCharges && job.extraCharges.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Extra Charges (User Pays)</p>
-                <div className="bg-gray-50 rounded-lg p-3 space-y-2 border border-gray-100">
-                  {job.extraCharges.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-gray-700 text-sm">
-                      <span className="flex items-center gap-2">
-                        <span className="text-xs font-bold bg-white border px-1.5 rounded text-gray-500">x{item.quantity || 1}</span>
-                        <span>{item.name}</span>
-                      </span>
-                      <span className="font-medium">+₹{(item.total || item.price || 0).toFixed(2)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between font-bold text-blue-600 pt-2 mt-2 border-t border-gray-200">
-                    <span>Subtotal Extras</span>
-                    <span>+₹{(job.extraChargesTotal || 0).toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="my-4 border-t border-gray-200"></div>
-
-            <div className="flex justify-between items-end mb-2">
-              <span className="text-gray-900 font-bold">Total Amount (User Pays)</span>
-              <span className="text-2xl font-bold text-gray-900">
-                ₹{(job.paymentMethod === 'plan_benefit' ? (job.extraChargesTotal || 0) : (job.finalAmount || 0)).toFixed(2)}
-              </span>
+              {/* Rate unit info */}
+              <p className="text-[10px] text-gray-400 text-center pt-1">
+                Rate unit: {job.rateUnit || 'daily'} � Booking: {job.bookingNumber}
+              </p>
             </div>
           </div>
-        </div>
+        ) : (
+          /* ========== VENDOR/SERVICE FLOW: Old breakdown ========== */
+          <div
+            className="bg-white rounded-xl p-5 mb-6 shadow-sm border border-gray-100"
+            style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)' }}
+          >
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100">
+              <div className={`p-2 rounded-lg ${job.paymentMethod === 'plan_benefit' ? 'bg-amber-100' : 'bg-gray-100'}`}>
+                <FiDollarSign className="w-5 h-5" style={{ color: job.paymentMethod === 'plan_benefit' ? '#d97706' : themeColors.button }} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">
+                  {job.paymentMethod === 'plan_benefit' ? 'Plan Benefit Summary' : 'Payment Summary'}
+                </h3>
+                {job.paymentMethod === 'plan_benefit' && (
+                  <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                    Plan Membership Active
+                  </span>
+                )}
+              </div>
+            </div>
 
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center text-gray-600">
+                <span>Base Price</span>
+                {job.paymentMethod === 'plan_benefit' ? (
+                  <div className="flex items-center gap-2">
+                    <span className="line-through text-gray-400 text-xs">₹{(job.basePrice || 0).toFixed(2)}</span>
+                    <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE</span>
+                  </div>
+                ) : (
+                  <span>₹{(job.basePrice || 0).toFixed(2)}</span>
+                )}
+              </div>
+
+              {(job.tax > 0 || job.paymentMethod === 'plan_benefit') && (
+                <div className="flex justify-between items-center text-gray-600">
+                  <span>Tax</span>
+                  {job.paymentMethod === 'plan_benefit' ? (
+                    <div className="flex items-center gap-2">
+                      <span className="line-through text-gray-400 text-xs">₹{(job.tax || 0).toFixed(2)}</span>
+                      <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE</span>
+                    </div>
+                  ) : (
+                    <span>+₹{(job.tax || 0).toFixed(2)}</span>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-gray-600">
+                <span>Convenience Fee</span>
+                {job.paymentMethod === 'plan_benefit' ? (
+                  <div className="flex items-center gap-2">
+                    <span className="line-through text-gray-400 text-xs">₹{(job.visitingCharges || 0).toFixed(2)}</span>
+                    <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE</span>
+                  </div>
+                ) : (
+                  <span className={`font-medium ${(job.visitingCharges || 0) === 0 ? 'text-gray-400 font-normal italic' : 'text-gray-900'}`}>
+                    {(job.visitingCharges || 0) === 0 ? 'Not Added' : `+₹${(job.visitingCharges || 0).toFixed(2)}`}
+                  </span>
+                )}
+              </div>
+
+              {job.paymentMethod !== 'plan_benefit' && job.discount > 0 && (
+                <div className="flex justify-between text-green-600 font-medium">
+                  <span>Discount</span>
+                  <span>-₹{(job.discount || 0).toFixed(2)}</span>
+                </div>
+              )}
+
+              {job.extraCharges && job.extraCharges.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Extra Charges (User Pays)</p>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2 border border-gray-100">
+                    {job.extraCharges.map((item, idx) => (
+                      <div key={idx} className="flex justify-between text-gray-700 text-sm">
+                        <span className="flex items-center gap-2">
+                          <span className="text-xs font-bold bg-white border px-1.5 rounded text-gray-500">x{item.quantity || 1}</span>
+                          <span>{item.name}</span>
+                        </span>
+                        <span className="font-medium">+₹{(item.total || item.price || 0).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between font-bold text-blue-600 pt-2 mt-2 border-t border-gray-200">
+                      <span>Subtotal Extras</span>
+                      <span>+₹{(job.extraChargesTotal || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="my-4 border-t border-gray-200"></div>
+              <div className="flex justify-between items-end mb-2">
+                <span className="text-gray-900 font-bold">Total Amount (User Pays)</span>
+                <span className="text-2xl font-bold text-gray-900">
+                  ₹{(job.paymentMethod === 'plan_benefit' ? (job.extraChargesTotal || 0) : (job.finalAmount || 0)).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
             </React.Fragment>
           )}
 
