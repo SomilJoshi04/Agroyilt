@@ -5,7 +5,7 @@ import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import { CashCollectionModal, WorkCompletionModal } from '../../components/common';
 import workerService from '../../../../services/workerService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const JobTimeline = () => {
   const { id } = useParams();
@@ -49,7 +49,7 @@ const JobTimeline = () => {
       }
     } catch (error) {
       console.error('Error fetching job:', error);
-      toast.error('Failed to load job details');
+      toastManager.error('Failed to load job details');
     }
   };
 
@@ -86,19 +86,19 @@ const JobTimeline = () => {
       if (type === 'start') {
         const res = await workerService.startJob(id);
         if (res.success) {
-          toast.success('Journey Started');
+          toastManager.success('Journey Started');
           fetchJobDetails();
         }
       }
       setActionLoading(false);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Action failed');
+      toastManager.error(error.response?.data?.message || 'Action failed');
       setActionLoading(false);
     }
   };
 
   const handleRequestPayment = () => {
-    toast.success('Payment request sent to Vendor', {
+    toastManager.success('Payment request sent to Vendor', {
       icon: '🔔',
       style: { borderRadius: '10px', background: '#333', color: '#fff' },
     });
@@ -109,10 +109,10 @@ const JobTimeline = () => {
       try {
         setActionLoading(true);
         await workerService.updateJobStatus(id, job.status, { finalSettlementStatus: 'DONE' });
-        toast.success('Final settlement confirmed');
+        toastManager.success('Final settlement confirmed');
         fetchJobDetails();
       } catch (e) {
-        toast.error('Failed to confirm settlement');
+        toastManager.error('Failed to confirm settlement');
       } finally {
         setActionLoading(false);
       }
@@ -121,12 +121,12 @@ const JobTimeline = () => {
 
   const verifyVisit = async () => {
     const otp = otpInput.join('');
-    if (otp.length !== 4) return toast.error('Enter 4-digit OTP');
+    if (otp.length !== 4) return toastManager.error('Enter 4-digit OTP');
 
     setActionLoading(true);
     if (!navigator.geolocation) {
       setActionLoading(false);
-      return toast.error('Geolocation required');
+      return toastManager.error('Geolocation required');
     }
 
     navigator.geolocation.getCurrentPosition(async (position) => {
@@ -134,13 +134,13 @@ const JobTimeline = () => {
         const location = { lat: position.coords.latitude, lng: position.coords.longitude };
         const response = await workerService.verifyVisit(id, otp, location);
         if (response.success) {
-          toast.success('Visit Verified');
+          toastManager.success('Visit Verified');
           setIsVisitModalOpen(false);
           setOtpInput(['', '', '', '']);
           fetchJobDetails();
         }
       } catch (error) {
-        toast.error(error.response?.data?.message || 'Verification failed');
+        toastManager.error(error.response?.data?.message || 'Verification failed');
       } finally {
         setActionLoading(false);
       }
@@ -155,12 +155,12 @@ const JobTimeline = () => {
       setActionLoading(true);
       const response = await workerService.completeJob(id, { workPhotos: workPhotos.length > 0 ? workPhotos : ['https://placehold.co/400'] });
       if (response.success) {
-        toast.success('Work marked done');
+        toastManager.success('Work marked done');
         setIsWorkDoneModalOpen(false);
         fetchJobDetails();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Completion failed');
+      toastManager.error(error.response?.data?.message || 'Completion failed');
     } finally {
       setActionLoading(false);
     }
@@ -188,7 +188,7 @@ const JobTimeline = () => {
       setActionLoading(true);
       const response = await workerService.collectCash(id, otp, totalAmount, extraItems);
       if (response.success) {
-        toast.success('Payment Collected & Job Completed!');
+        toastManager.success('Payment Collected & Job Completed!');
         setIsPaymentModalOpen(false);
         fetchJobDetails();
       }
@@ -437,12 +437,12 @@ const JobTimeline = () => {
             setActionLoading(true);
             const response = await workerService.completeJob(id, { workPhotos: photos });
             if (response.success) {
-              toast.success('Work marked done');
+              toastManager.success('Work marked done');
               setIsWorkDoneModalOpen(false);
               fetchJobDetails();
             }
           } catch (error) {
-            toast.error(error.response?.data?.message || 'Completion failed');
+            toastManager.error(error.response?.data?.message || 'Completion failed');
           } finally {
             setActionLoading(false);
           }

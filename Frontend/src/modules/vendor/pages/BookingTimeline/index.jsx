@@ -19,7 +19,7 @@ import { CashCollectionModal, ConfirmDialog } from '../../components/common';
 import TripFlowModal from '../../components/common/TripFlowModal';
 import { WorkCompletionModal } from '../../../worker/components/common';
 import vendorWalletService from '../../../../services/vendorWalletService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 // Kill orphaned GSAP ScrollTriggers before a page reload to prevent removeChild crash
 const safeReload = () => {
@@ -300,10 +300,10 @@ const BookingTimeline = () => {
         try {
           setActionLoading(true);
           await updateBookingStatus(id, 'completed');
-          toast.success('Work approved successfully');
+          toastManager.success('Work approved successfully');
           safeReload();
         } catch (e) {
-          toast.error(e.response?.data?.message || 'Approval failed');
+          toastManager.error(e.response?.data?.message || 'Approval failed');
         } finally {
           setActionLoading(false);
         }
@@ -322,10 +322,10 @@ const BookingTimeline = () => {
           setActionLoading(true);
           // Using existing updateBookingStatus to mark settlement
           await updateBookingStatus(id, booking.status, { finalSettlementStatus: 'DONE' });
-          toast.success('Final settlement completed!');
+          toastManager.success('Final settlement completed!');
           safeReload();
         } catch (e) {
-          toast.error(e.response?.data?.message || 'Final settlement failed');
+          toastManager.error(e.response?.data?.message || 'Final settlement failed');
         } finally {
           setActionLoading(false);
         }
@@ -341,10 +341,10 @@ const BookingTimeline = () => {
       try {
         setActionLoading(true);
         await startSelfJob(id);
-        toast.success('Journey Started');
+        toastManager.success('Journey Started');
         navigate(`/vendor/booking/${id}/map`);
       } catch (error) {
-        toast.error('Failed to start journey');
+        toastManager.error('Failed to start journey');
       } finally {
         setActionLoading(false);
       }
@@ -368,26 +368,26 @@ const BookingTimeline = () => {
 
   const handleVerifyVisit = async () => {
     const otp = otpInput.join('');
-    if (otp.length !== 4) return toast.error('Enter 4-digit OTP');
+    if (otp.length !== 4) return toastManager.error('Enter 4-digit OTP');
 
     setActionLoading(true);
     // Location check for vendor? Optional or same as worker.
-    if (!navigator.geolocation) return toast.error('Geolocation required');
+    if (!navigator.geolocation) return toastManager.error('Geolocation required');
 
     navigator.geolocation.getCurrentPosition(async (position) => {
       try {
         const location = { lat: position.coords.latitude, lng: position.coords.longitude };
         await verifySelfVisit(id, otp, location);
-        toast.success('Visit Verified');
+        toastManager.success('Visit Verified');
         setIsVisitModalOpen(false);
         safeReload();
       } catch (err) {
-        toast.error(err.response?.data?.message || 'Verification failed');
+        toastManager.error(err.response?.data?.message || 'Verification failed');
         setActionLoading(false);
       }
     }, (error) => {
       console.error('Geolocation error:', error);
-      toast.error('Could not get your location. Please enable GPS.');
+      toastManager.error('Could not get your location. Please enable GPS.');
       setActionLoading(false);
     }, { timeout: 10000 });
   };
@@ -396,11 +396,11 @@ const BookingTimeline = () => {
     try {
       setActionLoading(true);
       await completeSelfJob(id, { workPhotos: photos });
-      toast.success('Work marked done');
+      toastManager.success('Work marked done');
       setIsWorkDoneModalOpen(false);
       safeReload();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed');
+      toastManager.error(err.response?.data?.message || 'Failed');
     } finally {
       setActionLoading(false);
     }
@@ -415,17 +415,17 @@ const BookingTimeline = () => {
 
       // 1. Upload Photos if they are Files
       if (photoFile instanceof File) {
-        toast.loading('Uploading photo...', { id: 'uploading-trip-photo' });
+        toastManager.info('Uploading photo...', { id: 'uploading-trip-photo' });
         photoUrl = await uploadToCloudinary(photoFile, 'trips');
-        toast.success('Photo uploaded', { id: 'uploading-trip-photo' });
+        toastManager.success('Photo uploaded', { id: 'uploading-trip-photo' });
       } else {
         photoUrl = photoFile;
       }
 
       if (evidenceFile instanceof File) {
-        toast.loading('Uploading evidence...', { id: 'uploading-trip-evidence' });
+        toastManager.info('Uploading evidence...', { id: 'uploading-trip-evidence' });
         evidenceUrl = await uploadToCloudinary(evidenceFile, 'evidence');
-        toast.success('Evidence uploaded', { id: 'uploading-trip-evidence' });
+        toastManager.success('Evidence uploaded', { id: 'uploading-trip-evidence' });
       } else {
         evidenceUrl = evidenceFile;
       }
@@ -433,10 +433,10 @@ const BookingTimeline = () => {
       // 2. Call API with URLs
       if (tripModalMode === 'start') {
         await startTrip(id, photoUrl, otp);
-        toast.success(requiresDriver === false ? 'Equipment Handover Successful' : 'Engine started successfully');
+        toastManager.success(requiresDriver === false ? 'Equipment Handover Successful' : 'Engine started successfully');
       } else {
         await endTrip(id, photoUrl, otp, workUnits, evidenceUrl);
-        toast.success('Work ended and bill generated successfully');
+        toastManager.success('Work ended and bill generated successfully');
       }
       
       setIsTripModalOpen(false);
@@ -444,7 +444,7 @@ const BookingTimeline = () => {
       setTimeout(() => safeReload(), 1000);
     } catch (e) {
       console.error('Trip Submit Error:', e);
-      toast.error(e?.response?.data?.message || e?.message || 'Failed to capture trip status');
+      toastManager.error(e?.response?.data?.message || e?.message || 'Failed to capture trip status');
     } finally {
       setActionLoading(false);
     }
@@ -617,7 +617,7 @@ const BookingTimeline = () => {
       safeReload();
     } catch (error) {
       console.error('Error updating status to work done:', error);
-      toast.error('Failed to update status. Please follow valid status flow.');
+      toastManager.error('Failed to update status. Please follow valid status flow.');
     }
   }
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiChevronRight, FiLoader } from 'react-icons/fi';
 import { MdAccountBalanceWallet } from 'react-icons/md';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { walletService } from '../../../../services/walletService';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import NotificationBell from '../../components/common/NotificationBell';
@@ -43,7 +43,7 @@ const Wallet = () => {
           setTransactions(transactionsResponse.data || []);
         }
       } catch (error) {
-        toast.error('Failed to load wallet data');
+        toastManager.error('Failed to load wallet data');
       } finally {
         setLoading(false);
       }
@@ -55,7 +55,7 @@ const Wallet = () => {
   const handleAddMoney = async (e) => {
     e.preventDefault();
     if (!amountToAdd || isNaN(amountToAdd) || Number(amountToAdd) < 100) {
-      return toast.error('Minimum amount to add is ₹100');
+      return toastManager.error('Minimum amount to add is ₹100');
     }
 
     try {
@@ -81,26 +81,26 @@ const Wallet = () => {
               });
               
               if (verifyRes.success) {
-                toast.success('Money added to wallet successfully!');
+                toastManager.success('Money added to wallet successfully!');
                 setWalletBalance(verifyRes.data.balance);
                 setAmountToAdd('');
                 const tRes = await walletService.getTransactions();
                 if(tRes.success) setTransactions(tRes.data || []);
               }
             } catch (error) {
-              toast.error('Payment verification failed');
+              toastManager.error('Payment verification failed');
             }
           },
           theme: { color: themeColors?.brand?.teal || '#347989' }
         };
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function (response) {
-          toast.error(response.error.description || 'Payment Failed');
+          toastManager.error(response.error.description || 'Payment Failed');
         });
         rzp.open();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to initiate payment');
+      toastManager.error(error.response?.data?.message || 'Failed to initiate payment');
     } finally {
       setIsProcessing(false);
     }

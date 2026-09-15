@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiMapPin, FiSave, FiSearch, FiHome, FiX } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { vendorTheme as themeColors } from '../../../../theme';
 import vendorService from '../../../../services/vendorService';
 import Header from '../../components/layout/Header';
@@ -110,11 +110,11 @@ const AddressManagement = () => {
           setAddress(place.display_name);
           setSearchQuery(place.display_name);
         } else {
-          toast.error('Address not found. Please try a different search.');
+          toastManager.error('Address not found. Please try a different search.');
         }
       } catch (error) {
         console.error('Search error:', error);
-        toast.error('Error searching for address.');
+        toastManager.error('Error searching for address.');
       } finally {
         setIsSearching(false);
       }
@@ -123,7 +123,7 @@ const AddressManagement = () => {
 
   const handleSave = async () => {
     if (!address || !selectedLocation) {
-      toast.error('Please select an address');
+      toastManager.error('Please select an address');
       return;
     }
 
@@ -160,16 +160,16 @@ const AddressManagement = () => {
       });
 
       if (response.success) {
-        toast.success('Address saved successfully!');
+        toastManager.success('Address saved successfully!');
         setTimeout(() => {
            navigate(-1);
         }, 500);
       } else {
-        toast.error(response.message || 'Failed to save address');
+        toastManager.error(response.message || 'Failed to save address');
       }
     } catch (error) {
       console.error('Error saving address:', error);
-      toast.error(error.response?.data?.message || 'Failed to save address');
+      toastManager.error(error.response?.data?.message || 'Failed to save address');
     } finally {
       setLoading(false);
     }

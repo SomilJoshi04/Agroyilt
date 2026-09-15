@@ -10,7 +10,7 @@ import {
     FiX
 } from 'react-icons/fi';
 import adminProductService from '../../../../services/adminProductService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -37,7 +37,7 @@ const EcommerceOrders = () => {
             const res = await adminProductService.getEcommerceOrders();
             if (res.success) setOrders(res.data);
         } catch (err) {
-            toast.error("Failed to load global orders");
+            toastManager.error("Failed to load global orders");
         } finally {
             setLoading(false);
         }

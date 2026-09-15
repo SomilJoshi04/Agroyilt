@@ -6,7 +6,7 @@ import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiUser, FiSt
 import { FaRupeeSign } from 'react-icons/fa';
 import { bookingService } from '../../../../services/bookingService';
 import { paymentService } from '../../../../services/paymentService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
@@ -76,7 +76,7 @@ const BookingTrack = () => {
         name: 'Appzeto',
         description: `Payment for ${booking.serviceName}`,
         handler: async function (response) {
-          toast.loading('Verifying payment...');
+          toastManager.info('Verifying payment...');
           const verifyResponse = await paymentService.verifyPayment({
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
@@ -84,10 +84,10 @@ const BookingTrack = () => {
           });
           toast.dismiss();
           if (verifyResponse.success) {
-            toast.success('Payment successful!');
+            toastManager.success('Payment successful!');
             navigate(`/user/booking/${booking._id || booking.id}`);
           } else {
-            toast.error('Payment verification failed');
+            toastManager.error('Payment verification failed');
           }
           setPaying(false);
         },
@@ -110,12 +110,12 @@ const BookingTrack = () => {
 
     try {
       setPaying(true);
-      toast.loading('Creating payment order...');
+      toastManager.info('Creating payment order...');
       const orderResponse = await paymentService.createOrder(booking._id || booking.id);
       toast.dismiss();
 
       if (!orderResponse.success) {
-        toast.error(orderResponse.message || 'Failed to create payment order');
+        toastManager.error(orderResponse.message || 'Failed to create payment order');
         setPaying(false);
         return;
       }
@@ -128,7 +128,7 @@ const BookingTrack = () => {
         name: 'Appzeto',
         description: `Payment for ${booking.serviceName}`,
         handler: async function (response) {
-          toast.loading('Verifying payment...');
+          toastManager.info('Verifying payment...');
           const verifyResponse = await paymentService.verifyPayment({
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
@@ -137,10 +137,10 @@ const BookingTrack = () => {
           toast.dismiss();
 
           if (verifyResponse.success) {
-            toast.success('Payment successful!');
+            toastManager.success('Payment successful!');
             navigate(`/user/booking/${booking._id || booking.id}`);
           } else {
-            toast.error('Payment verification failed');
+            toastManager.error('Payment verification failed');
           }
           setPaying(false);
         },
@@ -163,26 +163,26 @@ const BookingTrack = () => {
       razorpay.open();
     } catch (error) {
       toast.dismiss();
-      toast.error('Failed to process payment');
+      toastManager.error('Failed to process payment');
       setPaying(false);
     }
   };
 
   const handlePayAtHome = async () => {
     try {
-      toast.loading('Confirming request...');
+      toastManager.info('Confirming request...');
       const response = await paymentService.confirmPayAtHome(booking._id || booking.id);
       toast.dismiss();
 
       if (response.success) {
-        toast.success('Booking confirmed!');
+        toastManager.success('Booking confirmed!');
         navigate(`/user/booking/${booking._id || booking.id}`);
       } else {
-        toast.error(response.message || 'Failed to confirm booking');
+        toastManager.error(response.message || 'Failed to confirm booking');
       }
     } catch (error) {
       toast.dismiss();
-      toast.error('Failed to process request');
+      toastManager.error('Failed to process request');
     }
   };
 

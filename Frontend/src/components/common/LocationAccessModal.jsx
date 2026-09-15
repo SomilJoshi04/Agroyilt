@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiMapPin, FiNavigation, FiX, FiCheckCircle, FiShield } from 'react-icons/fi';
 import { themeColors } from '../../theme';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../utils/toastManager';
 import flutterBridge from '../../utils/flutterBridge';
 
 const LocationAccessModal = ({
@@ -47,7 +47,7 @@ const LocationAccessModal = ({
     try {
       const location = await flutterBridge.getCurrentLocation();
       setRequesting(false);
-      toast.success("Location access granted!");
+      toastManager.success("Location access granted!");
       if (onSuccess) onSuccess(location);
       if (onClose) onClose();
     } catch (error) {
@@ -60,7 +60,7 @@ const LocationAccessModal = ({
       } else if (error.code === 3) {
         errorMsg = "Request timed out. Please try again.";
       }
-      toast.error(errorMsg);
+      toastManager.error(errorMsg);
     }
   };
 
@@ -188,11 +188,11 @@ const LocationAccessModal = ({
                   <button
                     onClick={() => {
                       if (address) {
-                        toast.success("Location saved!");
+                        toastManager.success("Location saved!");
                         if (onSuccess) onSuccess({ address });
                         onClose();
                       } else {
-                        toast.error("Please enter an address");
+                        toastManager.error("Please enter an address");
                       }
                     }}
                     className="flex-[1.5] py-3 rounded-xl text-white font-bold text-sm active:scale-[0.98] transition-all"

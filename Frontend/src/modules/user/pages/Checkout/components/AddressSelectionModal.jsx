@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom';
 import { FiArrowLeft, FiX, FiSearch, FiMapPin, FiHome } from 'react-icons/fi';
 import { themeColors } from '../../../../../theme';
 import LocationPicker from './LocationPicker';
+import { toastManager } from '../../../../../utils/toastManager';
+
 
 const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = '', onHouseNumberChange, onSave }) => {
   const [isClosing, setIsClosing] = useState(false);
@@ -76,11 +78,11 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
           setMapAddress(place.display_name);
           setSearchQuery(place.display_name);
         } else {
-          alert('Address not found. Please try a different search.');
+          toastManager.error('Address not found. Please try a different search.');
         }
       } catch (error) {
         console.error('Search error:', error);
-        alert('Error searching for address.');
+        toastManager.error('Error searching for address.');
       } finally {
         setIsSearching(false);
       }

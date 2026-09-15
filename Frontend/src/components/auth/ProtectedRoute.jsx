@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../utils/toastManager';
 
 /**
  * Protected Route Component
@@ -81,7 +81,7 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
     if (isAuthenticated !== isAuthNow) {
       setIsAuthenticated(isAuthNow);
       if (!isAuthNow) {
-        toast.error('Session expired. Please login again.');
+        toastManager.error('Session expired. Please login again.');
       }
     }
   }, [location.pathname, userType]);

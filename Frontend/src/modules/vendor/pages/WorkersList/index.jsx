@@ -7,6 +7,8 @@ import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import { getWorkers, deleteWorker } from '../../services/workerService';
+import { toastManager } from '../../../../utils/toastManager';
+
 
 const WorkersList = () => {
   const navigate = useNavigate();
@@ -64,7 +66,7 @@ const WorkersList = () => {
         window.dispatchEvent(new Event('vendorWorkersUpdated'));
       } catch (error) {
         console.error('Error deleting worker:', error);
-        alert('Failed to delete worker');
+        toastManager.error('Failed to delete worker');
       }
     }
   };

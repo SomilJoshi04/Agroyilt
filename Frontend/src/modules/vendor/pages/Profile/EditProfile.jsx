@@ -7,7 +7,7 @@ import BottomNav from '../../components/layout/BottomNav';
 import { publicCatalogService } from '../../../../services/catalogService';
 import { vendorAuthService } from '../../../../services/authService';
 import AddressSelectionModal from '../../../user/pages/Checkout/components/AddressSelectionModal';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { z } from "zod";
 import flutterBridge from '../../../../utils/flutterBridge';
 
@@ -230,7 +230,7 @@ const EditProfile = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size should be less than 5MB');
+        toastManager.info('File size should be less than 5MB');
         return;
       }
       setPhotoFile(file);
@@ -242,7 +242,7 @@ const EditProfile = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size should be less than 5MB');
+        toastManager.info('File size should be less than 5MB');
         return;
       }
       setAadharFile(file);
@@ -295,7 +295,7 @@ const EditProfile = () => {
     if (!validationResult.success) {
       console.log('Validation failed:', validationResult.error);
       const errorMessage = validationResult.error?.errors?.[0]?.message || 'Validation failed';
-      toast.error(errorMessage);
+      toastManager.error(errorMessage);
       return;
     }
 
@@ -310,7 +310,7 @@ const EditProfile = () => {
           photoUrl = await uploadFile(photoFile);
         } catch (err) {
           console.error('Photo upload failed:', err);
-          alert('Failed to upload profile photo');
+          toastManager.error('Failed to upload profile photo');
           setUploading(false);
           return;
         }
@@ -322,7 +322,7 @@ const EditProfile = () => {
           aadharUrl = await uploadFile(aadharFile);
         } catch (err) {
           console.error('Aadhar upload failed:', err);
-          alert('Failed to upload Aadhar document');
+          toastManager.error('Failed to upload Aadhar document');
           setUploading(false);
           return;
         }
@@ -359,12 +359,12 @@ const EditProfile = () => {
       } catch (apiError) {
         console.error('API update failed:', apiError);
         // Fallback to local storage if API is mock or fails? No, display error
-        alert(apiError.message || 'Failed to save profile on server.');
+        toastManager.info(apiError.message || 'Failed to save profile on server.');
       }
 
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('Failed to save profile. Please try again.');
+      toastManager.error('Failed to save profile. Please try again.');
     } finally {
       setUploading(false);
     }

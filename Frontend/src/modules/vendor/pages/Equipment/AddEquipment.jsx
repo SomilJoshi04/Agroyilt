@@ -5,7 +5,7 @@ import {
   FiSettings, FiCheckCircle, FiInfo, FiUser,
   FiZap, FiMapPin, FiClock, FiCalendar, FiSmartphone, FiCreditCard, FiChevronDown, FiActivity, FiSearch
 } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import vendorEquipmentService from '../../../../services/vendorEquipmentService';
 import vendorService from '../../../../services/vendorService';
@@ -154,7 +154,7 @@ const AddEquipment = () => {
         }
       }
     } catch (err) {
-      toast.error('Failed to load form data');
+      toastManager.error('Failed to load form data');
     } finally {
       setLoading(false);
     }
@@ -193,7 +193,7 @@ const AddEquipment = () => {
         }));
       }
     } catch (err) {
-      toast.error('Failed to load implements');
+      toastManager.error('Failed to load implements');
     }
   };
 
@@ -203,7 +203,7 @@ const AddEquipment = () => {
 
     // For gallery images, ensure total doesn't exceed 5
     if (variant === 'general' && form.images.length + files.length > 5) {
-      toast.error(`Maximum 5 images allowed. You can add ${5 - form.images.length} more.`);
+      toastManager.error(`Maximum 5 images allowed. You can add ${5 - form.images.length} more.`);
       return;
     }
 
@@ -235,13 +235,13 @@ const AddEquipment = () => {
       }
       
       if (hasError) {
-        toast.error('Some uploads failed. Check console or server logs.');
+        toastManager.error('Some uploads failed. Check console or server logs.');
       } else {
-        toast.success('Upload success');
+        toastManager.success('Upload success');
       }
     } catch (err) {
       console.error(err);
-      toast.error('Upload failed');
+      toastManager.error('Upload failed');
     } finally {
       setUploading(false);
       // Reset input value so same file can be selected again
@@ -256,64 +256,64 @@ const AddEquipment = () => {
     // 1. Basic Identity Validation
     const submissionData = { ...form };
     if (!isRequestingCategory && !submissionData.categoryId) {
-      return toast.error('Please select machine type');
+      return toastManager.error('Please select machine type');
     }
     if (isRequestingCategory) {
       if (!submissionData.requestedCategoryName || submissionData.requestedCategoryName.trim().length < 3) {
-        return toast.error('Please enter the machine type you want to request');
+        return toastManager.error('Please enter the machine type you want to request');
       }
       submissionData.categoryId = null; // Ensure it's null instead of empty string
     } else {
       submissionData.requestedCategoryName = null;
     }
 
-    if (!submissionData.name || submissionData.name.length < 3) return toast.error('Please enter a valid machine name');
+    if (!submissionData.name || submissionData.name.length < 3) return toastManager.error('Please enter a valid machine name');
 
     if (machineImplements.length > 0 && form.implements.length === 0) {
-      return toast.error('Please select at least one implement for this machine');
+      return toastManager.error('Please select at least one implement for this machine');
     }
     
     // 2. Pricing Validation
     const enabledModes = Object.keys(form.pricing).filter(k => form.pricing[k].isEnabled);
-    if (enabledModes.length === 0) return toast.error('Please enable at least one pricing mode (Hourly, Acre or Daily)');
+    if (enabledModes.length === 0) return toastManager.error('Please enable at least one pricing mode (Hourly, Acre or Daily)');
     
     for (const mode of enabledModes) {
       if (form.pricing[mode].price <= 0) {
-        return toast.error(`Please set a valid price for ${mode.replace('_', ' ')} mode`);
+        return toastManager.error(`Please set a valid price for ${mode.replace('_', ' ')} mode`);
       }
     }
 
     // 3. Driver/Operator Validation - only for 'service' type (Tractor/Harvester)
     if (form.listingType === 'service' && form.includesDriver) {
-      if (!form.driver.name) return toast.error('Operator name is required');
+      if (!form.driver.name) return toastManager.error('Operator name is required');
       if (!form.driver.phone || !/^[6-9]\d{9}$/.test(form.driver.phone)) {
-        return toast.error('Valid 10-digit operator phone number is required');
+        return toastManager.error('Valid 10-digit operator phone number is required');
       }
       if (!form.driver.aadharNumber || !/^\d{12}$/.test(form.driver.aadharNumber)) {
-        return toast.error('Valid 12-digit Aadhar Card number is required');
+        return toastManager.error('Valid 12-digit Aadhar Card number is required');
       }
       const dlRegex = /^[A-Z]{2}[0-9A-Z]{13,14}$/;
       if (!form.driver.licenseNumber || !dlRegex.test(form.driver.licenseNumber.toUpperCase())) {
-        return toast.error('Please enter a valid Driving License number (e.g. RJ1420230001234)');
+        return toastManager.error('Please enter a valid Driving License number (e.g. RJ1420230001234)');
       }
     }
 
     // 4. Visuals Validation
-    if (form.images.length === 0) return toast.error('Please upload at least one machine photo');
+    if (form.images.length === 0) return toastManager.error('Please upload at least one machine photo');
 
     try {
       setSubmitting(true);
       if (isEdit) {
         await vendorEquipmentService.update(id, submissionData);
-        toast.success('Updated');
+        toastManager.success('Updated');
       } else {
         await vendorEquipmentService.add(submissionData);
         localStorage.removeItem('groo_add_machine_draft');
-        toast.success('Listing created successfully!');
+        toastManager.success('Listing created successfully!');
       }
       navigate('/vendor/equipment');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed');
+      toastManager.error(err.response?.data?.message || 'Submission failed');
     } finally {
       setSubmitting(false);
     }
@@ -600,7 +600,7 @@ const AddEquipment = () => {
                     if (!categoryMeta.requiresDriver) {
                       setForm(p => ({ ...p, includesDriver: !p.includesDriver }));
                     } else {
-                      toast('This category requires a professional driver by policy.', { icon: '🛡️' });
+                      toastManager.info('This category requires a professional driver by policy.', { icon: '🛡️' });
                     }
                   }}
                   className={`w-12 h-6 rounded-full relative transition-all duration-200 ${form.includesDriver ? 'bg-purple-600' : 'bg-slate-200'} ${categoryMeta.requiresDriver ? 'cursor-not-allowed' : ''}`}
@@ -647,7 +647,7 @@ const AddEquipment = () => {
                                   }
                                 }));
                                 setShowWorkerLink(false);
-                                toast.success(`Linked to ${w.name}`);
+                                toastManager.success(`Linked to ${w.name}`);
                               }}
                               className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${form.workerId === w._id ? 'bg-purple-50/50 border-purple-200' : 'bg-slate-50 border-slate-100'}`}
                             >

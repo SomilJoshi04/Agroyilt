@@ -8,7 +8,7 @@ import ServiceCategories from './components/ServiceCategories';
 import { publicCatalogService } from '../../../../services/catalogService';
 import { useCart } from '../../../../context/CartContext';
 import { useCity } from '../../../../context/CityContext';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -103,7 +103,7 @@ const Home = () => {
 
       if (!cityLoading && currentId && matchedId !== currentId) {
         selectCity(matchedCity);
-        toast.success(`Location updated to ${matchedCity.name}`);
+        toastManager.success(`Location updated to ${matchedCity.name}`);
         setTimeout(() => {
           window.location.reload();
         }, 500);
@@ -165,7 +165,7 @@ const Home = () => {
           }
         }
 
-        toast.success(`Location set to ${city}`);
+        toastManager.success(`Location set to ${city}`);
         setTimeout(() => {
           window.location.reload();
         }, 500);
@@ -393,7 +393,7 @@ const Home = () => {
       if (promo.slug.includes('soil')) {
         navigate(`/user/soil-testing`);
       } else {
-        toast.error("Service category not found or unavailable.");
+        toastManager.error("Service category not found or unavailable.");
       }
       return;
     }
@@ -443,23 +443,23 @@ const Home = () => {
 
         const response = await addToCart(cartItemData);
         if (response.success) {
-          toast.success(`${service.title} added to cart!`);
+          toastManager.success(`${service.title} added to cart!`);
           navigate('/user/cart');
         } else {
-          toast.error(response.message || 'Failed to add to cart');
+          toastManager.error(response.message || 'Failed to add to cart');
         }
       } else if (service.targetCategoryId) {
         const cat = categories.find(c => (c.id === service.targetCategoryId || c._id === service.targetCategoryId));
         if (cat) {
           handleCategoryClick(cat);
         } else {
-          toast.error('Unable to add this item to cart.');
+          toastManager.error('Unable to add this item to cart.');
         }
       } else {
-        toast.error('Unable to add this item to cart.');
+        toastManager.error('Unable to add this item to cart.');
       }
     } catch (error) {
-      toast.error('Failed to add to cart. Please try again.');
+      toastManager.error('Failed to add to cart. Please try again.');
     }
   };
 
@@ -649,7 +649,7 @@ const Home = () => {
                                 handleCategoryClick(matchedCategory);
                                 return;
                               } else {
-                                toast.error("Category not found.");
+                                toastManager.error("Category not found.");
                                 return;
                               }
                             }

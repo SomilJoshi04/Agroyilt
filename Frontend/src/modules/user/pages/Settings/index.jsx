@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiBell, FiMail, FiPhone, FiMessageCircle, FiShield, FiChevronRight, FiLogOut, FiTrash2 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 import { userAuthService } from '../../../../services/authService';
 import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
@@ -48,7 +48,7 @@ const Settings = () => {
     // Handle Push Toggle specifically
     if (key === 'push') {
       const newState = !notifications.push;
-      const toastId = toast.loading(newState ? 'Enabling notifications...' : 'Disabling notifications...');
+      const toastId = toastManager.info(newState ? 'Enabling notifications...' : 'Disabling notifications...');
 
       try {
         if (newState) {
@@ -57,9 +57,9 @@ const Settings = () => {
           const token = await registerFCMToken('user', true);
           if (!token) {
             if (isFlutterWebView()) {
-              toast.error('Failed to enable. Please check mobile app notification permissions in your phone settings.', { id: toastId, duration: 5000 });
+              toastManager.error('Failed to enable. Please check mobile app notification permissions in your phone settings.', { id: toastId, duration: 5000 });
             } else {
-              toast.error('Failed to enable. Check browser permissions.', { id: toastId });
+              toastManager.error('Failed to enable. Check browser permissions.', { id: toastId });
             }
             // Revert state
             setNotifications(prev => ({ ...prev, push: false }));
@@ -75,11 +75,11 @@ const Settings = () => {
           settings: { notifications: newState }
         });
 
-        toast.success(newState ? 'Notifications enabled' : 'Notifications disabled', { id: toastId });
+        toastManager.success(newState ? 'Notifications enabled' : 'Notifications disabled', { id: toastId });
 
       } catch (error) {
         console.error('Error updating notification settings:', error);
-        toast.error('Failed to update settings', { id: toastId });
+        toastManager.error('Failed to update settings', { id: toastId });
         // Revert
         setNotifications(prev => ({ ...prev, push: !newState }));
       }
@@ -191,7 +191,7 @@ const Settings = () => {
                 if (confirmed) {
                   await userAuthService.logout();
                   navigate('/user/login');
-                  toast.success('Logged out successfully');
+                  toastManager.success('Logged out successfully');
                 }
               }}
               className="w-full bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3 hover:bg-gray-50 active:scale-[0.98] transition-all"
@@ -244,15 +244,15 @@ const Settings = () => {
                     try {
                       const response = await userAuthService.deleteAccount();
                       if (response.success) {
-                        toast.success('Account deleted successfully.');
+                        toastManager.success('Account deleted successfully.');
                         navigate('/user/login', { replace: true });
                       } else {
-                        toast.error(response.message || 'Failed to delete account.');
+                        toastManager.error(response.message || 'Failed to delete account.');
                         setIsDeleting(false);
                         setShowDeleteConfirm(false);
                       }
                     } catch (error) {
-                      toast.error('Failed to delete account. Please try again.');
+                      toastManager.error('Failed to delete account. Please try again.');
                       setIsDeleting(false);
                       setShowDeleteConfirm(false);
                     }
@@ -287,7 +287,7 @@ const Settings = () => {
             onClick={async () => {
               try {
                 const { registerFCMToken, isFlutterWebView } = await import('../../../../services/pushNotificationService');
-                const toastId = toast.loading('Attempting to register for notifications...');
+                const toastId = toastManager.info('Attempting to register for notifications...');
                 const inWebView = isFlutterWebView();
 
                 // 1. Register Token (Optional inside WebView)
@@ -299,12 +299,12 @@ const Settings = () => {
                 }
 
                 if (!token && !inWebView) {
-                  toast.error('Could not register. Check browser permissions.', { id: toastId });
+                  toastManager.error('Could not register. Check browser permissions.', { id: toastId });
                   return;
                 }
 
                 // 2. Send Test Notification from Backend
-                toast.loading('Sending test notification...', { id: toastId });
+                toastManager.info('Sending test notification...', { id: toastId });
 
                 const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/users/fcm-tokens/test`, {
                   method: 'POST',
@@ -317,13 +317,13 @@ const Settings = () => {
                 const data = await response.json();
 
                 if (data.success) {
-                  toast.success(`Sent! Success: ${data.successCount}`, { id: toastId });
+                  toastManager.success(`Sent! Success: ${data.successCount}`, { id: toastId });
                 } else {
-                  toast.error(`Failed to send: ${data.message || 'Unknown error'}`, { id: toastId });
+                  toastManager.error(`Failed to send: ${data.message || 'Unknown error'}`, { id: toastId });
                 }
 
               } catch (err) {
-                toast.error('Test failed. See console.', { id: toastId });
+                toastManager.error('Test failed. See console.', { id: toastId });
                 console.error(err);
               }
             }}

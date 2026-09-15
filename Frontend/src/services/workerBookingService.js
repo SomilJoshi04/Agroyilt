@@ -39,7 +39,28 @@ export const workerBookingService = {
    * @param {string} id - Request ID
    * @param {boolean} accept - true to accept available workers, false to reject
    */
-  confirmFarmerRequest: async (id, accept) => {
+  
+  // Worker Selection & Payment (Independent Worker Flow)
+  selectWorkersForBooking: async (requestId, selectedWorkerIds) => {
+    const response = await api.post(`/users/farmer-worker-request/${requestId}/select-workers`, { selectedWorkerIds });
+    return response.data;
+  },
+  
+  createWorkerBookingPayment: async (requestId) => {
+    const response = await api.post(`/users/farmer-worker-request/${requestId}/create-payment`);
+    return response.data;
+  },
+  
+  verifyWorkerBookingPayment: async (requestId, paymentData) => {
+    const response = await api.post(`/users/farmer-worker-request/${requestId}/verify-payment`, paymentData);
+    return response.data;
+  },
+  
+  processWorkerSettlement: async (bookingId, data) => {
+    const response = await api.post(`/booking/${bookingId}/worker-settlement`, data);
+    return response.data;
+  },
+confirmFarmerRequest: async (id, accept) => {
     const response = await api.post(`/users/farmer-worker-request/${id}/confirm`, { accept });
     return response.data;
   },
@@ -150,3 +171,4 @@ export const workerBookingService = {
 };
 
 export default workerBookingService;
+

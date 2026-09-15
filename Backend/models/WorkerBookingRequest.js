@@ -103,6 +103,52 @@ const workerBookingRequestSchema = new mongoose.Schema({
   minRate: { type: Number, default: null },
   maxRate: { type: Number, default: null },
 
+  // =============================================
+  // WORKER OFFER RATES (new privacy-safe system)
+  // =============================================
+  // Each worker's submitted rate (stored server-side, NOT exposed to Farmer pre-payment)
+  workerOffers: [{
+    workerId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', required: true },
+    offeredRate: { type: Number, required: true },
+    submittedAt: { type: Date, default: Date.now },
+    status:      { type: String, enum: ['pending', 'selected', 'rejected', 'expired'], default: 'pending' }
+  }],
+
+  // Worker IDs explicitly selected by Farmer (before payment)
+  selectedWorkerIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Worker'
+  }],
+
+  // =============================================
+  // PAYMENT TRACKING (for the initial max-budget payment)
+  // =============================================
+  paymentStatus: {
+    type: String,
+    enum: ['not_started', 'pending', 'success', 'failed', 'cash_pending'],
+    default: 'not_started'
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['online', 'wallet', 'cash', null],
+    default: null
+  },
+  razorpayOrderId:   { type: String, default: null },
+  razorpayPaymentId: { type: String, default: null },
+
+  // Immutable financial snapshot (locked at payment creation time)
+  financialSnapshot: {
+    maximumBudget:        { type: Number, default: null },
+    selectedWorkerCount:  { type: Number, default: null },
+    maximumWorkerAmount:  { type: Number, default: null },
+    platformChargeRate:   { type: Number, default: null },
+    platformChargeAmount: { type: Number, default: null },
+    totalPayable:         { type: Number, default: null },
+    commissionRate:       { type: Number, default: null },
+    currency:             { type: String, default: 'INR' },
+    createdAt:            { type: Date, default: null }
+  },
+
   // ── Status ────────────────────────────────────────────────────────────────
   status: {
     type: String,
@@ -155,3 +201,4 @@ workerBookingRequestSchema.index(
 );
 
 module.exports = mongoose.model('WorkerBookingRequest', workerBookingRequestSchema);
+

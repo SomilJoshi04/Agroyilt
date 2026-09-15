@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiGrid, FiSettings, FiTag, FiPlus, FiEdit2, FiTrash2, FiSave } from 'react-icons/fi';
+import { toastManager } from '../../../../utils/toastManager';
+
 
 const Services = () => {
   const [serviceMode, setServiceMode] = useState('multi'); // 'single' or 'multi'
@@ -38,7 +40,7 @@ const Services = () => {
 
   const handleAddCategory = () => {
     if (!newCategory.name.trim()) {
-      alert('Please enter category name');
+      toastManager.info('Please enter category name');
       return;
     }
 
@@ -66,7 +68,7 @@ const Services = () => {
 
   const handleUpdateCategory = () => {
     if (!newCategory.name.trim()) {
-      alert('Please enter category name');
+      toastManager.info('Please enter category name');
       return;
     }
 

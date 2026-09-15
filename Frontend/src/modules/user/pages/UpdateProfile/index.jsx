@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiUser, FiMail, FiPhone, FiCamera, FiPlus, FiMapPin, FiTrash2, FiMap } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 import { userAuthService } from '../../../../services/authService';
 import AddressSelectionModal from '../Checkout/components/AddressSelectionModal';
@@ -82,7 +82,7 @@ const UpdateProfile = () => {
             farms: userData.farms || [],
           });
         } else {
-          toast.error('Failed to load profile data');
+          toastManager.error('Failed to load profile data');
         }
       } finally {
         setIsLoading(false);
@@ -120,7 +120,7 @@ const UpdateProfile = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should be less than 5MB');
+        toastManager.error('File size should be less than 5MB');
         return;
       }
       setPhotoFile(file);
@@ -238,7 +238,7 @@ const UpdateProfile = () => {
     });
 
     if (!validationResult.success) {
-      toast.error(validationResult.error?.issues?.[0]?.message || 'Please check your inputs');
+      toastManager.error(validationResult.error?.issues?.[0]?.message || 'Please check your inputs');
       return;
     }
 
@@ -253,7 +253,7 @@ const UpdateProfile = () => {
           photoUrl = await uploadFile(photoFile);
         } catch (err) {
           console.error('Photo upload failed:', err);
-          toast.error('Failed to upload profile photo');
+          toastManager.error('Failed to upload profile photo');
           setIsSaving(false);
           setUploading(false);
           return;
@@ -268,7 +268,7 @@ const UpdateProfile = () => {
       });
 
       if (response.success) {
-        toast.success('Profile updated successfully!');
+        toastManager.success('Profile updated successfully!');
         // Update local storage
         if (response.user) {
           const storedUserData = localStorage.getItem('userData');
@@ -282,11 +282,11 @@ const UpdateProfile = () => {
         }
         navigate('/user/account');
       } else {
-        toast.error(response.message || 'Failed to update profile');
+        toastManager.error(response.message || 'Failed to update profile');
       }
     } catch (error) {
       console.error('Profile update error:', error);
-      toast.error(error.response?.data?.message || 'Failed to update profile. Please try again.');
+      toastManager.error(error.response?.data?.message || 'Failed to update profile. Please try again.');
     } finally {
       setIsSaving(false);
       setUploading(false);

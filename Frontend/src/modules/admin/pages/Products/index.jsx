@@ -20,7 +20,7 @@ import adminEquipmentService from '../../../../services/adminEquipmentService';
 import { publicCatalogService, serviceService, homeContentService, categoryService } from '../../../../services/catalogService';
 import { cityService } from '../../services/cityService';
 import { getSettings } from '../../services/settingsService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ManageProducts = () => {
@@ -142,7 +142,7 @@ const ManageProducts = () => {
                 setPremiumOfferings(homeContentRes.homeContent.premiumOfferings || []);
             }
         } catch (err) {
-            toast.error("Machinery data load karne mein dikkat hui");
+            toastManager.error("Machinery data load karne mein dikkat hui");
         } finally {
             setLoading(false);
         }
@@ -172,10 +172,10 @@ const ManageProducts = () => {
                     imageUrl: data.imageUrl,
                     images: [...(prev.images || []), data.imageUrl]
                 }));
-                toast.success("Image upload ho gayi!");
+                toastManager.success("Image upload ho gayi!");
             }
         } catch (err) {
-            toast.error("Upload failed");
+            toastManager.error("Upload failed");
         } finally {
             setUploading(false);
         }
@@ -201,10 +201,10 @@ const ManageProducts = () => {
                     ...prev, 
                     driverDetails: { ...prev.driverDetails, photo: data.imageUrl }
                 }));
-                toast.success("Driver photo uploaded!");
+                toastManager.success("Driver photo uploaded!");
             }
         } catch (err) {
-            toast.error("Driver photo upload failed");
+            toastManager.error("Driver photo upload failed");
         } finally {
             setUploading(false);
         }
@@ -222,12 +222,12 @@ const ManageProducts = () => {
                 res = await adminProductService.approveProduct(item._id, { commissionPercentage: 10, gstPercentage: rentalGst });
             }
             if (res.success) {
-                toast.success(`✅ Machinery Approved!`);
+                toastManager.success(`✅ Machinery Approved!`);
                 fetchData();
                 setShowModal(false);
             }
         } catch (err) {
-            toast.error("Approval failed");
+            toastManager.error("Approval failed");
         }
     };
 
@@ -238,7 +238,7 @@ const ManageProducts = () => {
     };
 
     const handleRejectConfirm = async () => {
-        if (!rejectReason.trim()) return toast.error('Please enter a rejection reason');
+        if (!rejectReason.trim()) return toastManager.error('Please enter a rejection reason');
         try {
             let res;
             if (rejectTarget._source === 'vendorEquipment') {
@@ -247,12 +247,12 @@ const ManageProducts = () => {
                 res = await adminProductService.rejectProduct(rejectTarget._id, rejectReason);
             }
             if (res.success) {
-                toast.success('Equipment rejected. Owner will be notified.');
+                toastManager.success('Equipment rejected. Owner will be notified.');
                 setShowRejectModal(false);
                 fetchData();
             }
         } catch (err) {
-            toast.error("Rejection failed");
+            toastManager.error("Rejection failed");
         }
     };
 
@@ -365,10 +365,10 @@ const ManageProducts = () => {
                     await adminEquipmentService.update(catalogFormData.vendorEqId, updatePayload);
                     fetchData(); // Refresh list to remove the button
                 }
-                toast.success("Added to Equipment Catalog successfully!");
+                toastManager.success("Added to Equipment Catalog successfully!");
                 setShowCatalogModal(false);
             } else {
-                toast.error(res.message || "Failed to add to catalog");
+                toastManager.error(res.message || "Failed to add to catalog");
             }
         } catch (err) {
             const errorMsg = err.response?.data?.message;
@@ -381,10 +381,10 @@ const ManageProducts = () => {
                     await adminEquipmentService.update(catalogFormData.vendorEqId, updatePayload);
                     fetchData();
                     setShowCatalogModal(false);
-                    return toast.success('Equipment linked to existing category in catalog');
+                    return toastManager.success('Equipment linked to existing category in catalog');
                 }
             } else {
-                toast.error(errorMsg || "Failed to add to catalog");
+                toastManager.error(errorMsg || "Failed to add to catalog");
             }
         } finally {
             setSavingCatalog(false);
@@ -402,12 +402,12 @@ const ManageProducts = () => {
                     cityIds: [res.data?._id || res.city?._id],
                     requestedCityName: null
                 });
-                toast.success('City Added Successfully!');
+                toastManager.success('City Added Successfully!');
                 setShowCityModal(false);
                 fetchData();
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to add city');
+            toastManager.error(err.response?.data?.message || 'Failed to add city');
         } finally {
             setSavingCity(false);
         }
@@ -430,14 +430,14 @@ const ManageProducts = () => {
                 
                 const res = await homeContentService.update(content, { cityId });
                 if (res.success) {
-                    toast.success("Tab added successfully!");
+                    toastManager.success("Tab added successfully!");
                     setPremiumOfferings(content.premiumOfferings);
                     setCatalogFormData({ ...catalogFormData, sectionType: newTab.title || newTab.actionPayload || "General" });
                     setShowAddTabModal(false);
                 }
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to add tab');
+            toastManager.error(err.response?.data?.message || 'Failed to add tab');
         } finally {
             setSavingTab(false);
         }
@@ -453,12 +453,12 @@ const ManageProducts = () => {
                 res = await adminProductService.create(formData);
             }
             if (res.success) {
-                toast.success("Saved successfully");
+                toastManager.success("Saved successfully");
                 setShowModal(false);
                 fetchData();
             }
         } catch (err) {
-            toast.error("Save failed");
+            toastManager.error("Save failed");
         }
     };
 
@@ -686,7 +686,7 @@ const ManageProducts = () => {
                                                             <button 
                                                                 onClick={() => { 
                                                                     if (p.requestedCityName) {
-                                                                        toast.error("Please process the New City request first before adding to catalog!");
+                                                                        toastManager.error("Please process the New City request first before adding to catalog!");
                                                                         return;
                                                                     }
                                                                     openCatalogModal(p); 
@@ -1333,10 +1333,10 @@ const ManageProducts = () => {
                                                                 const response = await serviceService.uploadImage(file, 'premium');
                                                                 if (response.success) {
                                                                     setTabFormData((p) => ({ ...p, imageUrl: response.imageUrl }));
-                                                                    toast.success("Image uploaded!");
+                                                                    toastManager.success("Image uploaded!");
                                                                 }
                                                             } catch (error) {
-                                                                toast.error("Failed to upload image");
+                                                                toastManager.error("Failed to upload image");
                                                             } finally {
                                                                 setUploadingTabImage(false);
                                                             }

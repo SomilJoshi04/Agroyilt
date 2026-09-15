@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiSearch, FiDollarSign, FiArrowUpRight, FiArrowDownLeft, FiFilter, FiCalendar, FiRefreshCcw } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { adminTransactionService } from '../../../../services/adminTransactionService';
 import { formatCurrency } from '../../utils/adminHelpers';
 
@@ -53,7 +53,7 @@ const Transactions = () => {
       }
     } catch (error) {
       console.error('Error fetching transactions:', error);
-      toast.error('Failed to load transactions');
+      toastManager.error('Failed to load transactions');
     } finally {
       setLoading(false);
     }

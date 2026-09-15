@@ -8,7 +8,7 @@ import {
 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import ecommerceService from '../../../../services/ecommerceService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion } from 'framer-motion';
 
 const OrderPayment = () => {
@@ -32,7 +32,7 @@ const OrderPayment = () => {
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.onload = () => setRazorpayLoaded(true);
-        script.onerror = () => toast.error('Failed to load Razorpay SDK');
+        script.onerror = () => toastManager.error('Failed to load Razorpay SDK');
         document.body.appendChild(script);
     };
 
@@ -42,7 +42,7 @@ const OrderPayment = () => {
             const res = await ecommerceService.getOrderById(id);
             if (res.success) setOrder(res.data);
         } catch (err) {
-            toast.error("Order load karne mein dikkat hui");
+            toastManager.error("Order load karne mein dikkat hui");
         } finally {
             setLoading(false);
         }
@@ -59,7 +59,7 @@ const OrderPayment = () => {
             const { order_id, amount, currency, key } = orderRes.data;
 
             if (!razorpayLoaded) {
-                toast.error("Payment system not ready. Please refresh.");
+                toastManager.error("Payment system not ready. Please refresh.");
                 return;
             }
 
@@ -82,32 +82,32 @@ const OrderPayment = () => {
                         });
                         
                         if (verifyRes.success) {
-                            toast.success("Payment Successful! Order Confirmed.");
+                            toastManager.success("Payment Successful! Order Confirmed.");
                             navigate('/user/my-agri-orders');
                         }
                     } catch (verifyErr) {
-                        toast.error(verifyErr.response?.data?.message || "Payment verification failed");
+                        toastManager.error(verifyErr.response?.data?.message || "Payment verification failed");
                         setPaying(false);
                     }
                 },
                 modal: {
                     ondismiss: function() {
                         setPaying(false);
-                        toast.error("Payment cancelled");
+                        toastManager.error("Payment cancelled");
                     }
                 }
             };
             
             const razorpay = new window.Razorpay(options);
             razorpay.on('payment.failed', function (response) {
-                toast.error(`Payment failed: ${response.error.description}`);
+                toastManager.error(`Payment failed: ${response.error.description}`);
                 setPaying(false);
             });
             razorpay.open();
             
         } catch (err) {
             setPaying(false);
-            toast.error(err.response?.data?.message || err.message || "Payment init failed");
+            toastManager.error(err.response?.data?.message || err.message || "Payment init failed");
         }
     };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiTrash2, FiCreditCard, FiClock, FiCheck, FiDollarSign, FiPlusCircle } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../utils/toastManager';
 
 /**
  * CashCollectionModal
@@ -60,12 +60,12 @@ const CashCollectionModal = ({
     // Validate extra items if any
     for (const item of extraItems) {
       if (!item.title?.trim()) {
-        toast.error('Please provide a title for all extra items');
+        toastManager.error('Please provide a title for all extra items');
         return;
       }
       const price = parseFloat(item.price);
       if (isNaN(price) || price < 0) {
-        toast.error(`Invalid price for "${item.title}"`);
+        toastManager.error(`Invalid price for "${item.title}"`);
         return;
       }
     }
@@ -76,9 +76,9 @@ const CashCollectionModal = ({
       setLastInitiatedTotal(finalTotal);
       setShowOTPInput(true);
       if (res?.otp) setDevOTP(res.otp);
-      toast.success(showOTPInput ? 'OTP updated and sent' : 'OTP sent to customer');
+      toastManager.success(showOTPInput ? 'OTP updated and sent' : 'OTP sent to customer');
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to send OTP');
+      toastManager.error(error?.response?.data?.message || 'Failed to send OTP');
     } finally {
       setSubmitting(false);
     }
@@ -86,7 +86,7 @@ const CashCollectionModal = ({
 
   const handleConfirm = async () => {
     if (!otp || otp.length < 4) {
-      toast.error('Please enter 4-digit OTP');
+      toastManager.error('Please enter 4-digit OTP');
       return;
     }
 
@@ -95,7 +95,7 @@ const CashCollectionModal = ({
       await onConfirm(finalTotal, extraItems, otp);
       onClose();
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to confirm payment');
+      toastManager.error(error?.response?.data?.message || 'Failed to confirm payment');
     } finally {
       setSubmitting(false);
     }

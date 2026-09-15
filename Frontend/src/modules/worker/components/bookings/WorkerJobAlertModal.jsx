@@ -3,7 +3,7 @@ import { FiX, FiMapPin, FiClock, FiArrowRight, FiBell, FiBriefcase, FiMinimize2 
 import { motion, AnimatePresence } from 'framer-motion';
 import { playAlertRing, stopAlertRing } from '../../../../utils/notificationSound';
 import workerService from '../../../../services/workerService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
   const [job, setJob] = useState(null);
@@ -29,7 +29,7 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
       }
     } catch (error) {
       console.error(error);
-      toast.error('Failed to load job details');
+      toastManager.error('Failed to load job details');
     } finally {
       setLoading(false);
     }
@@ -39,14 +39,14 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
     try {
       const res = await workerService.respondToJob(jobId, 'ACCEPTED');
       if (res.success) {
-        toast.success('Job Accepted Successfully!');
+        toastManager.success('Job Accepted Successfully!');
         onJobAccepted && onJobAccepted(jobId);
         onClose();
       } else {
-        toast.error(res.message || 'Failed to accept job');
+        toastManager.error(res.message || 'Failed to accept job');
       }
     } catch (error) {
-      toast.error('Failed to accept job');
+      toastManager.error('Failed to accept job');
     }
   };
 
@@ -54,13 +54,13 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
     try {
       const res = await workerService.respondToJob(jobId, 'REJECTED');
       if (res.success) {
-        toast.success('Job Declined');
+        toastManager.success('Job Declined');
         onClose();
       } else {
-        toast.error(res.message || 'Failed to reject job');
+        toastManager.error(res.message || 'Failed to reject job');
       }
     } catch (error) {
-      toast.error('Failed to decline job');
+      toastManager.error('Failed to decline job');
     }
   };
 

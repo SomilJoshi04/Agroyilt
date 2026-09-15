@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiDollarSign, FiCamera, FiCheck, FiInfo, FiTrash, FiCreditCard } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { vendorTheme as themeColors } from '../../../../theme';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const OperatorPaymentModal = ({ isOpen, onClose, workerName, amountDue = 0, onConfirm, loading }) => {
   const [amount, setAmount] = useState('');
@@ -27,7 +27,7 @@ const OperatorPaymentModal = ({ isOpen, onClose, workerName, amountDue = 0, onCo
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size should be less than 5MB');
+      toastManager.error('File size should be less than 5MB');
       return;
     }
 
@@ -38,7 +38,7 @@ const OperatorPaymentModal = ({ isOpen, onClose, workerName, amountDue = 0, onCo
       setIsUploading(false);
     };
     reader.onerror = () => {
-      toast.error('Failed to read file');
+      toastManager.error('Failed to read file');
       setIsUploading(false);
     };
     reader.readAsDataURL(file);
@@ -51,7 +51,7 @@ const OperatorPaymentModal = ({ isOpen, onClose, workerName, amountDue = 0, onCo
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
-      toast.error('Please enter a valid amount');
+      toastManager.error('Please enter a valid amount');
       return;
     }
 

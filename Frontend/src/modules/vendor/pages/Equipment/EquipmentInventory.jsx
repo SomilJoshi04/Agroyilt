@@ -5,7 +5,7 @@ import {
   FiClock, FiAlertCircle, FiCheckCircle, FiChevronLeft 
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import vendorEquipmentService from '../../../../services/vendorEquipmentService';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
@@ -24,7 +24,7 @@ const EquipmentInventory = () => {
       const res = await vendorEquipmentService.getMyEquipment();
       if (res.success) setEquipment(res.data);
     } catch (err) {
-      toast.error('Failed to load your equipment');
+      toastManager.error('Failed to load your equipment');
     } finally {
       setLoading(false);
     }
@@ -35,11 +35,11 @@ const EquipmentInventory = () => {
     try {
       const res = await vendorEquipmentService.delete(id);
       if (res.success) {
-        toast.success('Machine removed');
+        toastManager.success('Machine removed');
         setEquipment(prev => prev.filter(e => e._id !== id));
       }
     } catch (err) {
-      toast.error('Delete failed');
+      toastManager.error('Delete failed');
     }
   };
 

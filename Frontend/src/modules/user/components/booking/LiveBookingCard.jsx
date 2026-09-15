@@ -5,7 +5,7 @@ import { FiClock, FiMapPin, FiTool, FiCheckCircle, FiChevronRight, FiNavigation,
 import userBookingService from '../../../../services/bookingService';
 import { userTheme } from '../../../../theme';
 import RatingModal from './RatingModal';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { useSocket } from '../../../../context/SocketContext';
 
 const LiveBookingCard = ({ hasBottomNav }) => {
@@ -134,17 +134,17 @@ const LiveBookingCard = ({ hasBottomNav }) => {
     try {
       const response = await userBookingService.addReview(activeBooking._id || activeBooking.id, ratingData);
       if (response.success) {
-        toast.success('Thank you for your rating!', {
+        toastManager.success('Thank you for your rating!', {
           icon: '🌟',
           style: { borderRadius: '15px', background: '#333', color: '#fff' }
         });
         setShowRatingModal(false);
         fetchActiveBooking(); // Refresh to hide card or update state
       } else {
-        toast.error(response.message || 'Failed to submit review');
+        toastManager.error(response.message || 'Failed to submit review');
       }
     } catch (error) {
-      toast.error('Failed to submit review');
+      toastManager.error('Failed to submit review');
     }
   };
 

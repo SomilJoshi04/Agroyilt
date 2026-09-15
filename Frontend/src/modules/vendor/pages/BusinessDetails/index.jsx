@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiSave, FiUploadCloud, FiCheckCircle, FiMapPin, FiCamera, FiUpload, FiClock, FiAlertCircle } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { FormContainer, FormSection } from '../../../../components/common';
 import { vendorAuthService } from '../../../../services/authService';
@@ -107,7 +107,7 @@ const BusinessDetails = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 15 * 1024 * 1024) {
-        toast.error('File size should not exceed 15MB');
+        toastManager.error('File size should not exceed 15MB');
         return;
       }
       const reader = new FileReader();
@@ -129,7 +129,7 @@ const BusinessDetails = () => {
         return res.data.imageUrl;
     } catch (err) {
         console.error("Upload error:", err.response?.data || err.message);
-        toast.error("File upload failed: " + (err.response?.data?.message || "Server Error"));
+        toastManager.error("File upload failed: " + (err.response?.data?.message || "Server Error"));
         return null;
     }
   };
@@ -199,7 +199,7 @@ const BusinessDetails = () => {
     if (!profile) return;
     
     if (!validateForm()) {
-      toast.error('Please fix the errors in the form.');
+      toastManager.error('Please fix the errors in the form.');
       return;
     }
 
@@ -229,7 +229,7 @@ const BusinessDetails = () => {
       if (profileRes.success) {
           successCount++;
       } else {
-          toast.error(profileRes.message || 'Failed to update business profile');
+          toastManager.error(profileRes.message || 'Failed to update business profile');
       }
 
       // 2. Update Shop Details (if opted in and not already pending/approved)
@@ -250,7 +250,7 @@ const BusinessDetails = () => {
                   successCount++;
               }
           } else {
-              toast.error("Shop License document upload failed.");
+              toastManager.error("Shop License document upload failed.");
           }
       } else if (isAgriStore && shopStatus) {
          // It's already pending or approved, we just skip updating shop but still mark as success for profile update
@@ -261,13 +261,13 @@ const BusinessDetails = () => {
       }
 
       if (successCount > 0) {
-        toast.success('Details saved successfully!');
+        toastManager.success('Details saved successfully!');
         navigate('/vendor/profile', { replace: true });
       }
 
     } catch (err) {
       console.error('Save error:', err);
-      toast.error('Server error. Please try again.');
+      toastManager.error('Server error. Please try again.');
     } finally {
       setIsSaving(false);
     }

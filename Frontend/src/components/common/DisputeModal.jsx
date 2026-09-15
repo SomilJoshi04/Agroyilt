@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiAlertTriangle, FiX, FiCamera, FiUpload, FiLoader, FiCheckCircle } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../utils/toastManager';
 import { uploadToCloudinary } from '../../services/cloudinaryService';
 
 const DisputeModal = ({ isOpen, onClose, onSubmit, bookingId }) => {
@@ -27,16 +27,16 @@ const DisputeModal = ({ isOpen, onClose, onSubmit, bookingId }) => {
         if (!file) return;
 
         if (attachments.length >= 3) {
-            return toast.error('You can upload up to 3 photos');
+            return toastManager.error('You can upload up to 3 photos');
         }
 
         try {
             setUploading(true);
             const url = await uploadToCloudinary(file);
             setAttachments([...attachments, url]);
-            toast.success('Photo attached');
+            toastManager.success('Photo attached');
         } catch (err) {
-            toast.error('Failed to upload photo');
+            toastManager.error('Failed to upload photo');
         } finally {
             setUploading(false);
         }
@@ -47,8 +47,8 @@ const DisputeModal = ({ isOpen, onClose, onSubmit, bookingId }) => {
     };
 
     const handleSubmit = async () => {
-        if (!reason) return toast.error('Please select a reason');
-        if (!description.trim()) return toast.error('Please describe the issue');
+        if (!reason) return toastManager.error('Please select a reason');
+        if (!description.trim()) return toastManager.error('Please describe the issue');
 
         try {
             setSubmitting(true);
@@ -60,7 +60,7 @@ const DisputeModal = ({ isOpen, onClose, onSubmit, bookingId }) => {
             });
             setStep(2);
         } catch (err) {
-            toast.error(err?.message || 'Failed to raise dispute');
+            toastManager.error(err?.message || 'Failed to raise dispute');
         } finally {
             setSubmitting(false);
         }

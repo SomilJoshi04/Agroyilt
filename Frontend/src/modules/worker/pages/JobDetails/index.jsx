@@ -10,7 +10,7 @@ const VisitVerificationModal = lazy(() => import('../../components/common/VisitV
 const WorkCompletionModal = lazy(() => import('../../components/common/WorkCompletionModal'));
 import workerService from '../../../../services/workerService';
 import api from '../../../../services/api';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import { useLocationTracking } from '../../../../hooks/useLocationTracking';
 
@@ -53,6 +53,14 @@ const JobDetails = () => {
       if (response.success) {
         // Map items for consistency
         const data = response.data;
+        if (!data.workerFinancials && data.providerType === 'WORKER') {
+          data.workerFinancials = {
+            workerOfferedRate: data.workerOfferedRate || data.agreedRate || data.finalAmount || 0,
+            commissionRate: data.commissionRate || 0,
+            commissionAmount: data.commissionAmount || 0,
+            netEarnings: data.workerNetEarning || data.finalAmount || 0
+          };
+        }
         setJob({
           ...data,
           items: data.bookedItems || []
@@ -61,7 +69,7 @@ const JobDetails = () => {
       setLoading(false);
     } catch (error) {
       // Error fetching job details
-      toast.error('Failed to load job details');
+      toastManager.error('Failed to load job details');
       setLoading(false);
     }
   };
@@ -134,7 +142,7 @@ const JobDetails = () => {
       setActionLoading(true);
       const response = await workerService.collectCash(id, otp, totalAmount, extraItems);
       if (response.success) {
-        toast.success('Payment collected & Job Completed!');
+        toastManager.success('Payment collected & Job Completed!');
         setIsPaymentModalOpen(false);
         fetchJobDetails();
       }
@@ -162,17 +170,17 @@ const JobDetails = () => {
       }
 
       if (response && response.success) {
-        toast.success(status === 'ACCEPTED' ? 'Job Accepted Successfully!' : 'Job Declined');
+        toastManager.success(status === 'ACCEPTED' ? 'Job Accepted Successfully!' : 'Job Declined');
         if (status === 'ACCEPTED') {
           fetchJobDetails();
         } else {
           navigate('/worker/jobs');
         }
       } else {
-        toast.error(response?.message || 'Failed to update job');
+        toastManager.error(response?.message || 'Failed to update job');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update status');
+      toastManager.error(error.response?.data?.message || 'Failed to update status');
     } finally {
       setActionLoading(false);
       setTimeout(() => { actionLoadingRef.current = false; }, 500);
@@ -184,7 +192,7 @@ const JobDetails = () => {
       if (job.status === 'journey_started') {
         try {
           await workerService.workerReached(id);
-          toast.success('Customer notified that you reached');
+          toastManager.success('Customer notified that you reached');
         } catch (e) {
           // Reached notification failed
         }
@@ -214,7 +222,7 @@ const JobDetails = () => {
         return;
       } else if (type === 'complete') {
         if (workPhotos.length === 0) {
-          toast.error('Please upload at least one work photo');
+          toastManager.error('Please upload at least one work photo');
           setActionLoading(false);
           return;
         }
@@ -222,13 +230,13 @@ const JobDetails = () => {
       }
 
       if (response && response.success) {
-        toast.success(response.message || 'Updated successfully');
+        toastManager.success(response.message || 'Updated successfully');
         setIsCompletionModalOpen(false);
         fetchJobDetails();
       }
       setActionLoading(false);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Action failed');
+      toastManager.error(error.response?.data?.message || 'Action failed');
       setActionLoading(false);
     }
   };
@@ -554,7 +562,45 @@ const JobDetails = () => {
           </div>
         )}
 
-        {/* Payment Details - Professional Card (Matched with Vendor) */}
+        
+          {/* Independent Worker Financials */}
+          {job.workerFinancials ? (
+            <div className="bg-white rounded-xl p-5 mb-6 shadow-sm border border-emerald-100 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full -z-10 opacity-50" />
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100">
+                <div className="p-2 rounded-lg bg-emerald-100 text-emerald-600">
+                  <FiDollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800">Your Earnings</h3>
+                  <p className="text-xs text-slate-500">Independent Worker Settlement</p>
+                </div>
+              </div>
+              <div className="space-y-2 mb-4 text-sm">
+                <div className="flex justify-between text-gray-600">
+                  <span>Agreed Rate</span>
+                  <span className="font-bold text-gray-800">?{(job.workerFinancials.workerOfferedRate || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-amber-600">
+                  <span>Platform Commission ({job.workerFinancials.commissionRate}%)</span>
+                  <span className="font-bold">-?{(job.workerFinancials.commissionAmount || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Extra Charges (Added by you)</span>
+                  <span className="font-bold text-gray-800">+?{(job.extraChargesTotal || 0).toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-end pt-3 border-t border-gray-100">
+                <span className="text-gray-900 font-bold">Net Earnings (To Wallet)</span>
+                <span className="text-2xl font-black text-emerald-600">
+                  ?{((job.workerFinancials.netEarnings || 0) + (job.extraChargesTotal || 0)).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <React.Fragment>
+              {/* Payment Details - Professional Card (Matched with Vendor) */}
+
         <div
           className="bg-white rounded-xl p-5 mb-6 shadow-sm border border-gray-100"
           style={{
@@ -661,6 +707,9 @@ const JobDetails = () => {
           </div>
         </div>
 
+            </React.Fragment>
+          )}
+
         {/* Booking Details Extra */}
         <div className="bg-gray-50 rounded-2xl p-5 shadow-inner mb-6 border border-gray-100">
           <div className="flex justify-between text-xs font-bold text-gray-400 uppercase mb-4">
@@ -698,14 +747,14 @@ const JobDetails = () => {
               setActionLoading(true);
               const response = await workerService.completeJob(id, { workPhotos: photos });
               if (response && response.success) {
-                toast.success(response.message || 'Job Completed successfully');
+                toastManager.success(response.message || 'Job Completed successfully');
                 setIsCompletionModalOpen(false);
                 fetchJobDetails();
               } else {
-                toast.error(response?.message || 'Failed to complete job');
+                toastManager.error(response?.message || 'Failed to complete job');
               }
             } catch (error) {
-              toast.error(error.response?.data?.message || 'Failed to complete job');
+              toastManager.error(error.response?.data?.message || 'Failed to complete job');
             } finally {
               setActionLoading(false);
             }
@@ -713,7 +762,9 @@ const JobDetails = () => {
         />
       </Suspense>
 
-      {/* Visit OTP Modal - REUSABLE COMPONENT */}
+      
+
+          {/* Visit OTP Modal - REUSABLE COMPONENT */}
       <Suspense fallback={null}>
         <VisitVerificationModal
           isOpen={isVisitModalOpen}
@@ -742,3 +793,4 @@ const JobDetails = () => {
 };
 
 export default JobDetails;
+

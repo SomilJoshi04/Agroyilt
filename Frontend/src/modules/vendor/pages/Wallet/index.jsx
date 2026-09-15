@@ -6,7 +6,7 @@ import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import vendorWalletService from '../../../../services/vendorWalletService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const Wallet = () => {
   const navigate = useNavigate();
@@ -63,7 +63,7 @@ const Wallet = () => {
       }
     } catch (error) {
       console.error('Error loading wallet:', error);
-      toast.error('Failed to load wallet data');
+      toastManager.error('Failed to load wallet data');
     } finally {
       setLoading(false);
     }

@@ -8,7 +8,7 @@ import { FormContainer, FormSection } from '../../../../components/common';
 import BottomNav from '../../components/layout/BottomNav';
 import { createWorker, updateWorker, getWorkerById, linkWorker } from '../../services/workerService';
 import { publicCatalogService } from '../../../../services/catalogService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { z } from "zod";
 
 // Zod schemas
@@ -121,7 +121,7 @@ const AddEditDriver = () => {
         }
       } catch (error) {
         console.error('Init error:', error);
-        toast.error('Failed to load data');
+        toastManager.error('Failed to load data');
         setLoading(false);
       }
     };
@@ -155,7 +155,7 @@ const AddEditDriver = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should be less than 5MB');
+        toastManager.error('File size should be less than 5MB');
         return;
       }
       setPhotoFile(file);
@@ -167,7 +167,7 @@ const AddEditDriver = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should be less than 5MB');
+        toastManager.error('File size should be less than 5MB');
         return;
       }
       setAadharFile(file);
@@ -270,7 +270,7 @@ const AddEditDriver = () => {
 
     const validationResult = schema.safeParse(validationData);
     if (!validationResult.success) {
-      toast.error(validationResult.error?.issues?.[0]?.message || 'Please check your inputs');
+      toastManager.error(validationResult.error?.issues?.[0]?.message || 'Please check your inputs');
       return;
     }
     // Removed aadhar check
@@ -295,16 +295,16 @@ const AddEditDriver = () => {
 
       if (isEdit) {
         await updateWorker(id, payload);
-        toast.success('Driver updated');
+        toastManager.success('Driver updated');
       } else {
         await createWorker(payload);
-        toast.success('Driver added');
+        toastManager.success('Driver added');
       }
       window.dispatchEvent(new Event('vendorWorkersUpdated'));
       navigate('/vendor/workers');
     } catch (error) {
       console.error('Save error:', error);
-      toast.error(error.response?.data?.message || 'Failed to save');
+      toastManager.error(error.response?.data?.message || 'Failed to save');
     } finally {
       setLoading(false);
       setUploading(false);
@@ -313,18 +313,18 @@ const AddEditDriver = () => {
 
   const handleLinkWorker = async () => {
     if (!linkPhone.trim() || linkPhone.length < 10) {
-      toast.error('Enter valid phone number');
+      toastManager.error('Enter valid phone number');
       return;
     }
     try {
       setLoading(true);
       await linkWorker(linkPhone);
-      toast.success('Driver linked successfully!');
+      toastManager.success('Driver linked successfully!');
       window.dispatchEvent(new Event('vendorWorkersUpdated'));
       navigate('/vendor/workers');
     } catch (error) {
       console.error('Link error:', error);
-      toast.error(error.response?.data?.message || 'Failed to link driver');
+      toastManager.error(error.response?.data?.message || 'Failed to link driver');
     } finally {
       setLoading(false);
     }

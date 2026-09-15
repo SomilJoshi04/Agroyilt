@@ -11,7 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { vendorDashboardService } from '../../services/dashboardService';
 import LogoLoader from '../../../../components/common/LogoLoader';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const COLORS = ['#0F766E', '#0D9488', '#2DD4BF', '#99F6E4'];
 
@@ -28,7 +28,7 @@ const Analytics = () => {
                     setData(response.data);
                 }
             } catch (error) {
-                toast.error('Failed to load analytics');
+                toastManager.error('Failed to load analytics');
             } finally {
                 setLoading(false);
             }

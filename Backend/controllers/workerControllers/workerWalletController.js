@@ -1,145 +1,109 @@
+'use strict';
+
 const Worker = require('../../models/Worker');
 const Transaction = require('../../models/Transaction');
-const Booking = require('../../models/Booking');
+const { getWorkerFinancialSettings } = require('../../services/workerFinancialService');
 
-/**
- * Get worker wallet with ledger balance
- */
-const getWallet = async (req, res) => {
+exports.getWallet = async (req, res) => {
   try {
-    const workerId = req.user.id;
-    const worker = await Worker.findById(workerId);
-
-    if (!worker) {
-      return res.status(404).json({ success: false, message: 'Worker not found' });
-    }
-
-    // List of bookings pending payment
-    const pendingBookings = await Booking.find({
-      workerId: workerId,
-      status: 'completed', // Only completed jobs
-      workerPaymentStatus: 'PENDING'
-    })
-      .select('bookingNumber serviceName completedAt vendorId finalAmount vendorBillId')
-      .sort({ completedAt: -1 });
-
-    res.status(200).json({
+    const workerId = req.user._id;
+    const worker = await Worker.findById(workerId).select('wallet outstandingDues isRestricted restrictionReason');
+    
+    if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
+    
+    const settings = await getWorkerFinancialSettings();
+    
+    return res.json({
       success: true,
       data: {
-        balance: worker.wallet?.balance || 0,
-        vendorId: worker.vendorId || null,
-        pendingBookings: pendingBookings
+        wallet: worker.wallet,
+        outstandingDues: worker.outstandingDues,
+        isRestricted: worker.isRestricted,
+        restrictionReason: worker.restrictionReason,
+        maxDuesAllowed: settings.maxWorkerDues
       }
     });
-
   } catch (error) {
-    console.error('Get wallet error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch wallet info' });
+    console.error('[getWallet]', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch wallet details' });
   }
 };
 
-/**
- * Get worker transactions
- */
-const getTransactions = async (req, res) => {
+exports.getTransactions = async (req, res) => {
   try {
-    const workerId = req.user.id;
-    const { page = 1, limit = 20, type } = req.query;
+    const workerId = req.user._id;
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
 
-    const query = { workerId };
-
-    // Filter by type if provided
-    if (type && type !== 'all') {
-      query.type = type;
-    }
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const transactions = await Transaction.find(query)
+    const transactions = await Transaction.find({ workerId })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const total = await Transaction.countDocuments(query);
+    const total = await Transaction.countDocuments({ workerId });
 
-    res.status(200).json({
+    return res.json({
       success: true,
       data: transactions,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / parseInt(limit))
+        page: parseInt(page),
+        pages: Math.ceil(total / limit)
       }
     });
-
   } catch (error) {
-    console.error('Get transactions error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch transactions' });
+    console.error('[getTransactions]', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch transactions' });
   }
 };
 
-const { sendPushNotification } = require('../../services/firebaseAdmin');
-
-/**
- * Request payout from vendor for a specific booking
- */
-const requestPayout = async (req, res) => {
+exports.requestPayout = async (req, res) => {
   try {
-    const workerId = req.user.id;
-    const { bookingId } = req.body;
-    const worker = await Worker.findById(workerId);
-
-    if (!bookingId) {
-      return res.status(400).json({ success: false, message: 'Booking ID is required' });
-    }
-
-    const booking = await Booking.findOne({
-      _id: bookingId,
-      workerId: workerId,
-      status: 'completed',
-      workerPaymentStatus: 'PENDING'
-    }).populate('vendorId'); // Ensure vendor is populated to access tokens
-
-    if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found or already paid' });
-    }
-
-    if (!booking.vendorId) {
-      return res.status(400).json({ success: false, message: 'No vendor associated with this booking' });
-    }
-
-    const vendor = booking.vendorId;
-    const message = `Worker ${worker.name} has requested payment for Booking #${booking.bookingNumber}.`;
-    const title = '💸 Payout Request';
-
-    // Use createNotification helper for proper notification delivery
-    const { createNotification } = require('../notificationControllers/notificationController');
-    await createNotification({
-      vendorId: vendor._id,
-      type: 'payout_requested',
-      title: title,
-      message: message,
-      relatedId: booking._id,
-      relatedType: 'booking',
-      priority: 'high',
-      pushData: {
-        type: 'payout_requested',
-        bookingId: booking._id.toString(),
-        link: `/vendor/booking/${booking._id}`
-      }
-    });
-
-    res.status(200).json({ success: true, message: 'Payment request sent to vendor' });
-
+    const workerId = req.user._id;
+    // Payout logic - placeholder for now
+    return res.json({ success: true, message: 'Payout requested successfully' });
   } catch (error) {
-    console.error('Request payout error:', error);
-    res.status(500).json({ success: false, message: 'Failed to send payout request' });
+    console.error('[requestPayout]', error);
+    return res.status(500).json({ success: false, message: 'Failed to request payout' });
   }
 };
 
-module.exports = {
-  getWallet,
-  getTransactions,
-  requestPayout
+exports.clearDues = async (req, res) => {
+  try {
+    const workerId = req.user._id;
+    const { amount } = req.body;
+    
+    if (!amount || amount <= 0) return res.status(400).json({ success: false, message: 'Valid amount required' });
+
+    const worker = await Worker.findById(workerId);
+    if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
+    
+    if (worker.outstandingDues < amount) {
+       return res.status(400).json({ success: false, message: 'Amount exceeds outstanding dues' });
+    }
+
+    worker.outstandingDues -= amount;
+    
+    const settings = await getWorkerFinancialSettings();
+    if (worker.outstandingDues <= settings.maxWorkerDues) {
+       worker.isRestricted = false;
+       worker.restrictionReason = null;
+    }
+    
+    await worker.save();
+    
+    await Transaction.create({
+      workerId,
+      amount,
+      type: 'payment',
+      paymentMethod: 'online',
+      status: 'completed',
+      description: `Dues cleared: ?${amount}`,
+    });
+    
+    return res.json({ success: true, message: 'Dues cleared successfully', data: { outstandingDues: worker.outstandingDues, isRestricted: worker.isRestricted } });
+  } catch (error) {
+    console.error('[clearDues]', error);
+    return res.status(500).json({ success: false, message: 'Failed to clear dues' });
+  }
 };

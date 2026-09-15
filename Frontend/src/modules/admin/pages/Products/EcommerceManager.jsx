@@ -16,7 +16,7 @@ import {
 import adminProductService from '../../../../services/adminProductService';
 import { publicCatalogService } from '../../../../services/catalogService';
 import { configService } from '../../../../services/configService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -80,7 +80,7 @@ const EcommerceManager = () => {
                 setCategories(catRes.categories || catRes.data || []);
             }
         } catch (err) {
-            toast.error("Marketplace data load karne mein dikkat hui");
+            toastManager.error("Marketplace data load karne mein dikkat hui");
         } finally {
             setLoading(false);
         }
@@ -117,10 +117,10 @@ const EcommerceManager = () => {
                     imageUrl: prev.imageUrl || uploadedUrls[0],
                     images: [...(prev.images || []), ...uploadedUrls]
                 }));
-                toast.success(`${uploadedUrls.length} images upload ho gayi!`);
+                toastManager.success(`${uploadedUrls.length} images upload ho gayi!`);
             }
         } catch (err) {
-            toast.error("Image upload fail ho gayi");
+            toastManager.error("Image upload fail ho gayi");
         } finally {
             setUploading(false);
         }
@@ -133,10 +133,10 @@ const EcommerceManager = () => {
                 setProducts(products.map(p =>
                     p._id === id ? { ...p, isFeatured: res.data.isFeatured } : p
                 ));
-                toast.success("Featured status updated");
+                toastManager.success("Featured status updated");
             }
         } catch (err) {
-            toast.error("Status update nahi ho paya");
+            toastManager.error("Status update nahi ho paya");
         }
     };
 
@@ -156,12 +156,12 @@ const EcommerceManager = () => {
                 gstPercentage: approvalData.gstPercentage
             });
             if (res.success) {
-                toast.success("Platform entry approved and live!");
+                toastManager.success("Platform entry approved and live!");
                 setShowApprovalModal(false);
                 fetchData();
             }
         } catch (err) {
-            toast.error("Approval failed");
+            toastManager.error("Approval failed");
         }
     };
 
@@ -171,11 +171,11 @@ const EcommerceManager = () => {
         try {
             const res = await adminProductService.rejectProduct(id, reason);
             if (res.success) {
-                toast.success("Product rejected");
+                toastManager.success("Product rejected");
                 fetchData();
             }
         } catch (err) {
-            toast.error("Rejection failed");
+            toastManager.error("Rejection failed");
         }
     };
 
@@ -185,17 +185,17 @@ const EcommerceManager = () => {
             const res = await adminProductService.delete(id);
             if (res.success) {
                 setProducts(products.filter(p => p._id !== id));
-                toast.success("Product uda diya gaya");
+                toastManager.success("Product uda diya gaya");
             }
         } catch (err) {
-            toast.error("Delete nahi ho paya");
+            toastManager.error("Delete nahi ho paya");
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.title || !formData.price || !formData.unit) {
-            return toast.error("Kripya Title, Price aur Unit bharein");
+            return toastManager.error("Kripya Title, Price aur Unit bharein");
         }
 
         try {
@@ -207,13 +207,13 @@ const EcommerceManager = () => {
             }
 
             if (res.success) {
-                toast.success(editMode ? "Product update ho gaya" : "Naya product add ho gaya");
+                toastManager.success(editMode ? "Product update ho gaya" : "Naya product add ho gaya");
                 setShowModal(false);
                 fetchData();
                 resetForm();
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || "Submit fail ho gaya");
+            toastManager.error(err.response?.data?.message || "Submit fail ho gaya");
         }
     };
 

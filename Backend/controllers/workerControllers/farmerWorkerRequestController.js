@@ -610,6 +610,7 @@ exports.getFarmerRequestById = async (req, res) => {
       requestType: { $in: ['independent_broadcast', 'team_leader'] }
     })
       .populate('dispatchedTo.workerId', 'name profilePhoto skills rating location status phone')
+      .populate('workerOffers.workerId', 'name profilePhoto rating location status phone')
       .populate('finalWorkers',          'name profilePhoto skills rating phone');
 
     if (!request) {
@@ -699,22 +700,39 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
     }
 
     // Update worker's entry atomically
-    const newStatus = action === 'accept' ? 'accepted' : 'rejected';
-    await WorkerBookingRequest.updateOne(
-      {
-        _id: request._id,
-        'dispatchedTo.workerId': workerId,
-        'dispatchedTo.status': 'pending' // conditional — prevent race condition
-      },
-      {
+        const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+    
+    // Add to workerOffers if accepted
+    let updateObj = {
         $set: {
           'dispatchedTo.$.status':      newStatus,
           'dispatchedTo.$.respondedAt': new Date()
         }
-      }
+    };
+    
+    if (action === 'accept') {
+        let { offeredRate } = req.body;
+        if (!offeredRate) {
+            offeredRate = request.maxRate || request.budget || 0;
+        }
+        updateObj['$push'] = {
+            workerOffers: {
+                workerId: workerId,
+                offeredRate: offeredRate,
+                status: 'pending'
+            }
+        };
+    }
+
+    await WorkerBookingRequest.updateOne(
+      {
+        _id: request._id,
+        'dispatchedTo.workerId': workerId,
+        'dispatchedTo.status': 'pending'
+      },
+      updateObj
     );
 
-    // Re-fetch updated request to get accurate counts
     const updated = await WorkerBookingRequest.findById(request._id);
     const acceptedCount = updated.dispatchedTo.filter(d => d.status === 'accepted').length;
     const rejectedCount = updated.dispatchedTo.filter(d => d.status === 'rejected').length;
@@ -831,7 +849,7 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
  * POST /api/user/farmer-worker-request/:id/confirm
  * Farmer confirms the partial available worker count and creates bookings.
  */
-exports.farmerConfirmRequest = async (req, res) => {
+exports.legacyFarmerConfirmRequest = async (req, res) => {
   try {
     const farmerId = req.user._id;
     const { accept } = req.body; // boolean: true = accept available, false = reject
@@ -1053,3 +1071,244 @@ exports.cancelFarmerRequest = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Failed to cancel request.' });
   }
 };
+
+
+// ============================================================================
+// NEW INDEPENDENT WORKER PAYMENT FLOW
+// ============================================================================
+const { createOrder, verifyPayment } = require('../../services/razorpayService');
+const { getWorkerFinancialSettings } = require('../../services/workerFinancialService');
+
+exports.farmerSelectWorkers = async (req, res) => {
+  try {
+    const farmerId = req.user._id;
+    const { selectedWorkerIds } = req.body; 
+
+    if (!selectedWorkerIds || !Array.isArray(selectedWorkerIds) || selectedWorkerIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Please select at least one worker.' });
+    }
+
+    const request = await WorkerBookingRequest.findOne({
+      _id: req.params.id,
+      farmerId,
+      status: { $in: ['matching', 'awaiting_farmer_confirmation'] },
+      requestType: { $in: ['independent_broadcast', 'team_leader'] }
+    });
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Request not found or not in a selectable state.' });
+    }
+    if (request.expiresAt < new Date()) {
+      return res.status(410).json({ success: false, message: 'This request has expired.' });
+    }
+
+    // Validate selected workers
+    const validWorkerIds = request.workerOffers
+      .filter(offer => offer.status === 'pending' || offer.status === 'selected')
+      .map(offer => offer.workerId.toString());
+
+    for (const wId of selectedWorkerIds) {
+      if (!validWorkerIds.includes(wId.toString())) {
+        return res.status(400).json({ success: false, message: 'One or more selected workers are invalid or did not submit an offer.' });
+      }
+    }
+
+    const settings = await getWorkerFinancialSettings();
+    const maxWorkerAmount = request.maxRate * selectedWorkerIds.length;
+    const platformCharge = (maxWorkerAmount * settings.workerPlatformChargePercentage) / 100;
+    const totalPayable = maxWorkerAmount + platformCharge;
+
+    request.selectedWorkerIds = selectedWorkerIds;
+    request.paymentStatus = 'pending';
+    request.financialSnapshot = {
+      maximumBudget: request.maxRate,
+      selectedWorkerCount: selectedWorkerIds.length,
+      maximumWorkerAmount: maxWorkerAmount,
+      platformChargeRate: settings.workerPlatformChargePercentage,
+      platformChargeAmount: platformCharge,
+      totalPayable: totalPayable,
+      commissionRate: settings.workerCommissionPercentage,
+      currency: 'INR',
+      createdAt: new Date()
+    };
+    
+    request.workerOffers.forEach(offer => {
+       if (selectedWorkerIds.includes(offer.workerId.toString())) {
+         offer.status = 'selected';
+       }
+    });
+
+    await request.save();
+
+    return res.json({
+      success: true,
+      message: 'Workers selected. Please proceed to payment.',
+      data: {
+        financials: request.financialSnapshot,
+        paymentStatus: request.paymentStatus
+      }
+    });
+  } catch (err) {
+    console.error('[farmerSelectWorkers]', err); require('fs').writeFileSync('C:/Users/hp/Desktop/Appzeto/AgroYilt/backend/error_log.txt', err.stack);
+    return res.status(500).json({ success: false, message: 'Failed to select workers.' });
+  }
+};
+
+exports.createWorkerBookingPayment = async (req, res) => {
+  try {
+    const farmerId = req.user._id;
+    const request = await WorkerBookingRequest.findOne({
+      _id: req.params.id,
+      farmerId,
+      paymentStatus: 'pending'
+    });
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Request not found or workers not selected yet.' });
+    }
+
+    const { totalPayable, currency } = request.financialSnapshot;
+
+    const orderRes = await createOrder(totalPayable, currency, `req_${request._id}`);
+    if (!orderRes.success) {
+      return res.status(500).json({ success: false, message: 'Failed to create payment order.' });
+    }
+
+    request.razorpayOrderId = orderRes.orderId;
+    await request.save();
+
+    return res.json({
+      success: true,
+      data: {
+        orderId: orderRes.orderId,
+        amount: orderRes.amount,
+        currency: orderRes.currency,
+        financials: request.financialSnapshot
+      }
+    });
+  } catch (err) {
+    console.error('[createWorkerBookingPayment]', err);
+    return res.status(500).json({ success: false, message: 'Failed to initialize payment.' });
+  }
+};
+
+exports.verifyWorkerBookingPayment = async (req, res) => {
+  try {
+    const farmerId = req.user._id;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    const request = await WorkerBookingRequest.findOne({
+      _id: req.params.id,
+      farmerId,
+      razorpayOrderId: razorpay_order_id,
+      paymentStatus: 'pending'
+    });
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Invalid payment verification request.' });
+    }
+
+    const isValid = verifyPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+    if (!isValid) {
+      request.paymentStatus = 'failed';
+      await request.save();
+      return res.status(400).json({ success: false, message: 'Payment verification failed.' });
+    }
+
+    request.paymentStatus = 'success';
+    request.razorpayPaymentId = razorpay_payment_id;
+    request.status = 'confirmed';
+    request.farmerAcceptedPartial = request.selectedWorkerIds.length < request.requiredWorkers;
+    request.acceptedWorkersCount = request.selectedWorkerIds.length;
+    request.finalWorkers = request.selectedWorkerIds;
+    
+    request.workerOffers.forEach(offer => {
+       if (!request.selectedWorkerIds.includes(offer.workerId.toString())) {
+         offer.status = 'rejected';
+       }
+    });
+
+    const bookingDocs = [];
+    for (const [idx, wId] of request.selectedWorkerIds.entries()) {
+      const offer = request.workerOffers.find(o => o.workerId.toString() === wId.toString());
+      const offeredRate = offer ? offer.offeredRate : request.minRate;
+      
+      const commissionRate = request.financialSnapshot.commissionRate;
+      const commissionAmount = (offeredRate * commissionRate) / 100;
+      const netEarning = offeredRate - commissionAmount;
+
+      bookingDocs.push({
+        bookingNumber: `WRK-${Date.now()}-${idx}`,
+        userId: farmerId,
+        workerId: wId,
+        providerType: 'WORKER',
+        workerRequestId: request._id,
+        scheduledDate: request.scheduledDate,
+        scheduledTime: request.startTime,
+        timeSlot: { start: request.startTime, end: request.endTime },
+        serviceName: request.workTitle,
+        serviceCategory: request.workCategory || 'Worker',
+        
+        basePrice: null,
+        minRate: request.minRate,
+        maxRate: request.maxRate,
+        agreedRate: offeredRate,
+        rateUnit: request.rateUnit || 'daily',
+        workerOfferedRate: offeredRate,
+        workerGrossEarning: offeredRate,
+        commissionRate: commissionRate,
+        commissionAmount: commissionAmount,
+        workerNetEarning: netEarning,
+        finalAmount: offeredRate, 
+        totalAmount: offeredRate,
+        
+        address: {
+          addressLine1: request.location?.addressLine1 || request.location?.city || '',
+          city: request.location?.city || '',
+          state: request.location?.state || '',
+          pincode: request.location?.pincode || '',
+          lat: request.location?.lat || null,
+          lng: request.location?.lng || null,
+        },
+        status: 'confirmed',
+        paymentStatus: 'success',
+        paymentMethod: 'online',
+        paymentId: razorpay_payment_id,
+        notes: `${request.workTitle}: ${request.workDescription || ''}`.substring(0, 500)
+      });
+    }
+
+    const createdBookings = await Booking.insertMany(bookingDocs);
+    request.finalBookingIds = createdBookings.map(b => b._id);
+    await request.save();
+
+    for (const b of createdBookings) {
+      await notify({
+        recipientType: 'worker',
+        recipientId: b.workerId,
+        type: 'worker_booking_confirmed',
+        title: 'Booking Confirmed & Paid!',
+        message: `Your booking for ${request.workTitle} has been confirmed. You will earn ?${b.workerNetEarning}.`,
+        relatedId: request._id,
+        relatedType: 'WorkerBookingRequest',
+        data: { bookingId: b._id, requestId: request._id }
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Payment verified and bookings created.',
+      data: {
+        bookingIds: request.finalBookingIds
+      }
+    });
+
+  } catch (err) {
+    console.error('[verifyWorkerBookingPayment]', err);
+    return res.status(500).json({ success: false, message: 'Payment verification failed.' });
+  }
+};
+
+
+
+

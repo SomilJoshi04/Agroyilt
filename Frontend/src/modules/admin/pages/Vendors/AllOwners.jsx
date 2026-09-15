@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader, FiPower, FiTrash2, FiPlus, FiUpload } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
 import adminVendorService from '../../../../services/adminVendorService';
@@ -129,11 +129,11 @@ const AllOwners = () => {
         }));
         setOwners(transformedOwners);
       } else {
-        toast.error(response.message || 'Failed to load owners');
+        toastManager.error(response.message || 'Failed to load owners');
       }
     } catch (error) {
       console.error('Error loading owners:', error);
-      toast.error('Failed to load owners. Please try again.');
+      toastManager.error('Failed to load owners. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -164,13 +164,13 @@ const AllOwners = () => {
         setOwners(prev => prev.map(o =>
           o.id === ownerId ? { ...o, approvalStatus: 'approved' } : o
         ));
-        toast.success('Owner approved successfully!');
+        toastManager.success('Owner approved successfully!');
       } else {
-        toast.error(response.message || 'Failed to approve owner');
+        toastManager.error(response.message || 'Failed to approve owner');
       }
     } catch (error) {
       console.error('Error approving owner:', error);
-      toast.error('Failed to approve owner. Please try again.');
+      toastManager.error('Failed to approve owner. Please try again.');
     }
   };
 
@@ -181,13 +181,13 @@ const AllOwners = () => {
         setOwners(prev => prev.map(o =>
           o.id === ownerId ? { ...o, approvalStatus: 'rejected' } : o
         ));
-        toast.success('Owner rejected successfully.');
+        toastManager.success('Owner rejected successfully.');
       } else {
-        toast.error(response.message || 'Failed to reject owner');
+        toastManager.error(response.message || 'Failed to reject owner');
       }
     } catch (error) {
       console.error('Error rejecting owner:', error);
-      toast.error('Failed to reject owner. Please try again.');
+      toastManager.error('Failed to reject owner. Please try again.');
     }
   };
 
@@ -199,13 +199,13 @@ const AllOwners = () => {
         setOwners(prev => prev.map(o =>
           o.id === ownerId ? { ...o, isActive: newStatus } : o
         ));
-        toast.success(`Owner ${newStatus ? 'activated' : 'deactivated'} successfully`);
+        toastManager.success(`Owner ${newStatus ? 'activated' : 'deactivated'} successfully`);
       } else {
-        toast.error(response.message || 'Failed to update owner status');
+        toastManager.error(response.message || 'Failed to update owner status');
       }
     } catch (error) {
       console.error('Error toggling owner status:', error);
-      toast.error('Failed to update status');
+      toastManager.error('Failed to update status');
     }
   };
 
@@ -228,13 +228,13 @@ const AllOwners = () => {
         if (selectedOwner && selectedOwner.id === ownerId) {
           setSelectedOwner({ ...selectedOwner, service: newServices });
         }
-        toast.success(`Owner marked as ${!isCurrentlyLab ? 'Soil Lab' : 'Standard Vendor'}`);
+        toastManager.success(`Owner marked as ${!isCurrentlyLab ? 'Soil Lab' : 'Standard Vendor'}`);
       } else {
-        toast.error(response.message || 'Failed to update services');
+        toastManager.error(response.message || 'Failed to update services');
       }
     } catch (error) {
       console.error('Error toggling soil lab status:', error);
-      toast.error('Failed to update services');
+      toastManager.error('Failed to update services');
     }
   };
 
@@ -247,13 +247,13 @@ const AllOwners = () => {
       const response = await adminVendorService.deleteVendor(ownerId);
       if (response.success) {
         setOwners(prev => prev.filter(o => o.id !== ownerId));
-        toast.success('Owner deleted successfully');
+        toastManager.success('Owner deleted successfully');
       } else {
-        toast.error(response.message || 'Failed to delete owner');
+        toastManager.error(response.message || 'Failed to delete owner');
       }
     } catch (error) {
       console.error('Error deleting owner:', error);
-      toast.error('Failed to delete owner');
+      toastManager.error('Failed to delete owner');
     }
   };
 
@@ -268,17 +268,17 @@ const AllOwners = () => {
 
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
-      toast.error('Please upload a valid image or PDF');
+      toastManager.error('Please upload a valid image or PDF');
       return;
     }
 
     if (file.size > 15 * 1024 * 1024) {
-      toast.error('File size should be less than 15MB');
+      toastManager.error('File size should be less than 15MB');
       return;
     }
 
     setUploadingDocs(prev => ({ ...prev, [type]: true }));
-    const loadingToast = toast.loading("Processing file...");
+    const loadingToast = toastManager.info("Processing file...");
 
     try {
       const reader = new FileReader();
@@ -294,18 +294,18 @@ const AllOwners = () => {
         }));
         setUploadingDocs(prev => ({ ...prev, [type]: false }));
         toast.dismiss(loadingToast);
-        toast.success("Document uploaded successfully!", { duration: 2000 });
+        toastManager.success("Document uploaded successfully!", { duration: 2000 });
       };
 
       reader.onerror = () => {
-        toast.error("Failed to read file");
+        toastManager.error("Failed to read file");
         setUploadingDocs(prev => ({ ...prev, [type]: false }));
       };
 
       reader.readAsDataURL(file);
     } catch (error) {
       toast.dismiss(loadingToast);
-      toast.error("Failed to process file");
+      toastManager.error("Failed to process file");
       setUploadingDocs(prev => ({ ...prev, [type]: false }));
     }
   };
@@ -326,7 +326,7 @@ const AllOwners = () => {
     if (!file) return;
 
     if (file.size > 15 * 1024 * 1024) {
-      toast.error('File size should be less than 15MB');
+      toastManager.error('File size should be less than 15MB');
       return;
     }
 
@@ -334,31 +334,31 @@ const AllOwners = () => {
     reader.onloadend = () => {
       setShopFormData(prev => ({ ...prev, licenseDocument: reader.result }));
       setShopDocPreview(reader.result);
-      toast.success("Document attached");
+      toastManager.success("Document attached");
     };
     reader.readAsDataURL(file);
   };
 
   const handleAddShopSubmit = async (e, ownerId) => {
     e.preventDefault();
-    if (!shopFormData.shopName.trim()) return toast.error('Enter shop name');
-    if (!shopFormData.shopAddress.trim()) return toast.error('Enter shop address');
+    if (!shopFormData.shopName.trim()) return toastManager.error('Enter shop name');
+    if (!shopFormData.shopAddress.trim()) return toastManager.error('Enter shop address');
 
     if (shopFormData.shopName && !/^[A-Za-z0-9\s.,&'-]+$/.test(shopFormData.shopName)) {
-      return toast.error('Shop Name contains invalid characters.');
+      return toastManager.error('Shop Name contains invalid characters.');
     }
     if (shopFormData.shopLicense && !/^[A-Za-z0-9-]+$/.test(shopFormData.shopLicense)) {
-      return toast.error('License Number contains invalid characters.');
+      return toastManager.error('License Number contains invalid characters.');
     }
     if (shopFormData.shopAddress && !/^[A-Za-z0-9\s.,&'-/#]+$/.test(shopFormData.shopAddress)) {
-      return toast.error('Shop Address contains invalid characters.');
+      return toastManager.error('Shop Address contains invalid characters.');
     }
 
     try {
       setIsAddingShop(true);
       const response = await adminVendorService.addVendorShop(ownerId, shopFormData);
       if (response.success) {
-        toast.success('Shop registered successfully!');
+        toastManager.success('Shop registered successfully!');
         setShopFormData({ shopName: '', shopAddress: '', shopLocation: null, shopLicense: '', licenseDocument: '' });
         setShopDocPreview('');
         loadOwners();
@@ -368,10 +368,10 @@ const AllOwners = () => {
           shopDetails: response.data
         }));
       } else {
-        toast.error(response.message || 'Failed to add shop');
+        toastManager.error(response.message || 'Failed to add shop');
       }
     } catch (error) {
-      toast.error('Failed to register shop');
+      toastManager.error('Failed to register shop');
     } finally {
       setIsAddingShop(false);
     }
@@ -381,34 +381,34 @@ const AllOwners = () => {
     e.preventDefault();
 
     // Validations
-    if (!formData.name.trim()) return toast.error('Please enter owner name');
-    if (!formData.businessName.trim()) return toast.error('Please enter business name');
+    if (!formData.name.trim()) return toastManager.error('Please enter owner name');
+    if (!formData.businessName.trim()) return toastManager.error('Please enter business name');
     if (formData.service.length === 0 && !formData.isLabRegistration && !formData.isShopRegistration) {
-      return toast.error('Please select at least one service category or additional service');
+      return toastManager.error('Please select at least one service category or additional service');
     }
     if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      return toast.error('Please enter a valid email');
+      return toastManager.error('Please enter a valid email');
     }
-    if (!formData.phone.trim()) return toast.error('Please enter phone number');
-    if (!/^[6-9]\d{9}$/.test(formData.phone)) return toast.error('Please enter a valid 10-digit Indian phone number');
-    if (!formData.aadhar.trim()) return toast.error('Please enter Aadhar number');
-    if (!/^\d{12}$/.test(formData.aadhar)) return toast.error('Please enter a valid 12-digit Aadhar number');
+    if (!formData.phone.trim()) return toastManager.error('Please enter phone number');
+    if (!/^[6-9]\d{9}$/.test(formData.phone)) return toastManager.error('Please enter a valid 10-digit Indian phone number');
+    if (!formData.aadhar.trim()) return toastManager.error('Please enter Aadhar number');
+    if (!/^\d{12}$/.test(formData.aadhar)) return toastManager.error('Please enter a valid 12-digit Aadhar number');
     if (formData.pan.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan.toUpperCase())) {
-      return toast.error('Please enter a valid PAN number');
+      return toastManager.error('Please enter a valid PAN number');
     }
 
-    if (!formData.aadharDocument) return toast.error('Please upload Aadhar card front');
-    if (!formData.aadharBackDocument) return toast.error('Please upload Aadhar card back');
+    if (!formData.aadharDocument) return toastManager.error('Please upload Aadhar card front');
+    if (!formData.aadharBackDocument) return toastManager.error('Please upload Aadhar card back');
 
     // Additional Services Validations
     if (formData.isLabRegistration) {
-      if (!formData.labDetails.labName.trim()) return toast.error('Please enter Lab Name');
-      if (!formData.labCertDocument) return toast.error('Please upload Lab Certification Document');
+      if (!formData.labDetails.labName.trim()) return toastManager.error('Please enter Lab Name');
+      if (!formData.labCertDocument) return toastManager.error('Please upload Lab Certification Document');
     }
     if (formData.isShopRegistration) {
-      if (!formData.shopDetails.shopName.trim()) return toast.error('Please enter Shop Name');
-      if (!formData.shopDetails.shopAddress.trim()) return toast.error('Please enter Shop Address');
-      if (!formData.shopLicenseDocument) return toast.error('Please upload Shop License Document');
+      if (!formData.shopDetails.shopName.trim()) return toastManager.error('Please enter Shop Name');
+      if (!formData.shopDetails.shopAddress.trim()) return toastManager.error('Please enter Shop Address');
+      if (!formData.shopLicenseDocument) return toastManager.error('Please upload Shop License Document');
     }
 
     try {
@@ -440,7 +440,7 @@ const AllOwners = () => {
       
       const response = await adminVendorService.addVendor(payload);
       if (response.success) {
-        toast.success('Vendor registered successfully!');
+        toastManager.success('Vendor registered successfully!');
         setIsAddModalOpen(false);
         // Reset form
         setFormData({
@@ -471,11 +471,11 @@ const AllOwners = () => {
         });
         loadOwners();
       } else {
-        toast.error(response.message || 'Failed to register vendor');
+        toastManager.error(response.message || 'Failed to register vendor');
       }
     } catch (error) {
       console.error('Error adding vendor:', error);
-      toast.error(error.response?.data?.message || 'Failed to register vendor');
+      toastManager.error(error.response?.data?.message || 'Failed to register vendor');
     } finally {
       setIsAdding(false);
     }

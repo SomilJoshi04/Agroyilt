@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiCheck, FiX, FiFilter, FiTrash2 } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
@@ -69,10 +69,10 @@ const Notifications = () => {
       setNotifications(prev =>
         prev.map(n => n.id === id ? { ...n, read: true } : n)
       );
-      toast.success('Notification marked as read');
+      toastManager.success('Notification marked as read');
     } catch (error) {
       console.error('Failed to mark as read', error);
-      toast.error('Failed to mark as read');
+      toastManager.error('Failed to mark as read');
     }
   };
 
@@ -80,10 +80,10 @@ const Notifications = () => {
     try {
       await markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      toast.success('All marked as read');
+      toastManager.success('All marked as read');
     } catch (error) {
       console.error('Failed to mark all as read', error);
-      toast.error('Failed to mark all as read');
+      toastManager.error('Failed to mark all as read');
     }
   };
 
@@ -92,10 +92,10 @@ const Notifications = () => {
     try {
       await deleteNotification(id);
       setNotifications(prev => prev.filter(n => n.id !== id));
-      toast.success('Notification removed');
+      toastManager.success('Notification removed');
     } catch (error) {
       console.error('Failed to delete notification', error);
-      toast.error('Failed to delete');
+      toastManager.error('Failed to delete');
     }
   };
 
@@ -107,11 +107,11 @@ const Notifications = () => {
     try {
       await deleteAllNotifications();
       setNotifications([]);
-      toast.success('All notifications cleared');
+      toastManager.success('All notifications cleared');
       setShowClearConfirm(false);
     } catch (error) {
       console.error('Failed to clear notifications', error);
-      toast.error('Failed to clear');
+      toastManager.error('Failed to clear');
       setShowClearConfirm(false);
     }
   };

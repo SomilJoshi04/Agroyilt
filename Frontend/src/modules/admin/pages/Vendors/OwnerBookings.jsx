@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiSearch, FiLoader, FiCalendar, FiClock, FiUser, FiBriefcase, FiArrowRight } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { useNavigate } from 'react-router-dom';
 import CardShell from '../UserCategories/components/CardShell';
 import adminVendorService from '../../../../services/adminVendorService';
@@ -30,7 +30,7 @@ const OwnerBookings = () => {
       }
     } catch (error) {
       console.error('Error loading owner bookings:', error);
-      toast.error('Failed to load owner bookings');
+      toastManager.error('Failed to load owner bookings');
     } finally {
       setLoading(false);
     }

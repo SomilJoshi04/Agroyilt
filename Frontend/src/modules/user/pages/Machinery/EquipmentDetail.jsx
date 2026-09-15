@@ -11,7 +11,7 @@ import { publicEquipmentService } from '../../../../services/publicEquipmentServ
 import LogoLoader from '../../../../components/common/LogoLoader';
 import BreadcrumbsSchema from '../../../../components/common/BreadcrumbsSchema';
 import ServiceSchema from '../../../../components/common/ServiceSchema';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const EquipmentDetail = () => {
   const { id } = useParams();
@@ -81,7 +81,7 @@ const EquipmentDetail = () => {
         }
       }
     } catch (err) {
-      toast.error('Failed to load details');
+      toastManager.error('Failed to load details');
     } finally {
       setLoading(false);
     }
@@ -97,7 +97,7 @@ const EquipmentDetail = () => {
       if (exists) {
         // Prevent deselecting the last implement
         if (prev.length === 1) {
-          toast('You must select at least one implement for this machine.', { 
+          toastManager.info('You must select at least one implement for this machine.', { 
             icon: 'ℹ️',
             id: 'implement-limit-toast'
           });
@@ -544,12 +544,12 @@ const EquipmentDetail = () => {
                whileTap={{ scale: 0.98 }}
                onClick={() => {
                   if (!selectedDate || !startTime || !endTime) {
-                    toast.error('Please select date, start time, and end time');
+                    toastManager.error('Please select date, start time, and end time');
                     return;
                   }
 
                   if (availableImplements.length > 0 && selectedImplements.length === 0) {
-                    toast.error('Please select at least one implement for this machine.');
+                    toastManager.error('Please select at least one implement for this machine.');
                     return;
                   }
 
@@ -563,13 +563,13 @@ const EquipmentDetail = () => {
                     const [startHours, startMinutes] = startTime.split(':').map(Number);
                     
                     if (startHours < currentHours || (startHours === currentHours && startMinutes <= currentMinutes)) {
-                      toast.error('Start time has already passed. Please select a future time.');
+                      toastManager.error('Start time has already passed. Please select a future time.');
                       return;
                     }
                   }
 
                   if (endTime <= startTime) {
-                    toast.error('End time must be later than start time.');
+                    toastManager.error('End time must be later than start time.');
                     return;
                   }
 

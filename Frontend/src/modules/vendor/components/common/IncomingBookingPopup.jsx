@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { FiCheck, FiX, FiMapPin, FiClock } from 'react-icons/fi';
 import api from '../../../../services/api';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const IncomingBookingPopup = () => {
   const [incomingData, setIncomingData] = useState(null);
@@ -56,18 +56,18 @@ const IncomingBookingPopup = () => {
     try {
       const res = await api.put(`/vendor/equipment/bookings/${incomingData.relatedId}/respond`, { action });
       if (res.data?.success) {
-        toast.success(`Booking ${action === 'accept' ? 'accepted' : 'rejected'} successfully!`);
+        toastManager.success(`Booking ${action === 'accept' ? 'accepted' : 'rejected'} successfully!`);
         window.dispatchEvent(new Event('vendorJobsUpdated')); // Refresh list
         stopSoundAndClose();
         if (action === 'accept') {
           navigate(`/vendor/booking/${incomingData.relatedId}`);
         }
       } else {
-        toast.error(res.data?.message || 'Failed to process action');
+        toastManager.error(res.data?.message || 'Failed to process action');
       }
     } catch (err) {
       console.error(`Error ${action}ing booking:`, err);
-      toast.error(err?.response?.data?.message || 'Something went wrong');
+      toastManager.error(err?.response?.data?.message || 'Something went wrong');
     } finally {
       setIsProcessing(false);
     }

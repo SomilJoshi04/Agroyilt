@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../utils/toastManager';
 import { themeColors } from '../../../theme';
 import { adminAuthService } from '../../../services/authService';
 
@@ -44,7 +44,7 @@ const AdminLogin = () => {
     e.preventDefault();
 
     if (!formData.email || !formData.password) {
-      toast.error('Please enter both email and password');
+      toastManager.error('Please enter both email and password');
       return;
     }
 
@@ -57,15 +57,15 @@ const AdminLogin = () => {
         if (rememberMe) {
           localStorage.setItem('adminRememberMe', 'true');
         }
-        toast.success('Login successful!');
+        toastManager.success('Login successful!');
         navigate('/admin/dashboard');
       } else {
         setIsLoading(false);
-        toast.error(response.message || 'Login failed'); // Reading file to debug token key mismatch (error)
+        toastManager.error(response.message || 'Login failed'); // Reading file to debug token key mismatch (error)
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Login failed. Please check your credentials.');
+      toastManager.error(error.response?.data?.message || 'Login failed. Please check your credentials.');
     }
   };
 

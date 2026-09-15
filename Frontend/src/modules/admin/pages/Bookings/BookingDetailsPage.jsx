@@ -7,7 +7,7 @@ import {
     FiAlertCircle, FiCamera 
 } from 'react-icons/fi';
 import { adminBookingService } from '../../../../services/adminBookingService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const BookingDetailsPage = () => {
     const { id } = useParams();
@@ -24,7 +24,7 @@ const BookingDetailsPage = () => {
             }
         } catch (error) {
             console.error('Error fetching booking details:', error);
-            toast.error(error.message || 'Failed to load booking details');
+            toastManager.error(error.message || 'Failed to load booking details');
         } finally {
             setLoading(false);
         }

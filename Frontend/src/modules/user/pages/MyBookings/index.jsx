@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiClock, FiMapPin, FiCheckCircle, FiXCircle, FiLoader, FiCalendar, FiChevronRight, FiSearch } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import NotificationBell from '../../components/common/NotificationBell';
@@ -32,11 +32,11 @@ const MyBookings = () => {
         if (response.success) {
           setBookings(response.data || []);
         } else {
-          toast.error(response.message || 'Failed to load bookings');
+          toastManager.error(response.message || 'Failed to load bookings');
           setBookings([]);
         }
       } catch (error) {
-        toast.error('Failed to load bookings. Please try again.');
+        toastManager.error('Failed to load bookings. Please try again.');
         setBookings([]);
       } finally {
         setLoading(false);

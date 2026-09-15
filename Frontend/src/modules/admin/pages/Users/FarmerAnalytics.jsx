@@ -24,7 +24,7 @@ import {
   Cell,
   Legend
 } from 'recharts';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import CardShell from '../UserCategories/components/CardShell';
 import adminReportService from '../../../../services/adminReportService';
 
@@ -47,7 +47,7 @@ const FarmerAnalytics = () => {
       }
     } catch (error) {
       console.error('Farmer analytics error:', error);
-      toast.error('Failed to load farmer analytics');
+      toastManager.error('Failed to load farmer analytics');
     } finally {
       setLoading(false);
     }

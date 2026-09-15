@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiUser, FiCheck, FiArrowRight, FiUserPlus, FiCamera } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
@@ -57,7 +57,7 @@ const AssignWorker = () => {
         setMaintenanceSchedules(maintRes.data || []);
       } catch (error) {
         console.error('Error loading data:', error);
-        toast.error('Failed to load booking details');
+        toastManager.error('Failed to load booking details');
       } finally {
         setLoading(false);
       }
@@ -95,7 +95,7 @@ const AssignWorker = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should be less than 5MB');
+        toastManager.error('File size should be less than 5MB');
         return;
       }
       setPhotoFile(file);
@@ -113,12 +113,12 @@ const AssignWorker = () => {
         workerId = 'SELF';
       } else {
         if (!newDriverName.trim()) {
-          toast.error('Please enter driver name');
+          toastManager.error('Please enter driver name');
           setAssigning(false);
           return;
         }
         if (!newDriverPhone.trim() || !/^\d{10}$/.test(newDriverPhone)) {
-          toast.error('Please enter a valid 10-digit mobile number');
+          toastManager.error('Please enter a valid 10-digit mobile number');
           setAssigning(false);
           return;
         }
@@ -129,7 +129,7 @@ const AssignWorker = () => {
             profilePhotoUrl = await uploadFile(photoFile);
           } catch (uploadErr) {
             console.error('Photo upload failed:', uploadErr);
-            toast.error('Failed to upload driver photo, continuing without photo.');
+            toastManager.error('Failed to upload driver photo, continuing without photo.');
           }
         }
 
@@ -153,7 +153,7 @@ const AssignWorker = () => {
       const response = await assignWorkerApi(id, workerId);
 
       if (response && response.success) {
-        toast.success('Worker assigned successfully');
+        toastManager.success('Worker assigned successfully');
         // Notify other components
         window.dispatchEvent(new Event('vendorJobsUpdated'));
         navigate(`/vendor/booking/${id}`);
@@ -162,7 +162,7 @@ const AssignWorker = () => {
       }
     } catch (error) {
       console.error('Error assigning worker:', error);
-      toast.error(error.response?.data?.message || error.message || 'Failed to assign worker. Please try again.');
+      toastManager.error(error.response?.data?.message || error.message || 'Failed to assign worker. Please try again.');
     } finally {
       setAssigning(false);
     }

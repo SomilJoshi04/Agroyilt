@@ -5,6 +5,7 @@ const { authenticate } = require('../../middleware/authMiddleware');
 const wb  = require('../../controllers/workerControllers/workerBookingController');
 const gb  = require('../../controllers/workerControllers/groupBookingController');
 const fwr = require('../../controllers/workerControllers/farmerWorkerRequestController');
+const wsc = require('../../controllers/workerControllers/workerSettlementController');
 
 // ── Public / User-auth routes ──────────────────────────────────────────────
 
@@ -12,8 +13,13 @@ const fwr = require('../../controllers/workerControllers/farmerWorkerRequestCont
 router.post('/farmer-worker-request',                        authenticate, fwr.createFarmerRequest);
 router.get('/farmer-worker-requests',                        authenticate, fwr.getMyFarmerRequests);
 router.get('/farmer-worker-request/:id',                     authenticate, fwr.getFarmerRequestById);
-router.post('/farmer-worker-request/:id/confirm',            authenticate, fwr.farmerConfirmRequest);
+router.post('/farmer-worker-request/:id/select-workers',     authenticate, fwr.farmerSelectWorkers);
+router.post('/farmer-worker-request/:id/create-payment',     authenticate, fwr.createWorkerBookingPayment);
+router.post('/farmer-worker-request/:id/verify-payment',     authenticate, fwr.verifyWorkerBookingPayment);
 router.delete('/farmer-worker-request/:id',                  authenticate, fwr.cancelFarmerRequest);
+
+// Settlement
+router.post('/booking/:id/worker-settlement', authenticate, wsc.processWorkerSettlement);
 
 // ── Single worker discovery (kept for reference/profile browsing) ──────────
 router.get('/workers',      authenticate, wb.listWorkers);

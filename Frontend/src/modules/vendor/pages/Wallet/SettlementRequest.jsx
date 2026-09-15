@@ -5,7 +5,7 @@ import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import vendorWalletService from '../../../../services/vendorWalletService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const SettlementRequest = () => {
   const navigate = useNavigate();
@@ -45,7 +45,7 @@ const SettlementRequest = () => {
         setAmount(res.data.amountDue.toString());
       }
     } catch (error) {
-      toast.error('Failed to load wallet');
+      toastManager.error('Failed to load wallet');
     } finally {
       setLoading(false);
     }
@@ -67,12 +67,12 @@ const SettlementRequest = () => {
 
   const handlePayment = async () => {
     if (!amount || parseFloat(amount) <= 0) {
-      toast.error('Please enter a valid amount');
+      toastManager.error('Please enter a valid amount');
       return;
     }
 
     if (parseFloat(amount) > wallet.amountDue) {
-      toast.error(`Amount cannot exceed ₹${wallet.amountDue}`);
+      toastManager.error(`Amount cannot exceed ₹${wallet.amountDue}`);
       return;
     }
 
@@ -81,7 +81,7 @@ const SettlementRequest = () => {
       const orderRes = await vendorWalletService.createSettlementOrder(parseFloat(amount));
 
       if (!orderRes.success) {
-        toast.error(orderRes.message || 'Failed to create payment order');
+        toastManager.error(orderRes.message || 'Failed to create payment order');
         setSubmitting(false);
         return;
       }
@@ -97,7 +97,7 @@ const SettlementRequest = () => {
         order_id: orderId,
         handler: async function (response) {
           try {
-            toast.loading('Verifying payment...', { id: 'verify' });
+            toastManager.info('Verifying payment...', { id: 'verify' });
             const verifyRes = await vendorWalletService.verifySettlementPayment({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
@@ -106,13 +106,13 @@ const SettlementRequest = () => {
             });
 
             if (verifyRes.success) {
-              toast.success('Payment successful!', { id: 'verify' });
+              toastManager.success('Payment successful!', { id: 'verify' });
               navigate('/vendor/wallet');
             } else {
-              toast.error(verifyRes.message || 'Payment verification failed', { id: 'verify' });
+              toastManager.error(verifyRes.message || 'Payment verification failed', { id: 'verify' });
             }
           } catch (err) {
-            toast.error('Payment verification failed', { id: 'verify' });
+            toastManager.error('Payment verification failed', { id: 'verify' });
           }
         },
         prefill: {
@@ -125,14 +125,14 @@ const SettlementRequest = () => {
 
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', function (response) {
-        toast.error(response.error.description || 'Payment failed');
+        toastManager.error(response.error.description || 'Payment failed');
       });
       
       rzp.open();
       setSubmitting(false);
 
     } catch (error) {
-      toast.error('Failed to initiate payment');
+      toastManager.error('Failed to initiate payment');
       setSubmitting(false);
     }
   };

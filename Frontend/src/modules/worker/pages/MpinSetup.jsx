@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiLock } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../utils/toastManager';
 // authService exports workerAuthService, let's import it
 import { workerAuthService } from '../../../services/authService';
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -70,7 +70,7 @@ const WorkerMpinSetup = () => {
 
   const handleNext = () => {
     if (mpin.join('').length !== 4) {
-      toast.error('Please enter a 4-digit MPIN');
+      toastManager.error('Please enter a 4-digit MPIN');
       return;
     }
     setStep(2);
@@ -82,11 +82,11 @@ const WorkerMpinSetup = () => {
     const confirmValue = confirmMpin.join('');
 
     if (confirmValue.length !== 4) {
-      toast.error('Please confirm your 4-digit MPIN');
+      toastManager.error('Please confirm your 4-digit MPIN');
       return;
     }
     if (mpinValue !== confirmValue) {
-      toast.error('MPINs do not match');
+      toastManager.error('MPINs do not match');
       setConfirmMpin(['', '', '', '']);
       confirmRefs.current[0]?.focus();
       return;
@@ -100,7 +100,7 @@ const WorkerMpinSetup = () => {
       });
 
       if (response.success) {
-        toast.success('MPIN set successfully!');
+        toastManager.success('MPIN set successfully!');
         const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
         workerData.isMpinSet = true;
         localStorage.setItem('workerData', JSON.stringify(workerData));
@@ -109,7 +109,7 @@ const WorkerMpinSetup = () => {
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Failed to set MPIN');
+      toastManager.error(error.response?.data?.message || 'Failed to set MPIN');
     }
   };
 

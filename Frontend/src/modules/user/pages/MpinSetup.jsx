@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiLock, FiCheckCircle, FiArrowRight } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../utils/toastManager';
 import { userAuthService } from '../../../services/authService';
 import LogoLoader from '../../../components/common/LogoLoader';
 
@@ -68,7 +68,7 @@ const MpinSetup = () => {
 
   const handleNext = () => {
     if (mpin.join('').length !== 4) {
-      toast.error('Please enter a 4-digit MPIN');
+      toastManager.error('Please enter a 4-digit MPIN');
       return;
     }
     setStep(2);
@@ -80,11 +80,11 @@ const MpinSetup = () => {
     const confirmValue = confirmMpin.join('');
 
     if (confirmValue.length !== 4) {
-      toast.error('Please confirm your 4-digit MPIN');
+      toastManager.error('Please confirm your 4-digit MPIN');
       return;
     }
     if (mpinValue !== confirmValue) {
-      toast.error('MPINs do not match');
+      toastManager.error('MPINs do not match');
       setConfirmMpin(['', '', '', '']);
       confirmRefs.current[0]?.focus();
       return;
@@ -99,7 +99,7 @@ const MpinSetup = () => {
       });
 
       if (response.success) {
-        toast.success('MPIN set successfully!');
+        toastManager.success('MPIN set successfully!');
         const userData = JSON.parse(localStorage.getItem('userData') || '{}');
         userData.isMpinSet = true;
         localStorage.setItem('userData', JSON.stringify(userData));
@@ -108,7 +108,7 @@ const MpinSetup = () => {
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Failed to set MPIN');
+      toastManager.error(error.response?.data?.message || 'Failed to set MPIN');
     }
   };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { gsap } from 'gsap';
 import { FiArrowLeft, FiCreditCard, FiChevronRight, FiX } from 'react-icons/fi';
 import BottomNav from '../../components/layout/BottomNav';
@@ -88,10 +88,10 @@ const ManagePaymentMethods = () => {
     // Validate and save card
     if (cardNumber && expiryMMYY && cvv) {
       // Here you would typically save the card to backend/localStorage
-      toast.success('Card added successfully!');
+      toastManager.success('Card added successfully!');
       handleCloseModal();
     } else {
-      toast.error('Please fill all card details');
+      toastManager.error('Please fill all card details');
     }
   };
 

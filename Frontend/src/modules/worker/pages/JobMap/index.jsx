@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, OverlayView, PolylineF } from '@react-google-maps/api';
 import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiCheckCircle, FiMaximize, FiMinimize, FiClock, FiWifiOff, FiAlertTriangle, FiRefreshCw } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import workerService from '../../../../services/workerService';
 import VisitVerificationModal from '../../components/common/VisitVerificationModal';
 import useAppNotifications from '../../../../hooks/useAppNotifications';
@@ -113,14 +113,14 @@ const JobMap = () => {
         (error) => {
           // GPS Tracking Error
           if (error.code === 1) { // PERMISSION_DENIED
-            toast.error("Location permission denied. Map cannot track you.");
+            toastManager.error("Location permission denied. Map cannot track you.");
           }
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     } else {
-      toast.error("Geolocation not supported on this device");
+      toastManager.error("Geolocation not supported on this device");
     }
   }, [isSimulating]); // Add isSimulating to dependency array
 
@@ -159,17 +159,17 @@ const JobMap = () => {
 
   const startSimulation = () => {
     if (!currentLocation || !coords || !socket) {
-      toast.error('Wait for map to load first');
+      toastManager.error('Wait for map to load first');
       return;
     }
 
     if (!routePath || routePath.length === 0) {
-      toast.error('No road path found. Wait for route to load.');
+      toastManager.error('No road path found. Wait for route to load.');
       return;
     }
 
     setIsSimulating(true);
-    toast.success('🚀 Simulation started! Following the road.');
+    toastManager.success('🚀 Simulation started! Following the road.');
 
     // Generate detailed points along the specific road path
     const pathPoints = [];
@@ -215,7 +215,7 @@ const JobMap = () => {
     simulationRef.current = setInterval(() => {
       if (pathIndex >= pathPoints.length) {
         stopSimulation();
-        toast.success('✅ Arrived at destination!');
+        toastManager.success('✅ Arrived at destination!');
         return;
       }
 
@@ -772,7 +772,7 @@ const JobMap = () => {
               onClick={async () => {
                 try {
                   await workerService.workerReached(id);
-                  toast.success('Customer notified that you reached');
+                  toastManager.success('Customer notified that you reached');
                 } catch (e) {
                   console.error('Reached notification failed', e);
                 }

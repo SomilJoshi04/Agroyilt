@@ -3,7 +3,7 @@ import { FiActivity, FiTrendingUp, FiCheckCircle, FiShield } from 'react-icons/f
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import adminReportService from '../../../../services/adminReportService';
 import CardShell from '../UserCategories/components/CardShell';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const AgricultureInsights = () => {
     const [loading, setLoading] = useState(true);
@@ -16,7 +16,7 @@ const AgricultureInsights = () => {
                 const res = await adminReportService.getAgriInsights();
                 setData(res.data);
             } catch (err) {
-                toast.error('Failed to load agri insights');
+                toastManager.error('Failed to load agri insights');
             } finally {
                 setLoading(false);
             }

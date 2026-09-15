@@ -5,7 +5,7 @@ import {
   FiCheckCircle, FiShield, FiCreditCard, FiArrowLeft, FiDollarSign
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { bookingService } from '../../../../services/bookingService';
 import AddressSelectionModal from '../Checkout/components/AddressSelectionModal';
 
@@ -49,7 +49,7 @@ const MachineryCheckout = () => {
 
     const handleConfirmBooking = async () => {
         if (!selectedAddress) {
-            toast.error('Please select an address first');
+            toastManager.error('Please select an address first');
             setShowAddressModal(true);
             return;
         }
@@ -108,7 +108,7 @@ const MachineryCheckout = () => {
 
             const res = await bookingService.create(payload);
             if (res.success) {
-                toast.success('Booking Successful!');
+                toastManager.success('Booking Successful!');
                 // Clear persisted form state so the form starts fresh next time
                 sessionStorage.removeItem(`machinery_booking_${equipment._id}`);
                 const newBookingId = res.booking?._id || res.data?._id || res.data?.booking?._id || res._id || res.booking?.id || res.data?.id;
@@ -120,7 +120,7 @@ const MachineryCheckout = () => {
             }
         } catch (err) {
             const errorMsg = err.response?.data?.errors?.[0]?.msg || err.response?.data?.message || 'Booking failed';
-            toast.error(errorMsg);
+            toastManager.error(errorMsg);
         } finally {
             setSubmitting(false);
         }

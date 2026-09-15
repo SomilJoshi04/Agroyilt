@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 import { userAuthService } from '../../../../services/authService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -124,13 +124,13 @@ const Account = () => {
   const handleLogout = async () => {
     try {
       await userAuthService.logout();
-      toast.success('Logged out successfully');
+      toastManager.success('Logged out successfully');
       navigate('/user/login');
     } catch (error) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('userData');
-      toast.success('Logged out successfully');
+      toastManager.success('Logged out successfully');
       navigate('/user/login');
     }
   };
@@ -487,15 +487,15 @@ const Account = () => {
                   try {
                     const response = await userAuthService.deleteAccount();
                     if (response.success) {
-                      toast.success('Account deleted successfully.');
+                      toastManager.success('Account deleted successfully.');
                       navigate('/user/login', { replace: true });
                     } else {
-                      toast.error(response.message || 'Failed to delete account.');
+                      toastManager.error(response.message || 'Failed to delete account.');
                       setIsDeleting(false);
                       setShowDeleteConfirm(false);
                     }
                   } catch (error) {
-                    toast.error('Failed to delete account. Please try again.');
+                    toastManager.error('Failed to delete account. Please try again.');
                     setIsDeleting(false);
                     setShowDeleteConfirm(false);
                   }

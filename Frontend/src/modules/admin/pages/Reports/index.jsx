@@ -17,7 +17,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend
 } from 'recharts';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import dashboardService from '../../services/dashboardService';
 import CardShell from '../UserCategories/components/CardShell';
 
@@ -63,7 +63,7 @@ const ReportsOverview = () => {
       }
     } catch (error) {
       console.error('Fetch reports error:', error);
-      toast.error('Failed to load report data');
+      toastManager.error('Failed to load report data');
     } finally {
       setLoading(false);
     }

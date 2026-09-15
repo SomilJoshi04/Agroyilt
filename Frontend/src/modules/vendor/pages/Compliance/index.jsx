@@ -5,7 +5,7 @@ import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import { vendorTheme as themeColors } from '../../../../theme';
 import complianceService from '../../services/complianceService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const ComplianceIndex = () => {
     const navigate = useNavigate();
@@ -30,7 +30,7 @@ const ComplianceIndex = () => {
             const res = await complianceService.getStatus();
             setCompliance(res.data);
         } catch (err) {
-            toast.error('Failed to load compliance status');
+            toastManager.error('Failed to load compliance status');
         } finally {
             setLoading(false);
         }
@@ -54,11 +54,11 @@ const ComplianceIndex = () => {
                 type: selectedDoc,
                 ...formData
             });
-            toast.success('Document updated successfully');
+            toastManager.success('Document updated successfully');
             setSelectedDoc(null);
             fetchStatus();
         } catch (err) {
-            toast.error('Failed to update document');
+            toastManager.error('Failed to update document');
         }
     };
 

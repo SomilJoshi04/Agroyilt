@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiUsers, FiUserPlus, FiUserCheck, FiUserX, FiCheck, FiX, FiLogOut } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
 import api from '../../../../services/api';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { useSocket } from '../../../../context/SocketContext';
 import Header from '../../components/layout/Header';
 
@@ -68,7 +68,7 @@ const WorkerTeam = () => {
       }
 
     } catch (error) {
-      toast.error('Failed to load team data');
+      toastManager.error('Failed to load team data');
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,7 @@ const WorkerTeam = () => {
 
   const handleSearch = async () => {
     if (searchQuery.length < 3) {
-      toast.error('Please enter at least 3 characters');
+      toastManager.error('Please enter at least 3 characters');
       return;
     }
     try {
@@ -84,10 +84,10 @@ const WorkerTeam = () => {
       const res = await api.get(`/workers/team/eligible-workers?query=${searchQuery}`);
       if (res.data.success) {
         setSearchResults(res.data.workers);
-        if (res.data.workers.length === 0) toast.error('No eligible workers found');
+        if (res.data.workers.length === 0) toastManager.error('No eligible workers found');
       }
     } catch (error) {
-      toast.error('Search failed');
+      toastManager.error('Search failed');
     } finally {
       setSearchLoading(false);
     }
@@ -97,13 +97,13 @@ const WorkerTeam = () => {
     try {
       const res = await api.post('/workers/team/requests', { receiverId, type });
       if (res.data.success) {
-        toast.success('Request sent successfully');
+        toastManager.success('Request sent successfully');
         fetchData();
         setSearchResults([]);
         setSearchQuery('');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send request');
+      toastManager.error(error.response?.data?.message || 'Failed to send request');
     }
   };
 
@@ -111,11 +111,11 @@ const WorkerTeam = () => {
     try {
       const res = await api.post(`/workers/team/requests/${requestId}/accept`);
       if (res.data.success) {
-        toast.success('Request accepted');
+        toastManager.success('Request accepted');
         fetchData();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to accept request');
+      toastManager.error(error.response?.data?.message || 'Failed to accept request');
     }
   };
 
@@ -123,11 +123,11 @@ const WorkerTeam = () => {
     try {
       const res = await api.post(`/workers/team/requests/${requestId}/reject`);
       if (res.data.success) {
-        toast.success('Request rejected');
+        toastManager.success('Request rejected');
         fetchData();
       }
     } catch (error) {
-      toast.error('Failed to reject request');
+      toastManager.error('Failed to reject request');
     }
   };
 
@@ -136,11 +136,11 @@ const WorkerTeam = () => {
     try {
       const res = await api.post('/workers/team/remove', { memberId });
       if (res.data.success) {
-        toast.success('Member removed');
+        toastManager.success('Member removed');
         fetchData();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to remove member');
+      toastManager.error(error.response?.data?.message || 'Failed to remove member');
     }
   };
 
@@ -149,11 +149,11 @@ const WorkerTeam = () => {
     try {
       const res = await api.post('/workers/team/leave');
       if (res.data.success) {
-        toast.success('You have left the team');
+        toastManager.success('You have left the team');
         fetchData();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to leave team');
+      toastManager.error(error.response?.data?.message || 'Failed to leave team');
     }
   };
 
@@ -162,13 +162,13 @@ const WorkerTeam = () => {
       setLoading(true);
       const res = await api.post('/workers/team/upgrade-to-leader');
       if (res.data.success) {
-        toast.success('You are now a Team Leader!');
+        toastManager.success('You are now a Team Leader!');
         // Update local profile
         setProfile(prev => ({ ...prev, workerType: 'TEAM_LEADER' }));
         fetchData();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to upgrade');
+      toastManager.error(error.response?.data?.message || 'Failed to upgrade');
       setLoading(false);
     }
   };

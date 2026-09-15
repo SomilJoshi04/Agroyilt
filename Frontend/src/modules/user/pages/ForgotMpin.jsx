@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiChevronLeft, FiCheckCircle } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../utils/toastManager';
 import { userAuthService } from '../../../services/authService';
 import { themeColors } from '../../../theme';
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -48,7 +48,7 @@ const ForgotMpin = () => {
 
   const handleSendOtp = async () => {
     if (!phoneNumber || phoneNumber.length !== 10) {
-      toast.error('Invalid phone number');
+      toastManager.error('Invalid phone number');
       navigate('/user/login');
       return;
     }
@@ -59,7 +59,7 @@ const ForgotMpin = () => {
       if (response.success) {
         setOtpToken(response.token);
         setResendTimer(120);
-        toast.success(
+        toastManager.success(
           <div className="flex items-center gap-2">
             <FiCheckCircle className="text-green-500" />
             <span>OTP sent successfully!</span>
@@ -67,7 +67,7 @@ const ForgotMpin = () => {
         );
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send OTP');
+      toastManager.error(error.response?.data?.message || 'Failed to send OTP');
       if (error.response?.status === 404) {
         navigate('/user/signup', { state: { phone: phoneNumber } });
       } else {
@@ -112,10 +112,10 @@ const ForgotMpin = () => {
       if (response.success) {
         setOtpToken(response.verificationToken);
         setStep(2);
-        toast.success('OTP verified!');
+        toastManager.success('OTP verified!');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Invalid OTP');
+      toastManager.error(error.response?.data?.message || 'Invalid OTP');
       setOtp(['', '', '', '', '', '']);
       otpRefs.current[0]?.focus();
     } finally {
@@ -162,7 +162,7 @@ const ForgotMpin = () => {
     const confirmVal = confirmMpin.join('');
 
     if (mpinVal !== confirmVal) {
-      toast.error('MPINs do not match');
+      toastManager.error('MPINs do not match');
       setConfirmMpin(['', '', '', '']);
       confirmRefs.current[0]?.focus();
       return;
@@ -177,11 +177,11 @@ const ForgotMpin = () => {
       });
 
       if (response.success) {
-        toast.success('MPIN reset successfully!');
+        toastManager.success('MPIN reset successfully!');
         navigate('/user/login');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to reset MPIN');
+      toastManager.error(error.response?.data?.message || 'Failed to reset MPIN');
     } finally {
       setIsLoading(false);
     }

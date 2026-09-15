@@ -5,7 +5,7 @@ import {
     FiDollarSign, FiTrendingUp, FiCreditCard, FiPieChart
 } from 'react-icons/fi';
 import adminSoilTestService from '../../../../services/adminSoilTestService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const STATUS_CONFIG = {
@@ -82,7 +82,7 @@ const ManageSoilTests = () => {
             const res = await adminSoilTestService.getAll();
             if (res.success) setRequests(res.data);
         } catch {
-            if (!isPolling) toast.error('Failed to fetch requests');
+            if (!isPolling) toastManager.error('Failed to fetch requests');
         } finally {
             if (!isPolling) setLoading(false);
         }
@@ -109,19 +109,19 @@ const ManageSoilTests = () => {
 
     const handleAssignVendor = async (vendorId) => {
         const vId = vendorId || selectedVendorId;
-        if (!vId) return toast.error('Please select a vendor');
+        if (!vId) return toastManager.error('Please select a vendor');
         try {
             setSaving(true);
             const res = await adminSoilTestService.assignVendor(assignModal._id, vId);
             if (res.success) {
-                toast.success('Vendor assigned successfully!');
+                toastManager.success('Vendor assigned successfully!');
                 setAssignModal(null);
                 setSelectedVendorId('');
                 setFilterByState(false);
                 setFilterByDistrict(false);
                 fetchRequests(false);
             }
-        } catch { toast.error('Failed to assign vendor'); }
+        } catch { toastManager.error('Failed to assign vendor'); }
         finally { setSaving(false); }
     };
 
@@ -135,12 +135,12 @@ const ManageSoilTests = () => {
                 approveCommission
             );
             if (res.success) {
-                toast.success('Report approved! The farmer can now pay & download it.');
+                toastManager.success('Report approved! The farmer can now pay & download it.');
                 setApproveModal(null);
                 setApproveNotes('');
                 fetchRequests(false);
             }
-        } catch { toast.error('Failed to approve report'); }
+        } catch { toastManager.error('Failed to approve report'); }
         finally { setSaving(false); }
     };
 
@@ -148,8 +148,8 @@ const ManageSoilTests = () => {
         if (!window.confirm('Are you sure?')) return;
         try {
             const res = await adminSoilTestService.delete(id);
-            if (res.success) { toast.success('Request deleted'); fetchRequests(false); }
-        } catch { toast.error('Delete failed'); }
+            if (res.success) { toastManager.success('Request deleted'); fetchRequests(false); }
+        } catch { toastManager.error('Delete failed'); }
     };
 
     const handleDownload = async (url) => {

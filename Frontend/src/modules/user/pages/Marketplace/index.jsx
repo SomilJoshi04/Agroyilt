@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import productService from '../../services/productService';
 import { publicCatalogService } from '../../../../services/catalogService';
 import { useCart } from '../../../../context/CartContext';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 
 const toAssetUrl = (url) => {
@@ -64,7 +64,7 @@ const MarketplacePage = () => {
             }
         } catch (err) {
             console.error("Marketplace load error:", err);
-            toast.error("Data load karne mein dikkat hai.");
+            toastManager.error("Data load karne mein dikkat hai.");
         } finally {
             setLoading(false);
         }
@@ -142,10 +142,10 @@ const MarketplacePage = () => {
 
             const res = await addToCart(cartItemData);
             if (res.success) {
-                toast.success(`${product.title} added!`);
+                toastManager.success(`${product.title} added!`);
             }
         } catch (error) {
-            toast.error('Galti ho gayi.');
+            toastManager.error('Galti ho gayi.');
         }
     };
 

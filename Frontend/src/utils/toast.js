@@ -1,3 +1,5 @@
+
+import { toastManager } from './/toastManager';
 // Toast utility - uses react-hot-toast
 // Install: npm install react-hot-toast
 
@@ -26,7 +28,7 @@ export const showToast = {
       });
     } else {
       // Fallback to alert if toast not initialized
-      alert(message);
+      toastManager.info(message);
     }
   },
   
@@ -46,7 +48,7 @@ export const showToast = {
       });
     } else {
       // Fallback to alert if toast not initialized
-      alert(message);
+      toastManager.info(message);
     }
   },
   
@@ -67,7 +69,7 @@ export const showToast = {
       });
     } else {
       // Fallback to alert if toast not initialized
-      alert(message);
+      toastManager.info(message);
     }
   },
   

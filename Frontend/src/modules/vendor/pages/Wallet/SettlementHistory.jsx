@@ -15,7 +15,7 @@ import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import vendorWalletService from '../../../../services/vendorWalletService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const SettlementHistory = () => {
   const navigate = useNavigate();
@@ -64,7 +64,7 @@ const SettlementHistory = () => {
         setSettlements(res.data || []);
       }
     } catch (error) {
-      toast.error('Failed to load settlements');
+      toastManager.error('Failed to load settlements');
     } finally {
       setLoading(false);
     }
@@ -78,7 +78,7 @@ const SettlementHistory = () => {
         setTransactions(res.data || []);
       }
     } catch (error) {
-      toast.error('Failed to load transactions');
+      toastManager.error('Failed to load transactions');
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiCamera, FiX, FiArrowRight, FiChevronLeft, FiCheckCircle } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../utils/toastManager';
 import { themeColors } from '../../../theme';
 import { workerAuthService } from '../../../services/authService';
 import Logo from '../../../components/common/Logo';
@@ -105,12 +105,12 @@ const WorkerSignup = () => {
 
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
-      toast.error('Please upload a valid image or PDF');
+      toastManager.error('Please upload a valid image or PDF');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size should be less than 5MB');
+      toastManager.error('File size should be less than 5MB');
       return;
     }
 
@@ -154,17 +154,17 @@ const WorkerSignup = () => {
 
     if (!validationResult.success) {
       const issues = validationResult.error?.issues || [];
-      issues.forEach(err => toast.error(err.message));
+      issues.forEach(err => toastManager.error(err.message));
       return;
     }
 
     // Manual Document Check
     if (!formData.aadharDocument && !documentPreview.aadhar) {
-      toast.error('Please upload Aadhar Front document');
+      toastManager.error('Please upload Aadhar Front document');
       return;
     }
     if (!formData.aadharBackDocument && !documentPreview.aadharBack) {
-      toast.error('Please upload Aadhar Back document');
+      toastManager.error('Please upload Aadhar Back document');
       return;
     }
     e.preventDefault();
@@ -194,7 +194,7 @@ const WorkerSignup = () => {
 
         const response = await workerAuthService.register(registerData);
         if (response.success) {
-          toast.success(
+          toastManager.success(
             <div className="flex flex-col">
               <span className="font-bold">Welcome Onboard!</span>
               <span className="text-xs">Your worker account has been created.</span>
@@ -203,10 +203,10 @@ const WorkerSignup = () => {
           );
           navigate('/worker');
         } else {
-          toast.error(response.message || 'Registration failed');
+          toastManager.error(response.message || 'Registration failed');
         }
       } catch (error) {
-        toast.error(error.response?.data?.message || 'Registration failed');
+        toastManager.error(error.response?.data?.message || 'Registration failed');
       } finally {
         setIsLoading(false);
       }
@@ -220,14 +220,14 @@ const WorkerSignup = () => {
         setIsLoading(false);
         setStep('otp');
         setResendTimer(120); // Start timer
-        toast.success('OTP sent successfully');
+        toastManager.success('OTP sent successfully');
       } else {
         setIsLoading(false);
-        toast.error(response.message || 'Failed to send OTP');
+        toastManager.error(response.message || 'Failed to send OTP');
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Failed to send OTP');
+      toastManager.error(error.response?.data?.message || 'Failed to send OTP');
     }
   };
 
@@ -260,11 +260,11 @@ const WorkerSignup = () => {
     if (e) e.preventDefault();
     const otpValue = otp.join('');
     if (otpValue.length !== 6) {
-      toast.error('Please enter complete OTP');
+      toastManager.error('Please enter complete OTP');
       return;
     }
     if (!otpToken) {
-      toast.error('Please request OTP first');
+      toastManager.error('Please request OTP first');
       return;
     }
     setIsLoading(true);
@@ -286,15 +286,15 @@ const WorkerSignup = () => {
       const response = await workerAuthService.register(registerData);
       if (response.success) {
         setIsLoading(false);
-        toast.success('Successfully Registered! Welcome to Agroyilt.');
+        toastManager.success('Successfully Registered! Welcome to Agroyilt.');
         navigate('/worker');
       } else {
         setIsLoading(false);
-        toast.error(response.message || 'Registration failed');
+        toastManager.error(response.message || 'Registration failed');
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Registration failed');
+      toastManager.error(error.response?.data?.message || 'Registration failed');
     }
   };
 
@@ -516,9 +516,9 @@ const WorkerSignup = () => {
                         if (response.success) {
                           setOtpToken(response.token);
                           setResendTimer(120);
-                          toast.success('OTP sent again');
+                          toastManager.success('OTP sent again');
                         }
-                      } catch (e) { toast.error('Resend failed'); }
+                      } catch (e) { toastManager.error('Resend failed'); }
                     }}
                     className="text-sm font-semibold transition-colors duration-300 opacity-70 hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={resendTimer > 0}

@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import soilTestService from '../../../../services/soilTestService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import flutterBridge from '../../../../utils/flutterBridge';
 
@@ -85,12 +85,12 @@ const SoilTesting = () => {
 
     const handleGetLocation = () => {
         if (!navigator.geolocation) {
-            toast.error("Geolocation is not supported by your browser");
+            toastManager.error("Geolocation is not supported by your browser");
             return;
         }
         
         setFetchingLocation(true);
-        const toastId = toast.loading("Detecting your field location...");
+        const toastId = toastManager.info("Detecting your field location...");
         
         navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -99,12 +99,12 @@ const SoilTesting = () => {
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude
                 });
-                toast.success("Location acquired successfully!", { id: toastId });
+                toastManager.success("Location acquired successfully!", { id: toastId });
                 setFetchingLocation(false);
             },
             (error) => {
                 console.error("Error getting location:", error);
-                toast.error("Please allow location access in your browser/device settings.", { id: toastId });
+                toastManager.error("Please allow location access in your browser/device settings.", { id: toastId });
                 setFetchingLocation(false);
             },
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
@@ -136,12 +136,12 @@ const SoilTesting = () => {
                 res = await soilTestService.request(formData);
             }
             if (res.success) {
-                toast.success(editingRequestId ? "Request updated successfully!" : "Request submitted successfully! Our team will contact you soon.");
+                toastManager.success(editingRequestId ? "Request updated successfully!" : "Request submitted successfully! Our team will contact you soon.");
                 closeForm();
                 fetchMyRequests(false);
             }
         } catch (err) {
-            toast.error(editingRequestId ? "Update failed. Please try again." : "Submission failed. Please try again.");
+            toastManager.error(editingRequestId ? "Update failed. Please try again." : "Submission failed. Please try again.");
         } finally {
             setSubmitting(false);
         }
@@ -166,11 +166,11 @@ const SoilTesting = () => {
         try {
             const res = await soilTestService.delete(id);
             if (res.success) {
-                toast.success("Request deleted successfully!");
+                toastManager.success("Request deleted successfully!");
                 fetchMyRequests(false);
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || "Delete failed. Please try again.");
+            toastManager.error(err.response?.data?.message || "Delete failed. Please try again.");
         }
     };
 
@@ -179,16 +179,16 @@ const SoilTesting = () => {
             setProcessingPayment(true);
             const res = await soilTestService.payForReport(req._id, 'wallet');
             if (res.success) {
-                toast.success('Payment successful via Wallet!');
+                toastManager.success('Payment successful via Wallet!');
                 setPaymentModal(null);
                 fetchMyRequests(false);
             }
         } catch (error) {
             if (error.response?.data?.needsOnlinePayment) {
-                toast.error('Insufficient Wallet Balance. Please pay online.');
+                toastManager.error('Insufficient Wallet Balance. Please pay online.');
                 handleOnlinePayment(req);
             } else {
-                toast.error(error.response?.data?.message || 'Wallet payment failed');
+                toastManager.error(error.response?.data?.message || 'Wallet payment failed');
             }
         } finally {
             setProcessingPayment(false);
@@ -216,12 +216,12 @@ const SoilTesting = () => {
                                 razorpay_signature: response.razorpay_signature
                             });
                             if (verifyRes.success) {
-                                toast.success('Payment verified successfully!');
+                                toastManager.success('Payment verified successfully!');
                                 setPaymentModal(null);
                                 fetchMyRequests(false);
                             }
                         } catch (verifyErr) {
-                            toast.error(verifyErr.response?.data?.message || 'Payment verification failed');
+                            toastManager.error(verifyErr.response?.data?.message || 'Payment verification failed');
                         }
                     },
                     prefill: {
@@ -233,12 +233,12 @@ const SoilTesting = () => {
                 
                 const rzp = new window.Razorpay(options);
                 rzp.on('payment.failed', function (response) {
-                    toast.error('Payment failed: ' + response.error.description);
+                    toastManager.error('Payment failed: ' + response.error.description);
                 });
                 rzp.open();
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Online payment initialization failed');
+            toastManager.error(error.response?.data?.message || 'Online payment initialization failed');
         } finally {
             setProcessingPayment(false);
         }
@@ -310,7 +310,7 @@ const SoilTesting = () => {
         try {
             const result = await flutterBridge.downloadFile(url, fileName);
             if (result && result.success) {
-                toast.success("Download started...");
+                toastManager.success("Download started...");
             }
         } catch (error) {
             console.error('Download failed:', error);

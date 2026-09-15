@@ -26,7 +26,7 @@ import VisitVerificationModal from '../../components/common/VisitVerificationMod
 import { WorkCompletionModal } from '../../../worker/components/common';
 // import BillingModal from '../../components/bookings/BillingModal'; // Consumed by page now
 import vendorWalletService from '../../../../services/vendorWalletService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import { useLocationTracking } from '../../../../hooks/useLocationTracking';
 import TripFlowModal from '../../components/common/TripFlowModal';
@@ -300,7 +300,7 @@ export default function BookingDetails() {
             data.type === 'payment_success';
 
           if (isPaymentSuccess) {
-            toast.success('Online Payment Received!');
+            toastManager.success('Online Payment Received!', { id: `payment_success:${id}` });
             setTimeout(() => window.location.reload(), 1500);
           }
         }
@@ -363,7 +363,7 @@ export default function BookingDetails() {
 
     const availableStatuses = getAvailableStatuses(booking.status, booking);
     if (!availableStatuses.includes(newStatus)) {
-      toast.error(`Cannot change status from ${booking.status} to ${newStatus}. Please follow the proper flow.`);
+      toastManager.error(`Cannot change status from ${booking.status} to ${newStatus}. Please follow the proper flow.`);
       return;
     }
 
@@ -377,11 +377,11 @@ export default function BookingDetails() {
         try {
           await updateBookingStatus(id, newStatus);
           window.dispatchEvent(new Event('vendorJobsUpdated'));
-          toast.success(`Status updated to ${newStatus.replace('_', ' ')} successfully!`);
+          toastManager.success(`Status updated to ${newStatus.replace('_', ' ')} successfully!`);
           window.location.reload();
         } catch (error) {
           console.error('Error updating status:', error);
-          toast.error('Failed to update status. Please try again.');
+          toastManager.error('Failed to update status. Please try again.');
         } finally {
           setLoading(false);
         }
@@ -408,15 +408,15 @@ export default function BookingDetails() {
       );
 
       if (res.success) {
-        toast.success(res.message || 'Payment recorded successfully');
+        toastManager.success(res.message || 'Payment recorded successfully');
         setIsPayWorkerModalOpen(false);
         // Refresh booking data
         window.location.reload();
       } else {
-        toast.error(res.message || 'Failed to record payment');
+        toastManager.error(res.message || 'Failed to record payment');
       }
     } catch (error) {
-      toast.error('Failed to process payment');
+      toastManager.error('Failed to process payment');
     } finally {
       setPaySubmitting(false);
     }
@@ -437,11 +437,11 @@ export default function BookingDetails() {
             finalSettlementStatus: 'DONE'
           });
           window.dispatchEvent(new Event('vendorJobsUpdated'));
-          toast.success('Final settlement marked as done!');
+          toastManager.success('Final settlement marked as done!');
           window.location.reload();
         } catch (error) {
           console.error('Error updating settlement:', error);
-          toast.error('Failed to update settlement. Please try again.');
+          toastManager.error('Failed to update settlement. Please try again.');
         } finally {
           setLoading(false);
         }
@@ -501,11 +501,11 @@ export default function BookingDetails() {
       
       const result = await flutterBridge.downloadFile(url, fileName);
       if (result && result.success) {
-        toast.success('Download started...');
+        toastManager.success('Download started...');
       }
     } catch (error) {
       console.error('Download error:', error);
-      toast.error('Failed to download invoice');
+      toastManager.error('Failed to download invoice');
     } finally {
       setActionLoading(false);
     }
@@ -524,7 +524,7 @@ export default function BookingDetails() {
     if (phone) {
       window.location.href = `tel:${phone}`;
     } else {
-      alert('Phone number not available');
+      toastManager.error('Phone number not available');
     }
   };
 
@@ -532,12 +532,12 @@ export default function BookingDetails() {
     try {
       setActionLoading(true);
       await acceptBooking(id);
-      toast.success('Booking accepted successfully!');
+      toastManager.success('Booking accepted successfully!');
       // Reload booking
       const res = await getBookingById(id);
       if (res.success) setBooking(res.data);
     } catch (err) {
-      toast.error('Failed to accept booking');
+      toastManager.error('Failed to accept booking');
     } finally {
       setActionLoading(false);
     }
@@ -547,10 +547,10 @@ export default function BookingDetails() {
     try {
       setActionLoading(true);
       await rejectBooking(id, 'Vendor rejected from details page');
-      toast.success('Booking rejected');
+      toastManager.success('Booking rejected');
       navigate('/vendor/dashboard');
     } catch (err) {
-      toast.error('Failed to reject booking');
+      toastManager.error('Failed to reject booking');
     } finally {
       setActionLoading(false);
     }
@@ -570,14 +570,14 @@ export default function BookingDetails() {
         try {
           setLoading(true);
           await startSelfJob(id);
-          toast.success('Journey Started');
+          toastManager.success('Journey Started');
           // Refresh to update status
           const response = await getBookingById(id);
           const apiData = response.data || response;
           setBooking(prev => ({ ...prev, status: apiData.status }));
         } catch (error) {
           console.error('Error starting self journey:', error);
-          toast.error('Failed to start journey');
+          toastManager.error('Failed to start journey');
           return;
         } finally {
           setLoading(false);
@@ -621,19 +621,19 @@ export default function BookingDetails() {
       if (isMachinery) {
         // Machinery: vendor enters farmer's Start OTP + KM photo
         await machineryStartWork(id, otp, photoUrl);
-        toast.success('🚜 Trip Started! OTP verified, work has begun.');
+        toastManager.success('🚜 Trip Started! OTP verified, work has begun.');
       } else {
         await startTrip(id, photoUrl, otp);
-        toast.success('🚜 Trip Started! KM Photo & OTP verified.');
+        toastManager.success('🚜 Trip Started! KM Photo & OTP verified.');
       }
     } else {
       if (isMachinery) {
         // Machinery end: only KM photo needed — system auto-generates End OTP for farmer
         await machineryCompleteWork(id, photoUrl, workUnits, evidencePhoto);
-        toast.success('🏁 Work Completed! End OTP has been sent to the farmer.');
+        toastManager.success('🏁 Work Completed! End OTP has been sent to the farmer.');
       } else {
         await endTrip(id, photoUrl, otp, workUnits, evidencePhoto);
-        toast.success('🏁 Trip Ended! Bill Generated & Wallet Settled.');
+        toastManager.success('🏁 Trip Ended! Bill Generated & Wallet Settled.');
       }
     }
     window.location.reload();
@@ -648,11 +648,11 @@ export default function BookingDetails() {
     try {
       setActionLoading(true);
       await completeSelfJob(id, { workPhotos: photos || [] });
-      toast.success('Work marked done');
+      toastManager.success('Work marked done');
       setIsWorkDoneModalOpen(false);
       window.location.reload();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to complete job');
+      toastManager.error(err.response?.data?.message || 'Failed to complete job');
     } finally {
       setActionLoading(false);
     }
@@ -669,11 +669,11 @@ export default function BookingDetails() {
         try {
           await updateBookingStatus(id, 'completed');
           window.dispatchEvent(new Event('vendorJobsUpdated'));
-          toast.success('Work Approved! You can now pay the operator.');
+          toastManager.success('Work Approved! You can now pay the operator.');
           window.location.reload();
         } catch (error) {
           console.error('Error approving work:', error);
-          toast.error('Failed to approve work');
+          toastManager.error('Failed to approve work');
         } finally {
           setLoading(false);
         }
@@ -1312,7 +1312,7 @@ export default function BookingDetails() {
                       message: 'Reject work? This will notify the worker to fix issues.',
                       type: 'warning',
                       onConfirm: () => {
-                        toast.error('Work Marked as Rejected');
+                        toastManager.error('Work Marked as Rejected');
                         // Add actual reject logic here if available
                       }
                     });
@@ -1819,11 +1819,11 @@ export default function BookingDetails() {
             setActionLoading(true);
             // Use vendor-specific service call (completeSelfJob)
             await completeSelfJob(id, { workPhotos: photos });
-            toast.success('Work marked done');
+            toastManager.success('Work marked done');
             setIsWorkDoneModalOpen(false);
             window.location.reload();
           } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to complete job');
+            toastManager.error(err.response?.data?.message || 'Failed to complete job');
           } finally {
             setActionLoading(false);
           }
@@ -1864,7 +1864,7 @@ export default function BookingDetails() {
             await disputeService.raiseDispute(data);
             return { success: true };
           } catch (err) {
-            toast.error(err?.message || 'Failed to raise dispute');
+            toastManager.error(err?.message || 'Failed to raise dispute');
             throw err;
           }
         }}

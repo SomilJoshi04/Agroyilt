@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { FiArrowLeft, FiPlus, FiMoreVertical, FiEdit2, FiTrash2, FiMapPin, FiNavigation } from 'react-icons/fi';
 import AddressSelectionModal from '../Checkout/components/AddressSelectionModal';
 import { userAuthService } from '../../../../services/authService';
@@ -38,7 +38,7 @@ const ManageAddresses = () => {
         setAddresses(response.user.addresses);
       }
     } catch (error) {
-      toast.error('Failed to load addresses');
+      toastManager.error('Failed to load addresses');
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ const ManageAddresses = () => {
   const handleSaveAddress = async (savedHouseNumber, locationObj) => {
     try {
       if (!locationObj) {
-        toast.error('Please select a location on the map');
+        toastManager.error('Please select a location on the map');
         return;
       }
 
@@ -92,7 +92,7 @@ const ManageAddresses = () => {
 
       const validationResult = addressSchema.safeParse(addressData);
       if (!validationResult.success) {
-        toast.error(validationResult.error?.issues?.[0]?.message || 'Please check the address details');
+        toastManager.error(validationResult.error?.issues?.[0]?.message || 'Please check the address details');
         return;
       }
 
@@ -108,21 +108,21 @@ const ManageAddresses = () => {
       const updatedAddresses = [newAddress];
 
       // Call API
-      toast.loading('Saving address...');
+      toastManager.info('Saving address...');
       const response = await userAuthService.updateProfile({ addresses: updatedAddresses });
       toast.dismiss();
 
       if (response.success) {
         setAddresses(response.user.addresses || updatedAddresses);
-        toast.success(editingAddress ? 'Address updated!' : 'Address added!');
+        toastManager.success(editingAddress ? 'Address updated!' : 'Address added!');
         handleCloseModal();
       } else {
-        toast.error(response.message || 'Failed to save address');
+        toastManager.error(response.message || 'Failed to save address');
       }
 
     } catch (error) {
       toast.dismiss();
-      toast.error('Something went wrong');
+      toastManager.error('Something went wrong');
     }
   };
 
@@ -130,20 +130,20 @@ const ManageAddresses = () => {
     try {
       const updatedAddresses = addresses.filter(addr => (addr._id || addr.id) !== addressId);
 
-      toast.loading('Deleting address...');
+      toastManager.info('Deleting address...');
       const response = await userAuthService.updateProfile({ addresses: updatedAddresses });
       toast.dismiss();
 
       if (response.success) {
         setAddresses(response.user.addresses || updatedAddresses);
         setShowMenu(null);
-        toast.success('Address deleted successfully!');
+        toastManager.success('Address deleted successfully!');
       } else {
-        toast.error('Failed to delete address');
+        toastManager.error('Failed to delete address');
       }
     } catch (error) {
       toast.dismiss();
-      toast.error('Failed to delete address');
+      toastManager.error('Failed to delete address');
     }
   };
 

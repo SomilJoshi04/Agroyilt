@@ -11,7 +11,7 @@ import {
   FiBriefcase,
   FiBox
 } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import reviewService from '../../services/reviewService';
 import CardShell from '../UserCategories/components/CardShell';
 
@@ -40,7 +40,7 @@ const ReviewsPage = () => {
       }
     } catch (error) {
       console.error('Fetch reviews error:', error);
-      toast.error('Failed to load reviews');
+      toastManager.error('Failed to load reviews');
     } finally {
       setLoading(false);
     }
@@ -69,13 +69,13 @@ const ReviewsPage = () => {
     try {
       const response = await reviewService.updateReviewStatus(id, newStatus);
       if (response.success) {
-        toast.success(`Review status updated to ${newStatus}`);
+        toastManager.success(`Review status updated to ${newStatus}`);
         fetchReviews();
         fetchStats();
       }
     } catch (error) {
       console.error('Update status error:', error);
-      toast.error('Failed to update status');
+      toastManager.error('Failed to update status');
     }
   };
 

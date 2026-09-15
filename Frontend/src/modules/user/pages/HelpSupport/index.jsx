@@ -5,7 +5,7 @@ import {
   FiChevronRight, FiHelpCircle, FiBook, FiAlertCircle,
   FiCheckCircle, FiClock, FiSend
 } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import api from '../../../../services/api';
 
 const HelpSupport = () => {
@@ -129,20 +129,20 @@ const HelpSupport = () => {
     e.preventDefault();
 
     if (!formData.name || !formData.email || !formData.subject || !formData.message) {
-      toast.error('Please fill all fields');
+      toastManager.error('Please fill all fields');
       return;
     }
 
     try {
       const response = await api.post('/support/submit', formData);
       if (response.data.success) {
-        toast.success(response.data.message || 'Your message has been sent! We\'ll get back to you soon.');
+        toastManager.success(response.data.message || 'Your message has been sent! We\'ll get back to you soon.');
         setShowContactForm(false);
         setFormData({ name: '', email: '', subject: '', message: '' });
       }
     } catch (error) {
       console.error('Support submit error:', error);
-      toast.error(error.response?.data?.message || 'Failed to send message. Please try again.');
+      toastManager.error(error.response?.data?.message || 'Failed to send message. Please try again.');
     }
   };
 

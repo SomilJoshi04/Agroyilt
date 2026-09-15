@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiArrowRight, FiSettings, FiChevronRight, FiCreditCard, FiLogOut, FiTrash2, FiClock, FiCheckCircle, FiPackage, FiActivity } from 'react-icons/fi';
 import { FaWallet, FaTractor } from 'react-icons/fa';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { vendorAuthService } from '../../../../services/authService';
 import Header from '../../components/layout/Header';
@@ -117,14 +117,14 @@ const Profile = () => {
         } else {
           if (!storedVendorData || Object.keys(storedVendorData).length === 0) {
             setError(response.message || 'Failed to fetch profile');
-            toast.error(response.message || 'Failed to fetch profile');
+            toastManager.error(response.message || 'Failed to fetch profile');
           }
         }
       } catch (err) {
         console.error('Error fetching vendor profile:', err);
         if (!storedVendorData || Object.keys(storedVendorData).length === 0) {
           setError(err.response?.data?.message || 'Failed to fetch profile');
-          toast.error(err.response?.data?.message || 'Failed to fetch profile');
+          toastManager.error(err.response?.data?.message || 'Failed to fetch profile');
         }
       } finally {
         setIsLoading(false);
@@ -455,13 +455,13 @@ const Profile = () => {
               e.stopPropagation();
               try {
                 await vendorAuthService.logout();
-                toast.success('Logged out successfully');
+                toastManager.success('Logged out successfully');
                 navigate('/vendor/login');
               } catch (error) {
                 localStorage.removeItem('vendorAccessToken');
                 localStorage.removeItem('vendorRefreshToken');
                 localStorage.removeItem('vendorData');
-                toast.success('Logged out successfully');
+                toastManager.success('Logged out successfully');
                 navigate('/vendor/login');
               }
             }}
@@ -525,15 +525,15 @@ const Profile = () => {
                   try {
                     const response = await vendorAuthService.deleteAccount();
                     if (response.success) {
-                      toast.success('Account deleted successfully.');
+                      toastManager.success('Account deleted successfully.');
                       navigate('/vendor/login', { replace: true });
                     } else {
-                      toast.error(response.message || 'Failed to delete account.');
+                      toastManager.error(response.message || 'Failed to delete account.');
                       setIsDeleting(false);
                       setShowDeleteConfirm(false);
                     }
                   } catch (error) {
-                    toast.error('Failed to delete account. Please try again.');
+                    toastManager.error('Failed to delete account. Please try again.');
                     setIsDeleting(false);
                     setShowDeleteConfirm(false);
                   }

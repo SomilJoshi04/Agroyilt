@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiShoppingBag, FiMapPin, FiFileText, FiUpload, FiCheckCircle, FiAlertCircle, FiPackage, FiCamera, FiClock } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import Header from '../../components/layout/Header';
 import { vendorTheme as themeColors } from '../../../../theme';
 import api from '../../../../services/api';
@@ -91,7 +91,7 @@ const StoreRegistration = () => {
             return res.data.imageUrl;
         } catch (err) {
             console.error("Upload error:", err.response?.data || err.message);
-            toast.error("File upload failed: " + (err.response?.data?.message || "Server Error"));
+            toastManager.error("File upload failed: " + (err.response?.data?.message || "Server Error"));
             return null;
         }
     };
@@ -100,7 +100,7 @@ const StoreRegistration = () => {
         e.preventDefault();
         
         if (!validateForm()) {
-            toast.error("Form validation failed. Please check errors.");
+            toastManager.error("Form validation failed. Please check errors.");
             return;
         }
 
@@ -113,7 +113,7 @@ const StoreRegistration = () => {
 
             if (!licenseUrl && !formData.licenseDocument) {
                 setLoading(false);
-                return toast.error("License document is mandatory");
+                return toastManager.error("License document is mandatory");
             }
 
             const payload = {
@@ -123,11 +123,11 @@ const StoreRegistration = () => {
 
             const res = await api.post('/vendors/shop/register', payload);
             if (res.data.success) {
-                toast.success("Registration submitted successfully");
+                toastManager.success("Registration submitted successfully");
                 navigate('/vendor/profile');
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || "Something went wrong");
+            toastManager.error(err.response?.data?.message || "Something went wrong");
         } finally {
             setLoading(false);
         }

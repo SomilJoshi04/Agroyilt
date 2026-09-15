@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import adminReportService from '../../../../services/adminReportService';
 import CardShell from '../UserCategories/components/CardShell';
 
@@ -22,7 +22,7 @@ const OwnerReport = () => {
       }
     } catch (error) {
       console.error('Owner report error:', error);
-      toast.error('Failed to load owner report');
+      toastManager.error('Failed to load owner report');
     } finally {
       setLoading(false);
     }

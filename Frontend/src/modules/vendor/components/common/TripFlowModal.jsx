@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FiCamera, FiX, FiCheck, FiUpload, FiLoader, FiRefreshCw, FiArrowRight } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
 import { flutterBridge } from '../../../../utils/flutterBridge';
 
@@ -53,7 +53,7 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
                 flutterBridge.hapticFeedback('success');
             } catch (err) {
                 console.error('[TripFlowModal] Native camera failed:', err);
-                toast.error('Camera khulne mein dikkat hui, dobara try karein');
+                toastManager.error('Camera khulne mein dikkat hui, dobara try karein');
             }
         } else {
             // Normal web browser → HTML file input (capture="environment")
@@ -161,7 +161,7 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
                     setStep(2);
                 }
             } catch (err) {
-                toast.error(err?.message || 'Photo upload/submit failed. Try again.');
+                toastManager.error(err?.message || 'Photo upload/submit failed. Try again.');
             } finally {
                 setUploading(false);
                 setSubmitting(false);
@@ -182,7 +182,7 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
                     setStep(3);
                 }
             } catch (err) {
-                toast.error(err?.message || 'Evidence upload/submit failed. Try again.');
+                toastManager.error(err?.message || 'Evidence upload/submit failed. Try again.');
             } finally {
                 setUploading(false);
                 setSubmitting(false);
@@ -191,14 +191,14 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
     };
 
     const handleSubmitSkippingOTP = async () => {
-        if (!isStart && rentalType === 'land_based' && !workUnits) return toast.error('Please enter total area covered');
+        if (!isStart && rentalType === 'land_based' && !workUnits) return toastManager.error('Please enter total area covered');
 
         try {
             setSubmitting(true);
             await onSubmit(photoFile, '', workUnits ? parseFloat(workUnits) : undefined, evidenceFile);
             handleClose();
         } catch (err) {
-            toast.error(err?.message || 'Failed to submit. Try again.');
+            toastManager.error(err?.message || 'Failed to submit. Try again.');
         } finally {
             setSubmitting(false);
         }
@@ -207,15 +207,15 @@ const TripFlowModal = ({ isOpen, onClose, mode = 'start', onSubmit, rentalType, 
     // Final Submit (OTP Mode)
     const handleSubmit = async () => {
         const otpStr = otp.join('');
-        if (otpStr.length !== 4) return toast.error('Enter 4-digit OTP from farmer');
-        if (!isStart && rentalType === 'land_based' && !workUnits) return toast.error('Please enter total area covered');
+        if (otpStr.length !== 4) return toastManager.error('Enter 4-digit OTP from farmer');
+        if (!isStart && rentalType === 'land_based' && !workUnits) return toastManager.error('Please enter total area covered');
 
         try {
             setSubmitting(true);
             await onSubmit(photoFile, otpStr, workUnits ? parseFloat(workUnits) : undefined, evidenceFile);
             handleClose();
         } catch (err) {
-            toast.error(err?.message || 'Failed to submit. Try again.');
+            toastManager.error(err?.message || 'Failed to submit. Try again.');
         } finally {
             setSubmitting(false);
         }

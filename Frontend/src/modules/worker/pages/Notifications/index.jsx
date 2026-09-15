@@ -5,7 +5,7 @@ import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import workerService from '../../../../services/workerService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const Notifications = () => {
   const navigate = useNavigate();
@@ -76,11 +76,11 @@ const Notifications = () => {
       const response = await workerService.markAllNotificationsAsRead();
       if (response.success) {
         setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-        toast.success('All marked as read');
+        toastManager.success('All marked as read');
       }
     } catch (error) {
       console.error('Error marking all as read:', error);
-      toast.error('Failed to mark all as read');
+      toastManager.error('Failed to mark all as read');
     }
   };
 
@@ -90,11 +90,11 @@ const Notifications = () => {
       const response = await workerService.deleteNotification(id);
       if (response.success) {
         setNotifications(prev => prev.filter(n => n._id !== id));
-        toast.success('Notification removed');
+        toastManager.success('Notification removed');
       }
     } catch (err) {
       console.error('Delete failed', err);
-      toast.error('Failed to delete');
+      toastManager.error('Failed to delete');
     }
   };
 
@@ -108,12 +108,12 @@ const Notifications = () => {
       const response = await workerService.deleteAllNotifications();
       if (response.success) {
         setNotifications([]);
-        toast.success('All notifications cleared');
+        toastManager.success('All notifications cleared');
       }
       setShowClearConfirm(false);
     } catch (error) {
       console.error('Failed to clear', error);
-      toast.error('Failed to clear');
+      toastManager.error('Failed to clear');
       setShowClearConfirm(false);
     }
   };

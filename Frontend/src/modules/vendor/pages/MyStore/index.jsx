@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import vendorProductService from '../../services/vendorProductService';
 import { publicCatalogService } from '../../../../services/catalogService';
 import { vendorTheme as themeColors } from '../../../../theme';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MyStore = () => {
@@ -74,7 +74,7 @@ const MyStore = () => {
             if (catRes.success) setCategories(catRes.categories || catRes.data || []);
             if (shopRes.success) setShopStatus(shopRes.data);
         } catch (err) {
-            toast.error("Data load karne mein dikkat hui");
+            toastManager.error("Data load karne mein dikkat hui");
         } finally {
             setLoading(false);
         }
@@ -85,19 +85,19 @@ const MyStore = () => {
         if (newStock === null) return;
         const stockVal = parseInt(newStock, 10);
         if (isNaN(stockVal) || stockVal < 0) {
-            toast.error("Please enter a valid stock number");
+            toastManager.error("Please enter a valid stock number");
             return;
         }
         try {
             const res = await vendorProductService.updateProduct(product._id, { ...product, stock: stockVal });
             if (res.success) {
-                toast.success("Stock updated successfully");
+                toastManager.success("Stock updated successfully");
                 fetchData();
             } else {
-                toast.error(res.message || "Failed to update stock");
+                toastManager.error(res.message || "Failed to update stock");
             }
         } catch (err) {
-            toast.error("Error updating stock");
+            toastManager.error("Error updating stock");
         }
     };
 
@@ -135,10 +135,10 @@ const MyStore = () => {
                         images: newImages
                     };
                 });
-                toast.success(`${uploadedUrls.length} image(s) uploaded!`);
+                toastManager.success(`${uploadedUrls.length} image(s) uploaded!`);
             }
         } catch (err) {
-            toast.error("Image upload failed");
+            toastManager.error("Image upload failed");
         } finally {
             setUploading(false);
         }
@@ -147,7 +147,7 @@ const MyStore = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.title || !formData.price) {
-            return toast.error("Please fill Title and Price");
+            return toastManager.error("Please fill Title and Price");
         }
 
         try {
@@ -159,13 +159,13 @@ const MyStore = () => {
             }
 
             if (res.success) {
-                toast.success(res.message || (editMode ? "Product updated successfully" : "Product submitted for review"));
+                toastManager.success(res.message || (editMode ? "Product updated successfully" : "Product submitted for review"));
                 setShowModal(false);
                 fetchData();
             }
         } catch (err) {
             const errMsg = err.response?.data?.message || "Action failed";
-            toast.error(errMsg);
+            toastManager.error(errMsg);
         }
     };
 
@@ -175,10 +175,10 @@ const MyStore = () => {
             const res = await vendorProductService.deleteProduct(id);
             if (res.success) {
                 setProducts(products.filter(p => p._id !== id));
-                toast.success("Product removed");
+                toastManager.success("Product removed");
             }
         } catch (err) {
-            toast.error("Delete failed");
+            toastManager.error("Delete failed");
         }
     };
 

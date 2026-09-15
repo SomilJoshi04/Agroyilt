@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import adminReportService from '../../../../services/adminReportService';
 import CardShell from '../UserCategories/components/CardShell';
 import { exportToCSV } from '../../../../utils/csvExport';
@@ -23,7 +23,7 @@ const BookingReport = () => {
       }
     } catch (error) {
       console.error('Booking report error:', error);
-      toast.error('Failed to load booking report');
+      toastManager.error('Failed to load booking report');
     } finally {
       setLoading(false);
     }
@@ -36,7 +36,7 @@ const BookingReport = () => {
   // Export monthly trends
   const handleExportMonthly = () => {
     if (!data?.monthlyTrends || data.monthlyTrends.length === 0) {
-      toast.error('No monthly data to export');
+      toastManager.error('No monthly data to export');
       return;
     }
     exportToCSV(data.monthlyTrends, 'booking_monthly_trends', [
@@ -50,7 +50,7 @@ const BookingReport = () => {
   // Export status distribution
   const handleExportStatus = () => {
     if (!data?.statusDistribution || data.statusDistribution.length === 0) {
-      toast.error('No status data to export');
+      toastManager.error('No status data to export');
       return;
     }
     exportToCSV(data.statusDistribution, 'booking_status_distribution', [
@@ -62,7 +62,7 @@ const BookingReport = () => {
   // Export equipment distribution
   const handleExportService = () => {
     if (!data?.serviceDistribution || data.serviceDistribution.length === 0) {
-      toast.error('No equipment data to export');
+      toastManager.error('No equipment data to export');
       return;
     }
     exportToCSV(data.serviceDistribution, 'booking_by_equipment', [

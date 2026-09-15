@@ -56,3 +56,17 @@ inspect_*.json
 impact_report.json
 restore_*.js
 update_*.js
+
+# Testing and Refactoring scripts
+Backend/add_settlement_route.js
+Backend/error_log.txt
+Backend/refactor_cash.js
+Backend/refactor_cash2.js
+Backend/refactor_cash3.js
+Backend/refactor_controller.js
+Backend/refactor_routes.js
+Frontend/refactor-toasts.cjs
+Frontend/src/fixFrontend.cjs
+Frontend/src/refactor_frontend_routes.cjs
+Frontend/src/refactor_job_details.cjs
+Frontend/src/refactor_service.cjs

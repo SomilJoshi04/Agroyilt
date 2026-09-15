@@ -4,7 +4,7 @@ import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiP
 import { getSettings, updateSettings, updateAdminProfile, getAdminProfile, getAllAdmins, createAdmin, deleteAdmin, updateAdminDetails, toggleAdminStatus } from '../../services/settingsService';
 import { cityService } from '../../services/cityService';
 import CityManagement from '../Cities';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { useBrand } from '../../../../context/BrandContext';
 import api from '../../../../services/api';
 
@@ -125,13 +125,13 @@ const AdminSettings = () => {
       const res = await api.post('/admin/upload', { image: compressedBase64 });
       if (res.data && res.data.imageUrl) {
         setBrandingSettings(prev => ({ ...prev, appLogo: res.data.imageUrl }));
-        toast.success('App Logo compressed & saved to Cloudinary!');
+        toastManager.success('App Logo compressed & saved to Cloudinary!');
       } else {
-        toast.error('Failed to upload logo image');
+        toastManager.error('Failed to upload logo image');
       }
     } catch (error) {
       console.error('Error uploading logo:', error);
-      toast.error(error.response?.data?.message || 'Failed to upload logo image file');
+      toastManager.error(error.response?.data?.message || 'Failed to upload logo image file');
     } finally {
       setUploadingLogo(false);
       if (logoInputRef.current) logoInputRef.current.value = '';
@@ -151,13 +151,13 @@ const AdminSettings = () => {
       const res = await api.post('/admin/upload', { image: compressedBase64 });
       if (res.data && res.data.imageUrl) {
         setBrandingSettings(prev => ({ ...prev, appFavicon: res.data.imageUrl }));
-        toast.success('Favicon compressed & saved to Cloudinary!');
+        toastManager.success('Favicon compressed & saved to Cloudinary!');
       } else {
-        toast.error('Failed to upload favicon image');
+        toastManager.error('Failed to upload favicon image');
       }
     } catch (error) {
       console.error('Error uploading favicon:', error);
-      toast.error(error.response?.data?.message || 'Failed to upload favicon file');
+      toastManager.error(error.response?.data?.message || 'Failed to upload favicon file');
     } finally {
       setUploadingFavicon(false);
       if (faviconInputRef.current) faviconInputRef.current.value = '';
@@ -177,13 +177,13 @@ const AdminSettings = () => {
       const res = await api.post('/admin/upload', { image: compressedBase64 });
       if (res.data && res.data.imageUrl) {
         setProfile(prev => ({ ...prev, profilePhoto: res.data.imageUrl }));
-        toast.success('Profile photo uploaded successfully!');
+        toastManager.success('Profile photo uploaded successfully!');
       } else {
-        toast.error('Failed to upload profile photo');
+        toastManager.error('Failed to upload profile photo');
       }
     } catch (error) {
       console.error('Error uploading profile photo:', error);
-      toast.error(error.response?.data?.message || 'Failed to upload profile photo');
+      toastManager.error(error.response?.data?.message || 'Failed to upload profile photo');
     } finally {
       setUploadingProfile(false);
       if (profileInputRef.current) profileInputRef.current.value = '';
@@ -369,9 +369,9 @@ const AdminSettings = () => {
         Object.entries(financialSettings).map(([k, v]) => [k, v === '' ? 0 : Number(v)])
       );
       await updateSettings(payload);
-      toast.success('Financial settings updated');
+      toastManager.success('Financial settings updated');
     } catch (error) {
-      toast.error('Failed to update settings');
+      toastManager.error('Failed to update settings');
     } finally {
       setLoading(false);
     }
@@ -453,14 +453,14 @@ const AdminSettings = () => {
     e.preventDefault();
 
     const error = validateBilling();
-    if (error) return toast.error(error);
+    if (error) return toastManager.error(error);
 
     setBillingLoading(true);
     try {
       await updateSettings(billingSettings);
-      toast.success('Billing settings updated');
+      toastManager.success('Billing settings updated');
     } catch (error) {
-      toast.error('Failed to update billing settings');
+      toastManager.error('Failed to update billing settings');
     } finally {
       setBillingLoading(false);
     }
@@ -480,9 +480,9 @@ const AdminSettings = () => {
         Object.entries(systemSettings).map(([k, v]) => [k, v === '' ? 0 : Number(v)])
       );
       await updateSettings(payload);
-      toast.success('System preferences updated');
+      toastManager.success('System preferences updated');
     } catch (error) {
-      toast.error('Failed to update system settings');
+      toastManager.error('Failed to update system settings');
     } finally {
       setSystemLoading(false);
     }
@@ -500,9 +500,9 @@ const AdminSettings = () => {
     setSupportLoading(true);
     try {
       await updateSettings(supportSettings);
-      toast.success('Support settings updated');
+      toastManager.success('Support settings updated');
     } catch (error) {
-      toast.error('Failed to update support settings');
+      toastManager.error('Failed to update support settings');
     } finally {
       setSupportLoading(false);
     }
@@ -515,14 +515,14 @@ const AdminSettings = () => {
     try {
       const res = await updateSettings(brandingSettings);
       if (res.success) {
-        toast.success('App Branding & Identity updated successfully!');
+        toastManager.success('App Branding & Identity updated successfully!');
         if (refreshBrandSettings) refreshBrandSettings();
       } else {
-        toast.error(res.message || 'Failed to update branding');
+        toastManager.error(res.message || 'Failed to update branding');
       }
     } catch (error) {
       console.error('Error updating branding settings:', error);
-      toast.error('Failed to update branding settings');
+      toastManager.error('Failed to update branding settings');
     } finally {
       setBrandingLoading(false);
     }
@@ -531,10 +531,10 @@ const AdminSettings = () => {
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     if (profile.newPassword && profile.newPassword !== profile.confirmPassword) {
-      return toast.error('Passwords do not match');
+      return toastManager.error('Passwords do not match');
     }
     if (profile.newPassword && !profile.currentPassword) {
-      return toast.error('Current password required');
+      return toastManager.error('Current password required');
     }
 
     setProfileLoading(true);
@@ -558,10 +558,10 @@ const AdminSettings = () => {
       adminData.profilePhoto = profile.profilePhoto;
       localStorage.setItem('adminData', JSON.stringify(adminData));
 
-      toast.success('Profile updated');
+      toastManager.success('Profile updated');
       setProfile(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update');
+      toastManager.error(error.response?.data?.message || 'Failed to update');
     } finally {
       setProfileLoading(false);
     }
@@ -572,10 +572,10 @@ const AdminSettings = () => {
     const isEdit = !!newAdmin.id;
 
     if (!newAdmin.name || !newAdmin.email) {
-      return toast.error('Name and Email are required');
+      return toastManager.error('Name and Email are required');
     }
     if (!isEdit && !newAdmin.password) {
-      return toast.error('Password is required for new admin');
+      return toastManager.error('Password is required for new admin');
     }
 
     setAdminLoading(true);
@@ -592,16 +592,16 @@ const AdminSettings = () => {
 
       if (isEdit) {
         await updateAdminDetails(newAdmin.id, payload);
-        toast.success('Admin updated successfully');
+        toastManager.success('Admin updated successfully');
       } else {
         await createAdmin(payload);
-        toast.success('Admin created successfully');
+        toastManager.success('Admin created successfully');
       }
       setNewAdmin({ name: '', email: '', password: '', role: 'admin', cityId: '' });
       setShowAddAdmin(false);
       loadAdmins();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Operation failed');
+      toastManager.error(error.response?.data?.message || 'Operation failed');
     } finally {
       setAdminLoading(false);
     }
@@ -625,10 +625,10 @@ const AdminSettings = () => {
 
     try {
       await toggleAdminStatus(id);
-      toast.success(`Admin ${action}ed`);
+      toastManager.success(`Admin ${action}ed`);
       loadAdmins();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update status');
+      toastManager.error(error.response?.data?.message || 'Failed to update status');
     }
   };
 
@@ -636,10 +636,10 @@ const AdminSettings = () => {
     if (!window.confirm(`Delete admin "${name}"? This cannot be undone.`)) return;
     try {
       await deleteAdmin(id);
-      toast.success('Admin deleted');
+      toastManager.success('Admin deleted');
       loadAdmins();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete');
+      toastManager.error(error.response?.data?.message || 'Failed to delete');
     }
   };
 

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiCheckCircle, FiTruck, FiPackage, FiClipboard, FiClock } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { adminBookingService } from '../../../../services/adminBookingService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const Tracking = () => {
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ const Tracking = () => {
         }
       } catch (error) {
         console.error('Error fetching bookings:', error);
-        toast.error('Failed to load orders');
+        toastManager.error('Failed to load orders');
       } finally {
         setLoading(false);
       }

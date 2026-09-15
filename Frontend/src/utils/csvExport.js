@@ -3,7 +3,7 @@
  * Handles data validation, proper formatting for Indian business needs
  */
 
-import { toast } from 'react-hot-toast';
+import { toastManager } from './/toastManager';
 
 /**
  * Format date to Indian standard (DD-MM-YYYY)
@@ -90,22 +90,22 @@ const escapeCSVValue = (value) => {
 export const exportToCSV = (data, filename, columns) => {
   // Validate data
   if (!data) {
-    toast.error('No data available to export');
+    toastManager.error('No data available to export');
     return false;
   }
 
   if (!Array.isArray(data)) {
-    toast.error('Invalid data format');
+    toastManager.error('Invalid data format');
     return false;
   }
 
   if (data.length === 0) {
-    toast.error('No records found to export');
+    toastManager.error('No records found to export');
     return false;
   }
 
   if (!columns || columns.length === 0) {
-    toast.error('Column configuration missing');
+    toastManager.error('Column configuration missing');
     return false;
   }
 
@@ -172,11 +172,11 @@ export const exportToCSV = (data, filename, columns) => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    toast.success(`Exported ${data.length} records successfully`);
+    toastManager.success(`Exported ${data.length} records successfully`);
     return true;
   } catch (error) {
     console.error('CSV Export Error:', error);
-    toast.error('Failed to export data');
+    toastManager.error('Failed to export data');
     return false;
   }
 };

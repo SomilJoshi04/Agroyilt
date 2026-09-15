@@ -5,7 +5,7 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import vendorSoilTestService from '../../../../services/vendorSoilTestService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 
@@ -149,7 +149,7 @@ const VendorSoilTests = () => {
             const res = await vendorSoilTestService.getMyRequests();
             if (res.success) setRequests(res.data);
         } catch {
-            if (!isPolling) toast.error('Failed to load requests');
+            if (!isPolling) toastManager.error('Failed to load requests');
         } finally {
             if (!isPolling) setLoading(false);
         }
@@ -179,11 +179,11 @@ const VendorSoilTests = () => {
             setSaving(true);
             const res = await vendorSoilTestService.updateStatus(activeRequest._id, newStatus);
             if (res.success) {
-                toast.success('Status updated successfully!');
+                toastManager.success('Status updated successfully!');
                 closeModal();
                 fetchMyRequests(false);
             }
-        } catch { toast.error('Failed to update status'); }
+        } catch { toastManager.error('Failed to update status'); }
         finally { setSaving(false); }
     };
 
@@ -204,7 +204,7 @@ const VendorSoilTests = () => {
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            if (file.size > 10 * 1024 * 1024) return toast.error('Maximum file size is 10MB');
+            if (file.size > 10 * 1024 * 1024) return toastManager.error('Maximum file size is 10MB');
             setSelectedFile(file);
             if (file.type.startsWith('image/')) {
                 setFilePreview(URL.createObjectURL(file));
@@ -215,46 +215,46 @@ const VendorSoilTests = () => {
     };
 
     const handleUploadReport = async () => {
-        if (!selectedFile && !reportUrl.trim()) return toast.error('Please select a file to upload');
+        if (!selectedFile && !reportUrl.trim()) return toastManager.error('Please select a file to upload');
         try {
             setSaving(true);
             let finalUrl = reportUrl.trim();
             if (selectedFile) {
-                const uploadToastId = toast.loading('Uploading report...');
+                const uploadToastId = toastManager.info('Uploading report...');
                 try {
                     finalUrl = await uploadFile(selectedFile);
-                    toast.success('File uploaded successfully!', { id: uploadToastId });
+                    toastManager.success('File uploaded successfully!', { id: uploadToastId });
                 } catch (err) {
-                    toast.error('Upload failed: ' + err.message, { id: uploadToastId });
+                    toastManager.error('Upload failed: ' + err.message, { id: uploadToastId });
                     setSaving(false);
                     return;
                 }
             }
             const res = await vendorSoilTestService.uploadReport(activeRequest._id, finalUrl);
             if (res.success) {
-                toast.success('Report submitted for Admin review!');
+                toastManager.success('Report submitted for Admin review!');
                 closeModal();
                 fetchMyRequests(false);
             }
         } catch {
-            toast.error('Submission failed');
+            toastManager.error('Submission failed');
         } finally {
             setSaving(false);
         }
     };
 
     const handleReject = async () => {
-        if (!rejectionReason.trim()) return toast.error('Please provide a reason for rejection');
+        if (!rejectionReason.trim()) return toastManager.error('Please provide a reason for rejection');
         try {
             setSaving(true);
             const res = await vendorSoilTestService.rejectRequest(activeRequest._id, rejectionReason);
             if (res.success) {
-                toast.success('Request rejected. Admin has been notified.');
+                toastManager.success('Request rejected. Admin has been notified.');
                 closeModal();
                 fetchMyRequests(false);
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to reject request');
+            toastManager.error(err.response?.data?.message || 'Failed to reject request');
         } finally {
             setSaving(false);
         }

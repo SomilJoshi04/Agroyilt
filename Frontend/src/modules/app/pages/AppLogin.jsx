@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronLeft, FiPhone, FiCheckCircle, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../utils/toastManager';
 import { z } from 'zod';
 import api from '../../../services/api';
 import { userAuthService, vendorAuthService, workerAuthService } from '../../../services/authService';
@@ -72,13 +72,13 @@ const AppLogin = () => {
 
     const phoneVal = phoneSchema.safeParse({ phone: cleanPhone });
     if (!phoneVal.success) {
-      toast.error(phoneVal.error.issues[0].message);
+      toastManager.error(phoneVal.error.issues[0].message);
       return;
     }
 
     const mpinVal = mpinSchema.safeParse({ mpin });
     if (!mpinVal.success) {
-      toast.error(mpinVal.error.issues[0].message);
+      toastManager.error(mpinVal.error.issues[0].message);
       return;
     }
 
@@ -90,7 +90,7 @@ const AppLogin = () => {
       const roles = identifyRes.data?.roles || [];
 
       if (roles.length === 0) {
-        toast.error("No account found for this number. Please register first.");
+        toastManager.error("No account found for this number. Please register first.");
         setIsLoading(false);
         return;
       }
@@ -105,7 +105,7 @@ const AppLogin = () => {
       await executeMpinLogin(cleanPhone, mpin, roleToUse);
     } catch (error) {
       console.error('Login error:', error);
-      toast.error(error.response?.data?.message || 'Failed to login. Try again.');
+      toastManager.error(error.response?.data?.message || 'Failed to login. Try again.');
       setIsLoading(false);
     }
   };
@@ -123,7 +123,7 @@ const AppLogin = () => {
       }
 
       if (response.success && response.accessToken) {
-        toast.success('Welcome back! 👋');
+        toastManager.success('Welcome back! 👋');
         if (role === 'user') navigate('/user', { replace: true });
         else if (role === 'vendor') navigate('/vendor', { replace: true });
         else if (role === 'worker') navigate('/worker', { replace: true });
@@ -133,11 +133,11 @@ const AppLogin = () => {
       const isMpinNotSet = err.response?.data?.mpinNotSet;
 
       if (isMpinNotSet) {
-        toast.error('MPIN not set for this account. Redirecting to setup...');
+        toastManager.error('MPIN not set for this account. Redirecting to setup...');
         // Auto-redirect to forgot MPIN flow
         setStep('forgot_phone');
       } else {
-        toast.error(errorMsg);
+        toastManager.error(errorMsg);
       }
       setIsLoading(false);
     }
@@ -150,7 +150,7 @@ const AppLogin = () => {
 
     const validation = phoneSchema.safeParse({ phone: cleanPhone });
     if (!validation.success) {
-      toast.error(validation.error.issues[0].message);
+      toastManager.error(validation.error.issues[0].message);
       return;
     }
 
@@ -161,7 +161,7 @@ const AppLogin = () => {
       const roles = identifyRes.data?.roles || [];
 
       if (roles.length === 0) {
-        toast.error("No account found for this number.");
+        toastManager.error("No account found for this number.");
         setIsLoading(false);
         return;
       }
@@ -169,7 +169,7 @@ const AppLogin = () => {
       const roleToUse = roles[0]; // Uses first role found for OTP sending
       await sendOtpForRole(cleanPhone, roleToUse);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send OTP.');
+      toastManager.error(error.response?.data?.message || 'Failed to send OTP.');
       setIsLoading(false);
     }
   };
@@ -187,12 +187,12 @@ const AppLogin = () => {
         setStep('forgot_otp');
         setResendTimer(120);
         setIsLoading(false);
-        toast.success('OTP sent successfully!');
+        toastManager.success('OTP sent successfully!');
       } else {
         throw new Error(response?.message || 'Failed to send OTP');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send OTP.');
+      toastManager.error(err.response?.data?.message || 'Failed to send OTP.');
       setIsLoading(false);
     }
   };
@@ -200,7 +200,7 @@ const AppLogin = () => {
   const handleVerifyOtp = async (e) => {
     if (e) e.preventDefault();
     const otpValue = otp.join('');
-    if (otpValue.length !== 6) { toast.error('Please enter all 6 digits'); return; }
+    if (otpValue.length !== 6) { toastManager.error('Please enter all 6 digits'); return; }
 
     setIsLoading(true);
     const cleanPhone = phone.replace(/\D/g, '');
@@ -215,12 +215,12 @@ const AppLogin = () => {
         setVerificationToken(response.verificationToken);
         setStep('set_mpin');
         setIsLoading(false);
-        toast.success('OTP Verified. Please set a new MPIN.');
+        toastManager.success('OTP Verified. Please set a new MPIN.');
       } else {
         throw new Error('Verification token not received.');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'OTP Verification failed.');
+      toastManager.error(err.response?.data?.message || 'OTP Verification failed.');
       setIsLoading(false);
     }
   };
@@ -229,11 +229,11 @@ const AppLogin = () => {
     e.preventDefault();
     
     if (newMpin.length !== 4) {
-      toast.error('MPIN must be exactly 4 digits');
+      toastManager.error('MPIN must be exactly 4 digits');
       return;
     }
     if (newMpin !== confirmMpin) {
-      toast.error('MPINs do not match');
+      toastManager.error('MPINs do not match');
       return;
     }
 
@@ -248,7 +248,7 @@ const AppLogin = () => {
       else if (detectedRole === 'worker') response = await workerAuthService.resetMpin(payload);
 
       if (response?.success) {
-        toast.success('MPIN updated successfully. You can now login.');
+        toastManager.success('MPIN updated successfully. You can now login.');
         // Reset states and go back to login
         setStep('login');
         setMpin('');
@@ -260,7 +260,7 @@ const AppLogin = () => {
         throw new Error(response?.message || 'Failed to update MPIN');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update MPIN.');
+      toastManager.error(err.response?.data?.message || 'Failed to update MPIN.');
       setIsLoading(false);
     }
   };

@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import ecommerceService from '../../../../services/ecommerceService';
 import { publicCatalogService } from '../../../../services/catalogService';
 import { useEcommerceCart } from '../../../../context/EcommerceCartContext';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion } from 'framer-motion';
 import { useCity } from '../../../../context/CityContext';
 import CitySelectorModal from '../../components/common/CitySelectorModal';
@@ -29,12 +29,12 @@ const AgriMarket = () => {
         try {
             const res = await addToCart(product._id, 1);
             if (res.success) {
-                toast.success(`"${product.title}" added to cart!`);
+                toastManager.success(`"${product.title}" added to cart!`);
             } else {
-                toast.error(res.message || "Failed to add to cart");
+                toastManager.error(res.message || "Failed to add to cart");
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || "Failed to add to cart");
+            toastManager.error(err.response?.data?.message || "Failed to add to cart");
         }
     };
     const [searchTerm, setSearchTerm] = useState('');
@@ -83,7 +83,7 @@ const AgriMarket = () => {
         }
 
         if (hasError) {
-            toast.error("Products load karne mein dikkat hui");
+            toastManager.error("Products load karne mein dikkat hui");
         }
 
         // Check for existing orders

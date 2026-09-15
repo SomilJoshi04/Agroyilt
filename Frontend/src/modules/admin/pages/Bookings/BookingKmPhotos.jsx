@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiCamera, FiSearch, FiEye, FiRefreshCw, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { adminBookingService } from '../../../../services/adminBookingService';
 import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
@@ -50,7 +50,7 @@ const BookingKmPhotos = () => {
                 setTotalPages(res.pagination?.pages || 1);
             }
         } catch (err) {
-            toast.error('Failed to load bookings');
+            toastManager.error('Failed to load bookings');
         } finally {
             setLoading(false);
         }

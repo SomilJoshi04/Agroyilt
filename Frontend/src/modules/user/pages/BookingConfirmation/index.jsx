@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 import {
   FiCheckCircle,
@@ -119,11 +119,11 @@ const BookingConfirmation = () => {
             setIsSearching(false);
           }
         } else {
-          toast.error(response.message || 'Booking not found');
+          toastManager.error(response.message || 'Booking not found');
           navigate('/user/my-bookings');
         }
       } catch (error) {
-        toast.error('Failed to load booking details');
+        toastManager.error('Failed to load booking details');
         navigate('/user/my-bookings');
       } finally {
         setLoading(false);
@@ -226,11 +226,11 @@ const BookingConfirmation = () => {
     try {
       setLoading(true);
       await bookingService.cancel(booking._id || booking.id, { reason: 'Cancelled during uncertain vendor search' });
-      toast.success('Booking cancelled successfully');
+      toastManager.success('Booking cancelled successfully');
       navigate('/user');
     } catch (error) {
       console.error(error);
-      toast.error('Failed to cancel booking');
+      toastManager.error('Failed to cancel booking');
       setLoading(false);
     }
   };

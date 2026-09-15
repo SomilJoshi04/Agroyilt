@@ -7,6 +7,8 @@ import L from 'leaflet';
 // Fix for default marker icon in react-leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import { toastManager } from '../../../../../utils/toastManager';
+
 
 let DefaultIcon = L.icon({
     iconUrl: icon,
@@ -136,7 +138,7 @@ const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
           else if (error.code === 2) errorMessage = 'Location unavailable. Please check your GPS.';
           else if (error.code === 3) errorMessage = 'Location request timed out.';
 
-          alert(`${errorMessage} Please select manually on the map.`);
+          toastManager.error(`${errorMessage} Please select manually on the map.`);
         },
         {
           enableHighAccuracy: true,
@@ -145,7 +147,7 @@ const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
         }
       );
     } else {
-      alert('Geolocation is not supported by your browser.');
+      toastManager.error('Geolocation is not supported by your browser.');
     }
   };
 

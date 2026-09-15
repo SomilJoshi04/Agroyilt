@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiClock, FiMapPin, FiBell } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../../theme';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../../utils/toastManager';
 import { acceptBooking, rejectBooking } from '../../../services/bookingService';
 
 const PendingBookings = memo(({ bookings, setPendingBookings, setActiveAlertBooking }) => {
@@ -34,11 +34,11 @@ const PendingBookings = memo(({ bookings, setPendingBookings, setActiveAlertBook
 
         // Dispatch stats update event
         window.dispatchEvent(new Event('vendorStatsUpdated'));
-        toast.success('Booking confirmed!');
+        toastManager.success('Booking confirmed!');
       }
     } catch (error) {
       console.error('Error accepting:', error);
-      toast.error('Failed to accept booking');
+      toastManager.error('Failed to accept booking');
     } finally {
       if (typeof window !== 'undefined') setLoadingAction({ id: null, type: null });
     }
@@ -61,11 +61,11 @@ const PendingBookings = memo(({ bookings, setPendingBookings, setActiveAlertBook
 
         // Remove from everywhere immediately
         window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: booking.id } }));
-        toast.success('Booking rejected');
+        toastManager.success('Booking rejected');
       }
     } catch (error) {
       console.error('Error rejecting:', error);
-      toast.error('Failed to reject booking');
+      toastManager.error('Failed to reject booking');
     } finally {
       if (typeof window !== 'undefined') setLoadingAction({ id: null, type: null });
     }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../../utils/toastManager';
 import Modal from './Modal'; // Assuming Modal is in same directory
 import { serviceService } from '../../../../../services/catalogService';
 import { z } from 'zod';
@@ -45,7 +45,7 @@ const BrandServicesModal = ({ isOpen, onClose, brand }) => {
       }
     } catch (error) {
       console.error('Failed to load services:', error);
-      toast.error('Failed to load services');
+      toastManager.error('Failed to load services');
     } finally {
       setLoading(false);
     }
@@ -78,7 +78,7 @@ const BrandServicesModal = ({ isOpen, onClose, brand }) => {
 
     const result = serviceSchema.safeParse(data);
     if (!result.success) {
-      toast.error(result.error.errors[0].message);
+      toastManager.error(result.error.errors[0].message);
       return;
     }
 
@@ -90,7 +90,7 @@ const BrandServicesModal = ({ isOpen, onClose, brand }) => {
           brandId: brand.id
         });
         if (response.success) {
-          toast.success('Service updated');
+          toastManager.success('Service updated');
           loadServices();
           resetForm();
         }
@@ -100,14 +100,14 @@ const BrandServicesModal = ({ isOpen, onClose, brand }) => {
           brandId: brand.id
         });
         if (response.success) {
-          toast.success('Service created');
+          toastManager.success('Service created');
           loadServices();
           resetForm();
         }
       }
     } catch (error) {
       console.error('Save service error:', error);
-      toast.error(error.response?.data?.message || 'Failed to save service');
+      toastManager.error(error.response?.data?.message || 'Failed to save service');
     } finally {
       setLoading(false);
     }
@@ -117,10 +117,10 @@ const BrandServicesModal = ({ isOpen, onClose, brand }) => {
     if (!window.confirm('Are you sure?')) return;
     try {
       await serviceService.delete(id);
-      toast.success('Service deleted');
+      toastManager.success('Service deleted');
       loadServices();
     } catch (error) {
-      toast.error('Failed to delete service');
+      toastManager.error('Failed to delete service');
     }
   };
 

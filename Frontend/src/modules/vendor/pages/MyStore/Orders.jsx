@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import vendorProductService from '../../services/vendorProductService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { format } from 'date-fns';
 
@@ -147,7 +147,7 @@ const StoreOrders = () => {
             const res = await vendorProductService.getMyOrders();
             if (res.success) setOrders(res.data || []);
         } catch {
-            toast.error("Failed to load orders");
+            toastManager.error("Failed to load orders");
         } finally {
             setLoading(false);
         }
@@ -157,16 +157,16 @@ const StoreOrders = () => {
         try {
             const res = await vendorProductService.updateOrderStatus(orderId, { status, ...extra });
             if (res.success) {
-                toast.success(res.message || `Order marked as ${status}`);
+                toastManager.success(res.message || `Order marked as ${status}`);
                 fetchOrders();
                 return true;
             } else {
-                toast.error(res.message || "Status update failed");
+                toastManager.error(res.message || "Status update failed");
                 return false;
             }
         } catch (err) {
             const errorMsg = err.response?.data?.message || err.message || "Status update failed";
-            toast.error(errorMsg);
+            toastManager.error(errorMsg);
             return false;
         }
     };
@@ -404,7 +404,7 @@ const DeliveryOtpModal = ({ onConfirm, isCod, amount }) => {
 
     const handleVerify = async () => {
         if (otp.length !== 4) {
-            toast.error("Please enter a valid 4-digit OTP");
+            toastManager.error("Please enter a valid 4-digit OTP");
             return;
         }
 

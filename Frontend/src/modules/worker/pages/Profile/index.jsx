@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiChevronRight, FiTag, FiLogOut } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { workerTheme as themeColors, vendorTheme } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
 import Header from '../../components/layout/Header';
@@ -62,7 +62,7 @@ const Profile = () => {
           localStorage.setItem('workerData', JSON.stringify(workerData));
         } else {
           setError(response.message || 'Failed to fetch profile');
-          toast.error(response.message || 'Failed to fetch profile');
+          toastManager.error(response.message || 'Failed to fetch profile');
           // Fallback to local storage if API fails
           const localWorkerData = JSON.parse(localStorage.getItem('workerData') || '{}');
           if (localWorkerData && Object.keys(localWorkerData).length > 0) {
@@ -84,7 +84,7 @@ const Profile = () => {
       } catch (err) {
         console.error('Error fetching worker profile:', err);
         setError(err.response?.data?.message || 'Failed to fetch profile');
-        toast.error(err.response?.data?.message || 'Failed to fetch profile');
+        toastManager.error(err.response?.data?.message || 'Failed to fetch profile');
         // Fallback to local storage if API fails
         const localWorkerData = JSON.parse(localStorage.getItem('workerData') || '{}');
         if (localWorkerData && Object.keys(localWorkerData).length > 0) {
@@ -113,14 +113,14 @@ const Profile = () => {
   const handleLogout = async () => {
     try {
       await workerAuthService.logout();
-      toast.success('Logged out successfully');
+      toastManager.success('Logged out successfully');
       navigate('/worker/login');
     } catch (error) {
       // Even if API call fails, clear local storage
       localStorage.removeItem('workerAccessToken');
       localStorage.removeItem('workerRefreshToken');
       localStorage.removeItem('workerData');
-      toast.success('Logged out successfully');
+      toastManager.success('Logged out successfully');
       navigate('/worker/login');
     }
   };

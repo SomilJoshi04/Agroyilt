@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiShoppingBag, FiMapPin, FiPhone, FiMail, FiUser, FiExternalLink, FiSearch, FiCheckCircle, FiEye, FiX } from 'react-icons/fi';
 import api from '../../../../services/api';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const RegisteredShops = () => {
@@ -22,7 +22,7 @@ const RegisteredShops = () => {
                 setShops(res.data.data);
             }
         } catch (err) {
-            toast.error("Failed to load registered shops");
+            toastManager.error("Failed to load registered shops");
         } finally {
             setLoading(false);
         }

@@ -243,3 +243,4 @@ workerSchema.methods.comparePassword = async function (candidatePassword) {
 
 module.exports = mongoose.model('Worker', workerSchema);
 
+

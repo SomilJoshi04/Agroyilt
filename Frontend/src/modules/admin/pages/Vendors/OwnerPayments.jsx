@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiDollarSign, FiLoader, FiArrowUpRight, FiArrowDownLeft, FiCreditCard } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import CardShell from '../UserCategories/components/CardShell';
 import adminVendorService from '../../../../services/adminVendorService';
 
@@ -22,7 +22,7 @@ const VendorPayments = () => {
       }
     } catch (error) {
       console.error('Error loading owner payments:', error);
-      toast.error('Failed to load owner payments');
+      toastManager.error('Failed to load owner payments');
     } finally {
       setLoading(false);
     }

@@ -89,12 +89,12 @@ const workerService = {
   },
 
   respondToRequest: async (id, action) => {
-    const response = await api.patch(`/workers/booking-request/${id}/respond`, { action });
+    const response = await api.patch(`/workers/booking-request/${id}/respond`, { action, ...data });
     return response.data;
   },
 
-  respondToFarmerRequest: async (id, action) => {
-    const response = await api.patch(`/workers/farmer-request/${id}/respond`, { action });
+  respondToFarmerRequest: async (id, action, data = {}) => {
+    const response = await api.patch(`/workers/farmer-request/${id}/respond`, { action, ...data });
     return response.data;
   },
 
@@ -136,3 +136,6 @@ const workerService = {
 };
 
 export default workerService;
+
+
+

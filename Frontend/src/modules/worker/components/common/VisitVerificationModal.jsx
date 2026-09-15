@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiCheckCircle } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import workerService from '../../../../services/workerService';
 
 /**
@@ -74,14 +74,14 @@ const VisitVerificationModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
   const handleVerify = async () => {
     const otp = otpInput.join('');
     if (otp.length !== 4) {
-      toast.error('Please enter 4-digit OTP');
+      toastManager.error('Please enter 4-digit OTP');
       return;
     }
 
     setLoading(true);
 
     if (!navigator.geolocation) {
-      toast.error('Geolocation is required for verification');
+      toastManager.error('Geolocation is required for verification');
       setLoading(false);
       return;
     }
@@ -97,26 +97,26 @@ const VisitVerificationModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
       const response = await workerService.verifyVisit(bookingId, otp, location);
 
       if (response.success) {
-        toast.success('Visit Verified Successfully!');
+        toastManager.success('Visit Verified Successfully!');
         setOtpInput(['', '', '', '']);
         onClose();
         onSuccess?.();
       } else {
-        toast.error(response.message || 'Verification failed');
+        toastManager.error(response.message || 'Verification failed');
       }
     } catch (error) {
       console.error("Verification Error:", error);
 
       // Handle geolocation errors
       if (error.code === 1) {
-        toast.error('Location permission denied. Please enable location access.');
+        toastManager.error('Location permission denied. Please enable location access.');
       } else if (error.code === 2) {
-        toast.error('Location unavailable. Check your GPS settings.');
+        toastManager.error('Location unavailable. Check your GPS settings.');
       } else if (error.code === 3) {
-        toast.error('Location timeout. Please try again.');
+        toastManager.error('Location timeout. Please try again.');
       } else {
         // API error
-        toast.error(error.response?.data?.message || 'Verification failed');
+        toastManager.error(error.response?.data?.message || 'Verification failed');
       }
     } finally {
       setLoading(false);

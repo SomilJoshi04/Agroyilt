@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import useAppNotifications from '../../../../hooks/useAppNotifications';
 import { themeColors } from '../../../../theme';
 import {
@@ -205,12 +205,12 @@ const BookingDetails = () => {
         }
         setBooking(data);
       } else {
-        toast.error(response.message || 'Booking not found');
+        toastManager.error(response.message || 'Booking not found');
         navigate('/user/my-bookings', { replace: true });
       }
     } catch (error) {
       // Failed to load booking details
-      // toast.error('Failed to load booking details'); 
+      // toastManager.error('Failed to load booking details'); 
     } finally {
       setLoading(false);
     }
@@ -289,7 +289,10 @@ const BookingDetails = () => {
           loadBooking();
 
           if (data.message) {
-            toast(data.message, { icon: '🔔' });
+            toastManager.info(data.message, { 
+              icon: '🔔',
+              id: `booking_update:${id}:${data.status || data.message}`
+            });
           }
         }
       };
@@ -394,13 +397,13 @@ const BookingDetails = () => {
         try {
           const response = await bookingService.cancel(booking._id || booking.id, 'Cancelled by user');
           if (response.success) {
-            toast.success('Booking cancelled successfully');
+            toastManager.success('Booking cancelled successfully');
             loadBooking();
           } else {
-            toast.error(response.message || 'Failed to cancel booking');
+            toastManager.error(response.message || 'Failed to cancel booking');
           }
         } catch (error) {
-          toast.error('Failed to cancel booking. Please try again.');
+          toastManager.error('Failed to cancel booking. Please try again.');
         }
       }
     });
@@ -420,7 +423,7 @@ const BookingDetails = () => {
         name: 'Groo',
         description: `Payment for ${booking.serviceName}`,
         handler: async function (response) {
-          toast.loading('Verifying payment...');
+          toastManager.info('Verifying payment...');
           const verifyResponse = await paymentService.verifyPayment({
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
@@ -429,10 +432,10 @@ const BookingDetails = () => {
           toast.dismiss();
 
           if (verifyResponse.success) {
-            toast.success('Payment successful!');
+            toastManager.success('Payment successful!');
             loadBooking();
           } else {
-            toast.error('Payment verification failed');
+            toastManager.error('Payment verification failed');
           }
           setPaying(false);
         },
@@ -452,12 +455,12 @@ const BookingDetails = () => {
 
     try {
       setPaying(true);
-      toast.loading('Creating payment order...');
+      toastManager.info('Creating payment order...');
       const orderResponse = await paymentService.createOrder(booking._id || booking.id);
       toast.dismiss();
 
       if (!orderResponse.success) {
-        toast.error(orderResponse.message || 'Failed to create payment order');
+        toastManager.error(orderResponse.message || 'Failed to create payment order');
         setPaying(false);
         return;
       }
@@ -470,7 +473,7 @@ const BookingDetails = () => {
         name: 'Groo',
         description: `Payment for ${booking.serviceName}`,
         handler: async function (response) {
-          toast.loading('Verifying payment...');
+          toastManager.info('Verifying payment...');
           const verifyResponse = await paymentService.verifyPayment({
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
@@ -479,10 +482,10 @@ const BookingDetails = () => {
           toast.dismiss();
 
           if (verifyResponse.success) {
-            toast.success('Payment successful!');
+            toastManager.success('Payment successful!');
             loadBooking();
           } else {
-            toast.error('Payment verification failed');
+            toastManager.error('Payment verification failed');
           }
           setPaying(false);
         },
@@ -505,14 +508,14 @@ const BookingDetails = () => {
       razorpay.open();
     } catch (error) {
       toast.dismiss();
-      toast.error('Failed to process payment');
+      toastManager.error('Failed to process payment');
       setPaying(false);
     }
   };
 
   const handlePayAtHome = async () => {
     try {
-      toast.loading('Confirming request...');
+      toastManager.info('Confirming request...');
       let response;
       if (booking.workerId && !booking.vendorId) {
         response = await bookingService.selectOfflinePayment(booking._id || booking.id);
@@ -522,25 +525,25 @@ const BookingDetails = () => {
       toast.dismiss();
 
       if (response.success) {
-        toast.success('Offline payment selected! Provide the OTP to the worker.');
+        toastManager.success('Offline payment selected! Provide the OTP to the worker.');
         loadBooking();
       } else {
-        toast.error(response.message || 'Failed to confirm booking');
+        toastManager.error(response.message || 'Failed to confirm booking');
       }
     } catch (error) {
       toast.dismiss();
-      toast.error('Failed to process request');
+      toastManager.error('Failed to process request');
     }
   };
 
   const handleConfirmFinalAmount = async () => {
     if (!farmerFinalAmount || isNaN(farmerFinalAmount)) {
-      toast.error('Please enter a valid amount');
+      toastManager.error('Please enter a valid amount');
       return;
     }
     const amount = Number(farmerFinalAmount);
     if (amount < (booking.minRate || 0) || amount > (booking.maxRate || Infinity)) {
-      toast.error(`Amount must be between ₹${booking.minRate} and ₹${booking.maxRate}`);
+      toastManager.error(`Amount must be between ₹${booking.minRate} and ₹${booking.maxRate}`);
       return;
     }
 
@@ -548,13 +551,13 @@ const BookingDetails = () => {
       setConfirmingAmount(true);
       const response = await bookingService.confirmFinalAmount(booking._id || booking.id, { finalAmount: amount });
       if (response.success) {
-        toast.success('Final amount confirmed!');
+        toastManager.success('Final amount confirmed!');
         loadBooking();
       } else {
-        toast.error(response.message || 'Failed to confirm amount');
+        toastManager.error(response.message || 'Failed to confirm amount');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to confirm amount');
+      toastManager.error(error.response?.data?.message || 'Failed to confirm amount');
     } finally {
       setConfirmingAmount(false);
       setIsEditingAmount(false);
@@ -566,14 +569,14 @@ const BookingDetails = () => {
     try {
       const response = await bookingService.addReview(booking._id || booking.id, ratingData);
       if (response.success) {
-        toast.success('Thank you for your feedback!');
+        toastManager.success('Thank you for your feedback!');
         setShowRatingModal(false);
         loadBooking();
       } else {
-        toast.error(response.message || 'Failed to submit review');
+        toastManager.error(response.message || 'Failed to submit review');
       }
     } catch (error) {
-      toast.error('Failed to submit review');
+      toastManager.error('Failed to submit review');
     }
   };
 
@@ -591,7 +594,7 @@ const BookingDetails = () => {
       const response = await disputeService.raiseDispute(disputeData);
       return response;
     } catch (err) {
-      toast.error(err?.message || 'Failed to raise dispute');
+      toastManager.error(err?.message || 'Failed to raise dispute');
       throw err;
     }
   };
@@ -1804,7 +1807,7 @@ const BookingDetails = () => {
           )}
 
           {/* If farmer confirmed amount but work not done yet, show waiting message */}
-          {['visited', 'in_progress', 'journey_started'].includes(booking.status) && !booking.vendorId && booking.workerId && booking.finalAmount > 0 && !isEditingAmount && (
+          {false && ['visited', 'in_progress', 'journey_started'].includes(booking.status) && !booking.vendorId && booking.workerId && booking.finalAmount > 0 && !isEditingAmount && (
             <div className="bg-blue-50 border border-blue-200 rounded-3xl p-6 text-center">
               <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <FiClock className="w-7 h-7 text-blue-600 animate-spin" style={{ animationDuration: '4s' }} />
@@ -1826,7 +1829,7 @@ const BookingDetails = () => {
           )}
 
           {/* Action Card for Confirming Final Amount (Independent Worker) */}
-          {['visited', 'in_progress', 'journey_started', 'accepted', 'confirmed'].includes(booking.status) && !booking.vendorId && booking.workerId && (!booking.finalAmount || isEditingAmount) && (
+          {false && ['visited', 'in_progress', 'journey_started', 'accepted', 'confirmed'].includes(booking.status) && !booking.vendorId && booking.workerId && (!booking.finalAmount || isEditingAmount) && (
             <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 p-6 space-y-4">
               <div className="text-center mb-4">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -1883,7 +1886,7 @@ const BookingDetails = () => {
                   link.click();
                   document.body.removeChild(link);
                 } else {
-                  toast.error('Support phone number not available');
+                  toastManager.error('Support phone number not available');
                 }
               }}
               className="col-span-1 flex flex-col items-center justify-center gap-2 p-4 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 transition-colors active:scale-95"

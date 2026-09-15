@@ -5,7 +5,7 @@ import {
   FiSearch, FiCalendar, FiDownload, FiMoreVertical,
   FiClock, FiCheckCircle, FiBox, FiTruck, FiXCircle, FiRefreshCw, FiShoppingBag
 } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { adminBookingService } from '../../../../services/adminBookingService';
 import { getDashboardStats } from '../../../../services/adminDashboardService';
 
@@ -98,7 +98,7 @@ const Bookings = () => {
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.error('Failed to load bookings');
+      toastManager.error('Failed to load bookings');
     } finally {
       setLoading(false);
     }

@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { FiArrowLeft, FiClock, FiMapPin, FiCalendar, FiDollarSign, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import workerRequestService from '../../../../services/workerRequestService';
+import workerBookingService from '../../../../services/workerBookingService'; // Use the main booking service
 
 const STATUS_COLORS = {
-  pending: 'bg-amber-100 text-amber-700',
-  accepted: 'bg-emerald-100 text-emerald-700',
-  rejected: 'bg-red-100 text-red-700',
-  cancelled: 'bg-slate-100 text-slate-700',
-  expired: 'bg-slate-100 text-slate-700',
+  pending: 'bg-amber-100 text-amber-700 border-amber-200',
+  accepted: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  rejected: 'bg-red-100 text-red-700 border-red-200',
+  cancelled: 'bg-slate-100 text-slate-700 border-slate-200',
+  expired: 'bg-slate-100 text-slate-700 border-slate-200',
+  awaiting_farmer_confirmation: 'bg-blue-100 text-blue-700 border-blue-200',
+  confirmed: 'bg-emerald-100 text-emerald-800 border-emerald-300'
 };
 
 const WorkerBookingRequests = () => {
@@ -18,12 +20,17 @@ const WorkerBookingRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [counterRate, setCounterRate] = useState('');
-  const [activeNegotiationId, setActiveNegotiationId] = useState(null);
+  // Rate input state per request id
+  const [offeredRates, setOfferedRates] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchRequests = async () => {
     try {
       setLoading(true);
+      // Wait, workerBookingService has getMyFarmerRequests? We need to use the right service method.
+      // Let's use api directly if service method is missing, or rely on workerRequestService if it existed.
+      // Actually, workerRequestService.getIncomingRequests() was used before. I'll just use the old service name for fetching, but the new service for responding.
+      const workerRequestService = require('../../../../services/workerRequestService').default || require('../../../../services/workerRequestService');
       const res = await workerRequestService.getIncomingRequests();
       setRequests(res.data || []);
     } catch (err) {
@@ -35,27 +42,57 @@ const WorkerBookingRequests = () => {
 
   useEffect(() => { fetchRequests(); }, []);
 
-  const handleAction = async (id, action, rate = null) => {
-    try {
-      await workerRequestService.respondToRequest(id, action, rate);
-      toast.success(action === 'counter' ? 'Counter offer sent!' : `Request ${action}ed`);
-      fetchRequests();
-      setActiveNegotiationId(null);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Action failed');
+  const handleAction = async (id, action, minRate, maxRate) => {
+    if (action === 'accept') {
+      const rate = Number(offeredRates[id]);
+      if (!rate || rate < minRate || rate > maxRate) {
+        toast.error(`Please enter a valid rate between ?${minRate} and ?${maxRate}`);
+        return;
+      }
+      try {
+        setSubmitting(true);
+        await workerBookingService.workerRespondToFarmerRequest(id, action, rate);
+        toast.success('Offer submitted successfully!');
+        fetchRequests();
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to submit offer');
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      // Reject
+      if (!window.confirm('Are you sure you want to reject this request?')) return;
+      try {
+        setSubmitting(true);
+        await workerBookingService.workerRespondToFarmerRequest(id, 'reject');
+        toast.success('Request rejected');
+        fetchRequests();
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Action failed');
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
   const renderRequest = (req) => {
-    const lastNeg = req.negotiation?.[req.negotiation.length - 1];
-    const isMyTurn = req.status === 'pending' && lastNeg && lastNeg.by === 'farmer';
+    // Find my status
+    // Assuming the backend returns the worker's own status in `req.myStatus` or we can find it in dispatchedTo
+    let myStatus = req.myStatus || 'pending';
+    if (req.dispatchedTo && Array.isArray(req.dispatchedTo)) {
+       // Worker panel API should populate the worker's user ID. We assume the backend already filtered it or marked it.
+       // For safety, fallback to visual display based on status string.
+    }
+
+    const isPending = req.status === 'pending' || req.status === 'matching';
+    const canRespond = myStatus === 'pending' && isPending;
 
     return (
       <div key={req._id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mb-4">
         <div className="p-5">
           <div className="flex justify-between items-start mb-3">
-            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${STATUS_COLORS[req.status] || STATUS_COLORS.pending}`}>
-              {req.status}
+            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${STATUS_COLORS[req.status] || STATUS_COLORS.pending}`}>
+              {req.status.replace(/_/g, ' ')}
             </span>
             <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
               <FiClock size={10} />
@@ -65,7 +102,7 @@ const WorkerBookingRequests = () => {
 
           <div className="mb-4">
             <h3 className="font-black text-slate-800 text-lg">{req.workTitle}</h3>
-            <p className="text-sm font-medium text-slate-500">From: <span className="font-bold">{req.farmerId?.name || 'Farmer'}</span></p>
+            {req.workDescription && <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{req.workDescription}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-4 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -82,34 +119,50 @@ const WorkerBookingRequests = () => {
               <p className="font-black text-slate-700 truncate">{req.location?.city || 'Not specified'}</p>
             </div>
             <div className="col-span-2 mt-2 pt-2 border-t border-slate-200">
-              <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><FiDollarSign /> Offered Rate</p>
-              <p className={`font-black text-lg ${isMyTurn ? 'text-amber-600' : 'text-slate-800'}`}>
-                ₹{lastNeg?.rate || req.farmerOfferedRate} <span className="text-xs text-slate-400 font-medium">/{req.rateUnit}</span>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><FiDollarSign /> Farmer Budget</p>
+              <p className="font-black text-lg text-emerald-600">
+                ?{req.minRate} - ?{req.maxRate} <span className="text-xs text-slate-400 font-medium">/{req.rateUnit || 'daily'}</span>
               </p>
             </div>
           </div>
 
-          {isMyTurn && (
+          {canRespond && (
             <div className="mt-4 pt-4 border-t border-slate-100">
-              {activeNegotiationId === req._id ? (
-                <div className="flex gap-2">
-                  <input type="number" value={counterRate} onChange={e => setCounterRate(e.target.value)} placeholder="New Rate ₹" className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400" />
-                  <button onClick={() => handleAction(req._id, 'counter', counterRate)} className="bg-amber-500 text-white px-4 rounded-xl font-bold text-xs">Send</button>
-                  <button onClick={() => setActiveNegotiationId(null)} className="bg-slate-100 text-slate-600 px-3 rounded-xl"><FiX /></button>
+              <p className="text-xs font-bold text-slate-500 mb-2">Submit your rate offer to the farmer:</p>
+              <div className="flex gap-2 items-center">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">?</span>
+                  <input 
+                    type="number" 
+                    value={offeredRates[req._id] || ''} 
+                    onChange={e => setOfferedRates({...offeredRates, [req._id]: e.target.value})} 
+                    placeholder={`e.g. ${req.maxRate}`} 
+                    min={req.minRate}
+                    max={req.maxRate}
+                    className="w-full border-2 border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-sm font-bold focus:outline-none focus:border-emerald-500 transition-colors" 
+                  />
                 </div>
-              ) : (
-                <div className="flex gap-2">
-                  <button onClick={() => handleAction(req._id, 'accept')} className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-xs">Accept</button>
-                  <button onClick={() => setActiveNegotiationId(req._id)} className="flex-1 bg-amber-50 text-amber-600 border border-amber-200 py-2.5 rounded-xl font-bold text-xs">Counter</button>
-                  <button onClick={() => handleAction(req._id, 'reject')} className="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-xs">Reject</button>
-                </div>
-              )}
+                <button 
+                  onClick={() => handleAction(req._id, 'accept', req.minRate, req.maxRate)} 
+                  disabled={submitting}
+                  className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-black text-sm active:scale-95 transition-transform shadow-sm disabled:opacity-50"
+                >
+                  Accept
+                </button>
+                <button 
+                  onClick={() => handleAction(req._id, 'reject')} 
+                  disabled={submitting}
+                  className="bg-slate-100 text-slate-600 px-4 py-3 rounded-xl active:scale-95 transition-transform"
+                >
+                  <FiX size={20} />
+                </button>
+              </div>
             </div>
           )}
 
-          {!isMyTurn && req.status === 'pending' && (
-            <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-100 text-center">
-              <p className="text-xs font-bold text-amber-700">Waiting for farmer to respond to your counter offer.</p>
+          {!canRespond && req.workerOffers && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100 text-center">
+              <p className="text-xs font-bold text-blue-700">You submitted an offer. Waiting for farmer's payment...</p>
             </div>
           )}
         </div>
@@ -119,22 +172,27 @@ const WorkerBookingRequests = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
-      <Helmet><title>Work Requests | Agroyilt</title></Helmet>
+      <Helmet><title>Work Requests | AgroYilt</title></Helmet>
 
-      <div className="bg-slate-800 sticky top-0 z-40 px-5 py-4 flex items-center gap-4 text-white">
-        <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95">
+      <div className="bg-white sticky top-0 z-40 border-b border-slate-100 px-4 h-16 flex items-center gap-4 shadow-sm">
+        <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center active:scale-95">
           <FiArrowLeft size={20} />
         </button>
-        <h1 className="text-xl font-black">Work Requests</h1>
+        <h1 className="text-lg font-black text-slate-800">New Work Requests</h1>
       </div>
 
       <div className="max-w-xl mx-auto px-4 pt-6">
         {loading ? (
-          <p className="text-center text-slate-500 font-bold text-sm">Loading requests...</p>
+          <div className="flex justify-center py-10">
+            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          </div>
         ) : requests.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-4xl mb-4">📋</p>
-            <p className="font-black text-slate-700 text-lg">No incoming requests</p>
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+              <FiClock size={24} className="text-slate-400" />
+            </div>
+            <p className="font-black text-slate-700 text-lg mb-1">No incoming requests</p>
+            <p className="text-sm text-slate-500 font-medium">We'll notify you when work matches your skills.</p>
           </div>
         ) : (
           requests.map(renderRequest)

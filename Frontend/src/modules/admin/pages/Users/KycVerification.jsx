@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiCheck, FiX, FiEye, FiSearch, FiFileText, FiDownload, FiRefreshCw } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { adminUserService } from '../../../../services/adminUserService';
 import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
@@ -56,7 +56,7 @@ const KycVerification = () => {
                 setUsers(kycUsers);
             }
         } catch (err) {
-            toast.error('Failed to load KYC records');
+            toastManager.error('Failed to load KYC records');
         } finally {
             setLoading(false);
         }
@@ -78,12 +78,12 @@ const KycVerification = () => {
             if (res.success) {
                 setUsers(prev => prev.map(u => u._id === userId ? { ...u, kyc_status: newStatus } : u));
                 if (selectedUser?._id === userId) setSelectedUser(prev => ({ ...prev, kyc_status: newStatus }));
-                toast.success(`KYC ${newStatus === 'verified' ? 'Approved' : 'Rejected'} successfully!`);
+                toastManager.success(`KYC ${newStatus === 'verified' ? 'Approved' : 'Rejected'} successfully!`);
             } else {
-                toast.error(res.message || 'Action failed');
+                toastManager.error(res.message || 'Action failed');
             }
         } catch (err) {
-            toast.error('Failed to update details');
+            toastManager.error('Failed to update details');
         } finally {
             setActionLoading(false);
         }

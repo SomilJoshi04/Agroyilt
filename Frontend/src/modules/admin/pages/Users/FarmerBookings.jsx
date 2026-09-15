@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiSearch, FiLoader, FiCalendar, FiClock, FiUser, FiShoppingBag, FiArrowRight } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { useNavigate } from 'react-router-dom';
 import CardShell from '../UserCategories/components/CardShell';
 import { adminUserService } from '../../../../services/adminUserService';
@@ -31,7 +31,7 @@ const FarmerBookings = () => {
       }
     } catch (error) {
       console.error('Error loading farmer bookings:', error);
-      toast.error('Failed to load farmer bookings');
+      toastManager.error('Failed to load farmer bookings');
     } finally {
       setLoading(false);
     }

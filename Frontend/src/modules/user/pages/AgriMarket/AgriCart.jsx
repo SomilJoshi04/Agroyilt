@@ -14,7 +14,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useEcommerceCart } from '../../../../context/EcommerceCartContext';
 import ecommerceService from '../../../../services/ecommerceService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import LocationPicker from '../Checkout/components/LocationPicker';
 
@@ -46,14 +46,14 @@ const AgriCart = () => {
         const newQty = (item.quantity || 1) + change;
         if (newQty < 1) return;
         if (newQty > (item.productId?.stock || 0)) {
-            toast.error(`Only ${item.productId?.stock} units available in stock`);
+            toastManager.error(`Only ${item.productId?.stock} units available in stock`);
             return;
         }
         try {
             await updateItem(item._id, newQty);
-            toast.success("Quantity updated");
+            toastManager.success("Quantity updated");
         } catch (err) {
-            toast.error("Failed to update quantity");
+            toastManager.error("Failed to update quantity");
         }
     };
 
@@ -62,9 +62,9 @@ const AgriCart = () => {
         if (!window.confirm("Are you sure you want to remove this item?")) return;
         try {
             await removeItem(itemId);
-            toast.success("Item removed from cart");
+            toastManager.success("Item removed from cart");
         } catch (err) {
-            toast.error("Failed to remove item");
+            toastManager.error("Failed to remove item");
         }
     };
 
@@ -118,7 +118,7 @@ const AgriCart = () => {
 
     // Checkout / Order placement
     const handlePlaceOrder = async () => {
-        if (!address || !address.addressLine1) return toast.error("Please pin your location on the map");
+        if (!address || !address.addressLine1) return toastManager.error("Please pin your location on the map");
         try {
             setPlacingOrder(true);
             const res = await ecommerceService.placeOrder({
@@ -127,13 +127,13 @@ const AgriCart = () => {
             });
 
             if (res.success) {
-                toast.success("Order placed successfully!");
+                toastManager.success("Order placed successfully!");
                 // Clear cart locally
                 await clearCart();
                 
                 // If multiple orders are created, redirect to orders tracking page
                 if (res.orders && res.orders.length > 1) {
-                    toast("Created separate orders for different vendors. Please pay platform fees.", { icon: '📦' });
+                    toastManager.info("Created separate orders for different vendors. Please pay platform fees.", { icon: '📦' });
                     navigate('/user/my-agri-orders');
                 } else {
                     const singleOrder = res.data || (res.orders && res.orders[0]);
@@ -145,7 +145,7 @@ const AgriCart = () => {
                 }
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || "Order placement failed");
+            toastManager.error(err.response?.data?.message || "Order placement failed");
         } finally {
             setPlacingOrder(false);
             setShowCheckout(false);

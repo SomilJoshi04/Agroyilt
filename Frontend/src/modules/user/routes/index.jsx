@@ -77,6 +77,7 @@ const WorkerRequestForm = lazyLoad(() => import('../pages/Worker/WorkerRequestFo
 const GroupRequestForm = lazyLoad(() => import('../pages/Worker/GroupRequestForm'));
 const MyWorkerRequests = lazyLoad(() => import('../pages/Worker/MyWorkerRequests'));
 const FarmerRequestDetail = lazyLoad(() => import('../pages/Worker/FarmerRequestDetail'));
+const WorkerSelectionPayment = lazyLoad(() => import('../pages/Worker/WorkerSelectionPayment'));
 
 const MachineryCheckout = lazyLoad(() => import('../pages/Machinery/MachineryCheckout'));
 const EquipmentDetail = lazyLoad(() => import('../pages/Machinery/EquipmentDetail'));
@@ -178,6 +179,7 @@ const UserRoutes = () => {
               <Route path="/my-worker-requests" element={<ProtectedRoute userType="user"><MyWorkerRequests /></ProtectedRoute>} />
               {/* Farmer-first: request detail with confirm/reject partial */}
               <Route path="/farmer-worker-request/:id" element={<ProtectedRoute userType="user"><FarmerRequestDetail /></ProtectedRoute>} />
+                <Route path="/worker-booking-payment/:id" element={<ProtectedRoute userType="user"><WorkerSelectionPayment /></ProtectedRoute>} />
               {/* Legacy: old request form with pre-selected worker (kept for backward compat) */}
               <Route path="/worker-request/:id" element={<ProtectedRoute userType="user"><WorkerRequestForm /></ProtectedRoute>} />
               <Route path="/group-request/:id" element={<ProtectedRoute userType="user"><GroupRequestForm /></ProtectedRoute>} />

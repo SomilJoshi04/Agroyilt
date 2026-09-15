@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getPlans, createPlan, updatePlan, deletePlan } from '../../services/planService';
 import { categoryService } from '../../../../services/catalogService';
 import { FiPlus, FiEdit2, FiTrash2, FiCheck, FiX, FiList, FiPackage } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const Plans = () => {
   const [plans, setPlans] = useState([]);
@@ -93,7 +93,7 @@ const Plans = () => {
 
     } catch (error) {
       console.error('fetchInitialData error', error);
-      toast.error('Failed to load data');
+      toastManager.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -129,16 +129,16 @@ const Plans = () => {
 
       if (currentPlan) {
         await updatePlan(currentPlan._id, payload);
-        toast.success('Plan updated successfully');
+        toastManager.success('Plan updated successfully');
       } else {
         await createPlan(payload);
-        toast.success('Plan created successfully');
+        toastManager.success('Plan created successfully');
       }
       setIsModalOpen(false);
       fetchPlans();
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || 'Error saving plan');
+      toastManager.error(error.response?.data?.message || 'Error saving plan');
     }
   };
 
@@ -167,11 +167,11 @@ const Plans = () => {
     if (!window.confirm('Are you sure you want to delete this plan?')) return;
     try {
       await deletePlan(id);
-      toast.success('Plan deleted successfully');
+      toastManager.success('Plan deleted successfully');
       fetchPlans();
     } catch (error) {
       console.error(error);
-      toast.error('Failed to delete plan');
+      toastManager.error('Failed to delete plan');
     }
   };
 
@@ -520,10 +520,10 @@ const Plans = () => {
                         if (selectedCategory) {
                           if (!formData.freeCategories.some(c => String(c._id || c) === String(selectedCategory))) {
                             setFormData(p => ({ ...p, freeCategories: [...p.freeCategories, selectedCategory] }));
-                            toast.success('Benefit added!');
+                            toastManager.success('Benefit added!');
                             setSelectedCategory('');
                           } else {
-                            toast.error('Already in list');
+                            toastManager.error('Already in list');
                           }
                         }
                       }}

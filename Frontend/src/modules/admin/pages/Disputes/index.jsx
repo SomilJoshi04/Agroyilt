@@ -3,7 +3,7 @@ import {
     FiAlertTriangle, FiSearch, FiFilter, FiCheckCircle,
     FiXCircle, FiClock, FiEye, FiMessageSquare, FiImage
 } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import adminDisputeService from '../../../../services/adminDisputeService';
 import Modal from '../../components/Modal';
 
@@ -29,7 +29,7 @@ const AdminDisputes = () => {
                 setDisputes(response.data);
             }
         } catch (error) {
-            toast.error('Failed to fetch disputes');
+            toastManager.error('Failed to fetch disputes');
         } finally {
             setLoading(false);
         }
@@ -50,13 +50,13 @@ const AdminDisputes = () => {
                 setIsDetailsModalOpen(true);
             }
         } catch (error) {
-            toast.error('Failed to fetch dispute details');
+            toastManager.error('Failed to fetch dispute details');
         }
     };
 
     const handleResolve = async (status) => {
         if (!resolutionNotes.trim()) {
-            return toast.error('Please enter resolution notes');
+            return toastManager.error('Please enter resolution notes');
         }
 
         try {
@@ -66,12 +66,12 @@ const AdminDisputes = () => {
                 resolutionNotes
             });
             if (response.success) {
-                toast.success(`Dispute ${status} successfully`);
+                toastManager.success(`Dispute ${status} successfully`);
                 setIsDetailsModalOpen(false);
                 fetchDisputes();
             }
         } catch (error) {
-            toast.error('Failed to update dispute');
+            toastManager.error('Failed to update dispute');
         } finally {
             setSubmitting(false);
         }

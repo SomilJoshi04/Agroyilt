@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiClock, FiMapPin, FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import Header from '../../components/layout/Header';
 import { vendorTheme as themeColors } from '../../../../theme';
 import LogoLoader from '../../../../components/common/LogoLoader';
@@ -118,7 +118,7 @@ const BookingAlerts = () => {
         }
       } catch (error) {
         console.error('Error fetching alerts:', error);
-        toast.error('Failed to load alerts');
+        toastManager.error('Failed to load alerts');
       } finally {
         setLoading(false);
       }
@@ -155,7 +155,7 @@ const BookingAlerts = () => {
   const handleAccept = async (bookingId) => {
     try {
       await acceptBooking(bookingId);
-      toast.success('Booking accepted!');
+      toastManager.success('Booking accepted!');
       // Remove from list
       setAlerts(prev => prev.filter(a => a._id !== bookingId));
 
@@ -174,14 +174,14 @@ const BookingAlerts = () => {
       navigate(`/vendor/booking/${bookingId}`);
     } catch (error) {
       console.error('Accept error:', error);
-      toast.error('Failed to accept booking');
+      toastManager.error('Failed to accept booking');
     }
   };
 
   const handleReject = async (bookingId) => {
     try {
       await rejectBooking(bookingId);
-      toast.success('Booking rejected');
+      toastManager.success('Booking rejected');
       setAlerts(prev => prev.filter(a => a._id !== bookingId));
 
       // Remove from localStorage
@@ -195,7 +195,7 @@ const BookingAlerts = () => {
       window.dispatchEvent(new Event('vendorJobsUpdated'));
     } catch (error) {
       console.error('Reject error:', error);
-      toast.error('Failed to reject booking');
+      toastManager.error('Failed to reject booking');
     }
   };
 

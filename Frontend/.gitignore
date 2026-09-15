@@ -41,3 +41,10 @@ check_*.js
 *.njsproj
 *.sln
 *.sw?
+
+# Testing and Refactoring scripts
+refactor-toasts.cjs
+src/fixFrontend.cjs
+src/refactor_frontend_routes.cjs
+src/refactor_job_details.cjs
+src/refactor_service.cjs

@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { motion, useMotionValue, useTransform } from 'framer-motion'; // eslint-disable-line no-unused-vars
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../utils/toastManager';
 import { playNotificationSound, isSoundEnabled, playAlertRing } from '../utils/notificationSound';
 import { registerFCMToken } from '../services/pushNotificationService';
 
@@ -291,7 +291,7 @@ export const SocketProvider = ({ children }) => {
           }
 
           // Show immediate toast banner
-          toast.success(
+          toastManager.success(
             `🔔 New Booking: ${data.serviceName || 'Equipment Service'} (₹${data.price || ''})`,
             {
               duration: 8000,
@@ -380,7 +380,7 @@ export const SocketProvider = ({ children }) => {
         }
 
         // Show toast notification
-        toast.error(data.message || 'Job taken by another vendor', { icon: '⚡' });
+        toastManager.error(data.message || 'Job taken by another vendor', { icon: '⚡' });
 
         // Dispatch specific remove event for instant UI update
         window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: takenBookingId } }));

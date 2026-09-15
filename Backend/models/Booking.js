@@ -500,3 +500,4 @@ bookingSchema.index({ scheduledDate: 1, status: 1 });
 bookingSchema.index({ paymentStatus: 1, status: 1 });
 
 module.exports = mongoose.model('Booking', bookingSchema);
+

@@ -5,7 +5,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, Cell, PieChart, Pie
 } from 'recharts';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import adminReportService from '../../../../services/adminReportService';
 import CardShell from '../UserCategories/components/CardShell';
 import { exportToCSV } from '../../../../utils/csvExport';
@@ -24,7 +24,7 @@ const RevenueReport = () => {
       }
     } catch (error) {
       console.error('Revenue report error:', error);
-      toast.error('Failed to load revenue report');
+      toastManager.error('Failed to load revenue report');
     } finally {
       setLoading(false);
     }
@@ -37,7 +37,7 @@ const RevenueReport = () => {
   // Export revenue trends as CSV
   const handleExportTrends = () => {
     if (!data?.revenueTrends || data.revenueTrends.length === 0) {
-      toast.error('No revenue data to export');
+      toastManager.error('No revenue data to export');
       return;
     }
     exportToCSV(data.revenueTrends, `revenue_trends_${period}`, [
@@ -51,7 +51,7 @@ const RevenueReport = () => {
   // Export revenue by equipment as CSV
   const handleExportByService = () => {
     if (!data?.revenueByService || data.revenueByService.length === 0) {
-      toast.error('No equipment data to export');
+      toastManager.error('No equipment data to export');
       return;
     }
     exportToCSV(data.revenueByService, `revenue_by_equipment_${period}`, [

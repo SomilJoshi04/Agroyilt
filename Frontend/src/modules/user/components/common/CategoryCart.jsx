@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiX, FiShoppingCart, FiTrash2, FiPlus, FiMinus, FiLoader } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 import BottomNav from '../layout/BottomNav';
 import { cartService } from '../../../../services/cartService';
@@ -33,12 +33,12 @@ const CategoryCart = ({
     try {
       const response = await removeItem(itemId);
       if (response.success) {
-        toast.success('Item removed from cart');
+        toastManager.success('Item removed from cart');
       } else {
-        toast.error(response.message || 'Failed to remove item');
+        toastManager.error(response.message || 'Failed to remove item');
       }
     } catch (error) {
-      toast.error('Failed to remove item');
+      toastManager.error('Failed to remove item');
     }
   };
 
@@ -51,10 +51,10 @@ const CategoryCart = ({
       const response = await updateItem(itemId, newCount);
 
       if (!response.success) {
-        toast.error(response.message || 'Failed to update quantity');
+        toastManager.error(response.message || 'Failed to update quantity');
       }
     } catch (error) {
-      toast.error('Failed to update quantity');
+      toastManager.error('Failed to update quantity');
     }
   };
 

@@ -12,6 +12,8 @@ import CustomerGrowthAreaChart from '../../components/dashboard/CustomerGrowthAr
 import TopEquipment from '../../components/dashboard/TopEquipment';
 import RecentBookings from '../../components/dashboard/RecentBookings';
 import { getDashboardStats, getRevenueAnalytics } from '../../../../services/adminDashboardService';
+import { toastManager } from '../../../../utils/toastManager';
+
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -127,7 +129,7 @@ const AdminDashboard = () => {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error('CSV export failed', e);
-      alert('Export failed.');
+      toastManager.error('Export failed.');
     }
   };
 

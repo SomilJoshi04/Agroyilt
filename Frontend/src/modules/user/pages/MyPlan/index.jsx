@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiCheck, FiStar } from 'react-icons/fi';
 import { getPlans } from '../../services/planService';
 import { userAuthService } from '../../../../services/authService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const MyPlan = () => {
   const navigate = useNavigate();
@@ -68,7 +68,7 @@ const MyPlan = () => {
 
     } catch (error) {
       console.error(error);
-      toast.error('Could not load data');
+      toastManager.error('Could not load data');
     } finally {
       setLoading(false);
     }

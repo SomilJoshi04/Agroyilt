@@ -7,7 +7,7 @@ import { themeColors } from '../../../../../theme';
 import { publicCatalogService } from '../../../../../services/catalogService';
 import api from '../../../../../services/api';
 import { useCart } from '../../../../../context/CartContext';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../../utils/toastManager';
 import SlotPicker from '../../../components/booking/SlotPicker';
 
 const toAssetUrl = (url) => {
@@ -153,7 +153,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
       }
     } catch (error) {
       console.error("Failed to load services:", error);
-      toast.error("Failed to load services. Please try again.");
+      toastManager.error("Failed to load services. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -311,7 +311,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
         }, 1200);
       }
     } catch (error) {
-      toast.error('Failed to add to cart. Try again.');
+      toastManager.error('Failed to add to cart. Try again.');
     }
   };
 

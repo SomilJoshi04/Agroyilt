@@ -33,6 +33,7 @@ router.post('/save', authenticate, async (req, res) => {
     }
 
     // Filter out old token if it exists anywhere
+    vendor.fcmTokens = vendor.fcmTokens || [];
     vendor.fcmTokens = vendor.fcmTokens.filter(t => t.token !== token);
 
     // Filter out old device if same deviceId exists (to replace token on same device)
@@ -166,3 +167,4 @@ router.post('/test', authenticate, async (req, res) => {
 });
 
 module.exports = router;
+

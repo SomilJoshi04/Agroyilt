@@ -4,7 +4,7 @@ import { FiShoppingCart, FiArrowRight, FiPlus, FiTag } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import productService from '../../../services/productService';
 import { useCart } from '../../../../../context/CartContext';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../../utils/toastManager';
 import { themeColors } from '../../../../../theme';
 
 const toAssetUrl = (url) => {
@@ -64,10 +64,10 @@ const AgriMarketplaceSection = () => {
 
             const res = await addToCart(cartItemData);
             if (res.success) {
-                toast.success(`${product.title} added to cart!`);
+                toastManager.success(`${product.title} added to cart!`);
             }
         } catch (error) {
-            toast.error('Galti ho gayi. Phir se koshish karein.');
+            toastManager.error('Galti ho gayi. Phir se koshish karein.');
         }
     };
 

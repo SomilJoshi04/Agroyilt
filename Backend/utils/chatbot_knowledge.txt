@@ -1,11 +1,11 @@
-GrooAgri - Complete Knowledge Base
+AgroYilt - Complete Knowledge Base
 ==================================================
 
 [1. COMPANY OVERVIEW]
-- Name: GrooAgri
+- Name: AgroYilt
 - Purpose: A complete platform for farmers, vendors, and agricultural workers. We provide soil testing, farming equipment rental, e-commerce for agri-products, and a platform for booking agricultural workers.
 - Platform Users: Farmers (Users), Vendors (Shop owners, equipment providers, lab owners), Workers (Laborers), and Admins.
-- Customer Support: support@grooagri.com
+- Customer Support: support@agroyilt.com
 
 [2. FOR FARMERS (USERS)]
 - E-commerce (Shop): Farmers can buy high-quality seeds, fertilizers, and pesticides directly from our app. Cash on Delivery (COD) and Online Payments (via Razorpay) are supported.

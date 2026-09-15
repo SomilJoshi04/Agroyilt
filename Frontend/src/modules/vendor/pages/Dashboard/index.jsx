@@ -7,7 +7,7 @@ import Header from '../../components/layout/Header';
 import { vendorDashboardService } from '../../services/dashboardService';
 import { acceptBooking, rejectBooking } from '../../services/bookingService';
 import { BookingAlertModal } from '../../components/bookings';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { io } from 'socket.io-client';
 import maintenanceService from '../../services/maintenanceService';
 import { isWithinInterval, parseISO } from 'date-fns';
@@ -49,13 +49,13 @@ const Dashboard = memo(() => {
     window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: String(bookingId) } }));
     try {
       await acceptBooking(bookingId);
-      toast.success('Booking accepted successfully');
+      toastManager.success('Booking accepted successfully');
     } catch (error) {
       const status = error?.response?.status;
       if (status === 409) {
-        toast.error('This job was already accepted by another vendor.');
+        toastManager.error('This job was already accepted by another vendor.');
       } else {
-        toast.error('Failed to accept booking');
+        toastManager.error('Failed to accept booking');
       }
     } finally {
       window.dispatchEvent(new Event('vendorStatsUpdated'));
@@ -68,9 +68,9 @@ const Dashboard = memo(() => {
     try {
       const result = await rejectBooking(bookingId);
       if (result?.alreadyTaken) {
-        toast.error('This job was already accepted by another vendor.');
+        toastManager.error('This job was already accepted by another vendor.');
       } else {
-        toast.success('Booking declined');
+        toastManager.success('Booking declined');
       }
     } catch (error) {
       // Silently ignore — booking is already removed from modal

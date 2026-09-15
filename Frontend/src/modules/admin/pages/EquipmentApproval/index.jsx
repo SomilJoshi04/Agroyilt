@@ -3,7 +3,7 @@ import {
   FiCheckCircle, FiXCircle, FiEye, FiClock, 
   FiTruck, FiUser, FiMapPin, FiCalendar, FiSearch, FiFilter, FiMoreVertical, FiTrash2, FiSmartphone
 } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import adminEquipmentService from '../../../../services/adminEquipmentService';
 import LogoLoader from '../../../../components/common/LogoLoader';
@@ -25,7 +25,7 @@ const EquipmentApproval = () => {
       const res = await adminEquipmentService.getAll({ status: filterStatus });
       if (res.success) setEquipment(res.data);
     } catch (err) {
-      toast.error('Failed to fetch equipment');
+      toastManager.error('Failed to fetch equipment');
     } finally {
       setLoading(false);
     }
@@ -35,12 +35,12 @@ const EquipmentApproval = () => {
     try {
       const res = await adminEquipmentService.updateStatus(id, { status, remarks });
       if (res.success) {
-        toast.success(`Machine ${status}`);
+        toastManager.success(`Machine ${status}`);
         fetchEquipment();
         setSelectedItem(null);
       }
     } catch (err) {
-      toast.error('Update failed');
+      toastManager.error('Update failed');
     }
   };
 
@@ -49,11 +49,11 @@ const EquipmentApproval = () => {
     try {
       const res = await adminEquipmentService.delete(id);
       if (res.success) {
-        toast.success('Deleted successfully');
+        toastManager.success('Deleted successfully');
         fetchEquipment();
       }
     } catch (err) {
-      toast.error('Delete failed');
+      toastManager.error('Delete failed');
     }
   };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiLock } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../utils/toastManager';
 // authService exports vendorAuthService, let's import it
 import { vendorAuthService } from '../../../services/authService';
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -69,7 +69,7 @@ const VendorMpinSetup = () => {
 
   const handleNext = () => {
     if (mpin.join('').length !== 4) {
-      toast.error('Please enter a 4-digit MPIN');
+      toastManager.error('Please enter a 4-digit MPIN');
       return;
     }
     setStep(2);
@@ -81,11 +81,11 @@ const VendorMpinSetup = () => {
     const confirmValue = confirmMpin.join('');
 
     if (confirmValue.length !== 4) {
-      toast.error('Please confirm your 4-digit MPIN');
+      toastManager.error('Please confirm your 4-digit MPIN');
       return;
     }
     if (mpinValue !== confirmValue) {
-      toast.error('MPINs do not match');
+      toastManager.error('MPINs do not match');
       setConfirmMpin(['', '', '', '']);
       confirmRefs.current[0]?.focus();
       return;
@@ -99,7 +99,7 @@ const VendorMpinSetup = () => {
       });
 
       if (response.success) {
-        toast.success('MPIN set successfully!');
+        toastManager.success('MPIN set successfully!');
         const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
         vendorData.isMpinSet = true;
         localStorage.setItem('vendorData', JSON.stringify(vendorData));
@@ -108,7 +108,7 @@ const VendorMpinSetup = () => {
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Failed to set MPIN');
+      toastManager.error(error.response?.data?.message || 'Failed to set MPIN');
     }
   };
 

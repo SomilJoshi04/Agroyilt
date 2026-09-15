@@ -9,7 +9,7 @@ import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import workerService from '../../../../services/workerService';
 import { publicCatalogService } from '../../../../services/catalogService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import AddressSelectionModal from '../../../user/pages/Checkout/components/AddressSelectionModal';
 import { z } from "zod";
 
@@ -139,7 +139,7 @@ const EditProfile = () => {
         }
       } catch (error) {
         console.error('Init error:', error);
-        toast.error('Failed to load data');
+        toastManager.error('Failed to load data');
       } finally {
         setLoading(false);
       }
@@ -174,7 +174,7 @@ const EditProfile = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should be less than 5MB');
+        toastManager.error('File size should be less than 5MB');
         return;
       }
       setPhotoFile(file);
@@ -270,7 +270,7 @@ const EditProfile = () => {
     });
 
     if (!validationResult.success) {
-      toast.error(validationResult.error?.issues?.[0]?.message || 'Please check your inputs');
+      toastManager.error(validationResult.error?.issues?.[0]?.message || 'Please check your inputs');
       return;
     }
 
@@ -296,14 +296,14 @@ const EditProfile = () => {
           payload.profilePhoto = photoUrl;
         } catch (uploadErr) {
           console.error('Photo upload failed', uploadErr);
-          toast.error('Failed to upload photo');
+          toastManager.error('Failed to upload photo');
           setSaving(false);
           return;
         }
       }
 
       await workerService.updateProfile(payload);
-      toast.success('Profile updated successfully');
+      toastManager.success('Profile updated successfully');
 
       // Update local storage to keep session in sync if needed
       const currentWorker = JSON.parse(localStorage.getItem('workerData') || '{}');
@@ -316,7 +316,7 @@ const EditProfile = () => {
       navigate('/worker/profile');
     } catch (error) {
       console.error('Update failed:', error);
-      toast.error(error.response?.data?.message || 'Update failed');
+      toastManager.error(error.response?.data?.message || 'Update failed');
     } finally {
       setSaving(false);
     }

@@ -8,7 +8,7 @@ import { FaMotorcycle } from 'react-icons/fa';
 import { getBookingById, verifySelfVisit } from '../../services/bookingService';
 import VisitVerificationModal from '../../components/common/VisitVerificationModal';
 import vendorService from '../../../../services/vendorService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 
 // Simple toggle for the simulation button (Controlled via .env)
@@ -143,14 +143,14 @@ const BookingMap = () => {
         (error) => {
           // GPS Tracking Error
           if (error.code === 1) { // PERMISSION_DENIED
-            // toast.error("Location permission denied. Map cannot track you.");
+            // toastManager.error("Location permission denied. Map cannot track you.");
           }
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     } else {
-      toast.error("Geolocation not supported on this device");
+      toastManager.error("Geolocation not supported on this device");
     }
   }, [isSimulating]); // Add isSimulating to dependency array
 
@@ -239,17 +239,17 @@ const BookingMap = () => {
   // DEBUG: Location Simulator Functions
   const startSimulation = () => {
     if (!currentLocation || !coords || !socket) {
-      toast.error('Wait for map to load first');
+      toastManager.error('Wait for map to load first');
       return;
     }
 
     if (!routePath || routePath.length === 0) {
-      toast.error('No road path found. Wait for route to load.');
+      toastManager.error('No road path found. Wait for route to load.');
       return;
     }
 
     setIsSimulating(true);
-    toast.success('🚀 Simulation started! Following the road.');
+    toastManager.success('🚀 Simulation started! Following the road.');
 
     // Generate detailed points along the specific road path
     const pathPoints = [];
@@ -295,7 +295,7 @@ const BookingMap = () => {
     simulationRef.current = setInterval(() => {
       if (pathIndex >= pathPoints.length) {
         stopSimulation();
-        toast.success('✅ Arrived at destination!');
+        toastManager.success('✅ Arrived at destination!');
         return;
       }
 

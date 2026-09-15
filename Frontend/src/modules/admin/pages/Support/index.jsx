@@ -3,7 +3,7 @@ import {
     FiHelpCircle, FiSearch, FiFilter, FiCheckCircle,
     FiMessageSquare, FiUser, FiMail, FiClock, FiEye, FiSend
 } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import adminSupportService from '../../../../services/adminSupportService';
 import Modal from '../../components/Modal';
 
@@ -29,7 +29,7 @@ const AdminSupport = () => {
                 setQueries(response.data);
             }
         } catch (error) {
-            toast.error('Failed to fetch support queries');
+            toastManager.error('Failed to fetch support queries');
         } finally {
             setLoading(false);
         }
@@ -49,7 +49,7 @@ const AdminSupport = () => {
 
     const handleSendResponse = async () => {
         if (!responseMessage.trim()) {
-            return toast.error('Please enter a response message');
+            return toastManager.error('Please enter a response message');
         }
 
         try {
@@ -59,12 +59,12 @@ const AdminSupport = () => {
                 status: 'resolved'
             });
             if (response.success) {
-                toast.success('Response sent and query resolved');
+                toastManager.success('Response sent and query resolved');
                 setIsResponseModalOpen(false);
                 fetchQueries();
             }
         } catch (error) {
-            toast.error('Failed to send response');
+            toastManager.error('Failed to send response');
         } finally {
             setSubmitting(false);
         }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiTrash2, FiCreditCard, FiClock, FiCheck, FiDollarSign, FiPlusCircle } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 /**
  * CashCollectionModal
@@ -113,7 +113,7 @@ const CashCollectionModal = ({
     // Validate extra items if any
     for (const item of extraItems) {
       if (!item.title || !item.price || parseFloat(item.price) <= 0) {
-        toast.error('Please provide title and price for all extra items');
+        toastManager.error('Please provide title and price for all extra items');
         return;
       }
     }
@@ -128,9 +128,9 @@ const CashCollectionModal = ({
       try {
         await onConfirm(0, [], '0000'); // Dummy OTP for plan_benefit with no extras
         onClose();
-        toast.success('Bill finalized successfully!');
+        toastManager.success('Bill finalized successfully!');
       } catch (error) {
-        toast.error(error?.response?.data?.message || 'Failed to finalize');
+        toastManager.error(error?.response?.data?.message || 'Failed to finalize');
       } finally {
         setSubmitting(false);
       }
@@ -142,9 +142,9 @@ const CashCollectionModal = ({
     try {
       await onInitiateOTP(finalTotal, extraItems);
       setStep('otp');
-      toast.success('OTP sent to customer');
+      toastManager.success('OTP sent to customer');
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to send OTP');
+      toastManager.error(error?.response?.data?.message || 'Failed to send OTP');
     } finally {
       setSubmitting(false);
     }
@@ -153,7 +153,7 @@ const CashCollectionModal = ({
   const handleVerify = async () => {
     const otpString = otp.join('');
     if (otpString.length !== 4) {
-      toast.error('Please enter 4-digit OTP');
+      toastManager.error('Please enter 4-digit OTP');
       return;
     }
 
@@ -161,9 +161,9 @@ const CashCollectionModal = ({
     try {
       await onConfirm(finalTotal, extraItems, otpString);
       onClose();
-      toast.success('Payment recorded successfully');
+      toastManager.success('Payment recorded successfully');
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Invalid OTP. Please try again.');
+      toastManager.error(error?.response?.data?.message || 'Invalid OTP. Please try again.');
     } finally {
       setSubmitting(false);
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiShoppingCart, FiTrash2, FiPlus, FiMinus, FiLoader, FiBell } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 import BottomNav from '../../components/layout/BottomNav';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -78,12 +78,12 @@ const Cart = () => {
     try {
       const response = await removeCategoryItems(category);
       if (response.success) {
-        toast.success('Category items removed');
+        toastManager.success('Category items removed');
       } else {
-        toast.error(response.message || 'Failed to remove category items');
+        toastManager.error(response.message || 'Failed to remove category items');
       }
     } catch (error) {
-      toast.error('Failed to remove category items');
+      toastManager.error('Failed to remove category items');
     }
   };
 
@@ -91,12 +91,12 @@ const Cart = () => {
     try {
       const response = await removeItem(itemId);
       if (response.success) {
-        toast.success('Item removed from cart');
+        toastManager.success('Item removed from cart');
       } else {
-        toast.error(response.message || 'Failed to remove item');
+        toastManager.error(response.message || 'Failed to remove item');
       }
     } catch (error) {
-      toast.error('Failed to remove item');
+      toastManager.error('Failed to remove item');
     }
   };
 
@@ -109,10 +109,10 @@ const Cart = () => {
       const response = await updateItem(itemId, newCount);
 
       if (!response.success) {
-        toast.error(response.message || 'Failed to update quantity');
+        toastManager.error(response.message || 'Failed to update quantity');
       }
     } catch (error) {
-      toast.error('Failed to update quantity');
+      toastManager.error('Failed to update quantity');
     }
   };
 

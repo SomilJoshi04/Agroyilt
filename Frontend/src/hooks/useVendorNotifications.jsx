@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../utils/toastManager';
 import { playNotificationSound, isSoundEnabled } from '../utils/notificationSound';
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
@@ -51,7 +51,7 @@ export const useVendorNotifications = (vendorId, onNewBooking) => {
       }
 
       // Show toast notification
-      toast.success(
+      toastManager.success(
         <div>
           <strong>New Booking Request!</strong>
           <p className="text-sm mt-1">{data.serviceName}</p>
@@ -60,6 +60,7 @@ export const useVendorNotifications = (vendorId, onNewBooking) => {
           </p>
         </div>,
         {
+          id: `new_booking_request:${data._id || Date.now()}`,
           duration: 8000,
           icon: '🔔',
           style: {

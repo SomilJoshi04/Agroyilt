@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiX, FiArrowRight, FiChevronLeft, FiCheckCircle, FiCamera, FiBriefcase, FiChevronDown } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../utils/toastManager';
 import { themeColors } from '../../../theme';
 import { register, sendOTP as sendVendorOTP } from '../services/authService';
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -197,17 +197,17 @@ const VendorSignup = () => {
 
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
-      toast.error('Please upload a valid image or PDF');
+      toastManager.error('Please upload a valid image or PDF');
       return;
     }
 
     if (file.size > 15 * 1024 * 1024) {
-      toast.error('File size should be less than 15MB');
+      toastManager.error('File size should be less than 15MB');
       return;
     }
 
     setUploadingDocs(prev => ({ ...prev, [type]: true }));
-    const loadingToast = toast.loading("Processing file...");
+    const loadingToast = toastManager.info("Processing file...");
 
     try {
       let fileToUpload = file;
@@ -225,7 +225,7 @@ const VendorSignup = () => {
           toast.dismiss(loadingToast); // Dismiss compression loading
         } catch (compressionError) {
           console.error("Compression failed, using original file", compressionError);
-          toast.error("Compression failed, using original");
+          toastManager.error("Compression failed, using original");
           // fileToUpload remains original
         }
       }
@@ -242,12 +242,12 @@ const VendorSignup = () => {
           [type]: previewUrl
         }));
         setUploadingDocs(prev => ({ ...prev, [type]: false }));
-        toast.success("Image uploaded", { duration: 2000 });
+        toastManager.success("Image uploaded", { duration: 2000 });
       };
 
       reader.onerror = () => {
         console.error("FileReader failed");
-        toast.error("Failed to read file");
+        toastManager.error("Failed to read file");
         setUploadingDocs(prev => ({ ...prev, [type]: false }));
       };
 
@@ -256,7 +256,7 @@ const VendorSignup = () => {
     } catch (error) {
       console.error("Upload processing error", error);
       toast.dismiss(loadingToast);
-      toast.error("Failed to process file");
+      toastManager.error("Failed to process file");
       setUploadingDocs(prev => ({ ...prev, [type]: false }));
     }
   };
@@ -291,9 +291,9 @@ const VendorSignup = () => {
       // Zod v4 uses .issues instead of .errors
       const issues = validationResult.error?.issues || [];
       if (issues.length > 0) {
-        issues.forEach(err => toast.error(err.message));
+        issues.forEach(err => toastManager.error(err.message));
       } else {
-        toast.error('Please check your form inputs and try again.');
+        toastManager.error('Please check your form inputs and try again.');
       }
       return;
     }
@@ -301,18 +301,18 @@ const VendorSignup = () => {
     // Manual Document Validation remains
     const hasAadharDoc = formData.documents.some(d => d.type === 'aadhar');
     const hasAadharBackDoc = formData.documents.some(d => d.type === 'aadharBack');
-    if (!hasAadharDoc) { toast.error('Please upload Aadhar Front document'); return; }
-    if (!hasAadharBackDoc) { toast.error('Please upload Aadhar Back document'); return; }
+    if (!hasAadharDoc) { toastManager.error('Please upload Aadhar Front document'); return; }
+    if (!hasAadharBackDoc) { toastManager.error('Please upload Aadhar Back document'); return; }
 
     // Lab & Shop Validation
     if (formData.isLabRegistration) {
-      if (!formData.labDetails.labName) { toast.error('Please enter Lab Name'); return; }
-      if (!formData.documents.some(d => d.type === 'labCert')) { toast.error('Please upload Lab Certification Document'); return; }
+      if (!formData.labDetails.labName) { toastManager.error('Please enter Lab Name'); return; }
+      if (!formData.documents.some(d => d.type === 'labCert')) { toastManager.error('Please upload Lab Certification Document'); return; }
     }
     if (formData.isShopRegistration) {
-      if (!formData.shopDetails.shopName) { toast.error('Please enter Shop Name'); return; }
-      if (!formData.shopDetails.shopAddress) { toast.error('Please enter Shop Address'); return; }
-      if (!formData.documents.some(d => d.type === 'shopLicense')) { toast.error('Please upload Shop License Document'); return; }
+      if (!formData.shopDetails.shopName) { toastManager.error('Please enter Shop Name'); return; }
+      if (!formData.shopDetails.shopAddress) { toastManager.error('Please enter Shop Address'); return; }
+      if (!formData.documents.some(d => d.type === 'shopLicense')) { toastManager.error('Please upload Shop License Document'); return; }
     }
 
     setIsLoading(true);
@@ -361,7 +361,7 @@ const VendorSignup = () => {
 
         if (response.success) {
           localStorage.removeItem('vendor_signup_form_data');
-          toast.success(
+          toastManager.success(
             <div className="flex flex-col">
               <span className="font-bold">Successfully Registered!</span>
               <span className="text-xs">Your vendor account is pending admin approval.</span>
@@ -370,10 +370,10 @@ const VendorSignup = () => {
           );
           navigate('/vendor/settings/mpin-setup', { state: { isFirstTime: true } });
         } else {
-          toast.error(response.message || 'Registration failed');
+          toastManager.error(response.message || 'Registration failed');
         }
       } catch (error) {
-        toast.error(error.response?.data?.message || 'Registration failed');
+        toastManager.error(error.response?.data?.message || 'Registration failed');
       } finally {
         setIsLoading(false);
       }
@@ -387,14 +387,14 @@ const VendorSignup = () => {
         setIsLoading(false);
         setStep('otp');
         setResendTimer(120); // Start timer
-        toast.success('OTP sent successfully');
+        toastManager.success('OTP sent successfully');
       } else {
         setIsLoading(false);
-        toast.error(response.message || 'Failed to send OTP');
+        toastManager.error(response.message || 'Failed to send OTP');
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Failed to send OTP');
+      toastManager.error(error.response?.data?.message || 'Failed to send OTP');
     }
   };
 
@@ -441,11 +441,11 @@ const VendorSignup = () => {
     if (e) e.preventDefault();
     const otpValue = otp.join('');
     if (otpValue.length !== 6) {
-      toast.error('Please enter complete OTP');
+      toastManager.error('Please enter complete OTP');
       return;
     }
     if (!otpToken) {
-      toast.error('Please request OTP first');
+      toastManager.error('Please request OTP first');
       return;
     }
     setIsLoading(true);
@@ -494,15 +494,15 @@ const VendorSignup = () => {
       if (response.success) {
         setIsLoading(false);
         localStorage.removeItem('vendor_signup_form_data');
-        toast.success('Successfully Registered! Pending admin approval.');
+        toastManager.success('Successfully Registered! Pending admin approval.');
         navigate('/vendor/settings/mpin-setup', { state: { isFirstTime: true } });
       } else {
         setIsLoading(false);
-        toast.error(response.message || 'Registration failed');
+        toastManager.error(response.message || 'Registration failed');
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Registration failed');
+      toastManager.error(error.response?.data?.message || 'Registration failed');
     }
   };
 
@@ -1036,9 +1036,9 @@ const VendorSignup = () => {
                         if (response.success) {
                           setOtpToken(response.token);
                           setResendTimer(120);
-                          toast.success('OTP sent again');
+                          toastManager.success('OTP sent again');
                         }
-                      } catch (e) { toast.error('Resend failed'); }
+                      } catch (e) { toastManager.error('Resend failed'); }
                     }}
                     disabled={resendTimer > 0}
                     className="text-sm font-semibold transition-colors duration-300 opacity-70 hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiArrowRight, FiChevronLeft, FiCheckCircle, FiX } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../utils/toastManager';
 import { themeColors } from '../../../theme';
 import { userAuthService } from '../../../services/authService';
 import Logo from '../../../components/common/Logo';
@@ -127,7 +127,7 @@ const Signup = () => {
 
     if (!validationResult.success) {
       const issues = validationResult.error?.issues || [];
-      issues.forEach(err => toast.error(err.message));
+      issues.forEach(err => toastManager.error(err.message));
       return;
     }
 
@@ -146,7 +146,7 @@ const Signup = () => {
             await registerFCMToken('user', true);
           } catch (e) { console.error(e); }
 
-          toast.success(
+          toastManager.success(
             <div className="flex flex-col">
               <span className="font-bold">Successfully Registered!</span>
               <span className="text-xs">Welcome to Agroyilt.</span>
@@ -155,10 +155,10 @@ const Signup = () => {
           );
           navigate('/user/settings/mpin-setup', { state: { isFirstTime: true } });
         } else {
-          toast.error(response.message || 'Registration failed');
+          toastManager.error(response.message || 'Registration failed');
         }
       } catch (error) {
-        toast.error(error.response?.data?.message || 'Registration failed');
+        toastManager.error(error.response?.data?.message || 'Registration failed');
       } finally {
         setIsLoading(false);
       }
@@ -172,14 +172,14 @@ const Signup = () => {
         setIsLoading(false);
         setStep('otp');
         setResendTimer(120); // Start timer
-        toast.success('OTP sent successfully');
+        toastManager.success('OTP sent successfully');
       } else {
         setIsLoading(false);
-        toast.error(response.message || 'Failed to send OTP');
+        toastManager.error(response.message || 'Failed to send OTP');
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Failed to send OTP. Please try again.');
+      toastManager.error(error.response?.data?.message || 'Failed to send OTP. Please try again.');
     }
   };
 
@@ -226,11 +226,11 @@ const Signup = () => {
     if (e) e.preventDefault();
     const otpValue = otp.join('');
     if (otpValue.length !== 6) {
-      toast.error('Please enter complete OTP');
+      toastManager.error('Please enter complete OTP');
       return;
     }
     if (!otpToken) {
-      toast.error('Please request OTP first');
+      toastManager.error('Please request OTP first');
       return;
     }
     setIsLoading(true);
@@ -251,7 +251,7 @@ const Signup = () => {
           console.error('FCM Registration failed on signup:', fcmError);
         }
 
-        toast.success(
+        toastManager.success(
           <div className="flex flex-col">
             <span className="font-bold">Successfully Registered!</span>
             <span className="text-xs">Welcome to Agroyilt.</span>
@@ -261,11 +261,11 @@ const Signup = () => {
         navigate('/user/settings/mpin-setup', { state: { isFirstTime: true } });
       } else {
         setIsLoading(false);
-        toast.error(response.message || 'Registration failed');
+        toastManager.error(response.message || 'Registration failed');
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
+      toastManager.error(error.response?.data?.message || 'Registration failed. Please try again.');
     }
   };
 
@@ -476,10 +476,10 @@ const Signup = () => {
                     if (response.success) {
                       setOtpToken(response.token);
                       setResendTimer(120);
-                      toast.success('New code sent!');
+                      toastManager.success('New code sent!');
                     }
                   } catch (error) {
-                    toast.error('Failed to resend code');
+                    toastManager.error('Failed to resend code');
                   }
                 }}
                 disabled={resendTimer > 0}

@@ -14,7 +14,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import ecommerceService from '../../../../services/ecommerceService';
 import { useEcommerceCart } from '../../../../context/EcommerceCartContext';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import LocationPicker from '../Checkout/components/LocationPicker';
 
@@ -36,12 +36,12 @@ const ProductDetail = () => {
             setAdding(true);
             const res = await addToCart(product._id, quantity);
             if (res.success) {
-                toast.success("Cart mein add ho gaya!");
+                toastManager.success("Cart mein add ho gaya!");
             } else {
-                toast.error(res.message || "Failed to add to cart");
+                toastManager.error(res.message || "Failed to add to cart");
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || "Cart mein add karne mein dikkat hui");
+            toastManager.error(err.response?.data?.message || "Cart mein add karne mein dikkat hui");
         } finally {
             setAdding(false);
         }
@@ -76,14 +76,14 @@ const ProductDetail = () => {
             const res = await ecommerceService.getProductDetails(id);
             if (res.success) setProduct(res.data);
         } catch (err) {
-            toast.error("Failed to load product details");
+            toastManager.error("Failed to load product details");
         } finally {
             setLoading(false);
         }
     };
 
     const handlePlaceOrder = async () => {
-        if (!address || !address.addressLine1) return toast.error("Please pin your location on the map");
+        if (!address || !address.addressLine1) return toastManager.error("Please pin your location on the map");
         try {
             const res = await ecommerceService.placeOrder({
                 productId: product._id,
@@ -93,15 +93,15 @@ const ProductDetail = () => {
             });
             if (res.success) {
                 if (paymentType === 'cod') {
-                    toast.success("Order Placed Successfully!");
+                    toastManager.success("Order Placed Successfully!");
                     navigate('/user/my-agri-orders');
                 } else {
-                    toast.success("Order Placed! Please complete payment to confirm.");
+                    toastManager.success("Order Placed! Please complete payment to confirm.");
                     navigate(`/user/order-payment/${res.data._id}`);
                 }
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || "Order failed");
+            toastManager.error(err.response?.data?.message || "Order failed");
         }
     };
 

@@ -6,7 +6,7 @@ import BottomNav from '../../components/layout/BottomNav';
 import { vendorTheme as themeColors } from '../../../../theme';
 import maintenanceService from '../../services/maintenanceService';
 import vendorServiceService from '../../services/vendorServiceService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { format } from 'date-fns';
 
 const MaintenanceIndex = () => {
@@ -39,7 +39,7 @@ const MaintenanceIndex = () => {
             setSchedules(schedRes.data || []);
             setEquipments(equipRes.data || []);
         } catch (err) {
-            toast.error('Failed to load maintenance data');
+            toastManager.error('Failed to load maintenance data');
         } finally {
             setLoading(false);
         }
@@ -49,11 +49,11 @@ const MaintenanceIndex = () => {
         e.preventDefault();
         try {
             await maintenanceService.addSchedule(formData);
-            toast.success('Maintenance scheduled successfully');
+            toastManager.success('Maintenance scheduled successfully');
             setIsModalOpen(false);
             fetchData();
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to schedule maintenance');
+            toastManager.error(err.response?.data?.message || 'Failed to schedule maintenance');
         }
     };
 
@@ -61,10 +61,10 @@ const MaintenanceIndex = () => {
         if (!window.confirm('Are you sure you want to cancel this maintenance?')) return;
         try {
             await maintenanceService.deleteSchedule(id);
-            toast.success('Maintenance cancelled');
+            toastManager.success('Maintenance cancelled');
             fetchData();
         } catch (err) {
-            toast.error('Failed to cancel maintenance');
+            toastManager.error('Failed to cancel maintenance');
         }
     };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiDollarSign, FiCheck, FiX, FiEye, FiClock, FiUsers, FiTrendingUp, FiAlertCircle, FiDownload, FiRefreshCw } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import Modal from '../../components/Modal';
 import Button from '../../components/Button';
 import adminSettlementService from '../../../../services/adminSettlementService';
@@ -70,7 +70,7 @@ const SettlementManagement = () => {
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.error('Failed to load data');
+      toastManager.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -130,65 +130,65 @@ const SettlementManagement = () => {
       setActionLoading(true);
       const res = await adminSettlementService.approveSettlement(selectedItem._id);
       if (res.success) {
-        toast.success('Settlement approved!');
+        toastManager.success('Settlement approved!');
         loadData();
         closeModals();
       } else {
-        toast.error(res.message || 'Failed to approve');
+        toastManager.error(res.message || 'Failed to approve');
       }
     } catch (error) {
-      toast.error('Failed to approve');
+      toastManager.error('Failed to approve');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleRejectSettlement = async () => {
-    if (!modalInput.trim()) return toast.error('Rejection reason is required');
+    if (!modalInput.trim()) return toastManager.error('Rejection reason is required');
     try {
       setActionLoading(true);
       const res = await adminSettlementService.rejectSettlement(selectedItem._id, modalInput);
       if (res.success) {
-        toast.success('Settlement rejected');
+        toastManager.success('Settlement rejected');
         loadData();
         closeModals();
       }
     } catch (error) {
-      toast.error('Failed to reject');
+      toastManager.error('Failed to reject');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleBlockVendor = async () => {
-    if (!modalInput.trim()) return toast.error('Blocking reason is required');
+    if (!modalInput.trim()) return toastManager.error('Blocking reason is required');
     try {
       setActionLoading(true);
       const res = await adminSettlementService.blockVendor(selectedItem._id, modalInput);
       if (res.success) {
-        toast.success('Owner blocked');
+        toastManager.success('Owner blocked');
         loadData();
         closeModals();
       }
     } catch (error) {
-      toast.error('Failed to block');
+      toastManager.error('Failed to block');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleUpdateLimitSubmit = async () => {
-    if (!modalInput || isNaN(modalInput)) return toast.error('Valid limit required');
+    if (!modalInput || isNaN(modalInput)) return toastManager.error('Valid limit required');
     try {
       setActionLoading(true);
       const res = await adminSettlementService.updateCashLimit(selectedItem._id, parseInt(modalInput));
       if (res.success) {
-        toast.success('Limit updated');
+        toastManager.success('Limit updated');
         loadData();
         closeModals();
       }
     } catch (error) {
-      toast.error('Failed to update limit');
+      toastManager.error('Failed to update limit');
     } finally {
       setActionLoading(false);
     }
@@ -199,12 +199,12 @@ const SettlementManagement = () => {
       setActionLoading(true);
       const res = await adminSettlementService.unblockVendor(selectedItem._id);
       if (res.success) {
-        toast.success('Owner unblocked');
+        toastManager.success('Owner unblocked');
         loadData();
         closeModals();
       }
     } catch (error) {
-      toast.error('Failed to unblock');
+      toastManager.error('Failed to unblock');
     } finally {
       setActionLoading(false);
     }
@@ -216,29 +216,29 @@ const SettlementManagement = () => {
       setActionLoading(true);
       const res = await adminSettlementService.approveWithdrawal(selectedItem._id, { transactionReference: ref });
       if (res.success) {
-        toast.success('Withdrawal approved');
+        toastManager.success('Withdrawal approved');
         loadData();
         closeModals();
       }
     } catch (error) {
-      toast.error('Failed to approve');
+      toastManager.error('Failed to approve');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleRejectWithdrawalSubmit = async () => {
-    if (!modalInput.trim()) return toast.error('Rejection reason required');
+    if (!modalInput.trim()) return toastManager.error('Rejection reason required');
     try {
       setActionLoading(true);
       const res = await adminSettlementService.rejectWithdrawal(selectedItem._id, modalInput);
       if (res.success) {
-        toast.success('Withdrawal rejected');
+        toastManager.success('Withdrawal rejected');
         loadData();
         closeModals();
       }
     } catch (error) {
-      toast.error('Failed to reject');
+      toastManager.error('Failed to reject');
     } finally {
       setActionLoading(false);
     }
@@ -292,7 +292,7 @@ const SettlementManagement = () => {
         { key: 'createdAt', label: 'Date', type: 'datetime' }
       ]);
     } else {
-      toast.error('No data to export');
+      toastManager.error('No data to export');
     }
   };
 

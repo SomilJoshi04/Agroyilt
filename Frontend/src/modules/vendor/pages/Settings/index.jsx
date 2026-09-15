@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiVolume2, FiGlobe, FiInfo, FiLogOut, FiTrash2, FiMapPin, FiShield } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { vendorAuthService } from '../../../../services/authService';
 import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
@@ -34,10 +34,10 @@ const Settings = () => {
       const response = await api.post('/vendors/fcm-tokens/test');
       console.log('[Test Notification] API response:', response.data);
       if (response.data.success) {
-        toast.success('Test push notification sent successfully!');
+        toastManager.success('Test push notification sent successfully!');
       } else {
         console.warn('[Test Notification] Backend returned success false:', response.data.error);
-        toast.error(response.data.error || 'Failed to send test notification');
+        toastManager.error(response.data.error || 'Failed to send test notification');
       }
     } catch (error) {
       console.error('[Test Notification] Error sending test notification:', error);
@@ -45,7 +45,7 @@ const Settings = () => {
         console.error('[Test Notification] Error response status:', error.response.status);
         console.error('[Test Notification] Error response data:', error.response.data);
       }
-      toast.error(error.response?.data?.error || 'Failed to send test notification');
+      toastManager.error(error.response?.data?.error || 'Failed to send test notification');
     } finally {
       setSendingTest(false);
       console.log('[Test Notification] Finished flow');
@@ -95,17 +95,17 @@ const Settings = () => {
         // Turning ON
         try {
           await registerFCMToken('vendor', true);
-          toast.success('Notifications enabled');
+          toastManager.success('Notifications enabled');
         } catch (error) {
           console.error('Error enabling notifications:', error);
-          toast.error('Failed to enable notifications');
+          toastManager.error('Failed to enable notifications');
           // Revert toggle if failed? For now, we keep UI in sync with intent.
         }
       } else {
         // Turning OFF
         try {
           await removeFCMToken('vendor');
-          toast.success('Notifications disabled');
+          toastManager.success('Notifications disabled');
         } catch (error) {
           console.error('Error disabling notifications:', error);
         }
@@ -122,14 +122,14 @@ const Settings = () => {
   const handleLogout = async () => {
     try {
       await vendorAuthService.logout();
-      toast.success('Logged out successfully');
+      toastManager.success('Logged out successfully');
       navigate('/vendor/login');
     } catch (error) {
       // Even if API call fails, clear local storage
       localStorage.removeItem('vendorAccessToken');
       localStorage.removeItem('vendorRefreshToken');
       localStorage.removeItem('vendorData');
-      toast.success('Logged out successfully');
+      toastManager.success('Logged out successfully');
       navigate('/vendor/login');
     }
   };
@@ -369,15 +369,15 @@ const Settings = () => {
                     try {
                       const response = await vendorAuthService.deleteAccount();
                       if (response.success) {
-                        toast.success('Account deleted successfully.');
+                        toastManager.success('Account deleted successfully.');
                         navigate('/vendor/login', { replace: true });
                       } else {
-                        toast.error(response.message || 'Failed to delete account.');
+                        toastManager.error(response.message || 'Failed to delete account.');
                         setIsDeleting(false);
                         setShowDeleteConfirm(false);
                       }
                     } catch (error) {
-                      toast.error('Failed to delete account. Please try again.');
+                      toastManager.error('Failed to delete account. Please try again.');
                       setIsDeleting(false);
                       setShowDeleteConfirm(false);
                     }

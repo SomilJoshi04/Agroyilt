@@ -5,7 +5,7 @@ import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import { requestWithdrawal, getWalletBalance, getWithdrawalHistory } from '../../services/walletService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
 const WithdrawalRequest = () => {
@@ -99,26 +99,26 @@ const WithdrawalRequest = () => {
 
   const saveBankDetails = () => {
     if (!bankAccount.accountHolderName || !bankAccount.accountNumber || !bankAccount.bankName || !bankAccount.ifscCode) {
-      toast.error('Please fill all mandatory bank details');
+      toastManager.error('Please fill all mandatory bank details');
       return;
     }
 
     if (bankAccount.accountNumber !== bankAccount.confirmAccountNumber) {
-      toast.error('Account numbers do not match');
+      toastManager.error('Account numbers do not match');
       return;
     }
 
     localStorage.setItem('vendorBankAccount', JSON.stringify(bankAccount));
     setIsBankSaved(true);
     setShowBankForm(false);
-    toast.success('Bank details updated');
+    toastManager.success('Bank details updated');
   };
 
   const handleSubmit = async () => {
     const numAmount = parseInt(amount) || 0;
     if (!amount || numAmount === 0 || error) return;
     if (!isBankSaved) {
-      toast.error('Please add bank details');
+      toastManager.error('Please add bank details');
       return;
     }
 
@@ -128,11 +128,11 @@ const WithdrawalRequest = () => {
         amount: numAmount,
         bankDetails: bankAccount
       });
-      toast.success('Request sent successfully!');
+      toastManager.success('Request sent successfully!');
       window.dispatchEvent(new Event('vendorWalletUpdated'));
       navigate('/vendor/wallet');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Submission failed.');
+      toastManager.error(error.response?.data?.message || 'Submission failed.');
     } finally {
       setLoading(false);
     }

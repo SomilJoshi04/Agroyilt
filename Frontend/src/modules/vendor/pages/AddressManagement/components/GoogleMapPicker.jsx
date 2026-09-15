@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { toastManager } from '../../../../../utils/toastManager';
+
 
 const libraries = ['places', 'geometry'];
 
@@ -125,7 +127,7 @@ const GoogleMapPicker = ({ onLocationSelect, initialPosition = null }) => {
         },
         (error) => {
           console.error('Error getting location:', error);
-          alert('Unable to get your current location. Please select manually on the map.');
+          toastManager.info('Unable to get your current location. Please select manually on the map.');
         }
       );
     }

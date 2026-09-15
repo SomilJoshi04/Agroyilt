@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FiX, FiMapPin, FiClock, FiBell, FiUser, FiCalendar, FiDollarSign } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { playAlertRing, stopAlertRing } from '../../../../utils/notificationSound';
 import workerService from '../../../../services/workerService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onRequestResponded }) => {
   const [timeLeft, setTimeLeft] = useState(60);
   const [loadingAction, setLoadingAction] = useState(null);
+  const [showRateInput, setShowRateInput] = useState(false);
+  const [offeredRate, setOfferedRate] = useState(0);
 
   useEffect(() => {
     if (isOpen && requestData) {
@@ -42,22 +45,26 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
   };
 
   const handleAccept = async () => {
+    if (!showRateInput && requestData?.isFarmerBroadcast && requestData?.maxRate) {
+      setShowRateInput(true);
+      return;
+    }
     if (loadingAction) return;
     setLoadingAction('accept');
     try {
       const res = requestData.isFarmerBroadcast
-        ? await workerService.respondToFarmerRequest(requestData.requestId, 'accept')
+        ? await workerService.respondToFarmerRequest(requestData.requestId, 'accept', { offeredRate: Number(offeredRate) })
         : await workerService.respondToRequest(requestData.requestId, 'accept');
 
       if (res.success) {
-        toast.success('Booking Request Accepted!');
+        toastManager.success('Booking Request Accepted!');
         onRequestResponded && onRequestResponded();
         onClose();
       } else {
-        toast.error(res.message || 'Failed to accept request');
+        toastManager.error(res.message || 'Failed to accept request');
       }
     } catch (error) {
-      toast.error('Failed to accept request');
+      toastManager.error('Failed to accept request');
     } finally {
       setLoadingAction(null);
     }
@@ -72,14 +79,14 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
         : await workerService.respondToRequest(requestData.requestId, 'reject');
 
       if (res.success) {
-        toast.success('Request Declined');
+        toastManager.success('Request Declined');
         onRequestResponded && onRequestResponded();
         onClose();
       } else {
-        toast.error(res.message || 'Failed to reject request');
+        toastManager.error(res.message || 'Failed to reject request');
       }
     } catch (error) {
-      toast.error('Failed to decline request');
+      toastManager.error('Failed to decline request');
     } finally {
       setLoadingAction(null);
     }
@@ -92,14 +99,14 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
   const progress = (timeLeft / 60) * circumference;
   const dashoffset = circumference - progress;
 
-  return (
+  const content = (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto overflow-x-hidden">
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 40 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 40 }}
-          className="bg-white w-full max-w-sm rounded-[3rem] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] relative flex flex-col"
+          className="bg-white w-full max-w-sm max-h-[85dvh] rounded-[3rem] overflow-y-auto overflow-x-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] relative flex flex-col"
         >
           {/* Header Section */}
           <div className="relative h-44 bg-gradient-to-br from-green-600 to-emerald-800 flex flex-col items-center justify-center pt-4 shrink-0">
@@ -218,27 +225,48 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
             </div>
           </div>
 
+                    {/* Rate Input Section */}
+          {showRateInput && (
+            <div className="px-6 pt-4 pb-2 bg-white shrink-0 animate-fade-in">
+              <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2">Your Required Rate (₹)</label>
+                <input 
+                  type="number" 
+                  value={offeredRate}
+                  onChange={(e) => setOfferedRate(e.target.value)}
+                  min={requestData?.minRate || 0}
+                  max={requestData?.maxRate || 0}
+                  className="w-full bg-white border-2 border-emerald-200 rounded-xl px-4 py-3 text-lg font-black text-emerald-900 focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+                <p className="text-[10px] text-emerald-600 mt-2 font-bold">
+                  Farmer's Budget: ₹{requestData?.minRate} - ₹{requestData?.maxRate}
+                </p>
+              </div>
+            </div>
+          )}
           {/* Action Buttons */}
           <div className="px-6 pb-6 pt-2 bg-white flex gap-3 shrink-0">
             <button
-              onClick={handleReject}
+              onClick={showRateInput ? () => setShowRateInput(false) : handleReject}
               disabled={loadingAction !== null}
               className={`flex-1 py-4 bg-gray-50 text-gray-600 rounded-2xl font-black text-sm active:scale-95 transition-all border border-gray-200 ${loadingAction === 'reject' ? 'opacity-50' : ''}`}
             >
-              {loadingAction === 'reject' ? 'Declining...' : 'Decline'}
+              {showRateInput ? 'Cancel' : (loadingAction === 'reject' ? 'Declining...' : 'Decline')}
             </button>
             <button
               onClick={handleAccept}
               disabled={loadingAction !== null}
               className={`flex-[2] py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg shadow-emerald-200 ${loadingAction === 'accept' ? 'opacity-50' : ''}`}
             >
-              {loadingAction === 'accept' ? 'Accepting...' : 'Accept Job'}
+              {showRateInput ? (loadingAction === 'accept' ? 'Submitting...' : 'Submit Rate') : (loadingAction === 'accept' ? 'Accepting...' : 'Accept Job')}
             </button>
           </div>
         </motion.div>
       </div>
     </AnimatePresence>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 };
 
 export default WorkerBookingRequestAlertModal;

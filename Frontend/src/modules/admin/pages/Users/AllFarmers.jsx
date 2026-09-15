@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiUser, FiPhone, FiMail, FiCheckCircle, FiSlash, FiCheck, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { adminUserService } from '../../../../services/adminUserService';
 
 const AllFarmers = () => {
@@ -28,20 +28,20 @@ const AllFarmers = () => {
   const handleAddFarmer = async (e) => {
     e.preventDefault();
     if (!newFarmer.name || !newFarmer.phone) {
-      return toast.error('Name and Phone are required');
+      return toastManager.error('Name and Phone are required');
     }
     
     try {
       setIsAdding(true);
       const response = await adminUserService.addUser(newFarmer);
       if (response.success) {
-        toast.success(response.message || 'Farmer added successfully');
+        toastManager.success(response.message || 'Farmer added successfully');
         setIsAddModalOpen(false);
         setNewFarmer({ name: '', phone: '', email: '' });
         fetchUsers();
       }
     } catch (error) {
-      toast.error(error.message || 'Failed to add farmer');
+      toastManager.error(error.message || 'Failed to add farmer');
     } finally {
       setIsAdding(false);
     }
@@ -68,7 +68,7 @@ const AllFarmers = () => {
       }
     } catch (error) {
       console.error('Error fetching farmers:', error);
-      toast.error('Failed to load farmers');
+      toastManager.error('Failed to load farmers');
     } finally {
       setLoading(false);
     }
@@ -86,13 +86,13 @@ const AllFarmers = () => {
     try {
       const response = await adminUserService.toggleUserStatus(userId, !currentStatus);
       if (response.success) {
-        toast.success(response.message);
+        toastManager.success(response.message);
         setUsers(users.map(user =>
           user._id === userId ? { ...user, isActive: !currentStatus } : user
         ));
       }
     } catch (error) {
-      toast.error(error.message || 'Failed to update farmer status');
+      toastManager.error(error.message || 'Failed to update farmer status');
     }
   };
 
@@ -104,11 +104,11 @@ const AllFarmers = () => {
     try {
       const response = await adminUserService.deleteUser(userId);
       if (response.success) {
-        toast.success(response.message);
+        toastManager.success(response.message);
         fetchUsers();
       }
     } catch (error) {
-      toast.error(error.message || 'Failed to delete farmer');
+      toastManager.error(error.message || 'Failed to delete farmer');
     }
   };
 

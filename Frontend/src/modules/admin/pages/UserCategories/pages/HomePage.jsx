@@ -7,6 +7,8 @@ import ToggleSwitch from "../components/ToggleSwitch"; // Import ToggleSwitch
 import { ensureIds, saveCatalog, slugify, toAssetUrl } from "../utils";
 
 import { homeContentService, serviceService } from "../../../../../services/catalogService";
+import { toastManager } from '../../../../../utils/toastManager';
+
 
 const RedirectionSelector = ({
   targetCategoryId,
@@ -488,7 +490,7 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
   const saveCategorySection = async () => {
     try {
       const title = categorySectionForm.title.trim();
-      if (!title) return alert("Section title required");
+      if (!title) return toastManager.info("Section title required");
 
       const sections = home?.categorySections || [];
       if (editingCategorySectionId) {

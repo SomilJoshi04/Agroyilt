@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiCheck, FiTool, FiArrowLeft, FiDollarSign, FiClock, FiKey } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import vendorBillService from '../../../../services/vendorBillService';
 import vendorWalletService from '../../../../services/vendorWalletService';
 import { getBookingById } from '../../services/bookingService';
@@ -84,7 +84,7 @@ const BillingPage = () => {
       }
     } catch (error) {
       console.error('Error loading billing data:', error);
-      toast.error('Failed to load data');
+      toastManager.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -131,18 +131,18 @@ const BillingPage = () => {
       });
 
       if (res.success) {
-        toast.success('Bill generated successfully!');
+        toastManager.success('Bill generated successfully!');
         localStorage.removeItem(`billing_step_${id}`);
         localStorage.removeItem(`billing_max_step_${id}`);
         localStorage.removeItem(`billing_data_${id}`);
         navigate(`/vendor/booking/${id}`);
       } else {
-        toast.error(res.message || 'Failed to generate bill');
+        toastManager.error(res.message || 'Failed to generate bill');
         setSubmitting(false);
       }
     } catch (error) {
       console.error('Submit bill error:', error);
-      toast.error('An error occurred');
+      toastManager.error('An error occurred');
       setSubmitting(false);
     }
   };
@@ -169,13 +169,13 @@ const BillingPage = () => {
       if (res.success) {
         setIsOtpSent(true);
         setShowOtpModal(true);
-        toast.success('OTP sent to customer!');
+        toastManager.success('OTP sent to customer!');
       } else {
-        toast.error(res.message || 'Failed to send OTP');
+        toastManager.error(res.message || 'Failed to send OTP');
       }
     } catch (error) {
       console.error('Send OTP error:', error);
-      toast.error('Failed to send OTP');
+      toastManager.error('Failed to send OTP');
     } finally {
       setOtpLoading(false);
     }
@@ -193,17 +193,17 @@ const BillingPage = () => {
 
       if (res.success) {
         setShowOtpModal(false);
-        toast.success('Payment verified successfully!');
+        toastManager.success('Payment verified successfully!');
         localStorage.removeItem(`billing_step_${id}`);
         localStorage.removeItem(`billing_max_step_${id}`);
         localStorage.removeItem(`billing_data_${id}`);
         navigate(`/vendor/booking/${id}`);
       } else {
-        toast.error(res.message || 'Invalid OTP');
+        toastManager.error(res.message || 'Invalid OTP');
       }
     } catch (error) {
       console.error('Verify OTP error:', error);
-      toast.error('Verification failed');
+      toastManager.error('Verification failed');
     } finally {
       setOtpLoading(false);
     }

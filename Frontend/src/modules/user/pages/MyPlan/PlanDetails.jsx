@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiCheck, FiCalendar, FiClock, FiCreditCard, FiInfo, FiShield, FiStar, FiZap, FiCheckCircle } from 'react-icons/fi';
 import { getPlans } from '../../services/planService';
 import { userAuthService } from '../../../../services/authService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
 const PlanDetails = () => {
@@ -29,7 +29,7 @@ const PlanDetails = () => {
         if (found) {
           setPlan(found);
         } else {
-          toast.error('Plan not found');
+          toastManager.error('Plan not found');
           navigate('/user/my-plan');
         }
       }
@@ -37,7 +37,7 @@ const PlanDetails = () => {
 
     } catch (error) {
       console.error(error);
-      toast.error('Could not load data');
+      toastManager.error('Could not load data');
     } finally {
       setLoading(false);
     }

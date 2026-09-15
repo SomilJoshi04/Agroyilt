@@ -11,7 +11,7 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import ecommerceService from '../../../../services/ecommerceService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 
@@ -40,7 +40,7 @@ const MyAgriOrders = () => {
             const res = await ecommerceService.getMyOrders();
             if (res.success) setOrders(res.data || []);
         } catch (err) {
-            if (!silent) toast.error("Failed to load orders");
+            if (!silent) toastManager.error("Failed to load orders");
         } finally {
             setLoading(false);
             setIsRefreshing(false);
@@ -53,13 +53,13 @@ const MyAgriOrders = () => {
         try {
             const res = await ecommerceService.cancelOrder(orderId);
             if (res.success) {
-                toast.success("Order cancelled successfully");
+                toastManager.success("Order cancelled successfully");
                 fetchOrders(); // Refresh
             } else {
-                toast.error(res.message || "Failed to cancel order");
+                toastManager.error(res.message || "Failed to cancel order");
             }
         } catch (err) {
-            toast.error("Internal error. Please try again.");
+            toastManager.error("Internal error. Please try again.");
         }
     };
 

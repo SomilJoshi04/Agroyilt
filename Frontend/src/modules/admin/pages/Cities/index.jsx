@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { cityService } from '../../services/cityService';
 import { HiPlus, HiPencil, HiTrash, HiCheck, HiX } from 'react-icons/hi';
 
@@ -27,7 +27,7 @@ const CityManagement = () => {
         setCities(response.cities);
       }
     } catch (error) {
-      toast.error('Failed to load cities');
+      toastManager.error('Failed to load cities');
     } finally {
       setLoading(false);
     }
@@ -42,17 +42,17 @@ const CityManagement = () => {
     try {
       if (editingCity) {
         await cityService.update(editingCity._id, formData);
-        toast.success('City updated successfully');
+        toastManager.success('City updated successfully');
       } else {
         await cityService.create(formData);
-        toast.success('City created successfully');
+        toastManager.success('City created successfully');
       }
       setIsModalOpen(false);
       setEditingCity(null);
       resetForm();
       fetchCities();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Operation failed');
+      toastManager.error(error.response?.data?.message || 'Operation failed');
     }
   };
 
@@ -60,20 +60,20 @@ const CityManagement = () => {
     if (!window.confirm('Are you sure you want to delete this city?')) return;
     try {
       await cityService.delete(id);
-      toast.success('City deleted successfully');
+      toastManager.success('City deleted successfully');
       fetchCities();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Delete failed');
+      toastManager.error(error.response?.data?.message || 'Delete failed');
     }
   };
 
   const handleToggleStatus = async (id) => {
     try {
       await cityService.toggleStatus(id);
-      toast.success('Status updated');
+      toastManager.success('Status updated');
       fetchCities();
     } catch (error) {
-      toast.error('Status update failed');
+      toastManager.error('Status update failed');
     }
   };
 

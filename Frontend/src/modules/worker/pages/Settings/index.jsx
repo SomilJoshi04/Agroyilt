@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiVolume2, FiGlobe, FiLogOut, FiShield } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { workerTheme as themeColors } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
 import Header from '../../components/layout/Header';
@@ -74,7 +74,7 @@ const Settings = () => {
       }
     } catch (error) {
       console.error('Update settings failed:', error);
-      toast.error('Failed to sync settings with server');
+      toastManager.error('Failed to sync settings with server');
     }
     return false;
   };
@@ -90,16 +90,16 @@ const Settings = () => {
         // Turning ON
         try {
           await registerFCMToken('worker', true);
-          toast.success('Notifications enabled');
+          toastManager.success('Notifications enabled');
         } catch (error) {
           console.error('Error enabling notifications:', error);
-          toast.error('Failed to enable notifications');
+          toastManager.error('Failed to enable notifications');
         }
       } else {
         // Turning OFF
         try {
           await removeFCMToken('worker');
-          toast.success('Notifications disabled');
+          toastManager.success('Notifications disabled');
         } catch (error) {
           console.error('Error disabling notifications:', error);
         }
@@ -117,14 +117,14 @@ const Settings = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       try {
         await workerAuthService.logout();
-        toast.success('Logged out successfully');
+        toastManager.success('Logged out successfully');
         navigate('/worker/login');
       } catch (error) {
         // Even if API call fails, clear local storage
         localStorage.removeItem('workerAccessToken');
         localStorage.removeItem('workerRefreshToken');
         localStorage.removeItem('workerData');
-        toast.success('Logged out successfully');
+        toastManager.success('Logged out successfully');
         navigate('/worker/login');
       }
     }

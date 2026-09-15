@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiCheck, FiX, FiMapPin, FiFileText, FiUser, FiShoppingBag, FiExternalLink, FiClock } from 'react-icons/fi';
 import api from '../../../../services/api';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 const StoreApprovals = () => {
     const [requests, setRequests] = useState([]);
@@ -20,7 +20,7 @@ const StoreApprovals = () => {
                 setRequests(res.data.data);
             }
         } catch (err) {
-            toast.error("Failed to load shop approvals");
+            toastManager.error("Failed to load shop approvals");
         } finally {
             setLoading(false);
         }
@@ -30,12 +30,12 @@ const StoreApprovals = () => {
         try {
             const res = await api.post(`/admin/vendors/shop-approvals/${id}`, { status, remarks });
             if (res.data.success) {
-                toast.success(`Shop ${status} successfully`);
+                toastManager.success(`Shop ${status} successfully`);
                 fetchRequests();
                 setSelectedReq(null);
             }
         } catch (err) {
-            toast.error("Action failed");
+            toastManager.error("Action failed");
         }
     };
 

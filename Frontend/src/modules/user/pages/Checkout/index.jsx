@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { FiArrowLeft, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiPhone, FiHome, FiClock, FiEdit2, FiCheckCircle, FiInfo, FiCreditCard, FiDollarSign } from 'react-icons/fi';
 import { MdStar } from 'react-icons/md';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 import AddressSelectionModal from './components/AddressSelectionModal';
 import TimeSlotModal from './components/TimeSlotModal';
@@ -250,10 +250,10 @@ const Checkout = () => {
           setCartItems(items);
         }
       } else {
-        toast.error(response.message || 'Failed to update quantity');
+        toastManager.error(response.message || 'Failed to update quantity');
       }
     } catch (error) {
-      toast.error('Failed to update quantity');
+      toastManager.error('Failed to update quantity');
     }
   };
 
@@ -261,15 +261,15 @@ const Checkout = () => {
     try {
       const response = await cartService.removeItem(itemId);
       if (response.success) {
-        toast.success('Item removed');
+        toastManager.success('Item removed');
         // Refresh global cart badge
         fetchCartGlobal();
         loadCart();
       } else {
-        toast.error(response.message || 'Failed to remove item');
+        toastManager.error(response.message || 'Failed to remove item');
       }
     } catch (error) {
-      toast.error('Failed to remove item');
+      toastManager.error('Failed to remove item');
     }
   };
 
@@ -305,7 +305,7 @@ const Checkout = () => {
 
       const firstItem = cartItems[0];
       if (!firstItem) {
-        toast.error('Your cart is empty');
+        toastManager.error('Your cart is empty');
         return;
       }
       const serviceId = typeof firstItem.serviceId === 'object'
@@ -423,7 +423,7 @@ const Checkout = () => {
         }
       }
     } catch (error) {
-      toast.error('Failed to initiate booking request. Please try again.');
+      toastManager.error('Failed to initiate booking request. Please try again.');
       setShowVendorModal(false);
       setSearchingVendors(false);
     }
@@ -464,7 +464,7 @@ const Checkout = () => {
         setAcceptedVendor(vendorData);
         setCurrentStep('accepted');
         setSearchingVendors(false);
-        toast.success(`${vendorData.businessName} accepted your booking!`);
+        toastManager.success(`${vendorData.businessName} accepted your booking!`, { id: `booking_accepted:${data.bookingId}` });
 
         // Close modal after 2 seconds and navigate to confirmation
         setTimeout(() => {
@@ -489,24 +489,24 @@ const Checkout = () => {
         // daily/land_based/monthly: only date required (no time selection needed)
         const needsTime = rentalType === 'hourly';
         if (!selectedDate || (needsTime && !selectedTime)) {
-          toast.error('Please select date & time slot');
+          toastManager.error('Please select date & time slot');
           setShowTimeSlotModal(true);
           return;
         }
         if (!addressDetails) {
-          toast.error('Please select address');
+          toastManager.error('Please select address');
           return;
         }
       } else {
         // Instant
         if (!addressDetails) {
-          toast.error('Please select address');
+          toastManager.error('Please select address');
           return;
         }
       }
 
       if (cartItems.length === 0 && !bookingRequest) {
-        toast.error('Cart is empty');
+        toastManager.error('Cart is empty');
         return;
       }
 
@@ -518,7 +518,7 @@ const Checkout = () => {
       // Get first service
       const firstItem = cartItems[0];
       if (!firstItem.serviceId) {
-        toast.error('Service information missing. Please try again.');
+        toastManager.error('Service information missing. Please try again.');
         setCurrentStep('details');
         setSearchingVendors(false);
         setShowVendorModal(false);
@@ -562,7 +562,7 @@ const Checkout = () => {
       }
 
       // Create booking request
-      toast.loading(isWorkerBooking ? 'Searching for nearby workers...' : 'Searching for nearby vendors...');
+      toastManager.info(isWorkerBooking ? 'Searching for nearby workers...' : 'Searching for nearby vendors...');
 
       // Ensure serviceId is a string (handle populated cart data)
       const serviceId = typeof firstItem.serviceId === 'object'
@@ -643,7 +643,7 @@ const Checkout = () => {
 
       if (!bookingResponse.success) {
         toast.dismiss();
-        toast.error(bookingResponse.message || (isWorkerBooking ? 'Failed to search for workers' : 'Failed to search for vendors'));
+        toastManager.error(bookingResponse.message || (isWorkerBooking ? 'Failed to search for workers' : 'Failed to search for vendors'));
         setCurrentStep('details');
         setSearchingVendors(false);
         setShowVendorModal(false);
@@ -685,12 +685,12 @@ const Checkout = () => {
         } else {
           // Fallback if ID is missing for some reason
           setCurrentStep('details');
-          toast.error('Booking created but ID missing. Check My Bookings.');
+          toastManager.error('Booking created but ID missing. Check My Bookings.');
         }
       } else {
         // Move to waiting state - alerts sent to nearby vendors
         setCurrentStep('waiting');
-        toast.success(isWorkerBooking ? 'Finding nearby workers... Alerts sent to workers within 10km!' : 'Finding nearby vendors... Alerts sent to vendors within 10km!');
+        toastManager.success(isWorkerBooking ? 'Finding nearby workers... Alerts sent to workers within 10km!' : 'Finding nearby vendors... Alerts sent to vendors within 10km!');
       }
 
       // REMOVED local setCartItems([]) - The summary should remain visible while searching
@@ -699,7 +699,7 @@ const Checkout = () => {
     } catch (error) {
       toast.dismiss();
       console.error('Search vendors error:', error);
-      toast.error(isWorkerBooking ? 'Failed to search for workers. Please try again.' : 'Failed to search for vendors. Please try again.');
+      toastManager.error(isWorkerBooking ? 'Failed to search for workers. Please try again.' : 'Failed to search for vendors. Please try again.');
       setCurrentStep('details');
       setSearchingVendors(false);
       setShowVendorModal(false);
@@ -710,17 +710,17 @@ const Checkout = () => {
   const handleOnlinePayment = async () => {
     try {
       if (!acceptedVendor || !bookingRequest) {
-        toast.error('No vendor selected or booking not created');
+        toastManager.error('No vendor selected or booking not created');
         return;
       }
 
       // Create Razorpay order
-      toast.loading('Creating payment order...');
+      toastManager.info('Creating payment order...');
       const orderResponse = await paymentService.createOrder(bookingRequest._id);
 
       if (!orderResponse.success) {
         toast.dismiss();
-        toast.error(orderResponse.message || 'Failed to create payment order');
+        toastManager.error(orderResponse.message || 'Failed to create payment order');
         return;
       }
 
@@ -729,12 +729,12 @@ const Checkout = () => {
       // Get Razorpay key
       const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
       if (!razorpayKey) {
-        toast.error('Razorpay key not configured');
+        toastManager.error('Razorpay key not configured');
         return;
       }
 
       if (!window.Razorpay) {
-        toast.error('Razorpay SDK not loaded');
+        toastManager.error('Razorpay SDK not loaded');
         return;
       }
 
@@ -747,7 +747,7 @@ const Checkout = () => {
         description: `Payment for ${bookingRequest.serviceName || 'service'}`,
         handler: async function (response) {
           try {
-            toast.loading('Verifying payment...');
+            toastManager.info('Verifying payment...');
             const verifyResponse = await paymentService.verifyPayment({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
@@ -757,7 +757,7 @@ const Checkout = () => {
             toast.dismiss();
 
             if (verifyResponse.success) {
-              toast.success('Payment successful!');
+              toastManager.success('Payment successful!');
 
               // Clear cart (or just category items)
               try {
@@ -775,11 +775,11 @@ const Checkout = () => {
                 replace: true
               });
             } else {
-              toast.error(verifyResponse.message || 'Payment verification failed');
+              toastManager.error(verifyResponse.message || 'Payment verification failed');
             }
           } catch (error) {
             toast.dismiss();
-            toast.error('Failed to verify payment');
+            toastManager.error('Failed to verify payment');
           }
         },
         prefill: {
@@ -795,25 +795,25 @@ const Checkout = () => {
       const razorpay = new window.Razorpay(options);
       razorpay.on('payment.failed', function (response) {
         toast.dismiss();
-        toast.error(`Payment failed: ${response.error.description || 'Unknown error'}`);
+        toastManager.error(`Payment failed: ${response.error.description || 'Unknown error'}`);
       });
       razorpay.open();
 
     } catch (error) {
       toast.dismiss();
-      toast.error('Failed to process payment');
+      toastManager.error('Failed to process payment');
     }
   };
 
   const handlePayAtHome = async () => {
     try {
       if (!bookingRequest) return;
-      toast.loading('Confirming booking...');
+      toastManager.info('Confirming booking...');
       const response = await paymentService.confirmPayAtHome(bookingRequest._id);
       toast.dismiss();
 
       if (response.success) {
-        toast.success('Booking confirmed!');
+        toastManager.success('Booking confirmed!');
         // Clear cart (or just category items)
         try {
           if (category) {
@@ -829,18 +829,18 @@ const Checkout = () => {
           replace: true
         });
       } else {
-        toast.error(response.message || 'Failed to confirm booking');
+        toastManager.error(response.message || 'Failed to confirm booking');
       }
     } catch (error) {
       toast.dismiss();
-      toast.error('Failed to process request');
+      toastManager.error('Failed to process request');
     }
   };
 
   const handlePayment = async () => {
     if (totalAmount === 0) {
       // Free booking covered by plan
-      toast.success('Booking confirmed!');
+      toastManager.success('Booking confirmed!');
       // Clear cart
       try {
         await clearCartGlobal();
@@ -887,7 +887,7 @@ const Checkout = () => {
         if (response.success && response.user) {
           const updatedAddresses = [newAddress]; // Always replace with single address
           await userAuthService.updateProfile({ addresses: updatedAddresses });
-          toast.success('Address updated in profile!');
+          toastManager.success('Address updated in profile!');
         }
       } catch (e) {
         console.error('Failed to save address to profile', e);
@@ -928,7 +928,7 @@ const Checkout = () => {
           }
         } catch (error) {
           console.error(error);
-          toast.error('Failed to calculate upgrade price');
+          toastManager.error('Failed to calculate upgrade price');
         }
       };
       fetchUpgradeDetails();
@@ -938,7 +938,7 @@ const Checkout = () => {
   const handlePlanPayment = async () => {
     try {
       if (!razorpayLoaded) {
-        toast.error('Payment gateway not ready');
+        toastManager.error('Payment gateway not ready');
         return;
       }
 
@@ -961,10 +961,10 @@ const Checkout = () => {
                 razorpay_signature: response.razorpay_signature,
                 planId: plan.id
               });
-              toast.success('Subscription activated successfully!');
+              toastManager.success('Subscription activated successfully!');
               navigate('/user');
             } catch (e) {
-              toast.error('Verification failed');
+              toastManager.error('Verification failed');
             }
           },
           prefill: {
@@ -979,7 +979,7 @@ const Checkout = () => {
       }
     } catch (error) {
       console.error(error);
-      toast.error('Payment initiation failed');
+      toastManager.error('Payment initiation failed');
     }
   };
 
@@ -1920,11 +1920,11 @@ const Checkout = () => {
                 <button
                   onClick={() => {
                     if (contactDetails.name.length < 2) {
-                      toast.error('Please enter a valid name');
+                      toastManager.error('Please enter a valid name');
                       return;
                     }
                     if (!contactDetails.phone || contactDetails.phone.length < 10) {
-                      toast.error('Please enter a valid 10-digit phone number');
+                      toastManager.error('Please enter a valid 10-digit phone number');
                       return;
                     }
                     setShowContactModal(false);

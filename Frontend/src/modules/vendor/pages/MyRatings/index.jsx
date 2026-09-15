@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiStar, FiArrowLeft, FiUser, FiCalendar, FiMessageSquare, FiFilter, FiLoader } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { getRatings } from '../../services/bookingService';
 import Header from '../../components/layout/Header';
@@ -22,11 +22,11 @@ const MyRatings = () => {
         setStats(response.stats);
         setPagination(response.pagination);
       } else {
-        toast.error(response.message || 'Failed to fetch ratings');
+        toastManager.error(response.message || 'Failed to fetch ratings');
       }
     } catch (error) {
       console.error('Error fetching ratings:', error);
-      toast.error('Failed to load ratings');
+      toastManager.error('Failed to load ratings');
     } finally {
       setIsLoading(false);
     }

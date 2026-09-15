@@ -5,7 +5,7 @@ import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import workerWalletService from '../../../../services/workerWalletService';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
 const Wallet = () => {
@@ -59,7 +59,7 @@ const Wallet = () => {
       }
     } catch (error) {
       console.error('Error loading wallet:', error);
-      toast.error('Failed to load wallet data');
+      toastManager.error('Failed to load wallet data');
     } finally {
       setLoading(false);
     }
@@ -70,9 +70,9 @@ const Wallet = () => {
     try {
       setPayoutLoading(bookingId);
       await workerWalletService.requestPayout(bookingId);
-      toast.success('Payout request sent to vendor');
+      toastManager.success('Payout request sent to vendor');
     } catch (error) {
-      toast.error(error.message || 'Failed to request payout');
+      toastManager.error(error.message || 'Failed to request payout');
     } finally {
       setPayoutLoading(false);
     }

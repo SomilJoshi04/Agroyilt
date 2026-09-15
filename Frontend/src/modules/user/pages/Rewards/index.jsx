@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 
 import { FiCopy, FiArrowLeft, FiGift, FiBell } from 'react-icons/fi';
 import { FaWhatsapp, FaFacebookMessenger } from 'react-icons/fa';
@@ -19,7 +19,7 @@ const Rewards = () => {
     
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(referralLink).then(() => {
-        toast.success('Link copied! Ab ise WhatsApp par paste karein.');
+        toastManager.success('Link copied! Ab ise WhatsApp par paste karein.');
       }).catch(err => {
         console.error('Clipboard error:', err);
         fallbackCopyTextToClipboard(referralLink);
@@ -40,9 +40,9 @@ const Rewards = () => {
     textArea.select();
     try {
       document.execCommand('copy');
-      toast.success('Link copied! Ab ise WhatsApp par paste karein.');
+      toastManager.success('Link copied! Ab ise WhatsApp par paste karein.');
     } catch (err) {
-      toast.error('Could not copy link');
+      toastManager.error('Could not copy link');
     }
     document.body.removeChild(textArea);
   };

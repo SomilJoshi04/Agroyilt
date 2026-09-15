@@ -24,7 +24,7 @@ import {
   Cell,
   Legend
 } from 'recharts';
-import { toast } from 'react-hot-toast';
+import { toastManager } from '../../../../utils/toastManager';
 import CardShell from '../UserCategories/components/CardShell';
 import adminReportService from '../../../../services/adminReportService';
 
@@ -45,7 +45,7 @@ const OwnerAnalytics = () => {
       }
     } catch (error) {
       console.error('Owner analytics error:', error);
-      toast.error('Failed to load owner analytics');
+      toastManager.error('Failed to load owner analytics');
     } finally {
       setLoading(false);
     }
