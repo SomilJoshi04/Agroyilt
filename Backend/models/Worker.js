@@ -72,11 +72,6 @@ const workerSchema = new mongoose.Schema({
       default: null
     }
   },
-  vendorId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Vendor',
-    default: null
-  },
   approvalStatus: {
     type: String,
     enum: ['pending', 'approved', 'rejected', 'suspended'],
@@ -108,28 +103,11 @@ const workerSchema = new mongoose.Schema({
     ref: 'RegistrationFeePayment',
     default: null
   },
-  machineProficiency: [{
-    type: String
-  }],
-  specializedExperience: [{
-    type: String
-  }],
   serviceCategories: [{
     type: String
   }],
   skills: [{
     type: String
-  }],
-  servicePricing: [{
-    serviceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Service'
-    },
-    price: Number,
-    isPriceOverride: {
-      type: Boolean,
-      default: false
-    }
   }],
   hourlyRate: {
     type: Number,
@@ -182,10 +160,6 @@ const workerSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  },
-  isTemporary: {
-    type: Boolean,
-    default: false
   },
   isPhoneVerified: {
     type: Boolean,
@@ -249,8 +223,7 @@ const workerSchema = new mongoose.Schema({
 
 // Indexes for faster queries
 workerSchema.index({ status: 1 });
-workerSchema.index({ machineProficiency: 1 });
-workerSchema.index({ vendorId: 1 });
+workerSchema.index({ approvalStatus: 1 });
 
 // Hash password before saving
 workerSchema.pre('save', async function (next) {

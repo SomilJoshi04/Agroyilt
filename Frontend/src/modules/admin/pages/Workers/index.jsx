@@ -1,11 +1,12 @@
 import React from 'react';
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiUsers, FiBriefcase, FiActivity } from 'react-icons/fi';
+import { FiUsers, FiBriefcase, FiActivity, FiDollarSign } from 'react-icons/fi';
 
 import AllWorkers from './AllWorkers';
 import WorkerBookings from './WorkerBookings';
 import WorkerAnalytics from './WorkerAnalytics';
+import WorkerRegistrationFees from './WorkerRegistrationFees';
 
 const Workers = () => {
   const location = useLocation();
@@ -14,6 +15,7 @@ const Workers = () => {
     { name: 'All Workers', path: '/admin/workers/all', icon: FiUsers },
     { name: 'Worker Bookings', path: '/admin/workers/bookings', icon: FiBriefcase },
     { name: 'Analytics', path: '/admin/workers/analytics', icon: FiActivity },
+    { name: 'Registration Fees', path: '/admin/workers/registration-fees', icon: FiDollarSign },
   ];
 
   return (
@@ -59,6 +61,7 @@ const Workers = () => {
           <Route path="all" element={<AllWorkers />} />
           <Route path="bookings" element={<WorkerBookings />} />
           <Route path="analytics" element={<WorkerAnalytics />} />
+          <Route path="registration-fees" element={<WorkerRegistrationFees />} />
           <Route path="*" element={<Navigate to="all" replace />} />
         </Routes>
       </motion.div>

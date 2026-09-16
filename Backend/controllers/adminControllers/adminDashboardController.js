@@ -34,10 +34,12 @@ const getDashboardStats = async (req, res) => {
       if (endDate) bookingMatch.completedAt.$lte = new Date(endDate);
     }
 
-    // Total counts (Users and Vendors now follow the date filter)
+    // Total counts (Users, Vendors, and Workers follow the date filter)
     const totalUsers = await User.countDocuments({ isActive: true, ...dateFilter });
     const totalVendors = await Vendor.countDocuments({ isActive: true, ...dateFilter });
-    const totalWorkers = await Worker.countDocuments({ isActive: true, ...dateFilter });
+    const totalWorkers = await Worker.countDocuments(dateFilter);
+    const totalTeamLeaders = await Worker.countDocuments({ workerType: 'TEAM_LEADER', ...dateFilter });
+    const totalIndependentWorkers = await Worker.countDocuments({ workerType: { $ne: 'TEAM_LEADER' }, ...dateFilter });
     const totalBookings = await Booking.countDocuments(dateFilter);
 
     // Booking stats
@@ -162,6 +164,8 @@ const getDashboardStats = async (req, res) => {
           totalUsers,
           totalVendors,
           totalWorkers,
+          totalTeamLeaders,
+          totalIndependentWorkers,
           totalBookings,
           pendingBookings,
           completedBookings,

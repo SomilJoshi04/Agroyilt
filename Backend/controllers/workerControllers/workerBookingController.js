@@ -91,7 +91,7 @@ exports.listWorkers = async (req, res) => {
     if (category)  query.serviceCategories = { $in: [new RegExp(category, 'i')] };
 
     const workers = await Worker.find(query)
-      .select('name profilePhoto workerType skills serviceCategories specializedExperience rating totalJobs completedJobs dailyRate hourlyRate landRate address location teamId status')
+      .select('name profilePhoto workerType skills serviceCategories rating totalJobs completedJobs dailyRate hourlyRate landRate address location teamId status')
       .populate('teamId', 'name memberCount')
       .sort({ rating: -1, completedJobs: -1 })
       .limit(50);

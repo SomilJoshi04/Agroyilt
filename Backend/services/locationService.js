@@ -269,7 +269,7 @@ const findNearbyWorkers = async (centerLocation, radiusKm = 10, filters = {}) =>
 
     // Fallback: Use Haversine formula (assuming Worker model doesn't have 2dsphere yet or we do a simple query)
     const workers = await Worker.find(baseQuery)
-      .select('name phone address profilePhoto skills serviceCategories servicePricing status');
+      .select('name phone address profilePhoto skills serviceCategories status');
 
     // Calculate distances and filter by radius
     nearbyWorkers = workers.map(worker => {

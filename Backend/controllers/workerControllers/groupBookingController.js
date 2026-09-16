@@ -82,7 +82,7 @@ exports.listTeamLeaders = async (req, res) => {
     if (maxRate)   query.dailyRate = { $lte: Number(maxRate) };
 
     let leaders = await Worker.find(query)
-      .select('name profilePhoto skills serviceCategories specializedExperience rating totalJobs completedJobs dailyRate hourlyRate address teamId status')
+      .select('name profilePhoto skills serviceCategories rating totalJobs completedJobs dailyRate hourlyRate address teamId status')
       .populate('teamId', 'name memberCount maxCapacity location')
       .sort({ rating: -1, completedJobs: -1 })
       .limit(40);

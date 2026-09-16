@@ -5,15 +5,14 @@ import {
   FiUsers,
   FiBriefcase,
   FiActivity,
-  FiDollarSign,
-  FiChevronRight
+  FiDollarSign
 } from 'react-icons/fi';
 
-// Import sub-components
 // Import sub-components
 import AllOwners from './AllOwners';
 import OwnerBookings from './OwnerBookings';
 import OwnerAnalytics from './OwnerAnalytics';
+import VendorRegistrationFees from './VendorRegistrationFees';
 
 const Vendors = () => {
   const location = useLocation();
@@ -22,12 +21,8 @@ const Vendors = () => {
     { name: 'All Owners', path: '/admin/vendors/all', icon: FiUsers },
     { name: 'Owner Bookings', path: '/admin/vendors/bookings', icon: FiBriefcase },
     { name: 'Owner Analytics', path: '/admin/vendors/analytics', icon: FiActivity },
+    { name: 'Registration Fees', path: '/admin/vendors/registration-fees', icon: FiDollarSign },
   ];
-
-  const getPageTitle = () => {
-    const currentTab = navTabs.find(tab => location.pathname === tab.path);
-    return currentTab ? currentTab.name : 'Equipment Owner Management';
-  };
 
   return (
     <div className="space-y-6">
@@ -43,6 +38,8 @@ const Vendors = () => {
           <Route path="all" element={<AllOwners />} />
           <Route path="bookings" element={<OwnerBookings />} />
           <Route path="analytics" element={<OwnerAnalytics />} />
+          <Route path="registration-fees" element={<VendorRegistrationFees />} />
+          <Route path="*" element={<Navigate to="all" replace />} />
         </Routes>
       </motion.div>
     </div>

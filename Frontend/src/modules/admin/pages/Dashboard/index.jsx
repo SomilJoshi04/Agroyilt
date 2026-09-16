@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiBriefcase, FiUsers, FiShoppingBag, FiDollarSign, FiActivity } from 'react-icons/fi';
+import { FiUser, FiBriefcase, FiUsers, FiShoppingBag, FiDollarSign, FiActivity, FiAward, FiUserCheck } from 'react-icons/fi';
 import RevenueLineChart from '../../components/dashboard/RevenueLineChart';
 import BookingsBarChart from '../../components/dashboard/BookingsBarChart';
 import BookingStatusPieChart from '../../components/dashboard/BookingStatusPieChart';
@@ -14,7 +14,6 @@ import RecentBookings from '../../components/dashboard/RecentBookings';
 import { getDashboardStats, getRevenueAnalytics } from '../../../../services/adminDashboardService';
 import { toastManager } from '../../../../utils/toastManager';
 
-
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [period, setPeriod] = useState('month');
@@ -23,6 +22,9 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalVendors: 0,
+    totalWorkers: 0,
+    totalTeamLeaders: 0,
+    totalIndependentWorkers: 0,
     activeBookings: 0,
     completedBookings: 0,
     totalRevenue: 0,
@@ -50,8 +52,8 @@ const AdminDashboard = () => {
           apiPeriod = 'daily';
           startDate.setDate(startDate.getDate() - 30);
         } else if (period === 'today') {
-           apiPeriod = 'daily';
-           startDate.setHours(0, 0, 0, 0); 
+          apiPeriod = 'daily';
+          startDate.setHours(0, 0, 0, 0); 
         } else {
           apiPeriod = 'daily';
           startDate.setDate(startDate.getDate() - 1);
@@ -64,13 +66,16 @@ const AdminDashboard = () => {
         if (statsRes.success) {
           const s = statsRes.data.stats;
           setStats({
-            totalUsers: s.totalUsers,
-            totalVendors: s.totalVendors,
-            activeBookings: s.pendingBookings,
-            completedBookings: s.completedBookings,
-            totalRevenue: s.totalRevenue,
-            bookingRevenue: s.bookingRevenue,
-            soilTestRevenue: s.soilTestRevenue,
+            totalUsers: s.totalUsers || 0,
+            totalVendors: s.totalVendors || 0,
+            totalWorkers: s.totalWorkers || 0,
+            totalTeamLeaders: s.totalTeamLeaders || 0,
+            totalIndependentWorkers: s.totalIndependentWorkers || 0,
+            activeBookings: s.pendingBookings || 0,
+            completedBookings: s.completedBookings || 0,
+            totalRevenue: s.totalRevenue || 0,
+            bookingRevenue: s.bookingRevenue || 0,
+            soilTestRevenue: s.soilTestRevenue || 0,
             ecommerceRevenue: s.ecommerceRevenue || 0,
             todayRevenue: 0,
           });
@@ -226,6 +231,39 @@ const AdminDashboard = () => {
       iconBg: 'bg-white/20',
       link: '/admin/vendors/analytics'
     },
+    {
+      title: 'Total Workers',
+      value: (stats.totalWorkers || 0).toLocaleString(),
+      change: 0,
+      icon: FiUsers,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-blue-600 to-indigo-700',
+      cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/workers/all'
+    },
+    {
+      title: 'Team Leaders',
+      value: (stats.totalTeamLeaders || 0).toLocaleString(),
+      change: 0,
+      icon: FiAward,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-amber-500 to-orange-600',
+      cardBg: 'bg-gradient-to-br from-amber-50 to-orange-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/workers/all'
+    },
+    {
+      title: 'Independent Workers',
+      value: (stats.totalIndependentWorkers || 0).toLocaleString(),
+      change: 0,
+      icon: FiUserCheck,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-cyan-600 to-blue-600',
+      cardBg: 'bg-gradient-to-br from-cyan-50 to-blue-50',
+      iconBg: 'bg-white/20',
+      link: '/admin/workers/all'
+    },
   ];
 
   return (
@@ -254,7 +292,7 @@ const AdminDashboard = () => {
               key={card.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.08 }}
+              transition={{ delay: index * 0.05 }}
               onClick={() => card.link && navigate(card.link)}
               className={`${card.cardBg} rounded-xl p-3 sm:p-4 shadow-sm border border-transparent hover:shadow-md transition-all duration-300 relative overflow-hidden cursor-pointer group`}
             >
@@ -313,4 +351,3 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
-

@@ -56,16 +56,19 @@ const getChildRoute = (parentRoute, childName) => {
       "All Farmers": "/admin/users/all",
       "Farmer Bookings": "/admin/users/bookings",
       "Farmer Analytics": "/admin/users/analytics",
+      "Registration Fees": "/admin/users/registration-fees",
     },
     "/admin/workers": {
       "All Workers": "/admin/workers/all",
       "Worker Bookings": "/admin/workers/bookings",
       "Analytics": "/admin/workers/analytics",
+      "Registration Fees": "/admin/workers/registration-fees",
     },
     "/admin/vendors": {
       "All Owners": "/admin/vendors/all",
       "Owner Bookings": "/admin/vendors/bookings",
       "Owner Analytics": "/admin/vendors/analytics",
+      "Registration Fees": "/admin/vendors/registration-fees",
     },
     "/admin/bookings": {
       "All Bookings": "/admin/bookings",

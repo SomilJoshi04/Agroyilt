@@ -67,8 +67,20 @@ export const workerService = {
     if (params.page) qp.append('page', params.page);
     if (params.limit) qp.append('limit', params.limit);
     if (params.status) qp.append('status', params.status);
+    if (params.search) qp.append('search', params.search);
     
     const response = await api.get(`/admin/workers/jobs${qp.toString() ? `?${qp.toString()}` : ''}`);
+    return response.data;
+  },
+
+  /**
+   * Get worker analytics overview
+   */
+  getWorkerAnalytics: async (params = {}) => {
+    const qp = new URLSearchParams();
+    if (params.period) qp.append('period', params.period);
+    
+    const response = await api.get(`/admin/workers/analytics${qp.toString() ? `?${qp.toString()}` : ''}`);
     return response.data;
   },
 

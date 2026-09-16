@@ -308,10 +308,137 @@ const getAllFeeConfigs = async (req, res) => {
   }
 };
 
+/**
+ * Admin: Get Registration Fee Payments with filtering & pagination
+ */
+const getRegistrationFeePayments = async (req, res) => {
+  try {
+    const { role, status, search, page = 1, limit = 20, startDate, endDate } = req.query;
+
+    const query = {};
+
+    // Filter by role (USER, VENDOR, WORKER)
+    if (role && role !== 'ALL') {
+      query.role = role.toUpperCase();
+    }
+
+    // Filter by status (PAID, PENDING, FAILED, CANCELLED)
+    if (status && status !== 'ALL') {
+      query.status = status.toUpperCase();
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
+    }
+
+    // Search filter
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+
+      // Also search matching accounts by name
+      const [matchedUsers, matchedVendors, matchedWorkers] = await Promise.all([
+        User.find({ name: searchRegex }).select('_id').lean(),
+        Vendor.find({ $or: [{ name: searchRegex }, { businessName: searchRegex }] }).select('_id').lean(),
+        Worker.find({ name: searchRegex }).select('_id').lean()
+      ]);
+
+      const matchedAccountIds = [
+        ...matchedUsers.map(u => u._id),
+        ...matchedVendors.map(v => v._id),
+        ...matchedWorkers.map(w => w._id)
+      ];
+
+      query.$or = [
+        { mobileNumberNormalized: searchRegex },
+        { gatewayOrderId: searchRegex },
+        { gatewayPaymentId: searchRegex },
+        { accountId: { $in: matchedAccountIds } }
+      ];
+    }
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    const skip = (pageNum - 1) * limitNum;
+
+    // Execute query with population
+    const [payments, total, stats] = await Promise.all([
+      RegistrationFeePayment.find(query)
+        .populate({
+          path: 'accountId',
+          select: 'name phone email businessName service serviceType profilePhoto address kyc_status approvalStatus'
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      RegistrationFeePayment.countDocuments(query),
+      RegistrationFeePayment.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: null,
+            totalCollected: {
+              $sum: {
+                $cond: [{ $eq: ['$status', 'PAID'] }, '$amount', 0]
+              }
+            },
+            paidCount: {
+              $sum: {
+                $cond: [{ $eq: ['$status', 'PAID'] }, 1, 0]
+              }
+            },
+            pendingCount: {
+              $sum: {
+                $cond: [{ $eq: ['$status', 'PENDING'] }, 1, 0]
+              }
+            },
+            failedCount: {
+              $sum: {
+                $cond: [{ $in: ['$status', ['FAILED', 'CANCELLED']] }, 1, 0]
+              }
+            }
+          }
+        }
+      ])
+    ]);
+
+    const summaryStats = stats[0] || {
+      totalCollected: 0,
+      paidCount: 0,
+      pendingCount: 0,
+      failedCount: 0
+    };
+
+    res.status(200).json({
+      success: true,
+      data: payments,
+      stats: summaryStats,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum) || 1
+      }
+    });
+  } catch (error) {
+    console.error('Get registration fee payments error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch registration fee payments.' });
+  }
+};
+
 module.exports = {
   initiatePayment,
   verifyFeePayment,
   getFeeConfig,
   updateFeeConfig,
-  getAllFeeConfigs
+  getAllFeeConfigs,
+  getRegistrationFeePayments
 };
+

@@ -1,4 +1,6 @@
 const Worker = require('../../models/Worker');
+const User = require('../../models/User');
+const Review = require('../../models/Review');
 const Booking = require('../../models/Booking');
 const { validationResult } = require('express-validator');
 const { WORKER_STATUS, BOOKING_STATUS, VENDOR_STATUS } = require('../../utils/constants');
@@ -406,39 +408,68 @@ const getAllWorkerJobs = async (req, res) => {
     const { status, page = 1, limit = 20, search } = req.query;
 
     const query = { workerId: { $exists: true, $ne: null } };
-    if (status) {
-      query.status = status;
+    if (status && status !== 'all') {
+      if (status === 'completed') {
+        query.status = { $in: [BOOKING_STATUS.COMPLETED, 'completed', 'work_done'] };
+      } else if (status === 'in_progress') {
+        query.status = { $in: ['in_progress', 'confirmed', 'accepted', 'journey_started', 'started'] };
+      } else {
+        query.status = status;
+      }
     }
 
     // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // If search is provided, we need to find workers by name first
-    if (search) {
-      const workers = await Worker.find({
-        $or: [
-          { name: { $regex: search, $options: 'i' } },
-          { phone: { $regex: search, $options: 'i' } }
-        ]
-      }).select('_id');
+    // If search is provided, match by bookingNumber, serviceName, worker or farmer info
+    if (search && search.trim()) {
+      const searchRegex = { $regex: search.trim(), $options: 'i' };
+      const [matchingWorkers, matchingUsers] = await Promise.all([
+        Worker.find({ $or: [{ name: searchRegex }, { phone: searchRegex }, { email: searchRegex }] }).select('_id'),
+        User.find({ $or: [{ name: searchRegex }, { phone: searchRegex }, { email: searchRegex }] }).select('_id')
+      ]);
 
-      const workerIds = workers.map(w => w._id);
-      query.workerId = { $in: workerIds };
+      const workerIds = matchingWorkers.map(w => w._id);
+      const userIds = matchingUsers.map(u => u._id);
+
+      query.$or = [
+        { bookingNumber: searchRegex },
+        { serviceName: searchRegex },
+        { cropType: searchRegex },
+        { workerId: { $in: workerIds } },
+        { userId: { $in: userIds } }
+      ];
     }
 
     const jobs = await Booking.find(query)
-      .populate('workerId', 'name phone profileImage')
-      .populate('userId', 'name phone')
-      .populate('serviceId', 'title iconUrl')
+      .populate('workerId', 'name phone profilePhoto profileImage workerType skills serviceCategories address rating')
+      .populate('userId', 'name phone email address')
+      .populate('serviceId', 'title iconUrl serviceCategory')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
     const total = await Booking.countDocuments(query);
 
+    // Quick stats for worker bookings tab
+    const [allCount, completedCount, inProgressCount, pendingCount, cancelledCount] = await Promise.all([
+      Booking.countDocuments({ workerId: { $exists: true, $ne: null } }),
+      Booking.countDocuments({ workerId: { $exists: true, $ne: null }, status: { $in: [BOOKING_STATUS.COMPLETED, 'work_done', 'completed'] } }),
+      Booking.countDocuments({ workerId: { $exists: true, $ne: null }, status: { $in: ['in_progress', 'confirmed', 'accepted', 'journey_started', 'started'] } }),
+      Booking.countDocuments({ workerId: { $exists: true, $ne: null }, status: { $in: ['pending', 'awaiting_payment'] } }),
+      Booking.countDocuments({ workerId: { $exists: true, $ne: null }, status: BOOKING_STATUS.CANCELLED })
+    ]);
+
     res.status(200).json({
       success: true,
       data: jobs,
+      stats: {
+        total: allCount,
+        completed: completedCount,
+        inProgress: inProgressCount,
+        pending: pendingCount,
+        cancelled: cancelledCount
+      },
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -451,6 +482,200 @@ const getAllWorkerJobs = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch all worker jobs.'
+    });
+  }
+};
+
+/**
+ * Get comprehensive worker analytics
+ */
+const getWorkerAnalytics = async (req, res) => {
+  try {
+    // 1. Overall counts
+    const [
+      totalWorkers,
+      totalTeamLeaders,
+      totalIndependentWorkers,
+      approvedWorkers,
+      pendingWorkers,
+      suspendedWorkers,
+      rejectedWorkers
+    ] = await Promise.all([
+      Worker.countDocuments(),
+      Worker.countDocuments({ workerType: 'TEAM_LEADER' }),
+      Worker.countDocuments({ workerType: { $ne: 'TEAM_LEADER' } }),
+      Worker.countDocuments({ approvalStatus: 'approved' }),
+      Worker.countDocuments({ approvalStatus: 'pending' }),
+      Worker.countDocuments({ approvalStatus: 'suspended' }),
+      Worker.countDocuments({ approvalStatus: 'rejected' })
+    ]);
+
+    // 2. Booking stats for workers
+    const workerJobStats = await Booking.aggregate([
+      {
+        $match: {
+          workerId: { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalJobs: { $sum: 1 },
+          completedJobs: {
+            $sum: {
+              $cond: [
+                { $in: ['$status', [BOOKING_STATUS.COMPLETED, 'completed', 'work_done']] },
+                1,
+                0
+              ]
+            }
+          },
+          cancelledJobs: {
+            $sum: {
+              $cond: [
+                { $eq: ['$status', BOOKING_STATUS.CANCELLED] },
+                1,
+                0
+              ]
+            }
+          },
+          inProgressJobs: {
+            $sum: {
+              $cond: [
+                { $in: ['$status', ['in_progress', 'confirmed', 'accepted', 'journey_started', 'started']] },
+                1,
+                0
+              ]
+            }
+          },
+          totalRevenue: {
+            $sum: {
+              $cond: [
+                { $in: ['$status', [BOOKING_STATUS.COMPLETED, 'completed', 'work_done']] },
+                { $ifNull: ['$finalAmount', '$basePrice', 0] },
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    const jobSummary = workerJobStats[0] || {
+      totalJobs: 0,
+      completedJobs: 0,
+      cancelledJobs: 0,
+      inProgressJobs: 0,
+      totalRevenue: 0
+    };
+
+    // 3. Average rating
+    const ratingStats = await Worker.aggregate([
+      { $match: { rating: { $gt: 0 } } },
+      { $group: { _id: null, avgRating: { $avg: '$rating' }, count: { $sum: 1 } } }
+    ]);
+    const avgRating = ratingStats[0]?.avgRating ? Number(ratingStats[0].avgRating.toFixed(1)) : 4.8;
+
+    // 4. Monthly booking trends (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const monthlyTrends = await Booking.aggregate([
+      {
+        $match: {
+          workerId: { $exists: true, $ne: null },
+          createdAt: { $gte: sixMonthsAgo }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m', date: '$createdAt' }
+          },
+          totalBookings: { $sum: 1 },
+          completedBookings: {
+            $sum: {
+              $cond: [
+                { $in: ['$status', [BOOKING_STATUS.COMPLETED, 'completed', 'work_done']] },
+                1,
+                0
+              ]
+            }
+          },
+          revenue: {
+            $sum: {
+              $cond: [
+                { $in: ['$status', [BOOKING_STATUS.COMPLETED, 'completed', 'work_done']] },
+                { $ifNull: ['$finalAmount', '$basePrice', 0] },
+                0
+              ]
+            }
+          }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // 5. Skills Distribution from Workers
+    const skillsAggregation = await Worker.aggregate([
+      { $unwind: '$skills' },
+      { $group: { _id: '$skills', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 8 }
+    ]);
+
+    // 6. Top Performing Workers (based on completed jobs and rating)
+    const topWorkers = await Worker.find({ approvalStatus: 'approved' })
+      .select('name phone profilePhoto profileImage workerType skills rating totalJobs completedJobs wallet status')
+      .sort({ completedJobs: -1, rating: -1, totalJobs: -1 })
+      .limit(8);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        summary: {
+          totalWorkers,
+          totalTeamLeaders,
+          totalIndependentWorkers,
+          approvedWorkers,
+          pendingWorkers,
+          suspendedWorkers,
+          rejectedWorkers,
+          totalJobs: jobSummary.totalJobs,
+          completedJobs: jobSummary.completedJobs,
+          cancelledJobs: jobSummary.cancelledJobs,
+          inProgressJobs: jobSummary.inProgressJobs,
+          totalRevenue: jobSummary.totalRevenue,
+          avgRating
+        },
+        workerTypeDistribution: [
+          { name: 'Team Leaders', value: totalTeamLeaders, color: '#f59e0b' },
+          { name: 'Independent Workers', value: totalIndependentWorkers, color: '#3b82f6' }
+        ],
+        statusDistribution: [
+          { name: 'Approved', value: approvedWorkers, color: '#10b981' },
+          { name: 'Pending', value: pendingWorkers, color: '#f59e0b' },
+          { name: 'Suspended', value: suspendedWorkers, color: '#ef4444' },
+          { name: 'Rejected', value: rejectedWorkers, color: '#64748b' }
+        ],
+        monthlyTrends: monthlyTrends.map(item => ({
+          month: item._id,
+          totalBookings: item.totalBookings,
+          completedBookings: item.completedBookings,
+          revenue: item.revenue
+        })),
+        skillsDistribution: skillsAggregation.map(item => ({
+          skill: item._id || 'General Work',
+          count: item.count
+        })),
+        topWorkers
+      }
+    });
+  } catch (error) {
+    console.error('Get worker analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch worker analytics.'
     });
   }
 };
@@ -553,6 +778,7 @@ module.exports = {
   getWorkerEarnings,
   payWorker,
   getAllWorkerJobs,
+  getWorkerAnalytics,
   getWorkerPaymentsSummary,
   toggleWorkerStatus,
   deleteWorker

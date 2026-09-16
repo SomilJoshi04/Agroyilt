@@ -11,8 +11,9 @@ router.route('/settings')
   .get(getSettings)
   .put(updateSettings);
 
-const { updateFeeConfig, getAllFeeConfigs } = require('../../controllers/shared/registrationFeeController');
+const { updateFeeConfig, getAllFeeConfigs, getRegistrationFeePayments } = require('../../controllers/shared/registrationFeeController');
 router.get('/settings/fees', getAllFeeConfigs);
 router.post('/settings/fees', updateFeeConfig);
+router.get('/registration-fees', getRegistrationFeePayments);
 
 module.exports = router;

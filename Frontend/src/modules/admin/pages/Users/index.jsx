@@ -4,10 +4,10 @@ import { motion } from 'framer-motion';
 import { FiUsers, FiShoppingBag, FiActivity, FiDollarSign } from 'react-icons/fi';
 
 // Import sub-components
-// Import sub-components
 import AllFarmers from './AllFarmers';
 import FarmerBookings from './FarmerBookings';
 import FarmerAnalytics from './FarmerAnalytics';
+import FarmerRegistrationFees from './FarmerRegistrationFees';
 
 const Users = () => {
   const location = useLocation();
@@ -16,12 +16,8 @@ const Users = () => {
     { name: 'All Farmers', path: '/admin/users/all', icon: FiUsers },
     { name: 'Farmer Bookings', path: '/admin/users/bookings', icon: FiShoppingBag },
     { name: 'Farmer Analytics', path: '/admin/users/analytics', icon: FiActivity },
+    { name: 'Registration Fees', path: '/admin/users/registration-fees', icon: FiDollarSign },
   ];
-
-  const getPageTitle = () => {
-    const currentTab = navTabs.find(tab => location.pathname === tab.path);
-    return currentTab ? currentTab.name : 'Farmer Management';
-  };
 
   return (
     <div className="space-y-6">
@@ -37,6 +33,7 @@ const Users = () => {
           <Route path="all" element={<AllFarmers />} />
           <Route path="bookings" element={<FarmerBookings />} />
           <Route path="analytics" element={<FarmerAnalytics />} />
+          <Route path="registration-fees" element={<FarmerRegistrationFees />} />
           <Route path="*" element={<Navigate to="all" replace />} />
         </Routes>
       </motion.div>

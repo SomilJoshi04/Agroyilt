@@ -13,6 +13,7 @@ const {
   getWorkerEarnings,
   payWorker,
   getAllWorkerJobs,
+  getWorkerAnalytics,
   getWorkerPaymentsSummary,
   toggleWorkerStatus,
   deleteWorker
@@ -31,6 +32,7 @@ const payWorkerValidation = [
 
 // Routes
 router.get('/workers', authenticate, isAdmin, getAllWorkers);
+router.get('/workers/analytics', authenticate, isAdmin, getWorkerAnalytics);
 router.get('/workers/jobs', authenticate, isAdmin, getAllWorkerJobs);
 router.get('/workers/payments', authenticate, isAdmin, getWorkerPaymentsSummary);
 router.get('/workers/:id', authenticate, isAdmin, getWorkerDetails);
