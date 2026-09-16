@@ -82,6 +82,32 @@ const workerSchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'rejected', 'suspended'],
     default: 'pending'
   },
+  approvalDate: {
+    type: Date,
+    default: null
+  },
+  rejectionReason: {
+    type: String,
+    default: null
+  },
+  registrationFeeStatus: {
+    type: String,
+    enum: ['UNPAID', 'PAID'],
+    default: 'UNPAID'
+  },
+  registrationFeeAmount: {
+    type: Number,
+    default: 0
+  },
+  registrationFeeVersion: {
+    type: Number,
+    default: 1
+  },
+  registrationFeePaymentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RegistrationFeePayment',
+    default: null
+  },
   machineProficiency: [{
     type: String
   }],

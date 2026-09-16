@@ -1,4 +1,5 @@
 const Admin = require('../../models/Admin');
+require('../../models/City'); // Ensure City model is loaded for populate
 const { generateTokenPair } = require('../../utils/tokenService');
 const { USER_ROLES } = require('../../utils/constants');
 const { validationResult } = require('express-validator');
@@ -144,7 +145,8 @@ const updateProfile = async (req, res) => {
 
 const getProfile = async (req, res) => {
   try {
-    const admin = await Admin.findById(req.user.id).populate('cityId', 'name');
+    const adminId = req.user?._id || req.user?.id || req.userId;
+    const admin = await Admin.findById(adminId).populate('cityId', 'name');
     if (!admin) {
       return res.status(404).json({ success: false, message: 'Admin not found' });
     }

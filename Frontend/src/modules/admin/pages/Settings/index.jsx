@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone, FiHeadphones, FiMessageCircle, FiEdit, FiLock, FiUnlock, FiX, FiGlobe, FiUpload, FiCamera } from 'react-icons/fi';
-import { getSettings, updateSettings, updateAdminProfile, getAdminProfile, getAllAdmins, createAdmin, deleteAdmin, updateAdminDetails, toggleAdminStatus } from '../../services/settingsService';
+import { getSettings, updateSettings, updateAdminProfile, getAdminProfile, getAllAdmins, createAdmin, deleteAdmin, updateAdminDetails, toggleAdminStatus, getRegistrationFees, updateRegistrationFee } from '../../services/settingsService';
 import { cityService } from '../../services/cityService';
 import CityManagement from '../Cities';
 import { toastManager } from '../../../../utils/toastManager';
@@ -27,6 +27,14 @@ const AdminSettings = () => {
     bookingCommissionPercentage: 10,
     rentalGstPercentage: 5
   });
+
+  // One-time registration fees state
+  const [registrationFees, setRegistrationFees] = useState({
+    USER: 0,
+    VENDOR: 0,
+    WORKER: 0
+  });
+  const [feesLoading, setFeesLoading] = useState(false);
 
   // Billing Configuration State
   const [billingSettings, setBillingSettings] = useState({
@@ -190,15 +198,31 @@ const AdminSettings = () => {
     }
   };
 
-  const [profile, setProfile] = useState({
-    name: '',
-    email: '',
-    role: 'admin',
-    assignedCity: '',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-    profilePhoto: null
+  const [profile, setProfile] = useState(() => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('adminData') || localStorage.getItem('adminData') || '{}');
+      return {
+        name: stored.name || '',
+        email: stored.email || '',
+        role: stored.role || 'admin',
+        assignedCity: stored.cityName || '',
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        profilePhoto: stored.profilePhoto || null
+      };
+    } catch (e) {
+      return {
+        name: '',
+        email: '',
+        role: 'admin',
+        assignedCity: '',
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        profilePhoto: null
+      };
+    }
   });
 
   // Admin Management State
@@ -212,7 +236,15 @@ const AdminSettings = () => {
   const [profileLoading, setProfileLoading] = useState(false);
   const [activeView, setActiveView] = useState('main'); // 'main', 'profile', 'financial', 'system', 'admins'
 
-  const isSuperAdmin = profile.role === 'super_admin';
+  const storedRole = (() => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('adminData') || localStorage.getItem('adminData') || '{}');
+      return (stored.role || '').toLowerCase();
+    } catch { return ''; }
+  })();
+
+  const currentRole = (profile.role || storedRole || '').toLowerCase();
+  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'superadmin';
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -223,7 +255,7 @@ const AdminSettings = () => {
             ...prev,
             email: res.data.email,
             name: res.data.name || 'Admin',
-            role: res.data.role || 'admin',
+            role: res.data.role || prev.role || 'admin',
             profilePhoto: res.data.profilePhoto || null,
             assignedCity: res.data.cityName || res.data.cityId?.name || ''
           }));
@@ -297,6 +329,16 @@ const AdminSettings = () => {
             appLogo: res.settings.appLogo || '/AgroyiltLogo.png',
             appFavicon: res.settings.appFavicon || '/AgroyiltLogo.png'
           });
+        }
+
+        // Fetch registration fees
+        try {
+          const feesRes = await getRegistrationFees();
+          if (feesRes?.success && feesRes.fees) {
+            setRegistrationFees(feesRes.fees);
+          }
+        } catch (err) {
+          console.error('Error loading registration fees:', err);
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -505,6 +547,27 @@ const AdminSettings = () => {
       toastManager.error('Failed to update support settings');
     } finally {
       setSupportLoading(false);
+    }
+  };
+
+  const handleFeeChange = (role, value) => {
+    setRegistrationFees(prev => ({ ...prev, [role]: value === '' ? '' : Number(value) }));
+  };
+
+  const handleSaveFees = async (e) => {
+    e.preventDefault();
+    setFeesLoading(true);
+    try {
+      await Promise.all([
+        updateRegistrationFee('USER', registrationFees.USER || 0),
+        updateRegistrationFee('VENDOR', registrationFees.VENDOR || 0),
+        updateRegistrationFee('WORKER', registrationFees.WORKER || 0)
+      ]);
+      toastManager.success('Registration fees updated successfully!');
+    } catch (err) {
+      toastManager.error(err.response?.data?.message || 'Failed to update registration fees');
+    } finally {
+      setFeesLoading(false);
     }
   };
 
@@ -1006,6 +1069,84 @@ const AdminSettings = () => {
                         className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-60">
                         {billingLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSave className="w-4 h-4" />}
                         Update Billing
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* One-Time Registration Fees Management - Super Admin Only */}
+              {isSuperAdmin && (
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 h-fit lg:col-span-2">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-emerald-100 rounded-lg">
+                      <FiShield className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-800">One-Time Registration Fees</h2>
+                      <p className="text-xs text-gray-500">Platform activation fees charged to approved accounts on first login (Set 0 for free)</p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSaveFees} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="block text-xs font-bold text-emerald-900 uppercase">Farmer (User) Fee</label>
+                          <span className="text-[10px] font-semibold text-emerald-600 bg-white px-2 py-0.5 rounded shadow-xs">₹ INR</span>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          value={registrationFees.USER}
+                          onChange={(e) => handleFeeChange('USER', e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-emerald-200 rounded-lg outline-none focus:border-emerald-500 text-lg font-bold text-gray-800"
+                          placeholder="0"
+                        />
+                        <p className="text-[11px] text-gray-500 mt-2">Charged to Farmers on activation</p>
+                      </div>
+
+                      <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="block text-xs font-bold text-blue-900 uppercase">Vendor Fee</label>
+                          <span className="text-[10px] font-semibold text-blue-600 bg-white px-2 py-0.5 rounded shadow-xs">₹ INR</span>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          value={registrationFees.VENDOR}
+                          onChange={(e) => handleFeeChange('VENDOR', e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-lg outline-none focus:border-blue-500 text-lg font-bold text-gray-800"
+                          placeholder="0"
+                        />
+                        <p className="text-[11px] text-gray-500 mt-2">Equipment & Agri Store Owners</p>
+                      </div>
+
+                      <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="block text-xs font-bold text-purple-900 uppercase">Worker Fee</label>
+                          <span className="text-[10px] font-semibold text-purple-600 bg-white px-2 py-0.5 rounded shadow-xs">₹ INR</span>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          value={registrationFees.WORKER}
+                          onChange={(e) => handleFeeChange('WORKER', e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-purple-200 rounded-lg outline-none focus:border-purple-500 text-lg font-bold text-gray-800"
+                          placeholder="0"
+                        />
+                        <p className="text-[11px] text-gray-500 mt-2">Independent Field Workers / Drivers</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="submit"
+                        disabled={feesLoading}
+                        className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 flex items-center gap-2 disabled:opacity-60 shadow-lg shadow-emerald-200 transition-all active:scale-95"
+                      >
+                        {feesLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSave className="w-4 h-4" />}
+                        Save Registration Fees
                       </button>
                     </div>
                   </form>

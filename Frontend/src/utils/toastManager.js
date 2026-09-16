@@ -118,6 +118,10 @@ export const toastManager = {
     });
   },
   
+  loading: (message, options = {}) => {
+    return toast.loading(message, options);
+  },
+
   // Helper to clear all toasts
   dismiss: (toastId) => toast.dismiss(toastId)
 };

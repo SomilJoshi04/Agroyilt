@@ -70,6 +70,7 @@ const Signup = () => {
   // Refs for auto-focus
   const nameInputRef = useRef(null);
   const otpInputRefs = useRef([]);
+  const isSubmittingRef = useRef(false);
 
   // Pre-fill from navigation state
   useEffect(() => {
@@ -217,22 +218,21 @@ const Signup = () => {
   // Auto-verify as last digit enters
   useEffect(() => {
     const otpValue = otp.join('');
-    if (otpValue.length === 6 && !isLoading && otpToken) {
+    if (otpValue.length === 6 && !isLoading && !isSubmittingRef.current && otpToken) {
       handleOtpSubmit();
     }
   }, [otp]);
 
   const handleOtpSubmit = async (e) => {
     if (e) e.preventDefault();
+    if (isLoading || isSubmittingRef.current) return; // Prevent double submission
+    
     const otpValue = otp.join('');
     if (otpValue.length !== 6) {
       toastManager.error('Please enter complete OTP');
       return;
     }
-    if (!otpToken) {
-      toastManager.error('Please request OTP first');
-      return;
-    }
+    isSubmittingRef.current = true;
     setIsLoading(true);
     try {
       const response = await userAuthService.register({
@@ -243,7 +243,6 @@ const Signup = () => {
         token: otpToken
       });
       if (response.success) {
-        setIsLoading(false);
         try {
           const { registerFCMToken } = await import('../../../services/pushNotificationService');
           await registerFCMToken('user', true);
@@ -254,18 +253,24 @@ const Signup = () => {
         toastManager.success(
           <div className="flex flex-col">
             <span className="font-bold">Successfully Registered!</span>
-            <span className="text-xs">Welcome to Agroyilt.</span>
+            <span className="text-xs">Your farmer account is pending admin approval.</span>
           </div>,
           { icon: <FiCheckCircle className="text-green-500" /> }
         );
-        navigate('/user/settings/mpin-setup', { state: { isFirstTime: true } });
+        navigate('/user/settings/mpin-setup', { 
+          state: { 
+            isFirstTime: true, 
+            approvalStatus: response.user?.approvalStatus || 'pending' 
+          } 
+        });
       } else {
-        setIsLoading(false);
         toastManager.error(response.message || 'Registration failed');
       }
     } catch (error) {
+      toastManager.error(error.response?.data?.message || 'Registration failed');
+    } finally {
       setIsLoading(false);
-      toastManager.error(error.response?.data?.message || 'Registration failed. Please try again.');
+      isSubmittingRef.current = false;
     }
   };
 

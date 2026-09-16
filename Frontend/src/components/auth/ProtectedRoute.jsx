@@ -40,10 +40,10 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
     }
 
     const token = sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey);
-    const userData = sessionStorage.getItem(dataKey) || localStorage.getItem(dataKey);
+    let userData = sessionStorage.getItem(dataKey) || localStorage.getItem(dataKey);
 
     // If token exists, verify it's not expired (basic check)
-    if (token && userData) {
+    if (token) {
       try {
         // Decode JWT token to check expiry (basic check without verification)
         const parts = token.split('.');
@@ -52,6 +52,11 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
           const currentTime = Date.now() / 1000;
 
           if (payload.exp && payload.exp > currentTime) {
+            // If userData is not yet stored, create fallback so routes don't bounce
+            if (!userData) {
+              const fallback = { id: payload.userId || payload.id, role: payload.role || userType };
+              localStorage.setItem(dataKey, JSON.stringify(fallback));
+            }
             return true;
           } else {
             // Token expired

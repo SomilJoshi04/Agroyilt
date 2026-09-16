@@ -51,6 +51,7 @@ const WorkerSignup = () => {
   // Refs for auto-focus
   const nameInputRef = useRef(null);
   const otpInputRefs = useRef([]);
+  const isSubmittingRef = useRef(false);
 
   // Pre-fill from navigation state (Unified Flow)
   useEffect(() => {
@@ -194,14 +195,14 @@ const WorkerSignup = () => {
 
         const response = await workerAuthService.register(registerData);
         if (response.success) {
-          toastManager.success(
-            <div className="flex flex-col">
-              <span className="font-bold">Welcome Onboard!</span>
-              <span className="text-xs">Your worker account has been created.</span>
-            </div>,
-            { icon: <FiCheckCircle className="text-green-500" /> }
-          );
-          navigate('/worker');
+          toastManager.success('Registration details saved! Please set your MPIN to complete your profile.');
+          navigate('/worker/settings/mpin-setup', {
+            state: {
+              isFirstTime: true,
+              phone: formData.phoneNumber,
+              approvalStatus: response.worker?.approvalStatus || 'pending'
+            }
+          });
         } else {
           toastManager.error(response.message || 'Registration failed');
         }
@@ -251,22 +252,21 @@ const WorkerSignup = () => {
   // Auto-verify as last digit enters
   useEffect(() => {
     const otpValue = otp.join('');
-    if (otpValue.length === 6 && !isLoading && otpToken) {
+    if (otpValue.length === 6 && !isLoading && !isSubmittingRef.current && otpToken) {
       handleOtpSubmit();
     }
   }, [otp]);
 
   const handleOtpSubmit = async (e) => {
     if (e) e.preventDefault();
+    if (isLoading || isSubmittingRef.current) return; // Prevent double submission
+    
     const otpValue = otp.join('');
     if (otpValue.length !== 6) {
       toastManager.error('Please enter complete OTP');
       return;
     }
-    if (!otpToken) {
-      toastManager.error('Please request OTP first');
-      return;
-    }
+    isSubmittingRef.current = true;
     setIsLoading(true);
     try {
       const aadharDoc = documentPreview.aadhar || null;
@@ -285,16 +285,22 @@ const WorkerSignup = () => {
 
       const response = await workerAuthService.register(registerData);
       if (response.success) {
-        setIsLoading(false);
-        toastManager.success('Successfully Registered! Welcome to Agroyilt.');
-        navigate('/worker');
+        toastManager.success('Registration details saved! Please set your MPIN to complete your profile.');
+        navigate('/worker/settings/mpin-setup', {
+          state: {
+            isFirstTime: true,
+            phone: formData.phoneNumber,
+            approvalStatus: response.worker?.approvalStatus || 'pending'
+          }
+        });
       } else {
-        setIsLoading(false);
         toastManager.error(response.message || 'Registration failed');
       }
     } catch (error) {
-      setIsLoading(false);
       toastManager.error(error.response?.data?.message || 'Registration failed');
+    } finally {
+      setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 

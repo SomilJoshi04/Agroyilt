@@ -179,6 +179,7 @@ app.get('/api/test/redis', async (req, res) => {
 
 app.use('/api/public/cities', require('./routes/public-routes/city.routes.js'));
 app.use('/api/public/stats', require('./routes/public-routes/stats.routes.js'));
+app.use('/api/fees', require('./routes/shared/registrationFeeRoutes.js'));
 
 
 // User routes

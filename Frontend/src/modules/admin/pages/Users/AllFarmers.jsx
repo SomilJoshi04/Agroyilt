@@ -9,6 +9,7 @@ const AllFarmers = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, inactive
+  const [approvalFilter, setApprovalFilter] = useState('all'); // all, pending, approved, rejected
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -60,6 +61,10 @@ const AllFarmers = () => {
         params.isActive = statusFilter === 'active';
       }
 
+      if (approvalFilter !== 'all') {
+        params.approvalStatus = approvalFilter;
+      }
+
       const response = await adminUserService.getAllUsers(params);
       if (response.success) {
         setUsers(response.data);
@@ -76,7 +81,38 @@ const AllFarmers = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [page, debouncedSearch, statusFilter]);
+  }, [page, debouncedSearch, statusFilter, approvalFilter]);
+
+  const handleApprove = async (userId) => {
+    try {
+      const response = await adminUserService.updateApprovalStatus(userId, 'approved');
+      if (response.success) {
+        toastManager.success('Farmer approved successfully!');
+        fetchUsers();
+      } else {
+        toastManager.error(response.message || 'Failed to approve farmer');
+      }
+    } catch (error) {
+      toastManager.error(error.message || 'Failed to approve farmer');
+    }
+  };
+
+  const handleReject = async (userId) => {
+    const reason = window.prompt('Enter reason for rejecting this farmer application (optional):');
+    if (reason === null) return; // user clicked cancel
+
+    try {
+      const response = await adminUserService.updateApprovalStatus(userId, 'rejected', reason);
+      if (response.success) {
+        toastManager.success('Farmer application rejected.');
+        fetchUsers();
+      } else {
+        toastManager.error(response.message || 'Failed to reject farmer');
+      }
+    } catch (error) {
+      toastManager.error(error.message || 'Failed to reject farmer');
+    }
+  };
 
   const handleStatusToggle = async (userId, currentStatus) => {
     if (!window.confirm(`Are you sure you want to ${currentStatus ? 'block' : 'activate'} this user?`)) {
@@ -104,7 +140,7 @@ const AllFarmers = () => {
     try {
       const response = await adminUserService.deleteUser(userId);
       if (response.success) {
-        toastManager.success(response.message);
+        toastManager.success(response.message || 'Farmer deleted successfully');
         fetchUsers();
       }
     } catch (error) {
@@ -150,6 +186,36 @@ const AllFarmers = () => {
             <option value="inactive">Blocked Only</option>
           </select>
         </div>
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-2 pt-1 border-t border-gray-100 overflow-x-auto">
+          {[
+            { id: 'all', label: 'All Farmers' },
+            { id: 'pending', label: ' Pending Approval' },
+            { id: 'approved', label: ' Approved' },
+            { id: 'rejected', label: ' Rejected' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setApprovalFilter(tab.id);
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                approvalFilter === tab.id
+                  ? tab.id === 'pending'
+                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                    : tab.id === 'approved'
+                    ? 'bg-green-100 text-green-800 border border-green-300'
+                    : tab.id === 'rejected'
+                    ? 'bg-red-100 text-red-800 border border-red-300'
+                    : 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-4">
@@ -174,69 +240,109 @@ const AllFarmers = () => {
                   <td colSpan="5" className="px-4 py-8 text-center text-xs text-gray-500">No farmers found</td>
                 </tr>
               ) : (
-                users.map((user) => (
-                  <tr key={user._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                          <FiUser className="w-4 h-4" />
+                users.map((user) => {
+                  const isApproved = user.approvalStatus === 'approved' || (!user.approvalStatus && user.isActive);
+                  const isRejected = user.approvalStatus === 'rejected';
+                  const isPending = !isApproved && !isRejected;
+
+                  return (
+                    <tr key={user._id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                            <FiUser className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900 text-xs">{user.name}</p>
+                            <p className="text-[10px] text-gray-400">ID: {user._id.slice(-6).toUpperCase()}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-gray-900 text-xs">{user.name}</p>
-                          <p className="text-[10px] text-gray-400">ID: {user._id.slice(-6).toUpperCase()}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 text-gray-600 text-[11px]">
+                            <FiMail className="w-3 h-3" />
+                            <span>{user.email || 'No email'}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-gray-600 text-[11px]">
+                            <FiPhone className="w-3 h-3" />
+                            <span>{user.phone}</span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5 text-gray-600 text-[11px]">
-                          <FiMail className="w-3 h-3" />
-                          <span>{user.email}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider w-fit ${
+                            isApproved
+                              ? 'bg-green-100 text-green-700 border border-green-200'
+                              : isRejected
+                              ? 'bg-red-100 text-red-700 border border-red-200'
+                              : 'bg-amber-100 text-amber-700 border border-amber-200'
+                          }`}>
+                            {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending Approval'}
+                          </span>
+                          {!user.isActive && (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 w-fit">
+                              Blocked
+                            </span>
+                          )}
+                          {isRejected && user.rejectionReason && (
+                            <span className="text-[9px] text-red-500 max-w-[160px] truncate" title={user.rejectionReason}>
+                              {user.rejectionReason}
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1.5 text-gray-600 text-[11px]">
-                          <FiPhone className="w-3 h-3" />
-                          <span>{user.phone}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${user.isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                        }`}>
-                        {user.isActive ? 'Active' : 'Blocked'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-[10px] text-gray-600 font-medium">
-                        {new Date(user.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric', month: 'short', day: 'numeric'
-                        })}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <button
-                          onClick={() => handleStatusToggle(user._id, user.isActive)}
-                          className={`p-1.5 rounded-lg transition-colors ${user.isActive
-                            ? 'text-red-500 hover:bg-red-50'
-                            : 'text-green-500 hover:bg-green-50'
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-[10px] text-gray-600 font-medium">
+                          {new Date(user.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric', month: 'short', day: 'numeric'
+                          })}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end items-center gap-1.5">
+                          {!isApproved && (
+                            <button
+                              onClick={() => handleApprove(user._id)}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-emerald-200 cursor-pointer"
+                              title="Approve Farmer"
+                            >
+                              <FiCheck className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {!isRejected && (
+                            <button
+                              onClick={() => handleReject(user._id)}
+                              className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors border border-amber-200 cursor-pointer"
+                              title="Reject Farmer"
+                            >
+                              <FiX className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleStatusToggle(user._id, user.isActive)}
+                            className={`p-1.5 rounded-lg transition-colors border cursor-pointer ${
+                              user.isActive
+                                ? 'text-gray-400 hover:text-red-500 hover:bg-red-50 border-gray-200'
+                                : 'text-green-600 hover:bg-green-50 border-green-200'
                             }`}
-                          title={user.isActive ? 'Block Farmer' : 'Activate Farmer'}
-                        >
-                          {user.isActive ? <FiSlash className="w-3.5 h-3.5" /> : <FiCheck className="w-3.5 h-3.5" />}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(user._id)}
-                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete Farmer"
-                        >
-                          <FiTrash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                            title={user.isActive ? 'Block Farmer' : 'Activate Farmer'}
+                          >
+                            {user.isActive ? <FiSlash className="w-3.5 h-3.5" /> : <FiCheck className="w-3.5 h-3.5" />}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user._id)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-red-200 cursor-pointer"
+                            title="Delete Farmer"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -25,9 +25,9 @@ function notifyFlutterLogin(responseData) {
  * @param {string} phone - Phone number
  * @returns {Promise<Object>} OTP response with token
  */
-export const sendOTP = async (phone) => {
+export const sendOTP = async (phone, purpose = 'register') => {
   try {
-    const response = await api.post('/vendors/auth/send-otp', { phone });
+    const response = await api.post('/vendors/auth/send-otp', { phone, purpose });
     return response.data;
   } catch (error) {
     console.error('Error sending OTP:', error);
@@ -123,6 +123,11 @@ export const register = async (vendorData) => {
     console.log('Calling vendor register API with data:', vendorData);
     const response = await api.post('/vendors/auth/register', vendorData);
     console.log('Vendor register API response:', response.data);
+    if (response.data.success && response.data.accessToken) {
+      localStorage.setItem('vendorAccessToken', response.data.accessToken);
+      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
+      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+    }
     return response.data;
   } catch (error) {
     console.error('Error registering vendor:', error);

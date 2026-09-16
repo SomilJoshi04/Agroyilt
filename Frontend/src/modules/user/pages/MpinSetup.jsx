@@ -104,7 +104,17 @@ const MpinSetup = () => {
         userData.isMpinSet = true;
         localStorage.setItem('userData', JSON.stringify(userData));
         
-        navigate('/user', { replace: true });
+        const approvalStatus = location.state?.approvalStatus || userData.approvalStatus;
+
+        if (isFirstTime && approvalStatus !== 'approved') {
+          toastManager.info('Your Farmer account is registered and pending admin approval. You can login with your MPIN once approved.', { duration: 6000 });
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('userData');
+          navigate('/app/login', { replace: true });
+        } else {
+          navigate('/user', { replace: true });
+        }
       }
     } catch (error) {
       setIsLoading(false);

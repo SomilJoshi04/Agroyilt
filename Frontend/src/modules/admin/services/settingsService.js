@@ -81,3 +81,22 @@ export const toggleAdminStatus = async (id) => {
     throw error;
   }
 };
+
+export const getRegistrationFees = async () => {
+  try {
+    const response = await api.get('/admin/settings/fees');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateRegistrationFee = async (role, amount, currency = 'INR') => {
+  try {
+    const response = await api.post('/admin/settings/fees', { role, amount: Number(amount), currency });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+

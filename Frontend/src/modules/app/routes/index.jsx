@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 const AppEntry = lazy(() => import('../pages/AppEntry'));
 const AppRegister = lazy(() => import('../pages/AppRegister'));
 const AppLogin = lazy(() => import('../pages/AppLogin'));
+const AppRegistrationFee = lazy(() => import('../pages/AppRegistrationFee'));
 
 const LoadingFallback = () => (
   <div style={{
@@ -27,6 +28,7 @@ const AppRoutes = () => (
       <Route path="/" element={<AppEntry />} />
       <Route path="/register" element={<AppRegister />} />
       <Route path="/login" element={<AppLogin />} />
+      <Route path="/registration-fee" element={<AppRegistrationFee />} />
       {/* Catch-all → entry screen */}
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>

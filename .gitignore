@@ -9,12 +9,17 @@ node_modules/
 !.env.example
 
 # Temporary, Scratch & Environment Folders
+dist/
+Frontend/dist/
 scratch/
 tmp/
 temp/
 *.tmp
 Agroyilt SOP.pdf
 Flutter_Bridge_Requirements.md
+Backend/REDIS_SETUP.md
+Frontend/docs/
+docs/
 Backend/scripts/
 
 # Test, Scratch & Debug Scripts

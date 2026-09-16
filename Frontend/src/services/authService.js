@@ -164,6 +164,11 @@ export const vendorAuthService = {
   // Register
   register: async (data) => {
     const response = await api.post('/vendors/auth/register', data);
+    if (response.data.success && response.data.accessToken) {
+      localStorage.setItem('vendorAccessToken', response.data.accessToken);
+      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
+      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+    }
     return response.data;
   },
 

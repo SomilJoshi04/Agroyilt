@@ -150,6 +150,37 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  approvalStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
+  },
+  approvalDate: {
+    type: Date,
+    default: null
+  },
+  rejectionReason: {
+    type: String,
+    default: null
+  },
+  registrationFeeStatus: {
+    type: String,
+    enum: ['UNPAID', 'PAID'],
+    default: 'UNPAID'
+  },
+  registrationFeeAmount: {
+    type: Number,
+    default: 0
+  },
+  registrationFeeVersion: {
+    type: Number,
+    default: 1
+  },
+  registrationFeePaymentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RegistrationFeePayment',
+    default: null
+  },
   // Equipment Owner KYC Properties
   kyc_status: {
     type: String,
@@ -216,6 +247,7 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 
 // Indexes
 userSchema.index({ 'farms.location': '2dsphere' });
+userSchema.index({ approvalStatus: 1 });
 
 module.exports = mongoose.model('User', userSchema);
 

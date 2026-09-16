@@ -52,10 +52,10 @@ export const workerService = {
   },
 
   /**
-   * Toggle worker active status
+   * Delete worker
    */
-  toggleWorkerStatus: async (id, isActive) => {
-    const response = await api.patch(`/admin/workers/${id}/status`, { isActive });
+  deleteWorker: async (id) => {
+    const response = await api.delete(`/admin/workers/${id}`);
     return response.data;
   },
 

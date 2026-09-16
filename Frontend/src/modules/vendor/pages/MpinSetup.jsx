@@ -104,7 +104,15 @@ const VendorMpinSetup = () => {
         vendorData.isMpinSet = true;
         localStorage.setItem('vendorData', JSON.stringify(vendorData));
         
-        navigate('/vendor', { replace: true });
+        if (isFirstTime && vendorData.approvalStatus !== 'approved') {
+          toastManager.info('Your account is registered and pending admin approval. You can login with your MPIN once approved.', { duration: 6000 });
+          localStorage.removeItem('vendorAccessToken');
+          localStorage.removeItem('vendorRefreshToken');
+          localStorage.removeItem('vendorData');
+          navigate('/vendor/login', { replace: true });
+        } else {
+          navigate('/vendor', { replace: true });
+        }
       }
     } catch (error) {
       setIsLoading(false);
@@ -167,7 +175,18 @@ const VendorMpinSetup = () => {
             {isFirstTime && (
               <button
                 type="button"
-                onClick={() => navigate('/vendor', { replace: true })}
+                onClick={() => {
+                  const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
+                  if (vendorData.approvalStatus !== 'approved') {
+                    toastManager.info('Your registration is complete and pending admin approval.');
+                    localStorage.removeItem('vendorAccessToken');
+                    localStorage.removeItem('vendorRefreshToken');
+                    localStorage.removeItem('vendorData');
+                    navigate('/vendor/login', { replace: true });
+                  } else {
+                    navigate('/vendor', { replace: true });
+                  }
+                }}
                 className="w-full py-3 text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors"
               >
                 Skip for now

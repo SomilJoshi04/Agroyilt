@@ -129,8 +129,29 @@ const AppLogin = () => {
         else if (role === 'worker') navigate('/worker', { replace: true });
       }
     } catch (err) {
-      const errorMsg = err.response?.data?.message || 'Invalid Mobile Number or MPIN.';
-      const isMpinNotSet = err.response?.data?.mpinNotSet;
+      const errorData = err.response?.data;
+      if (errorData?.code === 'ACCOUNT_PENDING_APPROVAL') {
+        toastManager.info(errorData.message || 'Your account is pending admin approval. You can login once approved.', { duration: 6000 });
+        setIsLoading(false);
+        return;
+      }
+
+      if (errorData?.code === 'ACCOUNT_REJECTED') {
+        toastManager.error(errorData.message || 'Your account application was rejected by admin.', { duration: 6000 });
+        setIsLoading(false);
+        return;
+      }
+
+      if (errorData?.code === 'REGISTRATION_FEE_REQUIRED') {
+        toastManager.error(errorData.message);
+        localStorage.setItem('preAuthToken', errorData.preAuthToken);
+        localStorage.setItem('pendingRole', errorData.role);
+        navigate('/app/registration-fee', { replace: true });
+        return;
+      }
+
+      const errorMsg = errorData?.message || 'Invalid Mobile Number or MPIN.';
+      const isMpinNotSet = errorData?.mpinNotSet;
 
       if (isMpinNotSet) {
         toastManager.error('MPIN not set for this account. Redirecting to setup...');

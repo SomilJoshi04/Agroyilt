@@ -105,7 +105,16 @@ const WorkerMpinSetup = () => {
         workerData.isMpinSet = true;
         localStorage.setItem('workerData', JSON.stringify(workerData));
         
-        navigate('/worker', { replace: true });
+        const approval = location.state?.approvalStatus || workerData.approvalStatus || 'pending';
+        if (isFirstTime && approval !== 'approved') {
+          toastManager.info('Your Worker account is registered and pending admin approval. You can login with your MPIN once approved.', { duration: 6000 });
+          localStorage.removeItem('workerAccessToken');
+          localStorage.removeItem('workerRefreshToken');
+          localStorage.removeItem('workerData');
+          navigate('/app/login', { replace: true });
+        } else {
+          navigate('/worker', { replace: true });
+        }
       }
     } catch (error) {
       setIsLoading(false);
@@ -168,7 +177,18 @@ const WorkerMpinSetup = () => {
             {isFirstTime && (
               <button
                 type="button"
-                onClick={() => navigate('/worker', { replace: true })}
+                onClick={() => {
+                  const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+                  if (workerData.approvalStatus !== 'approved') {
+                    toastManager.info('Your registration is complete and pending admin approval.');
+                    localStorage.removeItem('workerAccessToken');
+                    localStorage.removeItem('workerRefreshToken');
+                    localStorage.removeItem('workerData');
+                    navigate('/worker/login', { replace: true });
+                  } else {
+                    navigate('/worker', { replace: true });
+                  }
+                }}
                 className="w-full py-3 text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors"
               >
                 Skip for now

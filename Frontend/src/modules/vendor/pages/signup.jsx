@@ -60,6 +60,7 @@ const VendorSignup = () => {
   const [documentPreview, setDocumentPreview] = useState({});
   const [uploadingDocs, setUploadingDocs] = useState({});
   const [resendTimer, setResendTimer] = useState(0);
+  const isSubmittingRef = useRef(false);
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
@@ -222,7 +223,7 @@ const VendorSignup = () => {
             quality: 0.8
           });
           fileToUpload = compressedFile;
-          toast.dismiss(loadingToast); // Dismiss compression loading
+          toastManager.dismiss(loadingToast); // Dismiss compression loading
         } catch (compressionError) {
           console.error("Compression failed, using original file", compressionError);
           toastManager.error("Compression failed, using original");
@@ -255,7 +256,7 @@ const VendorSignup = () => {
 
     } catch (error) {
       console.error("Upload processing error", error);
-      toast.dismiss(loadingToast);
+      toastManager.dismiss(loadingToast);
       toastManager.error("Failed to process file");
       setUploadingDocs(prev => ({ ...prev, [type]: false }));
     }
@@ -381,8 +382,8 @@ const VendorSignup = () => {
     }
 
     try {
-      const response = await sendVendorOTP(formData.phoneNumber);
-      if (response.success) {
+      const response = await sendVendorOTP(formData.phoneNumber, 'register');
+      if (response.success && response.token) {
         setOtpToken(response.token);
         setIsLoading(false);
         setStep('otp');
@@ -432,22 +433,21 @@ const VendorSignup = () => {
   // Auto-verify as last digit enters
   useEffect(() => {
     const otpValue = otp.join('');
-    if (otpValue.length === 6 && !isLoading && otpToken) {
+    if (otpValue.length === 6 && !isLoading && !isSubmittingRef.current && otpToken) {
       handleOtpSubmit();
     }
   }, [otp]);
 
   const handleOtpSubmit = async (e) => {
     if (e) e.preventDefault();
+    if (isLoading || isSubmittingRef.current) return; // Prevent double submission
+    
     const otpValue = otp.join('');
     if (otpValue.length !== 6) {
       toastManager.error('Please enter complete OTP');
       return;
     }
-    if (!otpToken) {
-      toastManager.error('Please request OTP first');
-      return;
-    }
+    isSubmittingRef.current = true;
     setIsLoading(true);
     try {
       const aadharDoc = formData.documents.find(d => d.type === 'aadhar')?.url || null;
@@ -492,17 +492,17 @@ const VendorSignup = () => {
       const response = await register(registerData);
 
       if (response.success) {
-        setIsLoading(false);
         localStorage.removeItem('vendor_signup_form_data');
         toastManager.success('Successfully Registered! Pending admin approval.');
         navigate('/vendor/settings/mpin-setup', { state: { isFirstTime: true } });
       } else {
-        setIsLoading(false);
         toastManager.error(response.message || 'Registration failed');
       }
     } catch (error) {
-      setIsLoading(false);
       toastManager.error(error.response?.data?.message || 'Registration failed');
+    } finally {
+      setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -1032,13 +1032,15 @@ const VendorSignup = () => {
                     onClick={async () => {
                       if (resendTimer > 0) return;
                       try {
-                        const response = await sendVendorOTP(formData.phoneNumber);
-                        if (response.success) {
+                        const response = await sendVendorOTP(formData.phoneNumber, 'register');
+                        if (response.success && response.token) {
                           setOtpToken(response.token);
                           setResendTimer(120);
                           toastManager.success('OTP sent again');
+                        } else {
+                          toastManager.error(response.message || 'Resend failed');
                         }
-                      } catch (e) { toastManager.error('Resend failed'); }
+                      } catch (e) { toastManager.error(e.response?.data?.message || 'Resend failed'); }
                     }}
                     disabled={resendTimer > 0}
                     className="text-sm font-semibold transition-colors duration-300 opacity-70 hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSearch, FiFilter, FiCheckCircle, FiXCircle, FiSlash, FiUser, FiUsers, FiStar, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiCheckCircle, FiXCircle, FiSlash, FiUser, FiUsers, FiStar, FiChevronDown, FiChevronUp, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import workerService from '../../services/workerService';
 import LogoLoader from '../../../../components/common/LogoLoader';
@@ -56,12 +56,27 @@ const AllWorkers = () => {
     try {
       setActionLoading(id);
       let res;
-      if (actionStr === 'approve') res = await workerService.approveWorker(id);
-      if (actionStr === 'reject') res = await workerService.rejectWorker(id, 'Admin rejection');
-      if (actionStr === 'suspend') res = await workerService.suspendWorker(id);
+      if (actionStr === 'approve') {
+        res = await workerService.approveWorker(id);
+      } else if (actionStr === 'reject') {
+        const reason = window.prompt('Enter reason for rejecting this worker application (optional):');
+        if (reason === null) {
+          setActionLoading(null);
+          return;
+        }
+        res = await workerService.rejectWorker(id, reason || 'Application does not meet requirements');
+      } else if (actionStr === 'suspend') {
+        res = await workerService.suspendWorker(id);
+      } else if (actionStr === 'delete') {
+        if (!window.confirm('Are you sure you want to delete this worker? This action cannot be undone.')) {
+          setActionLoading(null);
+          return;
+        }
+        res = await workerService.deleteWorker(id);
+      }
       
-      if (res.success) {
-        toast.success(`Worker ${actionStr}d successfully`);
+      if (res && res.success) {
+        toast.success(res.message || `Worker ${actionStr}d successfully`);
         fetchWorkers(); // Refresh
       }
     } catch (err) {
@@ -72,9 +87,9 @@ const AllWorkers = () => {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-6">
+    <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1 flex items-center bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
           <FiSearch className="text-slate-400 mr-3" />
           <input
@@ -85,19 +100,37 @@ const AllWorkers = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="w-full md:w-48">
-          <select
-            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 appearance-none"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2 pt-1 border-t border-slate-100 overflow-x-auto">
+        {[
+          { id: '', label: 'All Workers' },
+          { id: 'pending', label: '⏳ Pending Approval' },
+          { id: 'approved', label: '✅ Approved' },
+          { id: 'rejected', label: '❌ Rejected' },
+          { id: 'suspended', label: '⚠️ Suspended' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setStatusFilter(tab.id)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+              statusFilter === tab.id
+                ? tab.id === 'pending'
+                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                  : tab.id === 'approved'
+                  ? 'bg-green-100 text-green-800 border border-green-300'
+                  : tab.id === 'rejected'
+                  ? 'bg-red-100 text-red-800 border border-red-300'
+                  : tab.id === 'suspended'
+                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                  : 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
           >
-            <option value="">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="suspended">Suspended</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Table */}
@@ -179,7 +212,14 @@ const AllWorkers = () => {
                       <p className="text-[10px] text-slate-400 mt-0.5 font-bold">{worker.totalJobs || 0} jobs</p>
                     </td>
                     <td className="py-4 px-4">
-                      <StatusBadge status={worker.approvalStatus} />
+                      <div className="flex flex-col gap-1">
+                        <StatusBadge status={worker.approvalStatus} />
+                        {worker.approvalStatus === 'rejected' && worker.rejectionReason && (
+                          <span className="text-[10px] text-red-500 max-w-[150px] truncate" title={worker.rejectionReason}>
+                            {worker.rejectionReason}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -188,16 +228,16 @@ const AllWorkers = () => {
                             <button
                               onClick={() => handleAction(worker._id, 'approve')}
                               disabled={actionLoading === worker._id}
-                              className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors disabled:opacity-50"
-                              title="Approve"
+                              className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer"
+                              title="Approve Worker"
                             >
                               <FiCheckCircle size={16} />
                             </button>
                             <button
                               onClick={() => handleAction(worker._id, 'reject')}
                               disabled={actionLoading === worker._id}
-                              className="w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors disabled:opacity-50"
-                              title="Reject"
+                              className="w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer"
+                              title="Reject Worker"
                             >
                               <FiXCircle size={16} />
                             </button>
@@ -207,8 +247,8 @@ const AllWorkers = () => {
                           <button
                             onClick={() => handleAction(worker._id, 'suspend')}
                             disabled={actionLoading === worker._id}
-                            className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white flex items-center justify-center transition-colors disabled:opacity-50"
-                            title="Suspend"
+                            className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer"
+                            title="Suspend Worker"
                           >
                             <FiSlash size={16} />
                           </button>
@@ -217,12 +257,20 @@ const AllWorkers = () => {
                           <button
                             onClick={() => handleAction(worker._id, 'approve')}
                             disabled={actionLoading === worker._id}
-                            className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors disabled:opacity-50"
-                            title="Re-activate"
+                            className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer"
+                            title="Re-activate Worker"
                           >
                             <FiCheckCircle size={16} />
                           </button>
                         )}
+                        <button
+                          onClick={() => handleAction(worker._id, 'delete')}
+                          disabled={actionLoading === worker._id}
+                          className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer"
+                          title="Delete Worker"
+                        >
+                          <FiTrash2 size={16} />
+                        </button>
                       </div>
                     </td>
                   </motion.tr>

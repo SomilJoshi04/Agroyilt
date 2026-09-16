@@ -11,4 +11,8 @@ router.route('/settings')
   .get(getSettings)
   .put(updateSettings);
 
+const { updateFeeConfig, getAllFeeConfigs } = require('../../controllers/shared/registrationFeeController');
+router.get('/settings/fees', getAllFeeConfigs);
+router.post('/settings/fees', updateFeeConfig);
+
 module.exports = router;

@@ -61,6 +61,16 @@ export const adminUserService = {
     }
   },
 
+  // Update farmer approval status (approved / rejected)
+  updateApprovalStatus: async (id, approvalStatus, rejectionReason = '') => {
+    try {
+      const response = await api.put(`/admin/users/${id}/approval`, { approvalStatus, rejectionReason });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to update farmer approval status' };
+    }
+  },
+
   // Get user bookings
   getUserBookings: async (id, params) => {
     try {

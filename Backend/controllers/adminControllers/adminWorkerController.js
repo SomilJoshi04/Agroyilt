@@ -172,20 +172,24 @@ const approveWorker = async (req, res) => {
 
     worker.approvalStatus = 'approved';
     worker.isActive = true;
+    worker.approvalDate = new Date();
     await worker.save();
 
     // Send notification to worker
-    /*
-    // Note: Assuming notification system supports 'worker' type or we treat them as users for now
-    await createNotification({
-      userId: worker._id, // Use userId for workers too? or need separate workerId field in notification
-      type: 'worker_approved',
-      title: 'Worker Registration Approved',
-      message: 'Your worker registration has been approved.',
-      relatedId: worker._id,
-      relatedType: 'worker'
-    });
-    */
+    try {
+      await createNotification({
+        workerId: worker._id,
+        type: 'worker_approved',
+        title: '🎉 Worker Account Approved!',
+        message: 'Congratulations! Your worker account has been approved by the admin. You can now login.',
+        relatedId: worker._id,
+        relatedType: 'worker',
+        data: { workerId: worker._id, status: 'approved' },
+        pushData: { type: 'worker_alert', link: '/worker/login' }
+      });
+    } catch (notifErr) {
+      console.error('Failed to send worker approval notification:', notifErr);
+    }
 
     res.status(200).json({
       success: true,
@@ -220,8 +224,23 @@ const rejectWorker = async (req, res) => {
 
     worker.approvalStatus = 'rejected';
     worker.isActive = false;
-    // worker.rejectedReason = reason; // If we want to store reason
+    worker.rejectionReason = reason || 'Application does not meet requirements';
     await worker.save();
+
+    // Send notification to worker
+    try {
+      await createNotification({
+        workerId: worker._id,
+        type: 'worker_rejected',
+        title: 'Worker Application Status',
+        message: `Your worker application was rejected by the admin.${reason ? ` Reason: ${reason}` : ''}`,
+        relatedId: worker._id,
+        relatedType: 'worker',
+        data: { workerId: worker._id, status: 'rejected', reason: worker.rejectionReason }
+      });
+    } catch (notifErr) {
+      console.error('Failed to send worker rejection notification:', notifErr);
+    }
 
     res.status(200).json({
       success: true,

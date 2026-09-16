@@ -12,7 +12,8 @@ const {
   getUserWalletTransactions,
   getAllUserBookings,
   updateKycStatus,
-  addUser
+  addUser,
+  updateApprovalStatus
 } = require('../../controllers/adminControllers/adminUserController');
 
 // Validation rules
@@ -25,6 +26,7 @@ router.get('/users', authenticate, isAdmin, getAllUsers);
 router.get('/users/bookings', authenticate, isAdmin, getAllUserBookings);
 router.get('/users/:id', authenticate, isAdmin, getUserDetails);
 router.put('/users/:id/status', authenticate, isAdmin, toggleStatusValidation, toggleUserStatus);
+router.put('/users/:id/approval', authenticate, isAdmin, updateApprovalStatus);
 router.delete('/users/:id', authenticate, isAdmin, deleteUser);
 router.get('/users/:id/bookings', authenticate, isAdmin, getUserBookings);
 router.get('/users/:id/wallet', authenticate, isAdmin, getUserWalletTransactions);

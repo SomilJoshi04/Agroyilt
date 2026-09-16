@@ -135,18 +135,8 @@ const register = async (req, res) => {
       });
     }
 
-    const { name, email, verificationToken, mpin, confirmMpin } = req.body;
+    const { name, email, verificationToken } = req.body;
     let phone = req.body.phone;
-
-    if (!mpin || !confirmMpin) {
-      return res.status(400).json({ success: false, message: 'MPIN and Confirm MPIN are required' });
-    }
-    if (mpin !== confirmMpin) {
-      return res.status(400).json({ success: false, message: 'MPINs do not match' });
-    }
-    if (!mpinService.validateMpinFormat(mpin)) {
-      return res.status(400).json({ success: false, message: 'MPIN must be exactly 4 digits' });
-    }
 
     // Verify token if provided (New Flow)
     if (verificationToken) {
@@ -178,8 +168,6 @@ const register = async (req, res) => {
       });
     }
 
-    const hashedMpin = await mpinService.hashMpin(mpin);
-
     // Create user
     const user = await User.create({
       name,
@@ -187,9 +175,28 @@ const register = async (req, res) => {
       phone,
       isPhoneVerified: true,
       isEmailVerified: email ? false : true,
-      mpin: hashedMpin,
-      isMpinSet: true
+      isMpinSet: false,
+      approvalStatus: 'pending'
     });
+
+    // Notify Admins about new Farmer registration
+    try {
+      const { createNotification } = require('../notificationControllers/notificationController');
+      const Admin = require('../../models/Admin');
+      const admins = await Admin.find({ isActive: true }).select('_id');
+      for (const admin of admins) {
+        await createNotification({
+          adminId: admin._id,
+          type: 'farmer_approval_request',
+          title: '🌾 New Farmer Registration',
+          message: `${user.name} (${user.phone}) has registered as a Farmer`,
+          relatedId: user._id,
+          relatedType: 'user',
+          data: { userId: user._id, userName: user.name, phone: user.phone },
+          pushData: { type: 'admin_alert', link: '/admin/users/all' }
+        });
+      }
+    } catch (e) { console.error('Notify admin error for farmer:', e); }
 
     // Send Welcome Email
     if (email) {
@@ -204,12 +211,13 @@ const register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: 'Registration successful! Pending admin approval.',
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
+        approvalStatus: user.approvalStatus,
         isPhoneVerified: user.isPhoneVerified,
         isEmailVerified: user.isEmailVerified
       },
@@ -421,6 +429,45 @@ const loginWithMpin = async (req, res) => {
     // Success - reset attempts
     await mpinService.resetMpinAttempts(user);
 
+    // GATEKEEPER 1: Check Admin Approval
+    // Existing active accounts created prior to approvalStatus field default to approved
+    const userApproval = user.approvalStatus || (user.isActive ? 'approved' : 'pending');
+    if (userApproval === 'pending') {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_PENDING_APPROVAL',
+        message: 'Your Farmer account is registered and pending admin approval. You can login once approved.'
+      });
+    }
+
+    if (userApproval === 'rejected') {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_REJECTED',
+        message: user.rejectionReason
+          ? `Your Farmer account application was rejected: ${user.rejectionReason}`
+          : 'Your Farmer account application has been rejected by Admin. Please contact support.'
+      });
+    }
+
+    // GATEKEEPER 2: Check Registration Fee
+    if (user.registrationFeeStatus !== 'PAID') {
+      const jwt = require('jsonwebtoken');
+      const preAuthToken = jwt.sign(
+        { userId: user._id, role: 'USER', isPreAuth: true },
+        process.env.JWT_SECRET,
+        { expiresIn: '30m' }
+      );
+      
+      return res.status(403).json({
+        success: false,
+        code: 'REGISTRATION_FEE_REQUIRED',
+        message: 'A one-time registration fee is required to activate your Farmer account.',
+        preAuthToken,
+        role: 'USER'
+      });
+    }
+
     // Generate JWT tokens
     const tokens = generateTokenPair({
       userId: user._id,
@@ -435,6 +482,7 @@ const loginWithMpin = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        approvalStatus: user.approvalStatus || 'approved',
         isPhoneVerified: user.isPhoneVerified,
         isEmailVerified: user.isEmailVerified
       },

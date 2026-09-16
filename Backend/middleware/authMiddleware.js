@@ -49,10 +49,10 @@ const authenticate = async (req, res, next) => {
         break;
       case USER_ROLES.VENDOR:
         user = await Vendor.findById(decoded.userId).select('-password');
-        if (user && user.approvalStatus !== 'approved') {
+        if (user && (user.approvalStatus === 'rejected' || user.approvalStatus === 'suspended')) {
           return res.status(403).json({
             success: false,
-            message: 'Your vendor account is pending approval or has been rejected.'
+            message: 'Your vendor account has been suspended or rejected. Please contact support.'
           });
         }
         break;

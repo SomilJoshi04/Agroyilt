@@ -34,18 +34,43 @@ const sendOTP = async (req, res) => {
       }
     }
 
-    // Check existing vendor status to prevent OTP if restricted
+    // 1. Check existing vendor status based on purpose
     const existingVendor = await Vendor.findOne({ phone });
-    if (existingVendor) {
-      if (existingVendor.approvalStatus === VENDOR_STATUS.PENDING) {
-        return res.status(200).json({
-          success: true,
-          message: 'Your account is currently under review. Please wait for admin approval.',
-          vendor: { adminApproval: 'pending' }
+
+    // If registering, prevent OTP if vendor already exists
+    if (purpose === 'register') {
+      if (existingVendor) {
+        if (existingVendor.approvalStatus === VENDOR_STATUS.PENDING) {
+          return res.status(400).json({
+            success: false,
+            message: 'Your vendor account is already registered and is currently pending admin approval.'
+          });
+        }
+        if (existingVendor.approvalStatus === VENDOR_STATUS.REJECTED || existingVendor.approvalStatus === VENDOR_STATUS.SUSPENDED) {
+          return res.status(403).json({
+            success: false,
+            message: 'This account has been restricted or rejected. Please contact support.'
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: 'A vendor account with this phone number already exists. Please login instead.'
         });
       }
-      if (existingVendor.approvalStatus === VENDOR_STATUS.REJECTED || existingVendor.approvalStatus === VENDOR_STATUS.SUSPENDED) {
-        return res.status(403).json({ success: false, message: 'Account restricted.' });
+    } else {
+      // If logging in or general flow, prevent OTP if restricted or pending
+      if (existingVendor) {
+        if (existingVendor.approvalStatus === VENDOR_STATUS.PENDING) {
+          return res.status(403).json({
+            success: false,
+            isPending: true,
+            message: 'Your account is currently under review. Please wait for admin approval.',
+            vendor: { adminApproval: 'pending' }
+          });
+        }
+        if (existingVendor.approvalStatus === VENDOR_STATUS.REJECTED || existingVendor.approvalStatus === VENDOR_STATUS.SUSPENDED) {
+          return res.status(403).json({ success: false, message: 'Account restricted.' });
+        }
       }
     }
 
@@ -148,18 +173,8 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { name, email, verificationToken, aadhar, pan, businessName, service, labDetails, shopDetails, mpin, confirmMpin } = req.body;
+    const { name, email, verificationToken, aadhar, pan, businessName, service, labDetails, shopDetails } = req.body;
     let phone = req.body.phone;
-
-    if (!mpin || !confirmMpin) {
-      return res.status(400).json({ success: false, message: 'MPIN and Confirm MPIN are required' });
-    }
-    if (mpin !== confirmMpin) {
-      return res.status(400).json({ success: false, message: 'MPINs do not match' });
-    }
-    if (!mpinService.validateMpinFormat(mpin)) {
-      return res.status(400).json({ success: false, message: 'MPIN must be exactly 4 digits' });
-    }
 
     if (verificationToken) {
       const verifiedPhone = verifyVerificationToken(verificationToken);
@@ -227,8 +242,6 @@ const register = async (req, res) => {
       parsedShopDetails.licenseDocument = finalShopLicense;
     }
 
-    const hashedMpin = await mpinService.hashMpin(mpin);
-
     const vendorData = {
       name, phone,
       businessName,
@@ -241,8 +254,7 @@ const register = async (req, res) => {
       otherDocuments: otherUrls,
       approvalStatus: VENDOR_STATUS.PENDING,
       isPhoneVerified: true,
-      mpin: hashedMpin,
-      isMpinSet: true
+      isMpinSet: false
     };
 
     if (parsedLabDetails) vendorData.labDetails = parsedLabDetails;
@@ -282,6 +294,11 @@ const register = async (req, res) => {
       }
     } catch (e) { console.error('Notify error', e); }
 
+    const tokens = generateTokenPair({
+      userId: vendor._id,
+      role: USER_ROLES.VENDOR
+    });
+
     res.status(201).json({
       success: true,
       message: 'Registration successful! Pending approval.',
@@ -291,7 +308,8 @@ const register = async (req, res) => {
         email: vendor.email,
         phone: vendor.phone,
         approvalStatus: vendor.approvalStatus
-      }
+      },
+      ...tokens
     });
 
   } catch (error) {
@@ -498,6 +516,24 @@ const loginWithMpin = async (req, res) => {
 
     // Success - reset attempts
     await mpinService.resetMpinAttempts(vendor);
+
+    // GATEKEEPER: Check Registration Fee
+    if (vendor.registrationFeeStatus !== 'PAID') {
+      const jwt = require('jsonwebtoken');
+      const preAuthToken = jwt.sign(
+        { userId: vendor._id, role: 'VENDOR', isPreAuth: true },
+        process.env.JWT_SECRET,
+        { expiresIn: '30m' }
+      );
+      
+      return res.status(403).json({
+        success: false,
+        code: 'REGISTRATION_FEE_REQUIRED',
+        message: 'A one-time registration fee is required to activate your Vendor account.',
+        preAuthToken,
+        role: 'VENDOR'
+      });
+    }
 
     // Generate JWT tokens
     const tokens = generateTokenPair({

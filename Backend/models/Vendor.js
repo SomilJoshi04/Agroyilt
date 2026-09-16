@@ -97,6 +97,24 @@ const vendorSchema = new mongoose.Schema({
     enum: Object.values(VENDOR_STATUS),
     default: VENDOR_STATUS.PENDING
   },
+  registrationFeeStatus: {
+    type: String,
+    enum: ['UNPAID', 'PAID'],
+    default: 'UNPAID'
+  },
+  registrationFeeAmount: {
+    type: Number,
+    default: 0
+  },
+  registrationFeeVersion: {
+    type: Number,
+    default: 1
+  },
+  registrationFeePaymentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RegistrationFeePayment',
+    default: null
+  },
   kyc_status: {
     type: String,
     enum: ['pending', 'verified', 'rejected'],

@@ -120,18 +120,8 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { name, email, verificationToken, aadharNumber, aadharDocument, aadharBackDocument, workerType, mpin, confirmMpin } = req.body;
+    const { name, email, verificationToken, aadharNumber, aadharDocument, aadharBackDocument, workerType } = req.body;
     let phone = req.body.phone;
-
-    if (!mpin || !confirmMpin) {
-      return res.status(400).json({ success: false, message: 'MPIN and Confirm MPIN are required' });
-    }
-    if (mpin !== confirmMpin) {
-      return res.status(400).json({ success: false, message: 'MPINs do not match' });
-    }
-    if (!mpinService.validateMpinFormat(mpin)) {
-      return res.status(400).json({ success: false, message: 'MPIN must be exactly 4 digits' });
-    }
 
     if (verificationToken) {
       const verifiedPhone = verifyVerificationToken(verificationToken);
@@ -170,8 +160,6 @@ const register = async (req, res) => {
     // Validate workerType
     const validWorkerType = ['TEAM_LEADER', 'WORKER'].includes(workerType) ? workerType : 'WORKER';
 
-    const hashedMpin = await mpinService.hashMpin(mpin);
-
     // Create worker
     const worker = await Worker.create({
       name, email, phone,
@@ -183,9 +171,28 @@ const register = async (req, res) => {
       },
       status: WORKER_STATUS.OFFLINE,
       workerType: validWorkerType,
-      mpin: hashedMpin,
-      isMpinSet: true
+      isMpinSet: false,
+      approvalStatus: 'pending'
     });
+
+    // Notify Admins about new Worker registration
+    try {
+      const { createNotification } = require('../notificationControllers/notificationController');
+      const Admin = require('../../models/Admin');
+      const admins = await Admin.find({ isActive: true }).select('_id');
+      for (const admin of admins) {
+        await createNotification({
+          adminId: admin._id,
+          type: 'worker_approval_request',
+          title: '🛠️ New Worker Registration',
+          message: `${worker.name} (${worker.phone}) has registered as a Worker (${worker.workerType})`,
+          relatedId: worker._id,
+          relatedType: 'worker',
+          data: { workerId: worker._id, workerName: worker.name, phone: worker.phone, workerType: worker.workerType },
+          pushData: { type: 'admin_alert', link: '/admin/workers/all' }
+        });
+      }
+    } catch (e) { console.error('Notify admin error for worker:', e); }
 
     const tokens = generateTokenPair({
       userId: worker._id,
@@ -194,13 +201,14 @@ const register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: 'Registration successful! Pending admin approval.',
       worker: {
         id: worker._id,
         name: worker.name,
         email: worker.email,
         phone: worker.phone,
-        status: worker.status
+        status: worker.status,
+        approvalStatus: worker.approvalStatus || 'pending'
       },
       ...tokens
     });
@@ -249,6 +257,26 @@ const login = async (req, res) => {
 
     if (!worker.isActive) {
       return res.status(403).json({ success: false, message: 'Account deactivated.' });
+    }
+
+    // Check approval status
+    const workerApproval = worker.approvalStatus || (worker.isActive ? 'approved' : 'pending');
+    if (workerApproval === 'pending') {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_PENDING_APPROVAL',
+        message: 'Your Worker account is registered and pending admin approval. Please wait for the admin to approve your account.'
+      });
+    }
+
+    if (workerApproval === 'rejected') {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_REJECTED',
+        message: worker.rejectionReason
+          ? `Your Worker application was rejected by admin. Reason: ${worker.rejectionReason}`
+          : 'Your Worker application was rejected by admin. Please contact support.'
+      });
     }
 
     const tokens = generateTokenPair({
@@ -416,6 +444,44 @@ const loginWithMpin = async (req, res) => {
 
     // Success - reset attempts
     await mpinService.resetMpinAttempts(worker);
+
+    // GATEKEEPER 1: Check Admin Approval Status
+    const workerApproval = worker.approvalStatus || (worker.isActive ? 'approved' : 'pending');
+    if (workerApproval === 'pending') {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_PENDING_APPROVAL',
+        message: 'Your Worker account is registered and pending admin approval. Please wait for the admin to approve your account.'
+      });
+    }
+
+    if (workerApproval === 'rejected') {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_REJECTED',
+        message: worker.rejectionReason
+          ? `Your Worker application was rejected by admin. Reason: ${worker.rejectionReason}`
+          : 'Your Worker application was rejected by admin. Please contact support.'
+      });
+    }
+
+    // GATEKEEPER 2: Check Registration Fee
+    if (worker.registrationFeeStatus !== 'PAID') {
+      const jwt = require('jsonwebtoken');
+      const preAuthToken = jwt.sign(
+        { userId: worker._id, role: 'WORKER', isPreAuth: true },
+        process.env.JWT_SECRET,
+        { expiresIn: '30m' }
+      );
+      
+      return res.status(403).json({
+        success: false,
+        code: 'REGISTRATION_FEE_REQUIRED',
+        message: 'A one-time registration fee is required to activate your Worker account.',
+        preAuthToken,
+        role: 'WORKER'
+      });
+    }
 
     // Generate JWT tokens
     const tokens = generateTokenPair({

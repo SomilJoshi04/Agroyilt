@@ -12,6 +12,7 @@ const getAllUsers = async (req, res) => {
       isActive,
       isPhoneVerified,
       isEmailVerified,
+      approvalStatus,
       page = 1,
       limit = 20
     } = req.query;
@@ -27,6 +28,14 @@ const getAllUsers = async (req, res) => {
     }
     if (isEmailVerified !== undefined) {
       query.isEmailVerified = isEmailVerified === 'true';
+    }
+
+    if (approvalStatus && approvalStatus !== 'all') {
+      if (approvalStatus === 'approved') {
+        query.approvalStatus = { $in: ['approved', null] };
+      } else {
+        query.approvalStatus = approvalStatus;
+      }
     }
 
     // Search by name, phone, or email
@@ -174,28 +183,24 @@ const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findById(id);
+    const user = await User.findByIdAndDelete(id);
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Farmer not found'
       });
     }
 
-    // Soft delete
-    user.isActive = false;
-    await user.save();
-
     res.status(200).json({
       success: true,
-      message: 'User deleted successfully'
+      message: 'Farmer deleted successfully'
     });
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete user. Please try again.'
+      message: 'Failed to delete farmer. Please try again.'
     });
   }
 };
@@ -406,7 +411,9 @@ const addUser = async (req, res) => {
       phone,
       email: email || null,
       isPhoneVerified: true, // Auto verify since admin is adding
-      isActive: true
+      isActive: true,
+      approvalStatus: 'approved',
+      approvalDate: new Date()
     });
 
     res.status(201).json({
@@ -423,6 +430,79 @@ const addUser = async (req, res) => {
   }
 };
 
+/**
+ * Approve or Reject Farmer (User)
+ */
+const updateApprovalStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { approvalStatus, rejectionReason } = req.body;
+
+    if (!['approved', 'rejected', 'pending'].includes(approvalStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid approval status. Must be approved, rejected, or pending.'
+      });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Farmer not found'
+      });
+    }
+
+    user.approvalStatus = approvalStatus;
+    if (approvalStatus === 'approved') {
+      user.approvalDate = new Date();
+      user.rejectionReason = null;
+    } else if (approvalStatus === 'rejected') {
+      user.rejectionReason = rejectionReason || 'Registration rejected by admin';
+    }
+
+    await user.save();
+
+    // Send notification to user
+    try {
+      const { createNotification } = require('../notificationControllers/notificationController');
+      if (approvalStatus === 'approved') {
+        await createNotification({
+          userId: user._id,
+          type: 'farmer_approved',
+          title: '🌾 Account Approved!',
+          message: 'Your Farmer account has been approved by admin. You can now login and book services.',
+          relatedId: user._id,
+          relatedType: 'user'
+        });
+      } else if (approvalStatus === 'rejected') {
+        await createNotification({
+          userId: user._id,
+          type: 'farmer_rejected',
+          title: '❌ Account Application Update',
+          message: `Your account application was not approved. Reason: ${user.rejectionReason}`,
+          relatedId: user._id,
+          relatedType: 'user'
+        });
+      }
+    } catch (notifErr) {
+      console.error('Notification error on farmer approval update:', notifErr);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Farmer ${approvalStatus} successfully`,
+      data: user
+    });
+  } catch (error) {
+    console.error('Update farmer approval error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update farmer approval status'
+    });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserDetails,
@@ -432,5 +512,6 @@ module.exports = {
   getUserWalletTransactions,
   getAllUserBookings,
   updateKycStatus,
-  addUser
+  addUser,
+  updateApprovalStatus
 };
