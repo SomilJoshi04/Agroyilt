@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiCheckCircle, FiUsers, FiShield, FiClock, FiAward, FiHeart, FiGlobe, FiSmile, FiSmartphone } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -221,7 +221,7 @@ const AboutAgroyilt = () => {
         <motion.div variants={itemVariants} className="text-center pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-400 mb-1">Designed & Developed by</p>
           <span className="text-sm font-bold tracking-wide" style={grooTextGradient}>Agroyilt Team</span>
-          <p className="text-[10px] text-gray-300 mt-4">v7.6.27 • Made with ❤️ in India</p>
+          <p className="text-[10px] text-gray-300 mt-4">v7.6.27 ? Made with ❤️ in India</p>
         </motion.div>
       </main>
 

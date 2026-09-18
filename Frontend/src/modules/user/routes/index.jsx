@@ -11,8 +11,6 @@ import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
 const lazyLoad = (importFunc) => {
   return lazy(() => {
     return Promise.resolve(importFunc()).catch((error) => {
-      // Failed to load user page
-      // Return a fallback component wrapped in a Promise
       return Promise.resolve({
         default: () => (
           <div className="flex items-center justify-center min-h-screen bg-white">
@@ -101,10 +99,6 @@ import LiveBookingCard from '../components/booking/LiveBookingCard';
 const UserRoutes = () => {
   const location = useLocation();
 
-  // Enable global notifications for user
-  // Global notifications are now handled by SocketProvider at App level
-  // useAppNotifications('user');
-
   // Pages where BottomNav should be shown
   const bottomNavPages = ['/user', '/user/', '/user/my-bookings', '/user/cart', '/user/account', '/user/weather'];
   const shouldShowBottomNav = bottomNavPages.includes(location.pathname);
@@ -112,7 +106,6 @@ const UserRoutes = () => {
   // Check if we hide the live booking card (e.g. if we are on the specific booking details or track page)
   const isBookingDetailsPage = location.pathname.match(/^\/user\/booking\/[a-zA-Z0-9]+(\/track)?$/);
   const isBookingConfirmationPage = location.pathname.includes('/booking-confirmation');
-
 
   // Check if we are on public pages (login/signup) where we shouldn't fetch bookings
   const isPublicPage = location.pathname.includes('/login') || 
@@ -137,6 +130,7 @@ const UserRoutes = () => {
 
               {/* Protected routes (auth required) */}
               <Route path="/" element={<ProtectedRoute userType="user"><Home /></ProtectedRoute>} />
+              <Route path="/home" element={<ProtectedRoute userType="user"><Home /></ProtectedRoute>} />
               <Route path="/native" element={<ProtectedRoute userType="user"><Native /></ProtectedRoute>} />
 
               <Route path="/rewards" element={<ProtectedRoute userType="user"><Rewards /></ProtectedRoute>} />
@@ -179,7 +173,8 @@ const UserRoutes = () => {
               <Route path="/my-worker-requests" element={<ProtectedRoute userType="user"><MyWorkerRequests /></ProtectedRoute>} />
               {/* Farmer-first: request detail with confirm/reject partial */}
               <Route path="/farmer-worker-request/:id" element={<ProtectedRoute userType="user"><FarmerRequestDetail /></ProtectedRoute>} />
-                <Route path="/worker-booking-payment/:id" element={<ProtectedRoute userType="user"><WorkerSelectionPayment /></ProtectedRoute>} />
+              <Route path="/farmer-worker-request/:id/track" element={<ProtectedRoute userType="user"><BookingTrack /></ProtectedRoute>} />
+              <Route path="/worker-booking-payment/:id" element={<ProtectedRoute userType="user"><WorkerSelectionPayment /></ProtectedRoute>} />
               {/* Legacy: old request form with pre-selected worker (kept for backward compat) */}
               <Route path="/worker-request/:id" element={<ProtectedRoute userType="user"><WorkerRequestForm /></ProtectedRoute>} />
               <Route path="/group-request/:id" element={<ProtectedRoute userType="user"><GroupRequestForm /></ProtectedRoute>} />
@@ -205,4 +200,3 @@ const UserRoutes = () => {
 };
 
 export default UserRoutes;
-

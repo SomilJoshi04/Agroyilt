@@ -223,6 +223,8 @@ app.use('/api/workers/wallet', require('./routes/worker-routes/wallet.routes'));
 app.use('/api/workers/fcm-tokens', require('./routes/worker-routes/fcmToken.routes'));
 app.use('/api/workers/team', require('./routes/worker-routes/team.routes'));
 app.use('/api/workers', require('./routes/worker-routes/workerRequests.routes'));
+app.use('/api/workers/assignments', require('./routes/worker-routes/assignment.routes'));
+app.use('/api/workers', require('./routes/worker-routes/assignment.routes'));
 
 
 // Mobile App Routes (unified login role detection)
@@ -277,6 +279,9 @@ app.use('/api/vendors/soil-test', require('./routes/vendor-routes/soilTest.route
 // Booking routes
 app.use('/api/bookings', require('./routes/booking-routes/userBooking.routes'));
 app.use('/api/bookings/cash', require('./routes/booking-routes/cashCollection.routes'));
+app.use('/api/tracking', require('./routes/booking-routes/tracking.routes'));
+app.use('/api/users/tracking', require('./routes/booking-routes/tracking.routes'));
+app.use('/api/user/tracking', require('./routes/booking-routes/tracking.routes'));
 
 // Payment routes
 app.use('/api/payments', require('./routes/payment-routes/payment.routes'));

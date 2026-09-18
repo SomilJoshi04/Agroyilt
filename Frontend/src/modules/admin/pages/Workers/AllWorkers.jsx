@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiSearch, 
@@ -239,7 +239,7 @@ const AllWorkers = () => {
                           {worker.profilePhoto ? (
                             <img src={worker.profilePhoto} alt={worker.name} className="w-full h-full object-cover" />
                           ) : (
-                            worker.name?.charAt(0)?.toUpperCase()
+                            worker.name?.charAt(0) ?.toUpperCase()
                           )}
                         </div>
                         <div>
@@ -372,7 +372,7 @@ const AllWorkers = () => {
                     {selectedWorker.profilePhoto ? (
                       <img src={selectedWorker.profilePhoto} alt={selectedWorker.name} className="w-full h-full object-cover" />
                     ) : (
-                      selectedWorker.name?.charAt(0)?.toUpperCase()
+                      selectedWorker.name?.charAt(0) ?.toUpperCase()
                     )}
                   </div>
                   <div className="min-w-0">

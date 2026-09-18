@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { FiX, FiShield, FiSmartphone, FiMinimize2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 

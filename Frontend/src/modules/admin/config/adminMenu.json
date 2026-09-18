@@ -72,6 +72,7 @@
     "children": [
       "Payment Overview",
       "Farmer Payments",
+      "Worker Payments",
       "Owner Payments",
       "Admin Revenue",
       "Payment Reports"

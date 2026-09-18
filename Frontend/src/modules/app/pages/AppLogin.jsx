@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronLeft, FiPhone, FiCheckCircle, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { toastManager } from '../../../utils/toastManager';
@@ -469,7 +469,7 @@ const AppLogin = () => {
                   maxLength={4}
                   value={mpin}
                   onChange={e => setMpin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="• • • •"
+                  placeholder="? ? ? ?"
                   style={{
                     flex: 1, border: 'none', outline: 'none', background: 'transparent', 
                     fontSize: '1.2rem', fontWeight: 600, color: '#263238', padding: '14px 0',
@@ -500,7 +500,7 @@ const AppLogin = () => {
                   color: (phone.length === 10 && mpin.length === 4 && !isLoading) ? '#fff' : '#9E9E9E',
                   fontSize: '1rem', fontWeight: 700,
                   cursor: (phone.length === 10 && mpin.length === 4 && !isLoading) ? 'pointer' : 'not-allowed',
-                  boxShadow: (phone.length === 10 && mpin.length === 4 && !isLoading) ? '0 4px 16px rgba(46,125,50,0.35)' : 'none',
+                  boxShadow: (phone.length === 10 && mpin.length === 4 && !isLoading) ? '0 4px 16px rgba(46₹25,50,0.35)' : 'none',
                   transition: 'all 0.2s ease',
                 }}
               >
@@ -562,7 +562,7 @@ const AppLogin = () => {
                   color: phone.length === 10 && !isLoading ? '#fff' : '#9E9E9E',
                   fontSize: '1rem', fontWeight: 700,
                   cursor: phone.length === 10 && !isLoading ? 'pointer' : 'not-allowed',
-                  boxShadow: phone.length === 10 && !isLoading ? '0 4px 16px rgba(46,125,50,0.35)' : 'none',
+                  boxShadow: phone.length === 10 && !isLoading ? '0 4px 16px rgba(46₹25,50,0.35)' : 'none',
                   transition: 'all 0.2s ease',
                 }}
               >
@@ -631,7 +631,7 @@ const AppLogin = () => {
                   fontSize: '1rem', fontWeight: 700,
                   cursor: otp.join('').length === 6 && !isLoading ? 'pointer' : 'not-allowed',
                   boxShadow: otp.join('').length === 6 && !isLoading
-                    ? `0 4px 16px ${detectedRole ? roleColor[detectedRole] + '55' : 'rgba(46,125,50,0.35)'}` : 'none',
+                    ? `0 4px 16px ${detectedRole ? roleColor[detectedRole] + '55' : 'rgba(46₹25,50,0.35)'}` : 'none',
                   transition: 'all 0.2s ease',
                 }}
               >
@@ -682,7 +682,7 @@ const AppLogin = () => {
                   maxLength={4}
                   value={newMpin}
                   onChange={e => setNewMpin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="• • • •"
+                  placeholder="? ? ? ?"
                   style={{
                     flex: 1, border: 'none', outline: 'none', background: 'transparent', 
                     fontSize: '1.2rem', fontWeight: 600, color: '#263238', padding: '14px 0',
@@ -713,7 +713,7 @@ const AppLogin = () => {
                   maxLength={4}
                   value={confirmMpin}
                   onChange={e => setConfirmMpin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="• • • •"
+                  placeholder="? ? ? ?"
                   style={{
                     flex: 1, border: 'none', outline: 'none', background: 'transparent', 
                     fontSize: '1.2rem', fontWeight: 600, color: '#263238', padding: '14px 0',
@@ -734,7 +734,7 @@ const AppLogin = () => {
                   color: (newMpin.length === 4 && confirmMpin.length === 4 && !isLoading) ? '#fff' : '#9E9E9E',
                   fontSize: '1rem', fontWeight: 700,
                   cursor: (newMpin.length === 4 && confirmMpin.length === 4 && !isLoading) ? 'pointer' : 'not-allowed',
-                  boxShadow: (newMpin.length === 4 && confirmMpin.length === 4 && !isLoading) ? '0 4px 16px rgba(46,125,50,0.35)' : 'none',
+                  boxShadow: (newMpin.length === 4 && confirmMpin.length === 4 && !isLoading) ? '0 4px 16px rgba(46₹25,50,0.35)' : 'none',
                   transition: 'all 0.2s ease',
                 }}
               >

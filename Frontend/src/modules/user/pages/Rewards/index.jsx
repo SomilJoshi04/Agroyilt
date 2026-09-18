@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toastManager } from '../../../../utils/toastManager';
 
@@ -183,9 +183,9 @@ const Rewards = () => {
 
         <div className="px-4 py-3 border-t border-gray-100 bg-white">
           <div className="flex items-center gap-2 text-[#00A6A6] text-xs">
-            <span className="text-[#00A6A6]">•</span>
+            <span className="text-[#00A6A6]">?</span>
             <button onClick={() => navigate('/user/cancellation-policy')} className="hover:underline cursor-pointer">Terms and conditions</button>
-            <span className="text-[#00A6A6]">•</span>
+            <span className="text-[#00A6A6]">?</span>
             <button onClick={() => navigate('/user/help-support')} className="hover:underline cursor-pointer">FAQs</button>
           </div>
         </div>

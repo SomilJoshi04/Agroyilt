@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo, useRef } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, FiCheckCircle, FiTrendingUp, FiChevronRight, FiAlertTriangle, FiCalendar, FiBarChart2, FiActivity, FiShoppingBag } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';

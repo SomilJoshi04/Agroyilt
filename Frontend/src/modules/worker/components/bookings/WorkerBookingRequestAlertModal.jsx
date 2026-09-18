@@ -14,9 +14,18 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
 
   useEffect(() => {
     if (isOpen && requestData) {
-      playAlertRing(true);
-      setTimeLeft(60); // Reset timer to 60s
-      
+      const validId = requestData.requestId || requestData._id || requestData.id;
+      if (!validId || (!requestData.workTitle && !requestData.serviceName)) {
+        onClose();
+        return;
+      }
+
+      try {
+        playAlertRing(true);
+      } catch (e) {}
+      setTimeLeft(60);
+      setOfferedRate(requestData.minRate || requestData.farmerOfferedRate || 0);
+
       const timer = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
@@ -27,7 +36,7 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
           return prev - 1;
         });
       }, 1000);
-      
+
       return () => {
         clearInterval(timer);
         stopAlertRing();
@@ -39,22 +48,37 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
   }, [isOpen, requestData]);
 
   const handleTimeout = () => {
-    // Automatically close or reject when timer runs out
     stopAlertRing();
     onClose();
   };
 
+  const targetRequestId = requestData?.requestId || requestData?._id || requestData?.id;
+
   const handleAccept = async () => {
-    if (!showRateInput && requestData?.isFarmerBroadcast && requestData?.maxRate) {
+    if (!targetRequestId) {
+      toastManager.error('Request ID missing');
+      return;
+    }
+
+    if (!showRateInput && requestData?.isFarmerBroadcast && requestData?.maxRate && requestData?.maxRate > requestData?.minRate) {
       setShowRateInput(true);
       return;
     }
+
+    const maxBudget = Number(requestData?.maxRate || requestData?.farmerOfferedRate || requestData?.minRate || 0);
+    const numericRate = Number(offeredRate) || maxBudget;
+
+    if (maxBudget > 0 && numericRate > maxBudget) {
+      toastManager.error(`Offered rate cannot exceed farmer's maximum budget of ₹${maxBudget}`);
+      return;
+    }
+
     if (loadingAction) return;
     setLoadingAction('accept');
     try {
       const res = requestData.isFarmerBroadcast
-        ? await workerService.respondToFarmerRequest(requestData.requestId, 'accept', { offeredRate: Number(offeredRate) })
-        : await workerService.respondToRequest(requestData.requestId, 'accept');
+        ? await workerService.respondToFarmerRequest(targetRequestId, 'accept', { offeredRate: numericRate })
+        : await workerService.respondToRequest(targetRequestId, 'accept');
 
       if (res.success) {
         toastManager.success('Booking Request Accepted!');
@@ -64,29 +88,33 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
         toastManager.error(res.message || 'Failed to accept request');
       }
     } catch (error) {
-      toastManager.error('Failed to accept request');
+      toastManager.error(error?.response?.data?.message || error?.message || 'Failed to accept request');
     } finally {
       setLoadingAction(null);
     }
   };
 
   const handleReject = async () => {
+    if (!targetRequestId) {
+      onClose();
+      return;
+    }
     if (loadingAction) return;
     setLoadingAction('reject');
     try {
       const res = requestData.isFarmerBroadcast
-        ? await workerService.respondToFarmerRequest(requestData.requestId, 'reject')
-        : await workerService.respondToRequest(requestData.requestId, 'reject');
+        ? await workerService.respondToFarmerRequest(targetRequestId, 'reject')
+        : await workerService.respondToRequest(targetRequestId, 'reject');
 
       if (res.success) {
         toastManager.success('Request Declined');
         onRequestResponded && onRequestResponded();
         onClose();
       } else {
-        toastManager.error(res.message || 'Failed to reject request');
+        toastManager.error(res.message || 'Failed to decline request');
       }
     } catch (error) {
-      toastManager.error('Failed to decline request');
+      toastManager.error(error?.response?.data?.message || error?.message || 'Failed to decline request');
     } finally {
       setLoadingAction(null);
     }
@@ -94,36 +122,41 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
 
   if (!isOpen || !requestData) return null;
 
-  const radius = 36;
+  const radius = 20;
   const circumference = 2 * Math.PI * radius;
-  const progress = (timeLeft / 60) * circumference;
-  const dashoffset = circumference - progress;
+  const dashoffset = circumference - (timeLeft / 60) * circumference;
 
   const content = (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto overflow-x-hidden">
+      <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4">
+        {/* Backdrop */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 40 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 40 }}
-          className="bg-white w-full max-w-sm max-h-[85dvh] rounded-[3rem] overflow-y-auto overflow-x-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] relative flex flex-col"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-black/70 backdrop-blur-md"
+        />
+
+        {/* Modal Card */}
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          transition={{ type: "spring", stiffness: 350, damping: 25 }}
+          className="relative w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]"
         >
           {/* Header Section */}
-          <div className="relative h-44 bg-gradient-to-br from-green-600 to-emerald-800 flex flex-col items-center justify-center pt-4 shrink-0">
-            {/* Animated background elements */}
-            <div className="absolute inset-0 opacity-20 pointer-events-none">
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
-                transition={{ duration: 4, repeat: Infinity }}
-                className="absolute -top-10 -left-10 w-40 h-40 bg-white rounded-full"
-              />
-            </div>
+          <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 p-6 flex flex-col items-center text-center">
+            {/* Background Glows */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-teal-400/20 rounded-full blur-xl pointer-events-none" />
 
-            <div className="relative z-10 mb-3">
-              <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-[1.5rem] border border-white/20 flex items-center justify-center shadow-lg relative">
-                <FiBell className="w-7 h-7 text-white animate-bounce" />
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+            {/* Pulsing Bell Icon */}
+            <div className="relative mb-3">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/30 shadow-inner">
+                <FiBell className="w-8 h-8 animate-bounce text-white" />
               </div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white animate-pulse" />
             </div>
 
             <h2 className="relative z-10 text-white text-2xl font-black tracking-tight">New Booking Request!</h2>
@@ -144,7 +177,7 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
                 </div>
                 <div>
                   <h4 className="text-lg font-black text-gray-900 leading-none">{requestData.farmerName || 'Farmer'}</h4>
-                  <p className="text-[11px] font-bold text-blue-600 mt-1 uppercase tracking-wider">{requestData.workCategory}</p>
+                  <p className="text-[11px] font-bold text-blue-600 mt-1 uppercase tracking-wider">{requestData.workCategory || requestData.workTitle || 'Farm Work'}</p>
                 </div>
               </div>
 
@@ -173,7 +206,7 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
                   <div className="flex-1">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date & Time</p>
                     <p className="text-sm font-bold text-gray-800">
-                      {requestData.scheduledDate ? new Date(requestData.scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }) : 'N/A'} • {requestData.startTime || 'N/A'}{requestData.endTime ? ` - ${requestData.endTime}` : ''}
+                      {requestData.scheduledDate ? new Date(requestData.scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Today'} ? {requestData.startTime || 'Flexible'}{requestData.endTime ? ` - ${requestData.endTime}` : ''}
                     </p>
                   </div>
                 </div>
@@ -186,8 +219,8 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Location</p>
                     <p className="text-sm font-bold text-gray-800">
                       {typeof requestData.location === 'object' && requestData.location !== null
-                        ? [requestData.location.addressLine1, requestData.location.city, requestData.location.state].filter(Boolean).join(', ')
-                        : (requestData.location || 'Location Not Provided')}
+                        ? [requestData.location.addressLine1, requestData.location.city, requestData.location.state].filter(Boolean).join(', ') || 'Farmer Location'
+                        : (requestData.location || 'Location Provided')}
                     </p>
                   </div>
                 </div>
@@ -225,7 +258,7 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
             </div>
           </div>
 
-                    {/* Rate Input Section */}
+          {/* Rate Input Section */}
           {showRateInput && (
             <div className="px-6 pt-4 pb-2 bg-white shrink-0 animate-fade-in">
               <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
@@ -244,6 +277,7 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
               </div>
             </div>
           )}
+
           {/* Action Buttons */}
           <div className="px-6 pb-6 pt-2 bg-white flex gap-3 shrink-0">
             <button

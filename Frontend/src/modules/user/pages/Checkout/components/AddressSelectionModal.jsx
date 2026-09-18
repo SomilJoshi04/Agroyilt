@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { FiArrowLeft, FiX, FiSearch, FiMapPin, FiHome } from 'react-icons/fi';
+import { FiArrowLeft, FiX, FiSearch, FiMapPin, FiHome, FiLoader } from 'react-icons/fi';
 import { themeColors } from '../../../../../theme';
 import LocationPicker from './LocationPicker';
 import { toastManager } from '../../../../../utils/toastManager';
-
 
 const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = '', onHouseNumberChange, onSave }) => {
   const [isClosing, setIsClosing] = useState(false);
@@ -12,19 +11,46 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
   const [mapAddress, setMapAddress] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const searchContainerRef = useRef(null);
+  const lastSelectedAddressRef = useRef('');
 
   // Lock body scroll when modal open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      if (address && !mapAddress) {
+        setMapAddress(address);
+        setSearchQuery(address);
+        lastSelectedAddressRef.current = address;
+      }
     } else {
       document.body.style.overflow = '';
       setIsClosing(false);
+      setSuggestions([]);
+      setIsDropdownOpen(false);
     }
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen]);
+  }, [isOpen, address]);
+
+  // Dismiss dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   const handleClose = () => {
     setIsClosing(true);
@@ -34,58 +60,121 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
     }, 250);
   };
 
+  // Convert Nominatim place to standard location object
+  const formatLocationFromPlace = (place) => {
+    const components = Object.keys(place.address || {}).map(key => ({
+      long_name: place.address[key],
+      short_name: place.address[key],
+      types: [key]
+    }));
+
+    const mappedComponents = components.map(c => {
+      if (c.types.includes('postcode')) c.types.push('postal_code');
+      if (c.types.includes('city') || c.types.includes('town') || c.types.includes('county') || c.types.includes('suburb')) c.types.push('locality');
+      if (c.types.includes('state')) c.types.push('administrative_area_level_1');
+      if (c.types.includes('suburb') || c.types.includes('neighbourhood') || c.types.includes('residential')) c.types.push('sublocality');
+      return c;
+    });
+
+    return {
+      lat: parseFloat(place.lat),
+      lng: parseFloat(place.lon),
+      address: place.display_name,
+      components: mappedComponents,
+    };
+  };
+
+  // Trigger search via Nominatim
+  const performSearch = useCallback(async (queryText) => {
+    const q = (queryText || '').trim();
+    if (!q || q.length < 2) {
+      setSuggestions([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setIsDropdownOpen(true);
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=in&addressdetails=1&limit=6`,
+        {
+          headers: {
+            'Accept': 'application/json',
+          }
+        }
+      );
+      if (!response.ok) throw new Error('Search network error');
+      const results = await response.json();
+
+      if (Array.isArray(results) && results.length > 0) {
+        setSuggestions(results);
+      } else {
+        setSuggestions([]);
+      }
+    } catch (error) {
+      console.warn('[AddressSearch] Search error:', error);
+      setSuggestions([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Live debounced search as user types
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+
+    // If query matches what was already selected from map or suggestion, don't trigger auto-search
+    if (!trimmed || trimmed === lastSelectedAddressRef.current.trim()) {
+      return;
+    }
+
+    if (trimmed.length < 2) {
+      setSuggestions([]);
+      setIsDropdownOpen(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      performSearch(trimmed);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, performSearch]);
+
+  // When user clicks a suggestion from the dropdown
+  const handleSelectSuggestion = (place) => {
+    const loc = formatLocationFromPlace(place);
+    lastSelectedAddressRef.current = place.display_name;
+    setSelectedLocation(loc);
+    setMapAddress(place.display_name);
+    setSearchQuery(place.display_name);
+    setSuggestions([]);
+    setIsDropdownOpen(false);
+  };
+
+  // When user taps on the map pin or locate me
   const handleLocationSelect = (location) => {
+    lastSelectedAddressRef.current = location.address;
     setSelectedLocation(location);
     setMapAddress(location.address);
     setSearchQuery(location.address);
+    setSuggestions([]);
+    setIsDropdownOpen(false);
   };
 
-  // Geocode address when user presses Enter using Nominatim
-  const handleSearchKeyDown = async (e) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
+  // Keyboard navigation & enter handler
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
       e.preventDefault();
-      setIsSearching(true);
-      
-      try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&countrycodes=in&addressdetails=1`);
-        const results = await response.json();
-        
-        if (results && results.length > 0) {
-          const place = results[0];
-          
-          // Map OSM address structure to our expected structure
-          const components = Object.keys(place.address || {}).map(key => ({
-            long_name: place.address[key],
-            short_name: place.address[key],
-            types: [key]
-          }));
-
-          const mappedComponents = components.map(c => {
-             if(c.types.includes('postcode')) c.types.push('postal_code');
-             if(c.types.includes('city') || c.types.includes('town') || c.types.includes('county')) c.types.push('locality');
-             if(c.types.includes('state')) c.types.push('administrative_area_level_1');
-             return c;
-          });
-
-          const location = {
-            lat: parseFloat(place.lat),
-            lng: parseFloat(place.lon),
-            address: place.display_name,
-            components: mappedComponents,
-          };
-          
-          setSelectedLocation(location);
-          setMapAddress(place.display_name);
-          setSearchQuery(place.display_name);
-        } else {
-          toastManager.error('Address not found. Please try a different search.');
-        }
-      } catch (error) {
-        console.error('Search error:', error);
-        toastManager.error('Error searching for address.');
-      } finally {
-        setIsSearching(false);
+      if (suggestions.length > 0) {
+        handleSelectSuggestion(suggestions[0]);
+      } else if (searchQuery.trim()) {
+        performSearch(searchQuery);
       }
+    } else if (e.key === 'Escape') {
+      setIsDropdownOpen(false);
     }
   };
 
@@ -117,6 +206,10 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
         @keyframes modalSlideDown {
           from { transform: translateY(0);    opacity: 1; }
           to   { transform: translateY(100%); opacity: 0; }
+        }
+        @keyframes spinIcon {
+          from { transform: translateY(-50%) rotate(0deg); }
+          to   { transform: translateY(-50%) rotate(360deg); }
         }
       `}</style>
 
@@ -175,8 +268,8 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
         {/* Info banner */}
         <div style={{ padding: '12px 16px 0' }}>
           <div style={{
-            background: `${themeColors.brand.teal}12`,
-            border: `1px solid ${themeColors.brand.teal}30`,
+            background: `${themeColors.brand?.teal || '#059669'}12`,
+            border: `1px solid ${themeColors.brand?.teal || '#059669'}30`,
             borderRadius: 12,
             padding: '10px 14px',
             display: 'flex',
@@ -184,9 +277,9 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
             gap: 10,
             marginBottom: 12,
           }}>
-            <FiMapPin size={16} color={themeColors.button} style={{ marginTop: 2, flexShrink: 0 }} />
+            <FiMapPin size={16} color={themeColors.button || '#059669'} style={{ marginTop: 2, flexShrink: 0 }} />
             <div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: themeColors.button }}>Set Your Service Location</div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: themeColors.button || '#059669' }}>Set Your Service Location</div>
               <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>
                 Tap on the map or search for an address to pin your location.
               </div>
@@ -207,7 +300,7 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
         {/* Search + House Number + Save */}
         <div style={{ padding: '0 16px' }}>
 
-          {/* Address Search */}
+          {/* Address Search Label */}
           <label style={{
             display: 'block', fontSize: 10, fontWeight: 800, color: '#9ca3af',
             textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6, marginLeft: 2,
@@ -215,31 +308,201 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
             Search Address
           </label>
           
-          <div style={{ position: 'relative', marginBottom: 16 }}>
-            <FiSearch size={15} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
-            <input
-              type="text"
-              placeholder={isSearching ? "Searching..." : "Search and press Enter..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              disabled={isSearching}
-              style={{
-                width: '100%', padding: '12px 36px 12px 36px',
-                background: '#f9fafb', border: '1px solid #e5e7eb',
-                borderRadius: 12, fontSize: 14, fontWeight: 500,
-                outline: 'none', boxSizing: 'border-box',
-                opacity: isSearching ? 0.7 : 1
-              }}
-            />
-            {searchQuery && !isSearching && (
+          {/* Search Box Container with Dropdown */}
+          <div ref={searchContainerRef} style={{ position: 'relative', marginBottom: 16, zIndex: 50 }}>
+            <div style={{ position: 'relative' }}>
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                onClick={() => performSearch(searchQuery)}
+                style={{
+                  position: 'absolute',
+                  left: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 4,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 2
+                }}
+                title="Click to search"
               >
-                <FiX size={14} color="#9ca3af" />
+                <FiSearch size={16} color={isSearching ? (themeColors.button || '#059669') : '#9ca3af'} />
               </button>
+
+              <input
+                type="text"
+                placeholder={isSearching ? "Searching locations..." : "Search colony, city, landmark..."}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                onFocus={() => {
+                  if (suggestions.length > 0 || (searchQuery.trim().length >= 2 && !isSearching)) {
+                    setIsDropdownOpen(true);
+                  }
+                }}
+                onKeyDown={handleSearchKeyDown}
+                style={{
+                  width: '100%',
+                  padding: '12px 64px 12px 38px',
+                  background: '#f9fafb',
+                  border: isDropdownOpen && (suggestions.length > 0 || isSearching) ? `1.5px solid ${themeColors.button || '#059669'}` : '1px solid #e5e7eb',
+                  borderRadius: isDropdownOpen && (suggestions.length > 0 || isSearching) ? '12px 12px 0 0' : 12,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  color: '#1e293b',
+                  transition: 'border 0.2s',
+                }}
+              />
+
+              <div style={{
+                position: 'absolute',
+                right: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                zIndex: 2
+              }}>
+                {isSearching && (
+                  <div style={{
+                    width: 15,
+                    height: 15,
+                    border: `2px solid ${themeColors.button || '#059669'}30`,
+                    borderTopColor: themeColors.button || '#059669',
+                    borderRadius: '50%',
+                    animation: 'spinIcon 0.7s linear infinite'
+                  }} />
+                )}
+                {searchQuery && !isSearching && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSuggestions([]);
+                      setIsDropdownOpen(false);
+                      lastSelectedAddressRef.current = '';
+                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, display: 'flex', alignItems: 'center' }}
+                  >
+                    <FiX size={15} color="#9ca3af" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ── Search Suggestions Dropdown ── */}
+            {isDropdownOpen && searchQuery.trim().length >= 2 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                backgroundColor: '#ffffff',
+                borderRadius: '0 0 14px 14px',
+                border: `1.5px solid ${themeColors.button || '#059669'}`,
+                borderTop: '1px solid #f1f5f9',
+                boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.16)',
+                zIndex: 9999,
+                maxHeight: 280,
+                overflowY: 'auto',
+              }}>
+                {isSearching && suggestions.length === 0 ? (
+                  <div style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: '#64748b', fontSize: 13 }}>
+                    <div style={{
+                      width: 15,
+                      height: 15,
+                      border: `2px solid ${themeColors.button || '#059669'}30`,
+                      borderTopColor: themeColors.button || '#059669',
+                      borderRadius: '50%',
+                      animation: 'spinIcon 0.7s linear infinite'
+                    }} />
+                    Searching places...
+                  </div>
+                ) : suggestions.length > 0 ? (
+                  <div>
+                    <div style={{
+                      padding: '7px 14px',
+                      background: '#f8fafc',
+                      borderBottom: '1px solid #f1f5f9',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      color: '#94a3b8',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em'
+                    }}>
+                      Select Location ({suggestions.length})
+                    </div>
+                    {suggestions.map((item, idx) => {
+                      const mainName = item.namedetails?.name || item.name || item.display_name.split(',')[0];
+                      const subAddress = item.display_name.split(',').slice(1).join(',').trim();
+                      return (
+                        <div
+                          key={item.place_id || idx}
+                          onClick={() => handleSelectSuggestion(item)}
+                          style={{
+                            padding: '10px 14px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 10,
+                            borderBottom: idx === suggestions.length - 1 ? 'none' : '1px solid #f3f4f6',
+                            transition: 'background-color 0.15s',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0fdf4'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
+                        >
+                          <div style={{
+                            marginTop: 2,
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            background: '#ecfdf5',
+                            color: themeColors.button || '#059669',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <FiMapPin size={13} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {mainName}
+                            </div>
+                            <div style={{
+                              fontSize: 11,
+                              color: '#64748b',
+                              lineHeight: 1.35,
+                              marginTop: 1,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical'
+                            }}>
+                              {subAddress || item.display_name}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : !isSearching ? (
+                  <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+                    <div style={{ fontWeight: 600, color: '#334155', marginBottom: 2 }}>No matching places found</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>Try searching by colony, road, landmark, or city name</div>
+                  </div>
+                ) : null}
+              </div>
             )}
           </div>
 
@@ -269,12 +532,12 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
           {/* Selected address preview */}
           {mapAddress ? (
             <div style={{
-              background: `${themeColors.brand.teal}0D`,
-              border: `1px solid ${themeColors.brand.teal}30`,
+              background: `${themeColors.brand?.teal || '#059669'}0D`,
+              border: `1px solid ${themeColors.brand?.teal || '#059669'}30`,
               borderRadius: 12, padding: '10px 14px', marginBottom: 16,
               display: 'flex', alignItems: 'flex-start', gap: 8,
             }}>
-              <FiMapPin size={14} color={themeColors.button} style={{ marginTop: 2, flexShrink: 0 }} />
+              <FiMapPin size={14} color={themeColors.button || '#059669'} style={{ marginTop: 2, flexShrink: 0 }} />
               <span style={{ fontSize: 13, color: '#333', lineHeight: 1.5 }}>{mapAddress}</span>
             </div>
           ) : null}
@@ -282,15 +545,15 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
           {/* Save Button */}
           <button
             type="button"
-            onClick={() => onSave(houseNumber, selectedLocation)}
+            onClick={() => onSave(houseNumber, selectedLocation || (mapAddress ? { address: mapAddress } : null))}
             disabled={!mapAddress}
             style={{
               width: '100%', padding: '15px', borderRadius: 14,
-              background: mapAddress ? themeColors.button : '#d1d5db',
+              background: mapAddress ? (themeColors.button || '#059669') : '#d1d5db',
               color: '#fff', fontWeight: 800, fontSize: 13,
               textTransform: 'uppercase', letterSpacing: '0.08em',
               border: 'none', cursor: mapAddress ? 'pointer' : 'not-allowed',
-              boxShadow: mapAddress ? `0 6px 18px ${themeColors.button}40` : 'none',
+              boxShadow: mapAddress ? `0 6px 18px ${(themeColors.button || '#059669')}40` : 'none',
               marginBottom: 40, transition: 'all 0.2s',
             }}
           >

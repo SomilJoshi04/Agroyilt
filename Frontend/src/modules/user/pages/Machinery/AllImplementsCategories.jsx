@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiArrowLeft, FiMapPin, FiLayers } from 'react-icons/fi';
 import { Helmet } from 'react-helmet-async';
@@ -119,7 +119,7 @@ const AllImplementsCategories = () => {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-50 text-emerald-600 text-lg font-black">
-                            {imp.title?.charAt(0)?.toUpperCase() || '?'}
+                            {imp.title?.charAt(0) ?.toUpperCase() || '?'}
                           </div>
                         )
                       }

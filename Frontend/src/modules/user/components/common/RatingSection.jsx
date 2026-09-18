@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+﻿import React, { memo } from 'react';
 import { AiFillStar } from 'react-icons/ai';
 
 const RatingSection = memo(({ title, rating, bookings, showBorder = false }) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiShoppingCart, FiTrash2, FiPlus, FiMinus, FiLoader, FiBell } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -298,7 +298,7 @@ const Cart = () => {
                         <div className="flex-1 min-w-0">
                           <h3 className="text-base font-bold text-black mb-1">{category}</h3>
                           <p className="text-sm text-gray-600">
-                            {serviceCount} {serviceCount === 1 ? 'service' : 'services'} • ₹{categoryTotal.toLocaleString('en-IN')}
+                            {serviceCount} {serviceCount === 1 ? 'service' : 'services'} ? ₹{categoryTotal.toLocaleString('en-IN')}
                           </p>
                         </div>
                       </div>

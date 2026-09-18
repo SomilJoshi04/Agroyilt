@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { FiX, FiDollarSign, FiCamera, FiCheck, FiInfo, FiTrash, FiCreditCard } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { vendorTheme as themeColors } from '../../../../theme';

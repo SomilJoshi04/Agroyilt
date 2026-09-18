@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   FiMapPin, FiTruck, FiCalendar, FiClock, 
@@ -265,9 +265,9 @@ const MachineryCheckout = () => {
                   setSelectedAddress({
                       addressLine1: location.address,
                       addressLine2: houseNo,
-                      city: location.components.find(c => c.types.includes('locality'))?.long_name || '',
-                      state: location.components.find(c => c.types.includes('administrative_area_level_1'))?.long_name || '',
-                      pincode: location.components.find(c => c.types.includes('postal_code'))?.long_name || '',
+                      city: location.components.find(c => c.types.includes('locality')) ?.long_name || '',
+                      state: location.components.find(c => c.types.includes('administrative_area_level_1')) ?.long_name || '',
+                      pincode: location.components.find(c => c.types.includes('postal_code')) ?.long_name || '',
                       lat: location.lat,
                       lng: location.lng
                   });

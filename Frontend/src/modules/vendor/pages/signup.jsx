@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiX, FiArrowRight, FiChevronLeft, FiCheckCircle, FiCamera, FiBriefcase, FiChevronDown } from 'react-icons/fi';
@@ -320,16 +320,16 @@ const VendorSignup = () => {
 
     if (verificationToken) {
       try {
-        const aadharDoc = formData.documents.find(d => d.type === 'aadhar')?.url || null;
-        const aadharBackDoc = formData.documents.find(d => d.type === 'aadharBack')?.url || null;
-        const panDoc = formData.documents.find(d => d.type === 'pan')?.url || null;
+        const aadharDoc = formData.documents.find(d => d.type === 'aadhar') ?.url || null;
+        const aadharBackDoc = formData.documents.find(d => d.type === 'aadharBack') ?.url || null;
+        const panDoc = formData.documents.find(d => d.type === 'pan') ?.url || null;
         const otherDocs = formData.documents.filter(d => d.type === 'other').map(d => d.url);
         
         let labDetailsPayload = null;
         if (formData.isLabRegistration) {
           labDetailsPayload = {
             ...formData.labDetails,
-            certificationDocument: formData.documents.find(d => d.type === 'labCert')?.url || null
+            certificationDocument: formData.documents.find(d => d.type === 'labCert') ?.url || null
           };
         }
 
@@ -337,7 +337,7 @@ const VendorSignup = () => {
         if (formData.isShopRegistration) {
           shopDetailsPayload = {
             ...formData.shopDetails,
-            licenseDocument: formData.documents.find(d => d.type === 'shopLicense')?.url || null
+            licenseDocument: formData.documents.find(d => d.type === 'shopLicense') ?.url || null
           };
         }
 
@@ -450,16 +450,16 @@ const VendorSignup = () => {
     isSubmittingRef.current = true;
     setIsLoading(true);
     try {
-      const aadharDoc = formData.documents.find(d => d.type === 'aadhar')?.url || null;
-      const aadharBackDoc = formData.documents.find(d => d.type === 'aadharBack')?.url || null;
-      const panDoc = formData.documents.find(d => d.type === 'pan')?.url || null;
+      const aadharDoc = formData.documents.find(d => d.type === 'aadhar') ?.url || null;
+      const aadharBackDoc = formData.documents.find(d => d.type === 'aadharBack') ?.url || null;
+      const panDoc = formData.documents.find(d => d.type === 'pan') ?.url || null;
       const otherDocs = formData.documents.filter(d => d.type === 'other').map(d => d.url);
 
       let labDetailsPayload = null;
       if (formData.isLabRegistration) {
         labDetailsPayload = {
           ...formData.labDetails,
-          certificationDocument: formData.documents.find(d => d.type === 'labCert')?.url || null
+          certificationDocument: formData.documents.find(d => d.type === 'labCert') ?.url || null
         };
       }
 
@@ -467,7 +467,7 @@ const VendorSignup = () => {
       if (formData.isShopRegistration) {
         shopDetailsPayload = {
           ...formData.shopDetails,
-          licenseDocument: formData.documents.find(d => d.type === 'shopLicense')?.url || null
+          licenseDocument: formData.documents.find(d => d.type === 'shopLicense') ?.url || null
         };
       }
 

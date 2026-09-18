@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 
 /**
  * A robust hook to detect if a mobile virtual keyboard is open.

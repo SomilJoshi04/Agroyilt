@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   FiSearch, FiFilter, FiMapPin, FiTruck, 
@@ -293,7 +293,7 @@ const MachineryExplorer = () => {
                       <div>
                         <h3 className="text-[17px] font-black text-slate-800 leading-tight truncate max-w-[200px]">{item.name}</h3>
                         <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-tight flex items-center gap-1.5">
-                           {item.modelNumber} {item.modelNumber && item.year ? '•' : ''} {item.year ? `${item.year} Mfg` : ''}
+                           {item.modelNumber} {item.modelNumber && item.year ? '?' : ''} {item.year ? `${item.year} Mfg` : ''}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 text-[10px] font-black text-slate-800 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">

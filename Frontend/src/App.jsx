@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'; // Updated index to .jsx
+﻿import React, { useEffect } from 'react'; // Updated index to .jsx
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';

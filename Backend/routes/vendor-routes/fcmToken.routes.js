@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Vendor FCM Token Routes
  * Manages FCM tokens for push notifications
  */
@@ -32,6 +32,7 @@ router.post('/save', authenticate, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Vendor not found' });
     }
 
+    if (!Array.isArray(vendor.fcmTokens)) vendor.fcmTokens = [];
     // Filter out old token if it exists anywhere
     vendor.fcmTokens = vendor.fcmTokens || [];
     vendor.fcmTokens = vendor.fcmTokens.filter(t => t.token !== token);
@@ -116,7 +117,7 @@ router.delete('/remove-all', authenticate, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Vendor not found' });
     }
 
-    console.log(`[FCM] ✅ All ${platform} tokens removed for vendor: ${vendorId}`);
+    console.log(`[FCM] âœ… All ${platform} tokens removed for vendor: ${vendorId}`);
     res.json({ success: true, message: `All ${platform} FCM tokens removed successfully` });
   } catch (error) {
     console.error('Error removing FCM tokens:', error);
@@ -146,7 +147,7 @@ router.post('/test', authenticate, async (req, res) => {
     }
 
     const response = await sendPushNotification(uniqueTokens, {
-      title: '🔔 Test Notification',
+      title: 'ðŸ”” Test Notification',
       body: 'This is a test notification for vendor!',
       data: {
         type: 'test',
@@ -167,4 +168,5 @@ router.post('/test', authenticate, async (req, res) => {
 });
 
 module.exports = router;
+
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Production-Ready Flutter JS Bridge
  * Handles secure and optimized communication with native mobile features.
  */

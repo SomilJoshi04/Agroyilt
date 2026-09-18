@@ -32,6 +32,7 @@ router.post('/save', authenticate, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Worker not found' });
     }
 
+    if (!Array.isArray(worker.fcmTokens)) worker.fcmTokens = [];
     // Filter out old token if it exists anywhere
     worker.fcmTokens = worker.fcmTokens.filter(t => t.token !== token);
 
@@ -166,4 +167,3 @@ router.post('/test', authenticate, async (req, res) => {
 });
 
 module.exports = router;
-

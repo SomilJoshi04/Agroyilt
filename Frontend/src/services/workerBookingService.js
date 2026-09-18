@@ -55,6 +55,16 @@ export const workerBookingService = {
     const response = await api.post(`/users/farmer-worker-request/${requestId}/verify-payment`, paymentData);
     return response.data;
   },
+
+  getTrackingData: async (requestId) => {
+    const response = await api.get(`/users/farmer-worker-request/${requestId}/tracking`);
+    return response.data;
+  },
+
+  generateCompletionOtp: async (requestId, assignmentId) => {
+    const response = await api.post(`/users/farmer-worker-request/${requestId}/assignment/${assignmentId}/completion-otp`);
+    return response.data;
+  },
   
   processWorkerSettlement: async (bookingId, data) => {
     const response = await api.post(`/booking/${bookingId}/worker-settlement`, data);
@@ -74,8 +84,9 @@ confirmFarmerRequest: async (id, accept) => {
   // ── WORKER SIDE (for inclusion in workerService; available here for convenience) ──
 
   /** Worker responds to a farmer broadcast request */
-  workerRespondToFarmerRequest: async (id, action) => {
-    const response = await api.patch(`/workers/farmer-request/${id}/respond`, { action });
+  workerRespondToFarmerRequest: async (id, action, data = {}) => {
+    const payload = typeof data === 'object' && data !== null ? { action, ...data } : { action, offeredRate: data };
+    const response = await api.patch(`/workers/farmer-request/${id}/respond`, payload);
     return response.data;
   },
 

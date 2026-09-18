@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 const PriceDisplay = ({ amount, currency = '₹', size = 'md', showDecimals = false }) => {
   const formattedAmount = showDecimals

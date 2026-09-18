@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import api from '../../../services/api';
@@ -240,7 +240,7 @@ const Hero = () => {
         animate={{ y: [0, 8, 0] }}
         transition={{ repeat: Infinity, duration: 2 }}
         className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center space-y-1.5 cursor-pointer"
-        onClick={() => document.getElementById('problem')?.scrollIntoView({ behavior: 'smooth' })}
+        onClick={() => document.getElementById('problem') ?.scrollIntoView({ behavior: 'smooth' })}
       >
         <div className="w-5 h-9 border-2 border-white/25 rounded-full flex justify-center pt-1.5">
           <motion.div

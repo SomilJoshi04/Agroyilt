@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
@@ -376,7 +376,7 @@ const BookingConfirmation = () => {
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 mb-1">Date & Time</p>
                   <p className="text-sm text-gray-700">
-                    {formatDate(booking.scheduledDate)} • {booking.scheduledTime || booking.timeSlot?.start || 'N/A'}
+                    {formatDate(booking.scheduledDate)} ? {booking.scheduledTime || booking.timeSlot?.start || 'N/A'}
                   </p>
                 </div>
               </div>
@@ -434,7 +434,7 @@ const BookingConfirmation = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold px-1.5 py-0.5 rounded border"
-                            style={{ color: themeColors.button, backgroundColor: 'rgba(0,166,166,0.08)', borderColor: 'rgba(0,166,166,0.2)' }}>
+                            style={{ color: themeColors.button, backgroundColor: 'rgba(0₹66₹66,0.08)', borderColor: 'rgba(0₹66₹66,0.2)' }}>
                             ×{item.quantity}
                           </span>
                           <span className="text-sm font-semibold text-gray-900 truncate">{item.card?.title || 'Service'}</span>

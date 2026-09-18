@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiArrowRight, FiChevronLeft, FiCheckCircle, FiX } from 'react-icons/fi';
@@ -288,7 +288,7 @@ const Signup = () => {
         style={{ backgroundImage: "url('/auth-bg.jpg')", filter: 'brightness(0.95)' }}
       >
         <svg className="absolute bottom-0 w-full text-white" viewBox="0 0 1440 320" preserveAspectRatio="none" style={{ height: '50px', transform: 'translateY(1px)' }}>
-          <path fill="currentColor" fillOpacity="1" d="M0,224L80,197.3C160,171,320,117,480,122.7C640,128,800,192,960,208C1120,224,1280,192,1360,176L1440,160L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"></path>
+          <path fill="currentColor" fillOpacity="1" d="M0,224L80₹97.3C160₹71,320₹17,480₹22.7C640₹28,800₹92,960,208C1120,224₹280₹92₹360₹76L1440₹60L1440,320L1360,320C1280,320₹120,320,960,320C800,320,640,320,480,320C320,320₹60,320,80,320L0,320Z"></path>
         </svg>
       </div>
 

@@ -26,6 +26,10 @@ const getProfile = async (req, res) => {
       }
     }
 
+    const Wallet = require('../../models/Wallet');
+    const walletDoc = await Wallet.findOne({ userId: user._id, userModel: 'User' });
+    const currentBalance = walletDoc ? walletDoc.balance : (user.wallet?.balance || 0);
+
     res.status(200).json({
       success: true,
       user: {
@@ -40,7 +44,7 @@ const getProfile = async (req, res) => {
         farms: user.farms || [],
         plans: user.plans || {},
         settings: user.settings || {},
-        wallet: user.wallet || { balance: 0 },
+        wallet: { balance: currentBalance },
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }

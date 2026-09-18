@@ -1,15 +1,36 @@
-import React, { useState } from 'react';
-import { FiX, FiTrash, FiCamera, FiImage, FiDollarSign, FiCheckCircle } from 'react-icons/fi';
+import React, { useState, useRef } from 'react';
+import { FiX, FiTrash, FiCamera, FiImage, FiDollarSign, FiCheckCircle, FiKey } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import flutterBridge from '../../../../utils/flutterBridge';
+import { toastManager } from '../../../../utils/toastManager';
 
 const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
   const [workPhotos, setWorkPhotos] = useState([]);
+  const [completionOtp, setCompletionOtp] = useState(['', '', '', '']);
   const [isUploading, setIsUploading] = useState(false);
   const [showSourceSheet, setShowSourceSheet] = useState(false);
 
-  const galleryInputRef = React.useRef(null);
-  const cameraInputRef = React.useRef(null);
+  const galleryInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const otpInputRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+
+  const handleOtpChange = (index, value) => {
+    if (!/^\d*$/.test(value)) return;
+    const newOtp = [...completionOtp];
+    newOtp[index] = value.slice(-1);
+    setCompletionOtp(newOtp);
+
+    // Focus next box
+    if (value && index < 3) {
+      otpInputRefs[index + 1].current?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !completionOtp[index] && index > 0) {
+      otpInputRefs[index - 1].current?.focus();
+    }
+  };
 
   const handleNativeCamera = async () => {
     try {
@@ -71,8 +92,12 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
   };
 
   const handleSubmit = () => {
-    // TEMPORARY: Photos are now optional
-    onComplete(workPhotos);
+    const otpCode = completionOtp.join('').trim();
+    if (otpCode.length < 4) {
+      toastManager.error('Please enter the 4-digit Completion OTP given by the farmer');
+      return;
+    }
+    onComplete(workPhotos, otpCode);
   };
 
   return (
@@ -186,6 +211,33 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
                     </li>
                   ))}
                 </ul>
+              </div>
+
+              {/* 4-Digit Completion OTP Section */}
+              <div className="bg-amber-50/80 p-5 rounded-2xl border-2 border-amber-200">
+                <div className="flex items-center gap-2 text-amber-900 mb-1.5">
+                  <FiKey className="w-5 h-5 text-amber-600" />
+                  <span className="font-black text-sm">Farmer Completion OTP</span>
+                </div>
+                <p className="text-xs text-amber-700 mb-3 font-medium">
+                  Ask the farmer for the 4-digit Completion OTP displayed on their screen to complete your job and release payment.
+                </p>
+                <div className="flex justify-center gap-3">
+                  {completionOtp.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={otpInputRefs[index]}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                      placeholder="•"
+                      className="w-12 h-14 text-center font-mono font-black text-2xl bg-white border-2 border-amber-300 rounded-2xl focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-100 shadow-sm text-slate-800 placeholder-slate-300 transition-all"
+                    />
+                  ))}
+                </div>
               </div>
 
               {/* Payment Info */}

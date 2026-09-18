@@ -2,8 +2,6 @@ const Booking = require('../../models/Booking');
 const BookingRequest = require('../../models/BookingRequest');
 const { validationResult } = require('express-validator');
 const { BOOKING_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
-const Wallet = require('../../models/Wallet');
-const WalletTransaction = require('../../models/WalletTransaction');
 
 /**
  * Get assigned jobs for worker
@@ -43,16 +41,59 @@ const getAssignedJobs = async (req, res) => {
       .populate('vendorId', 'name businessName phone')
       .populate('serviceId', 'title iconUrl')
       .populate('categoryId', 'title slug')
-      .sort({ createdAt: -1 })
+      .sort({ scheduledDate: 1, createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
     // Get total count
     const total = await Booking.countDocuments(query);
 
+    const IndWorkerAssignment = require('../../models/IndWorkerAssignment');
+    const { buildWorkerPaymentSummary } = require('../../services/workerFinancialService');
+
+    const enrichedBookings = await Promise.all(bookings.map(async (bookingDoc) => {
+      const b = bookingDoc.toObject ? bookingDoc.toObject() : { ...bookingDoc };
+      const isWorkerBooking = b.providerType === 'WORKER' || Boolean(b.workerRequestId) || (b.bookingNumber && b.bookingNumber.startsWith('WRK-'));
+      if (isWorkerBooking) {
+        b.providerType = 'WORKER';
+        try {
+          const assignment = await IndWorkerAssignment.findOne({
+            workerId,
+            $or: [
+              { legacyBookingId: b._id },
+              { parentRequestId: b.workerRequestId }
+            ]
+          });
+          const summary = buildWorkerPaymentSummary(assignment, b);
+          if (summary) {
+            b.paymentSummary = summary;
+            b.workerGrossEarning = summary.grossAmount;
+            b.commissionRate = summary.commissionRate;
+            b.commissionAmount = summary.commissionAmount;
+            b.workerNetEarning = summary.netEarning;
+            b.finalAmount = summary.netEarning; // For worker, the net amount is their actual earnings
+          } else {
+            const gross = b.workerGrossEarning || b.agreedRate || b.workerOfferedRate || b.finalAmount || 0;
+            const comm = Math.round((gross * 10) / 100);
+            b.workerGrossEarning = gross;
+            b.commissionRate = 10;
+            b.commissionAmount = comm;
+            b.workerNetEarning = gross - comm;
+            b.finalAmount = gross - comm;
+          }
+        } catch (e) {
+          const gross = b.workerGrossEarning || b.agreedRate || b.workerOfferedRate || b.finalAmount || 0;
+          const comm = Math.round((gross * 10) / 100);
+          b.workerNetEarning = gross - comm;
+          b.finalAmount = gross - comm;
+        }
+      }
+      return b;
+    }));
+
     res.status(200).json({
       success: true,
-      data: bookings,
+      data: enrichedBookings,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -101,9 +142,51 @@ const getJobById = async (req, res) => {
       });
     }
 
+    const jobData = booking.toObject ? booking.toObject() : { ...booking };
+
+    // Check if Independent Worker booking
+    const isWorkerBooking = booking.providerType === 'WORKER' || Boolean(booking.workerRequestId) || (booking.bookingNumber && booking.bookingNumber.startsWith('WRK-'));
+    if (isWorkerBooking) {
+      jobData.providerType = 'WORKER';
+      try {
+        const IndWorkerAssignment = require('../../models/IndWorkerAssignment');
+        const { buildWorkerPaymentSummary } = require('../../services/workerFinancialService');
+
+        const assignment = await IndWorkerAssignment.findOne({
+          workerId,
+          $or: [
+            { legacyBookingId: booking._id },
+            { parentRequestId: booking.workerRequestId }
+          ]
+        });
+
+        jobData.paymentSummary = buildWorkerPaymentSummary(assignment, booking);
+        if (jobData.paymentSummary) {
+          jobData.workerFinancials = {
+            workerOfferedRate: jobData.paymentSummary.agreedRate || jobData.paymentSummary.grossAmount,
+            commissionRate: jobData.paymentSummary.commissionRate,
+            commissionAmount: jobData.paymentSummary.commissionAmount,
+            netEarnings: jobData.paymentSummary.netEarning
+          };
+          jobData.workerGrossEarning = jobData.paymentSummary.grossAmount;
+          jobData.commissionRate = jobData.paymentSummary.commissionRate;
+          jobData.commissionAmount = jobData.paymentSummary.commissionAmount;
+          jobData.workerNetEarning = jobData.paymentSummary.netEarning;
+        }
+
+        // STRICT ROLE ISOLATION: Worker must NEVER see Farmer total, Platform Fee, or other workers' financials
+        delete jobData.farmerPaidAmount;
+        delete jobData.platformFeeAmount;
+        delete jobData.platformFeeRate;
+        delete jobData.financialSnapshot;
+      } catch (finErr) {
+        console.warn('[workerBookingController getJobById] Payment summary enrichment warning:', finErr.message);
+      }
+    }
+
     res.status(200).json({
       success: true,
-      data: booking
+      data: jobData
     });
   } catch (error) {
     console.error('Get job error:', error);
@@ -657,77 +740,6 @@ const completeJob = async (req, res) => {
       // Socket notification removed - createNotification already handles this
     }
 
-    // ???????????????????????????????????????????????????????
-    // NEW FLOW: If farmer already paid upfront (paymentStatus = success)
-    // -> Credit worker wallet NOW with net earning (after admin commission)
-        // ???????????????????????????????????????????????????????
-    if (booking.paymentStatus === 'success' && booking.providerType === 'WORKER') {
-      try {
-        const netEarning = booking.workerNetEarning || booking.agreedRate || booking.workerOfferedRate || 0;
-        const commissionAmt = booking.commissionAmount || 0;
-        const workerIdForWallet = booking.workerId;
-
-        if (netEarning > 0) {
-          // 1. Find or create worker wallet
-          let workerWallet = await Wallet.findOne({ userId: workerIdForWallet, userModel: 'Worker' });
-          if (!workerWallet) {
-            workerWallet = await Wallet.create({ userId: workerIdForWallet, userModel: 'Worker', balance: 0 });
-          }
-
-          // 2. Idempotency check -- don't double-credit
-          const idempotencyKey = 'wc_' + booking._id + '_work_done';
-          const existing = await WalletTransaction.findOne({ idempotencyKey });
-          if (!existing) {
-            // 3. Credit net earning to wallet
-            workerWallet.balance += netEarning;
-            await workerWallet.save();
-
-            // 4. Record wallet transaction
-            await WalletTransaction.create({
-              walletId: workerWallet._id,
-              type: 'credit',
-              amount: netEarning,
-              reason: 'booking_payment',
-              referenceId: booking._id.toString(),
-              gatewayTransactionId: booking.paymentId || null,
-              idempotencyKey,
-              status: 'completed'
-            });
-
-            // 5. Save settlement info on booking
-            booking.walletCredited = true;
-            booking.walletCreditedAt = new Date();
-            booking.walletCreditAmount = netEarning;
-            await booking.save();
-
-            console.log('[WALLET] Worker ' + workerIdForWallet + ' credited Rs.' + netEarning + ' (commission Rs.' + commissionAmt + ' deducted)');
-
-            // 6. Notify worker about wallet credit
-            await createNotification({
-              workerId: workerIdForWallet,
-              type: 'earnings_credit',
-              title: 'Earnings Credited!',
-              message: 'Rs.' + netEarning + ' credited to your wallet for job "' + booking.serviceName + '". Admin commission Rs.' + commissionAmt + ' deducted.',
-              relatedId: booking._id,
-              relatedType: 'booking',
-              priority: 'high',
-              pushData: {
-                type: 'earnings_credit',
-                bookingId: booking._id.toString(),
-                amount: netEarning,
-                link: '/worker/wallet'
-              }
-            });
-          } else {
-            console.log('[WALLET] Skipped duplicate credit for booking ' + booking._id);
-          }
-        }
-      } catch (walletErr) {
-        console.error('[WALLET] Worker wallet credit failed:', walletErr);
-        // Don't throw - job completion should still succeed
-      }
-    }
-
     res.status(200).json({
       success: true,
       message: 'Work done marked, OTP sent to user',
@@ -773,7 +785,7 @@ const collectCash = async (req, res) => {
     let bill = null;
 
     if (isIndependentWorker) {
-      // Independent Worker: No VendorBill â€” use finalAmount directly
+      // Independent Worker: No VendorBill — use finalAmount directly
       grandTotal = booking.finalAmount || booking.totalAmount || booking.basePrice || 0;
       vendorEarning = 0; // Platform handles worker earnings separately
     } else {
@@ -781,7 +793,7 @@ const collectCash = async (req, res) => {
       const VendorBill = require('../../models/VendorBill');
       bill = await VendorBill.findOne({ bookingId: booking._id });
       if (!bill) {
-        return res.status(500).json({ success: false, message: 'Bill not found â€” cannot process payment' });
+        return res.status(500).json({ success: false, message: 'Bill not found — cannot process payment' });
       }
       grandTotal = bill.grandTotal;
       vendorEarning = bill.vendorTotalEarning;
@@ -828,7 +840,7 @@ const collectCash = async (req, res) => {
           updateQuery.$set = {
             'wallet.isBlocked': true,
             'wallet.blockedAt': new Date(),
-            'wallet.blockReason': `Cash limit exceeded. Net owed: â‚¹${netOwed.toFixed(2)}, Limit: â‚¹${cashLimit}`
+            'wallet.blockReason': `Cash limit exceeded. Net owed: ₹${netOwed.toFixed(2)}, Limit: ₹${cashLimit}`
           };
         }
 
@@ -846,7 +858,7 @@ const collectCash = async (req, res) => {
           amount: grandTotal,
           status: 'completed',
           paymentMethod: 'cash',
-          description: `Cash â‚¹${grandTotal} collected by worker for booking #${booking.bookingNumber}`,
+          description: `Cash ₹${grandTotal} collected by worker for booking #${booking.bookingNumber}`,
           metadata: {
             type: 'dues_increase',
             collectedBy: 'worker',
@@ -866,7 +878,7 @@ const collectCash = async (req, res) => {
             amount: vendorEarning,
             status: 'completed',
             paymentMethod: 'wallet',
-            description: `Earnings â‚¹${vendorEarning} credited for booking #${booking.bookingNumber} (70% service + 10% parts)`,
+            description: `Earnings ₹${vendorEarning} credited for booking #${booking.bookingNumber} (70% service + 10% parts)`,
             metadata: {
               type: 'earnings_increase',
               billId: bill._id.toString(),
@@ -884,7 +896,7 @@ const collectCash = async (req, res) => {
       userId: booking.userId,
       type: 'payment_received',
       title: 'Payment Received (Cash)',
-      message: `Payment of â‚¹${grandTotal} received in cash for booking ${booking.bookingNumber}. Job Completed. Thanks!`,
+      message: `Payment of ₹${grandTotal} received in cash for booking ${booking.bookingNumber}. Job Completed. Thanks!`,
       relatedId: booking._id,
       relatedType: 'booking',
       priority: 'high'
@@ -1141,4 +1153,3 @@ module.exports = {
   startMachineryWork,
   completeMachineryWork
 };
-

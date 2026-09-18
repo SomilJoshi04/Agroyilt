@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiSearch, 
@@ -512,7 +512,7 @@ const RegistrationFeesList = ({ role = 'USER' }) => {
                       {selectedPayment.accountId?.profilePhoto ? (
                         <img src={selectedPayment.accountId.profilePhoto} alt={selectedPayment.accountId?.name} className="w-full h-full object-cover" />
                       ) : (
-                        selectedPayment.accountId?.name?.charAt(0)?.toUpperCase() || 'U'
+                        selectedPayment.accountId?.name?.charAt(0) ?.toUpperCase() || 'U'
                       )}
                     </div>
                     <div>

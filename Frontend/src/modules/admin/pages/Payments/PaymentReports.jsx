@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiFileText,
@@ -624,10 +624,10 @@ const PaymentReports = () => {
           <div className="text-sm">
             <p className="font-semibold text-amber-800">Indian Tax Compliance Notes</p>
             <ul className="mt-2 text-amber-700 space-y-1">
-              <li>• <strong>GSTR-1</strong>: Monthly sales return to be filed by the 11th of the following month.</li>
-              <li>• <strong>TDS u/s 194-O</strong>: 1% TDS on owner gross sales (if annual sales exceed ₹5 Lakhs). Deposit by 7th of next month.</li>
-              <li>• <strong>HSN/SAC Code 9988</strong>: Used for "Other Professional, Technical and Business Services".</li>
-              <li>• This report is for reference. Please consult your CA for official filing.</li>
+              <li>? <strong>GSTR-1</strong>: Monthly sales return to be filed by the 11th of the following month.</li>
+              <li>? <strong>TDS u/s 194-O</strong>: 1% TDS on owner gross sales (if annual sales exceed ₹5 Lakhs). Deposit by 7th of next month.</li>
+              <li>? <strong>HSN/SAC Code 9988</strong>: Used for "Other Professional, Technical and Business Services".</li>
+              <li>? This report is for reference. Please consult your CA for official filing.</li>
             </ul>
           </div>
         </div>

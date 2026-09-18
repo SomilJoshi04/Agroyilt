@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { toastManager } from '../../../../utils/toastManager';
 import useAppNotifications from '../../../../hooks/useAppNotifications';
 import { themeColors } from '../../../../theme';
@@ -143,6 +143,8 @@ const RentalTimer = ({ booking }) => {
 
 const BookingDetails = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { id } = useParams();
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -157,6 +159,19 @@ const BookingDetails = () => {
     onConfirm: () => { }
   });
 
+  // Edge case detection: Check if farmer came from "My Requests" / "My Bookings" history
+  const isFromHistory = Boolean(
+    location.state?.fromHistory ||
+    location.state?.fromRequests ||
+    location.state?.fromList ||
+    searchParams.get('source') === 'history' ||
+    searchParams.get('source') === 'requests' ||
+    searchParams.get('from') === 'my_bookings'
+  );
+
+  const [stayOnPage, setStayOnPage] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(5);
+
   const [supportInfo, setSupportInfo] = useState({
     email: 'agroyilt@gmail.com',
     phone: '+91 91177 04450'
@@ -167,6 +182,25 @@ const BookingDetails = () => {
   const [isEditingAmount, setIsEditingAmount] = useState(false);
 
   const socket = useAppNotifications();
+
+  const isBookingCompleted = ['completed', 'work_done'].includes(booking?.status?.toLowerCase());
+  const showCompletionExit = Boolean(isBookingCompleted && !isFromHistory && !stayOnPage);
+
+  // Auto-redirect timer when work is completed in active live flow
+  useEffect(() => {
+    if (!showCompletionExit) return;
+
+    if (redirectCountdown <= 0) {
+      navigate('/user', { replace: true });
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setRedirectCountdown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [showCompletionExit, redirectCountdown, navigate]);
 
   // Fetch support settings
   useEffect(() => {
@@ -198,6 +232,17 @@ const BookingDetails = () => {
       const response = await bookingService.getById(id);
       if (response.success) {
         const data = { ...response.data };
+
+        // If this booking belongs to an independent worker request, redirect to multi-worker tracking hub or request details
+        const parentId = data.parentRequestId || data.workerRequestId;
+        const parentIdStr = typeof parentId === 'object' ? parentId?._id || parentId?.id : parentId;
+        if (parentIdStr && (data.providerType === 'WORKER' || (data.bookingNumber && data.bookingNumber.startsWith('WRK-')))) {
+          if (['journey_started', 'visited', 'in_progress', 'started'].includes(data.status?.toLowerCase())) {
+            navigate(`/user/booking/${parentIdStr}/track`, { replace: true });
+            return;
+          }
+        }
+
         // Calculate notional display values for plan_benefit
         if (data.paymentMethod === 'plan_benefit') {
           if (!data.tax) data.tax = (data.basePrice || 0) * 0.18;
@@ -758,12 +803,22 @@ const BookingDetails = () => {
         {/* Modern Glassmorphism Header */}
         <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/40 border-b border-black/[0.03] px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-black/[0.02]"
-            >
-              <FiArrowLeft className="w-5 h-5 text-gray-800" />
-            </button>
+            {showCompletionExit ? (
+              <button
+                onClick={() => navigate('/user')}
+                title="Go to Home"
+                className="w-10 h-10 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+              >
+                <FiHome className="w-5 h-5 text-white" />
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate(-1)}
+                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-black/[0.02] active:scale-95 transition-all"
+              >
+                <FiArrowLeft className="w-5 h-5 text-gray-800" />
+              </button>
+            )}
             <div className="flex-1">
               <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">Booking Details</h1>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
@@ -777,6 +832,49 @@ const BookingDetails = () => {
         </header>
 
         <main className="max-w-xl mx-auto px-4 py-6 space-y-6">
+          {/* Live Completion Countdown / Action Banner */}
+          {showCompletionExit && (
+            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 rounded-3xl p-5 text-white shadow-xl shadow-emerald-900/10 space-y-3 relative overflow-hidden animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-white shrink-0">
+                    <FiCheckCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base tracking-tight">Work Completed! 🎉</h3>
+                    <p className="text-xs text-emerald-100 font-medium">
+                      Redirecting to Home in <span className="font-black text-white bg-white/20 px-1.5 py-0.5 rounded-md font-mono">{redirectCountdown}s</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="bg-white h-full transition-all duration-1000 ease-linear rounded-full"
+                  style={{ width: `${(redirectCountdown / 5) * 100}%` }}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={() => navigate('/user')}
+                  className="flex-1 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl font-black text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <FiHome className="w-4 h-4" />
+                  Go to Home Now
+                </button>
+                <button
+                  onClick={() => setStayOnPage(true)}
+                  className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs border border-white/20 active:scale-95 transition-all"
+                >
+                  View Details
+                </button>
+              </div>
+            </div>
+          )}
+
           <RentalTimer booking={booking} />
 
 
@@ -940,7 +1038,7 @@ const BookingDetails = () => {
                           : 'New'}
                       </span>
                     </div>
-                    <span className="text-xs text-gray-400 font-medium">• Verified</span>
+                    <span className="text-xs text-gray-400 font-medium">? Verified</span>
                   </div>
                 </div>
 
@@ -1026,7 +1124,7 @@ const BookingDetails = () => {
 
                       <div className="w-full bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/20">
                         <div className="flex items-center justify-center gap-2 text-white text-sm">
-                          <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
+                          <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222₹28,0.5)]"></span>
                           <p className="font-medium">
                             {(booking.requiresDriver === false || booking.categoryId?.requiresDriver === false) 
                               ? 'Ready for equipment handover' 
@@ -1339,14 +1437,14 @@ const BookingDetails = () => {
                   {/* Floating Info */}
                   <div className="absolute top-4 left-4 right-4 flex justify-between pointer-events-none">
                     <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-xl shadow-sm border border-white/50 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></span>
+                      <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59₹30,246,0.5)]"></span>
                       <span className="text-xs font-bold text-gray-700">Destination</span>
                     </div>
                   </div>
 
                   {/* Track Button Overlay - Always visible but distinct */}
                   <div className="absolute inset-0 flex items-center justify-center bg-transparent pointer-events-none">
-                    <div className="pointer-events-auto bg-white text-gray-900 px-5 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95 transition-all border border-gray-100" onClick={() => navigate(`/user/booking/${booking._id || booking.id}/track`)}>
+                    <div className="pointer-events-auto bg-white text-gray-900 px-5 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95 transition-all border border-gray-100" onClick={() => navigate(`/user/booking/${booking.parentRequestId || booking._id || booking.id}/track`)}>
                       <FiMapPin className="w-4 h-4 text-red-500" /> View on Map
                     </div>
                   </div>
@@ -1355,7 +1453,7 @@ const BookingDetails = () => {
                 {/* Dedicated Track Button */}
                 {['confirmed', 'assigned', 'journey_started', 'visited', 'in_progress'].includes(booking.status?.toLowerCase()) && (
                   <button
-                    onClick={() => navigate(`/user/booking/${booking._id || booking.id}/track`)}
+                    onClick={() => navigate(`/user/booking/${booking.parentRequestId || booking._id || booking.id}/track`)}
                     className="w-full py-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-2xl font-bold shadow-lg shadow-gray-200 active:scale-95 transition-all flex items-center justify-center gap-3 hover:shadow-xl"
                   >
                     <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -1656,62 +1754,120 @@ const BookingDetails = () => {
                       </span>
                     </div>
                   </div>
-                ) : booking.providerType === 'WORKER' ? (
-                  // WORKER BOOKING BREAKDOWN (New Flow - Upfront Payment)
-                  <div className="space-y-3">
-                    {/* Worker Agreed Rate */}
+                ) : (booking.providerType === 'WORKER' || booking.paymentSummary || booking.workerRequestId || (booking.bookingNumber && booking.bookingNumber.startsWith('WRK-'))) ? (
+                  // INDEPENDENT WORKER BOOKING - AUTHORITATIVE FARMER PAYMENT BREAKDOWN
+                  <div className="space-y-3.5">
+                    {/* Selected Workers */}
                     <div className="flex justify-between items-center text-gray-700">
-                      <span className="font-medium">Worker Rate</span>
+                      <span className="font-medium text-sm">Workers Selected</span>
+                      <span className="font-bold text-gray-900 bg-gray-100 px-2.5 py-0.5 rounded-full text-xs">
+                        {booking.paymentSummary?.selectedWorkerCount || 1}
+                      </span>
+                    </div>
+
+                    {/* Maximum Rate per Worker */}
+                    <div className="flex justify-between items-center text-gray-700">
+                      <span className="font-medium text-sm">Maximum Rate / Worker</span>
                       <span className="font-bold text-gray-900">
-                        ₹{(booking.workerGrossEarning || booking.agreedRate || booking.finalAmount || 0).toLocaleString('en-IN')}
-                        <span className="text-xs text-gray-400 ml-1">/{booking.rateUnit || 'day'}</span>
+                        ₹{(booking.paymentSummary?.maxRatePerWorker || booking.maxRate || booking.agreedRate || booking.finalAmount || 0).toLocaleString('en-IN')}
+                        <span className="text-xs text-gray-400 font-normal ml-1">/{booking.rateUnit || 'day'}</span>
+                      </span>
+                    </div>
+
+                    {/* Worker Payment Reserve */}
+                    <div className="flex justify-between items-center text-gray-700">
+                      <div>
+                        <span className="font-medium text-sm">Worker Payment Reserve</span>
+                        <span className="block text-[11px] text-gray-400">
+                          ₹{(booking.paymentSummary?.maxRatePerWorker || booking.maxRate || 0).toLocaleString('en-IN')} × {booking.paymentSummary?.selectedWorkerCount || 1}
+                        </span>
+                      </div>
+                      <span className="font-bold text-gray-900">
+                        ₹{(booking.paymentSummary?.workerReserveAmount || (booking.paymentSummary?.maxRatePerWorker || 0) * (booking.paymentSummary?.selectedWorkerCount || 1)).toLocaleString('en-IN')}
                       </span>
                     </div>
 
                     {/* Platform Fee */}
-                    {booking.platformFeeAmount > 0 && (
-                      <div className="flex justify-between items-center text-gray-600">
-                        <span>Platform Fee ({booking.platformFeeRate || 0}%)</span>
-                        <span className="font-medium text-gray-900">+₹{(booking.platformFeeAmount || 0).toLocaleString('en-IN')}</span>
-                      </div>
-                    )}
-
-                    {/* Divider */}
-                    <div className="border-t border-dashed border-gray-200 my-1" />
-
-                    {/* Total Paid (maxRate + platformFee) */}
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-gray-900">You Paid (Max Budget)</span>
-                      <span className="text-xl font-black text-gray-900">
-                        ₹{(booking.farmerPaidAmount || booking.totalAmount || booking.finalAmount || 0).toLocaleString('en-IN')}
+                    <div className="flex justify-between items-center text-gray-600">
+                      <span className="text-sm">Platform Fee</span>
+                      <span className="font-medium text-gray-900">
+                        +₹{(booking.paymentSummary?.platformFeeAmount || booking.platformFeeAmount || 0).toLocaleString('en-IN')}
                       </span>
                     </div>
 
-                    {/* Refund if worker rate < max budget */}
-                    {(booking.refundAmount > 0 || (booking.maxRate > 0 && (booking.workerGrossEarning || booking.agreedRate || 0) < booking.maxRate)) && (
-                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mt-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-bold text-emerald-700">✓ Refund Credited</span>
-                          <span className="text-sm font-black text-emerald-700">
-                            +₹{(booking.refundAmount || Math.max(0, (booking.maxRate || 0) - (booking.workerGrossEarning || booking.agreedRate || 0))).toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-emerald-600 font-medium">
-                          Worker bid was lower than your max budget. Difference refunded to your AgroYilt wallet.
-                        </p>
-                      </div>
-                    )}
+                    {/* Divider */}
+                    <div className="border-t border-dashed border-gray-200 my-2" />
 
-                    {/* Net Paid After Refund */}
-                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Net Amount Paid</span>
-                        <span className="font-black text-teal-700 text-lg">
-                          ₹{(booking.workerGrossEarning || booking.agreedRate || booking.finalAmount || 0).toLocaleString('en-IN')}
+                    {/* Total Paid (Upfront) */}
+                    <div className="flex justify-between items-center bg-teal-50/60 p-3 rounded-2xl border border-teal-100">
+                      <div>
+                        <span className="font-bold text-teal-900 text-sm block">Total Paid</span>
+                        <span className="text-[10px] text-teal-700 font-medium">Reserve + Platform Fee</span>
+                      </div>
+                      <span className="text-xl font-black text-teal-700">
+                        ₹{(booking.paymentSummary?.totalPaidAmount || booking.farmerPaidAmount || booking.totalAmount || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+
+                    {/* Post-Completion Breakdown: Actual Worker Amount & Refund */}
+                    <div className="pt-2 space-y-2.5">
+                      {/* Actual Worker Amount */}
+                      <div className="flex justify-between items-center text-gray-700">
+                        <span className="text-sm font-medium">Actual Worker Amount</span>
+                        <span className="font-bold text-gray-900">
+                          {booking.paymentSummary?.actualWorkerAmount !== null && booking.paymentSummary?.actualWorkerAmount !== undefined ? (
+                            `₹${Number(booking.paymentSummary.actualWorkerAmount).toLocaleString('en-IN')}`
+                          ) : (
+                            <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                              Pending / Work In Progress
+                            </span>
+                          )}
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Includes platform fee • Paid at booking time</p>
+
+                      {/* Refund Amount & Status */}
+                      <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3.5 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide">Refund Status</span>
+                          </div>
+                          <span className={`text-xs font-black px-2.5 py-0.5 rounded-full border ${
+                            booking.paymentSummary?.refundStatus === 'REFUNDED'
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                              : booking.paymentSummary?.refundStatus === 'PENDING'
+                              ? 'bg-amber-100 text-amber-800 border-amber-300'
+                              : 'bg-gray-100 text-gray-600 border-gray-200'
+                          }`}>
+                            {booking.paymentSummary?.refundStatus || (booking.refundCredited ? 'REFUNDED' : 'PENDING')}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-1 border-t border-emerald-100">
+                          <span className="text-sm font-bold text-emerald-900">Refund Amount</span>
+                          <span className="text-base font-black text-emerald-700">
+                            {booking.paymentSummary?.refundAmount !== null && booking.paymentSummary?.refundAmount !== undefined ? (
+                              `₹${Number(booking.paymentSummary.refundAmount).toLocaleString('en-IN')}`
+                            ) : (
+                              <span className="text-xs font-medium text-emerald-600 italic">Pending Settlement</span>
+                            )}
+                          </span>
+                        </div>
+
+                        <p className="text-[10px] text-emerald-600 leading-tight">
+                          {booking.paymentSummary?.refundStatus === 'REFUNDED'
+                            ? 'Unused reserve has been credited to your AgroYilt wallet.'
+                            : 'Unused worker reserve will be automatically credited to your wallet once work is completed.'}
+                        </p>
+                      </div>
                     </div>
+
+                    {/* Payment Reference ID */}
+                    {(booking.paymentSummary?.paymentReference || booking.paymentId) && (
+                      <div className="flex justify-between items-center text-xs text-gray-500 pt-1">
+                        <span>Payment Reference</span>
+                        <span className="font-mono text-gray-700">{booking.paymentSummary?.paymentReference || booking.paymentId}</span>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   // OLD SIMPLE BREAKDOWN (Fallback - Vendor/Service flow)

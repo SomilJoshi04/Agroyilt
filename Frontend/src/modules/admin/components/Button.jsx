@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+﻿import React, { forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { FiLoader } from 'react-icons/fi';
 
@@ -31,8 +31,8 @@ const Button = forwardRef(
 
     const variantStyles = {
       primary: {
-        base: 'bg-gradient-to-r from-[#2874F0] to-[#4787F7] text-white shadow-[0_2px_8px_rgba(40,116,240,0.15)]',
-        hover: 'hover:shadow-[0_4px_12px_rgba(40,116,240,0.25)] hover:scale-[1.02]',
+        base: 'bg-gradient-to-r from-[#2874F0] to-[#4787F7] text-white shadow-[0_2px_8px_rgba(40₹16,240,0.15)]',
+        hover: 'hover:shadow-[0_4px_12px_rgba(40₹16,240,0.25)] hover:scale-[1.02]',
         focus: 'focus:ring-[#2874F0]',
         active: 'active:scale-[0.98]',
       },

@@ -7,20 +7,37 @@ const { getWorkerFinancialSettings } = require('../../services/workerFinancialSe
 exports.getWallet = async (req, res) => {
   try {
     const workerId = req.user._id;
-    const worker = await Worker.findById(workerId).select('wallet outstandingDues isRestricted restrictionReason');
+    const worker = await Worker.findById(workerId).select('wallet outstandingDues isRestricted restrictionReason vendorId');
     
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
     
     const settings = await getWorkerFinancialSettings();
     
+    let workerWalletDoc = null;
+    try {
+      const Wallet = require('../../models/Wallet');
+      workerWalletDoc = await Wallet.findOne({ $or: [{ workerId }, { userId: workerId }] });
+    } catch (e) {
+      // Wallet model might not exist or be optional
+    }
+
+    const currentBalance = (worker.wallet?.balance !== undefined && worker.wallet?.balance !== null)
+      ? Number(worker.wallet.balance)
+      : (workerWalletDoc?.balance !== undefined ? Number(workerWalletDoc.balance) : 0);
+
     return res.json({
       success: true,
       data: {
-        wallet: worker.wallet,
-        outstandingDues: worker.outstandingDues,
-        isRestricted: worker.isRestricted,
-        restrictionReason: worker.restrictionReason,
-        maxDuesAllowed: settings.maxWorkerDues
+        balance: currentBalance,
+        wallet: {
+          balance: currentBalance,
+          ...(worker.wallet || {})
+        },
+        outstandingDues: worker.outstandingDues || 0,
+        isRestricted: worker.isRestricted || false,
+        restrictionReason: worker.restrictionReason || null,
+        maxDuesAllowed: settings.maxWorkerDues,
+        vendorId: worker.vendorId || null
       }
     });
   } catch (error) {

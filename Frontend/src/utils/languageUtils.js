@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Language Utilities
  * Handles normalization and mapping of language codes
  */

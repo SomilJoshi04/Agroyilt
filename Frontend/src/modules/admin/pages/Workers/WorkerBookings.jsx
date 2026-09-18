@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiBriefcase,
@@ -322,7 +322,7 @@ const WorkerBookings = () => {
                       </div>
                       <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-sm shrink-0">
-                          {booking.userId?.name?.charAt(0)?.toUpperCase() || 'F'}
+                          {booking.userId?.name?.charAt(0) ?.toUpperCase() || 'F'}
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-slate-800 text-sm truncate">{booking.userId?.name || 'Customer'}</p>
@@ -361,7 +361,7 @@ const WorkerBookings = () => {
                               isTeamLeader ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                             }`}
                           >
-                            {booking.workerId?.name?.charAt(0)?.toUpperCase() || 'W'}
+                            {booking.workerId?.name?.charAt(0) ?.toUpperCase() || 'W'}
                           </div>
                         )}
                         <div className="min-w-0">

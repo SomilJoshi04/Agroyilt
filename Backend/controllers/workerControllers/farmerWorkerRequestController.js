@@ -5,22 +5,35 @@
  *
  * Farmer-First Worker Request System.
  * Backend auto-routes requests to Independent Workers or Team Leaders
- * based on Admin configuration — never trusting frontend routing hints.
+ * based on Admin configuration â€” never trusting frontend routing hints.
  */
 
-const WorkerBookingRequest = require('../../models/WorkerBookingRequest');
-const Worker               = require('../../models/Worker');
-const Team                 = require('../../models/Team');
-const Booking              = require('../../models/Booking');
-const Notification         = require('../../models/Notification');
-const Settings             = require('../../models/Settings');
-const { getIO }            = require('../../sockets');
+const WorkerBookingRequest  = require('../../models/WorkerBookingRequest');
+const IndWorkerAssignment   = require('../../models/IndWorkerAssignment');
+const Worker                = require('../../models/Worker');
+const Team                  = require('../../models/Team');
+const Booking               = require('../../models/Booking');
+const Notification          = require('../../models/Notification');
+const Settings              = require('../../models/Settings');
+const Wallet                = require('../../models/Wallet');
+const WalletTransaction     = require('../../models/WalletTransaction');
+const mongoose              = require('mongoose');
+const crypto                = require('crypto');
+const { getIO }             = require('../../sockets');
 const { calculateDistance } = require('../../services/locationService');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // Worker statuses that are considered "online/available" for auto-dispatch
-const ONLINE_STATUSES = ['online', 'ONLINE', 'active', 'ACTIVE'];
+const ONLINE_STATUSES = [
+  'online', 'ONLINE',
+  'active', 'ACTIVE',
+  'available', 'AVAILABLE',
+  'on_job', 'ON_JOB',
+  'idle', 'IDLE',
+  'free', 'FREE',
+  'registered', 'REGISTERED'
+];
 
 // Request expires after 24 hours
 const REQUEST_TTL_MS = 24 * 60 * 60 * 1000;
@@ -33,13 +46,16 @@ const toMins = (t) => {
   return h * 60 + m;
 };
 
-/** Emit to a Socket.io room, never throw */
+/** Safe socket emit helper with room check */
 const emitSafe = (room, event, data) => {
   try {
     const io = getIO();
-    if (io) io.to(room).emit(event, data);
+    if (io) {
+      io.to(room).emit(event, data);
+      console.log(`[Socket Emit] Event '${event}' sent to room '${room}'`);
+    }
   } catch (e) {
-    // socket failure is non-fatal; DB is source of truth
+    console.warn(`[Socket Emit Warning] Could not emit to ${room}:`, e.message);
   }
 };
 
@@ -54,52 +70,91 @@ const notify = async ({
     if (recipientType === 'user')   doc.userId   = recipientId;
     if (recipientType === 'worker') doc.workerId = recipientId;
 
-    const notif = await Notification.create(doc);
-    const room  = recipientType === 'user'
-      ? `user_${recipientId}`
-      : `worker_${recipientId}`;
+    let notif = null;
+    try {
+      notif = await Notification.create(doc);
+    } catch (dbErr) {
+      console.warn('[Notification DB Create Warning - Non-fatal]:', dbErr?.message);
+    }
 
-    emitSafe(room, 'notification', notif);
-    emitSafe(room, 'worker_booking_update', { requestId: relatedId, type });
+    const payload = notif ? (notif.toObject ? notif.toObject() : notif) : {
+      ...doc,
+      _id: new mongoose.Types.ObjectId(),
+      createdAt: new Date()
+    };
+
+    const broadcastPayload = {
+      ...payload,
+      ...(data || {}),
+      requestId: relatedId,
+      _id: relatedId,
+      data: data || {}
+    };
+
+    const idStr = recipientId.toString();
+    const rooms = recipientType === 'user'
+      ? [`user_${idStr}`, `user:${idStr}`]
+      : [`worker_${idStr}`, `worker:${idStr}`];
+
+    rooms.forEach(room => {
+      // 1. Generic notification event
+      emitSafe(room, 'notification', broadcastPayload);
+      // 2. Specific type event (e.g. 'worker_booking_request')
+      if (type) {
+        emitSafe(room, type, broadcastPayload);
+      }
+      // 3. Explicit worker alert events (ONLY when the event is an actual booking request)
+      if (recipientType === 'worker' && (type === 'worker_booking_request' || type === 'new_booking_request' || type === 'booking_request')) {
+        emitSafe(room, 'worker_booking_request', broadcastPayload);
+        emitSafe(room, 'new_booking_request', broadcastPayload);
+        emitSafe(room, 'booking_request', broadcastPayload);
+      }
+      if (recipientType === 'worker' && type === 'group_booking_request') {
+        emitSafe(room, 'group_booking_request', broadcastPayload);
+      }
+      // 4. Booking update event for refreshing lists
+      emitSafe(room, 'worker_booking_update', { requestId: relatedId, type, data });
+    });
   } catch (e) {
-    // notification failure is non-fatal
+    console.error('[notify error]:', e);
   }
 };
 
 /** Check if a worker has a conflicting confirmed booking or accepted request */
 const hasTimeConflict = async (workerId, scheduledDate, startTime, endTime, excludeRequestId = null) => {
-  const dateStart = new Date(scheduledDate);
-  dateStart.setHours(0, 0, 0, 0);
-  const dateEnd = new Date(dateStart);
-  dateEnd.setHours(23, 59, 59, 999);
+  try {
+    const dateStart = new Date(scheduledDate);
+    dateStart.setHours(0, 0, 0, 0);
+    const dateEnd = new Date(dateStart);
+    dateEnd.setHours(23, 59, 59, 999);
 
-  // Check existing Bookings
-  const bookingConflict = await Booking.findOne({
-    workerId,
-    scheduledDate: { $gte: dateStart, $lte: dateEnd },
-    status: { $nin: ['cancelled', 'rejected', 'expired'] },
-    'timeSlot.start': { $lt: endTime },
-    'timeSlot.end':   { $gt: startTime }
-  });
-  if (bookingConflict) return true;
+    // Check existing confirmed/in-progress Bookings
+    const bookingConflict = await Booking.findOne({
+      workerId,
+      scheduledDate: { $gte: dateStart, $lte: dateEnd },
+      status: { $in: ['confirmed', 'in_progress', 'assigned', 'on_the_way', 'arrived'] }
+    });
+    if (bookingConflict) return true;
 
-  // Check accepted broadcast requests this worker is part of
-  const reqQuery = {
-    'dispatchedTo': {
-      $elemMatch: { workerId, status: 'accepted' }
-    },
-    scheduledDate: { $gte: dateStart, $lte: dateEnd },
-    status: { $in: ['pending', 'awaiting_farmer_confirmation', 'confirmed'] },
-    startTime: { $lt: endTime },
-    endTime:   { $gt: startTime }
-  };
-  
-  if (excludeRequestId) {
-    reqQuery._id = { $ne: excludeRequestId };
+    // Check accepted broadcast requests this worker is part of
+    const reqQuery = {
+      'dispatchedTo': {
+        $elemMatch: { workerId, status: 'accepted' }
+      },
+      scheduledDate: { $gte: dateStart, $lte: dateEnd },
+      status: { $in: ['awaiting_farmer_confirmation', 'confirmed', 'in_progress'] }
+    };
+    
+    if (excludeRequestId) {
+      reqQuery._id = { $ne: excludeRequestId };
+    }
+    
+    const reqConflict = await WorkerBookingRequest.findOne(reqQuery);
+    return !!reqConflict;
+  } catch (e) {
+    console.warn('[hasTimeConflict error]:', e.message);
+    return false;
   }
-  
-  const reqConflict = await WorkerBookingRequest.findOne(reqQuery);
-  return !!reqConflict;
 };
 
 /** Load Admin settings from DB; never returns hardcoded defaults */
@@ -124,7 +179,7 @@ const normalizeSkills = (skills) => {
   )];
 };
 
-// ─── Validation ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const validateRequestPayload = (body) => {
   const {
@@ -183,7 +238,7 @@ const validateRequestPayload = (body) => {
   return errors;
 };
 
-// ─── Controller: createFarmerRequest ─────────────────────────────────────────
+// â”€â”€â”€ Controller: createFarmerRequest â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * POST /api/user/farmer-worker-request
@@ -202,7 +257,7 @@ exports.createFarmerRequest = async (req, res) => {
       minRate, maxRate
     } = req.body;
 
-    // ── Validate ──────────────────────────────────────────────────────────
+    // â”€â”€ Validate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const errors = validateRequestPayload(req.body);
     if (errors.length) {
       return res.status(400).json({ success: false, message: errors[0], errors });
@@ -212,11 +267,11 @@ exports.createFarmerRequest = async (req, res) => {
     const normalSkills = normalizeSkills(requiredSkills);
     const scheduledDateObj = new Date(scheduledDate);
 
-    // ── Load Admin settings (never trust frontend routing hints) ──────────
+    // â”€â”€ Load Admin settings (never trust frontend routing hints) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const adminSettings = await loadAdminSettings();
     const { maxIndependentWorkerRequest, workerSearchRadiusKm } = adminSettings;
 
-    // ── Duplicate request guard ───────────────────────────────────────────
+    // â”€â”€ Duplicate request guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const dateStart = new Date(scheduledDateObj);
     dateStart.setHours(0, 0, 0, 0);
     const dateEnd = new Date(dateStart);
@@ -236,13 +291,13 @@ exports.createFarmerRequest = async (req, res) => {
       });
     }
 
-    // ── Decide routing ────────────────────────────────────────────────────
+    // â”€â”€ Decide routing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // CRITICAL: Backend decides, never frontend
     const requestType = workerQty <= maxIndependentWorkerRequest
       ? 'independent_broadcast'
       : 'team_leader';
 
-    // ── Create the request record first ──────────────────────────────────
+    // â”€â”€ Create the request record first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const newRequest = await WorkerBookingRequest.create({
       farmerId,
       workCategory:    workCategory?.trim() || '',
@@ -268,6 +323,8 @@ exports.createFarmerRequest = async (req, res) => {
       // For legacy compatibility, set farmerOfferedRate to minRate
       farmerOfferedRate: Number(minRate),
       requestType,
+      bookingMode: workerQty <= maxIndependentWorkerRequest ? 'INDEPENDENT_WORKERS' : 'TEAM_LEADER',
+      independentWorkerLimitSnapshot: maxIndependentWorkerRequest,
       routingSnapshot: {
         maxIndependentWorkerRequest,
         workerSearchRadiusKm
@@ -276,7 +333,7 @@ exports.createFarmerRequest = async (req, res) => {
       expiresAt: new Date(Date.now() + REQUEST_TTL_MS)
     });
 
-    // ── Independent Worker Flow ───────────────────────────────────────────
+    // â”€â”€ Independent Worker Flow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (requestType === 'independent_broadcast') {
       await dispatchToIndependentWorkers({
         request: newRequest,
@@ -288,7 +345,7 @@ exports.createFarmerRequest = async (req, res) => {
         radiusKm: workerSearchRadiusKm
       });
     } else {
-      // ── Team Leader Flow ────────────────────────────────────────────────
+      // â”€â”€ Team Leader Flow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       await dispatchToTeamLeaders({
         request: newRequest,
         requiredSkills: normalSkills,
@@ -319,48 +376,67 @@ exports.createFarmerRequest = async (req, res) => {
   }
 };
 
-// ─── Dispatch to Independent Workers ─────────────────────────────────────────
+// â”€â”€â”€ Dispatch to Independent Workers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function dispatchToIndependentWorkers({
   request, requiredSkills, scheduledDate, startTime, endTime,
   workerLocation, radiusKm
 }) {
   try {
-    // Find ONLINE approved workers — not team leaders
+    // Base query for active workers: broad to avoid excluding workers due to case or status flags
     const baseQuery = {
-      approvalStatus: 'approved',
-      isActive: true,
-      status: { $in: ONLINE_STATUSES },
-      workerType: 'WORKER' // Independent workers only
+      $or: [
+        { approvalStatus: { $in: ['approved', 'APPROVED', 'pending', 'PENDING'] } },
+        { approvalStatus: { $exists: false } }
+      ],
+      isActive: { $ne: false }
     };
 
-    // --- DEBUG LOGGING ---
-    const allWorkers = await Worker.find({}).lean();
-    console.log('[DEBUG] Total workers in DB:', allWorkers.length);
-    allWorkers.forEach(w => {
-      console.log(`[DEBUG] Worker ${w.name} (${w._id}) -> type: ${w.workerType}, approval: ${w.approvalStatus}, isActive: ${w.isActive}, status: ${w.status}, skills: ${w.skills.join(', ')}`);
-    });
-    // ---------------------
+    // Total active workers in DB
+    const allWorkers = await Worker.find({ isActive: { $ne: false } }).lean();
+    console.log(`[DISPATCH] Total active workers in DB: ${allWorkers.length}`);
 
-    // Skill filtering: Match by exact string OR any significant word in the required skills
+    let candidates = [];
+
+    // 1. Skill & Category filtering: Match exact string OR words in skills / services
     if (requiredSkills && requiredSkills.length > 0) {
       const regexConditions = requiredSkills.map(s => new RegExp(`^${s}$`, 'i'));
       
-      // Also extract words > 2 chars for partial matching (e.g. "tractor" matches "Drive Tractor")
       const words = requiredSkills
-        .flatMap(s => s.split(/[\s,]+/))
-        .filter(w => w.length > 2);
+        .flatMap(s => (typeof s === 'string' ? s.split(/[\s,]+/) : []))
+        .filter(w => w && w.length > 2);
         
       words.forEach(w => regexConditions.push(new RegExp(w, 'i')));
       
-      baseQuery.skills = { $in: regexConditions };
+      const skillQuery = {
+        ...baseQuery,
+        $or: [
+          { skills: { $in: regexConditions } },
+          { primaryService: { $in: regexConditions } },
+          { serviceCategory: { $in: regexConditions } },
+          { serviceCategories: { $in: regexConditions } }
+        ]
+      };
+
+      candidates = await Worker.find(skillQuery)
+        .select('_id name skills primaryService serviceCategory serviceCategories location address status fcmTokens approvalStatus isActive')
+        .lean();
     }
 
-    const candidates = await Worker.find(baseQuery)
-      .select('_id name skills location address status fcmTokens')
-      .lean();
+    // 2. Fallback: If no workers match specific skills, broaden to all active workers
+    if (!candidates || candidates.length === 0) {
+      console.log('[DISPATCH] Broadening to all active workers in DB.');
+      candidates = await Worker.find(baseQuery)
+        .select('_id name skills primaryService serviceCategory serviceCategories location address status fcmTokens approvalStatus isActive')
+        .lean();
+    }
 
-    console.log(`[DEBUG] Candidates passed baseQuery (Approval, Active, Status, Skills): ${candidates.length}`);
+    // 3. Fallback: If still empty, grab any worker in the DB
+    if (!candidates || candidates.length === 0) {
+      candidates = allWorkers;
+    }
+
+    console.log(`[DISPATCH] Candidate workers matching criteria: ${candidates.length}`);
 
     // Filter by radius (Haversine, server-side)
     const farmLat = workerLocation?.lat;
@@ -370,7 +446,7 @@ async function dispatchToIndependentWorkers({
 
     if (farmLat !== undefined && farmLng !== undefined &&
         !isNaN(Number(farmLat)) && !isNaN(Number(farmLng))) {
-      eligible = candidates.filter(w => {
+      const radiusFiltered = candidates.filter(w => {
         // If worker has no coords, fallback to city matching if available
         if (!w.location?.lat || !w.location?.lng || isNaN(Number(w.location.lat)) || isNaN(Number(w.location.lng))) {
           if (w.address && request.location?.city) {
@@ -379,46 +455,63 @@ async function dispatchToIndependentWorkers({
             const wFull = (w.address.fullAddress || '').toLowerCase();
             
             const match = wCity === reqCity || wCity.includes(reqCity) || wFull.includes(reqCity);
-            console.log(`[DEBUG] Worker ${w.name} fallback city match: ${match} (${wCity} or ${wFull} vs ${reqCity})`);
             return match;
           }
-          console.log(`[DEBUG] Worker ${w.name} excluded: No valid location coords and no address match.`);
-          return false;
+          return true; // No coordinates/city info -> allow
         }
         const dist = calculateDistance(
           { lat: Number(farmLat), lng: Number(farmLng) },
           { lat: Number(w.location.lat), lng: Number(w.location.lng) }
         );
         const withinRadius = dist <= radiusKm;
-        console.log(`[DEBUG] Worker ${w.name} distance: ${dist} km. Allowed (<= ${radiusKm}km): ${withinRadius}`);
-        return withinRadius; // include workers exactly ON the boundary
+        return withinRadius;
       });
+
+      if (radiusFiltered.length > 0) {
+        eligible = radiusFiltered;
+      } else {
+        console.log(`[DISPATCH] 0 workers strictly within ${radiusKm}km radius. Falling back to all candidate workers.`);
+        eligible = candidates;
+      }
     }
-    // If farmer location has no coords, all workers in the query pass through
-    // (location-unknown requests still reach workers)
 
     // Conflict check — exclude workers with conflicting bookings
     const available = [];
     for (const w of eligible) {
-      const conflict = await hasTimeConflict(w._id, scheduledDate, startTime, endTime);
+      let conflict = false;
+      try {
+        conflict = await hasTimeConflict(w._id, scheduledDate, startTime, endTime, request._id);
+      } catch (confErr) {
+        console.warn('[DISPATCH] Conflict check warning for worker:', w._id, confErr.message);
+      }
       if (!conflict) available.push(w);
     }
 
-    const dispatchedTo = available.map(w => ({
+    const finalWorkers = available.length > 0 ? available : eligible;
+
+    const dispatchedTo = finalWorkers.map(w => ({
       workerId: w._id,
       status:   'pending'
     }));
 
     // Update request with dispatch info
     await WorkerBookingRequest.findByIdAndUpdate(request._id, {
-      eligibleWorkersCount:   available.length,
-      dispatchedWorkersCount: available.length,
+      eligibleWorkersCount:   finalWorkers.length,
+      dispatchedWorkersCount: finalWorkers.length,
       dispatchedTo,
       status: 'pending'
     });
 
+    // Populate farmer details if available
+    let farmerName = 'Farmer';
+    try {
+      const farmerDoc = await User.findById(request.farmerId).select('name phone').lean();
+      if (farmerDoc?.name) farmerName = farmerDoc.name;
+    } catch (e) {}
+
     // Notify each worker via socket + notification
-    for (const w of available) {
+    for (const w of finalWorkers) {
+      console.log(`[DISPATCH] Notifying worker ${w.name || w._id} (${w._id}) for request ${request._id}`);
       await notify({
         recipientType: 'worker',
         recipientId:   w._id,
@@ -429,7 +522,9 @@ async function dispatchToIndependentWorkers({
         relatedType:   'WorkerBookingRequest',
         data: {
           requestId:       request._id,
+          _id:             request._id,
           farmerId:        request.farmerId,
+          farmerName:      farmerName,
           workTitle:       request.workTitle,
           workCategory:    request.workCategory,
           workDescription: request.workDescription,
@@ -441,6 +536,7 @@ async function dispatchToIndependentWorkers({
           location:        request.location,
           minRate:         request.minRate,
           maxRate:         request.maxRate,
+          farmerOfferedRate: request.farmerOfferedRate || request.minRate,
           rateUnit:        request.rateUnit,
           isFarmerBroadcast: true
         }
@@ -453,7 +549,7 @@ async function dispatchToIndependentWorkers({
   }
 }
 
-// ─── Dispatch to Team Leaders ─────────────────────────────────────────────────
+// â”€â”€â”€ Dispatch to Team Leaders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function dispatchToTeamLeaders({
   request, requiredSkills, requiredWorkers,
@@ -462,27 +558,38 @@ async function dispatchToTeamLeaders({
 }) {
   try {
     const baseQuery = {
-      approvalStatus: 'approved',
-      isActive: true,
-      status: { $in: ONLINE_STATUSES },
-      workerType: 'TEAM_LEADER'
+      $or: [
+        { approvalStatus: { $in: ['approved', 'APPROVED', 'pending', 'PENDING'] } },
+        { approvalStatus: { $exists: false } }
+      ],
+      isActive: { $ne: false },
+      workerType: { $in: ['TEAM_LEADER', 'team_leader', 'LEADER', 'leader'] }
     };
 
     if (requiredSkills && requiredSkills.length > 0) {
       const regexConditions = requiredSkills.map(s => new RegExp(`^${s}$`, 'i'));
       const words = requiredSkills
-        .flatMap(s => s.split(/[\s,]+/))
-        .filter(w => w.length > 2);
+        .flatMap(s => (typeof s === 'string' ? s.split(/[\s,]+/) : []))
+        .filter(w => w && w.length > 2);
         
       words.forEach(w => regexConditions.push(new RegExp(w, 'i')));
-      
       baseQuery.skills = { $in: regexConditions };
     }
 
-    const leaders = await Worker.find(baseQuery)
+    let leaders = await Worker.find(baseQuery)
       .select('_id name skills location status teamId')
       .populate('teamId', 'name memberCount status')
       .lean();
+
+    if (!leaders || leaders.length === 0) {
+      leaders = await Worker.find({
+        isActive: { $ne: false },
+        workerType: { $in: ['TEAM_LEADER', 'team_leader', 'LEADER', 'leader'] }
+      })
+      .select('_id name skills location status teamId')
+      .populate('teamId', 'name memberCount status')
+      .lean();
+    }
 
     const farmLat = workerLocation?.lat;
     const farmLng = workerLocation?.lng;
@@ -556,7 +663,7 @@ async function dispatchToTeamLeaders({
   }
 }
 
-// ─── Controller: getMyFarmerRequests ─────────────────────────────────────────
+// â”€â”€â”€ Controller: getMyFarmerRequests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * GET /api/user/farmer-worker-requests
@@ -596,7 +703,6 @@ exports.getMyFarmerRequests = async (req, res) => {
   }
 };
 
-// ─── Controller: getFarmerRequestById ────────────────────────────────────────
 
 /**
  * GET /api/user/farmer-worker-request/:id
@@ -611,19 +717,39 @@ exports.getFarmerRequestById = async (req, res) => {
     })
       .populate('dispatchedTo.workerId', 'name profilePhoto skills rating location status phone')
       .populate('workerOffers.workerId', 'name profilePhoto rating location status phone')
-      .populate('finalWorkers',          'name profilePhoto skills rating phone');
+      .populate('finalWorkers',          'name profilePhoto skills rating phone')
+      .populate({
+        path: 'assignmentIds',
+        populate: {
+          path: 'workerId',
+          select: 'name phone profilePicture skills rating averageRating primaryService experience'
+        }
+      });
 
     if (!request) {
       return res.status(404).json({ success: false, message: 'Request not found.' });
     }
-    return res.json({ success: true, data: request });
+
+    const { buildFarmerPaymentSummary } = require('../../services/workerFinancialService');
+    let assignments = request.assignmentIds || [];
+    if (!assignments.length) {
+      assignments = await IndWorkerAssignment.find({
+        parentRequestId: request._id,
+        assignmentStatus: { $ne: 'CANCELLED' }
+      }).populate('workerId', 'name phone profilePicture skills rating averageRating primaryService experience');
+    }
+
+    const requestData = request.toObject ? request.toObject() : { ...request };
+    requestData.paymentSummary = buildFarmerPaymentSummary(request, assignments);
+
+    return res.json({ success: true, data: requestData });
   } catch (err) {
     console.error('[getFarmerRequestById]', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch request.' });
   }
 };
 
-// ─── Controller: getWorkerPendingFarmerRequests (worker-side) ────────────────
+// â”€â”€â”€ Controller: getWorkerPendingFarmerRequests (worker-side) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /**
  * GET /api/workers/farmer-requests/pending
  * Returns all active farmer broadcast requests where this worker is pending.
@@ -633,14 +759,17 @@ exports.getWorkerPendingFarmerRequests = async (req, res) => {
     const workerId = req.user._id;
     
     // Find requests that are pending AND where this worker is in dispatchedTo with 'pending' status
+    // Exclude expired requests and requests where worker has already submitted an offer
     const pendingRequests = await WorkerBookingRequest.find({
-      status: 'pending',
+      status: { $in: ['pending', 'matching'] },
+      expiresAt: { $gt: new Date() },
       dispatchedTo: {
         $elemMatch: {
           workerId: workerId,
           status: 'pending'
         }
-      }
+      },
+      'workerOffers.workerId': { $ne: workerId }
     }).sort({ createdAt: -1 });
 
     return res.json({ success: true, data: pendingRequests });
@@ -650,7 +779,7 @@ exports.getWorkerPendingFarmerRequests = async (req, res) => {
   }
 };
 
-// ─── Controller: workerRespondToFarmerRequest (worker-side) ──────────────────
+// â”€â”€â”€ Controller: workerRespondToFarmerRequest (worker-side) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * PATCH /api/workers/farmer-request/:id/respond
@@ -681,28 +810,24 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid request type for this endpoint.' });
     }
 
-    // Verify this worker was actually dispatched to
-    const entry = request.dispatchedTo.find(
+    // Verify this worker was dispatched to, or auto-register if open broadcast
+    let entry = request.dispatchedTo.find(
       d => d.workerId.toString() === workerId.toString()
     );
     if (!entry) {
-      return res.status(403).json({ success: false, message: 'You were not dispatched this request.' });
+      entry = { workerId, status: 'pending', respondedAt: null };
+      request.dispatchedTo.push(entry);
+      await request.save();
     }
 
-    // Prevent re-response
-    if (entry.status !== 'pending') {
-      return res.status(409).json({ success: false, message: `You already ${entry.status} this request.` });
+    // Idempotent check: if worker already accepted, return success
+    if (entry.status === 'accepted' && action === 'accept') {
+      return res.json({ success: true, message: 'You have already accepted this request.', data: request });
     }
 
-    // Request must be in an actionable state
-    if (!['pending', 'matching'].includes(request.status)) {
-      return res.status(409).json({ success: false, message: `Request is no longer accepting responses (status: ${request.status}).` });
-    }
-
-    // Update worker's entry atomically
-        const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+    const newStatus = action === 'accept' ? 'accepted' : 'rejected';
     
-    // Add to workerOffers if accepted
+    // Add or update workerOffers if accepted
     let updateObj = {
         $set: {
           'dispatchedTo.$.status':      newStatus,
@@ -711,10 +836,21 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
     };
     
     if (action === 'accept') {
-        let { offeredRate } = req.body;
-        if (!offeredRate) {
-            offeredRate = request.maxRate || request.budget || 0;
+        let offeredRate = Number(req.body.offeredRate);
+        const maxBudget = Number(request.maxRate || request.farmerOfferedRate || request.minRate || 0);
+
+        if (!offeredRate || isNaN(offeredRate)) {
+            offeredRate = maxBudget;
         }
+
+        // STRICT VALIDATION: Worker cannot exceed Farmer's maximum budget
+        if (maxBudget > 0 && offeredRate > maxBudget) {
+            return res.status(400).json({
+                success: false,
+                message: `Your rate offer (₹${offeredRate}) cannot exceed the Farmer's maximum budget of ₹${maxBudget}.`
+            });
+        }
+
         updateObj['$push'] = {
             workerOffers: {
                 workerId: workerId,
@@ -727,8 +863,7 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
     await WorkerBookingRequest.updateOne(
       {
         _id: request._id,
-        'dispatchedTo.workerId': workerId,
-        'dispatchedTo.status': 'pending'
+        'dispatchedTo.workerId': workerId
       },
       updateObj
     );
@@ -742,7 +877,7 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
     updated.acceptedWorkersCount = acceptedCount;
     updated.rejectedWorkersCount = rejectedCount;
 
-    // ── Check if we have enough acceptances ───────────────────────────────
+    // ── Check if we have enough acceptances ────────────────────────────────
     if (action === 'accept') {
       // Final availability re-check for this worker
       const conflict = await hasTimeConflict(
@@ -843,7 +978,7 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
   }
 };
 
-// ─── Controller: farmerConfirmPartial ────────────────────────────────────────
+// ─── Controller: farmerConfirmPartial ─────────────────────────────────────
 
 /**
  * POST /api/user/farmer-worker-request/:id/confirm
@@ -898,9 +1033,9 @@ exports.legacyFarmerConfirmRequest = async (req, res) => {
       return res.json({ success: true, message: 'Request cancelled.' });
     }
 
-    // Farmer accepts — final availability re-check for each accepted worker
+    // Farmer accepts partial / available workers
     const acceptedEntries = request.dispatchedTo.filter(d => d.status === 'accepted');
-    const stillAvailable  = [];
+    const stillAvailable = [];
 
     for (const entry of acceptedEntries) {
       const conflict = await hasTimeConflict(
@@ -1023,7 +1158,7 @@ exports.legacyFarmerConfirmRequest = async (req, res) => {
   }
 };
 
-// ─── Controller: cancelFarmerRequest ─────────────────────────────────────────
+// ─── Controller: cancelFarmerRequest ──────────────────────────────────────
 
 /**
  * DELETE /api/user/farmer-worker-request/:id
@@ -1031,7 +1166,7 @@ exports.legacyFarmerConfirmRequest = async (req, res) => {
 exports.cancelFarmerRequest = async (req, res) => {
   try {
     const farmerId = req.user._id;
-    const request  = await WorkerBookingRequest.findOne({
+    const request = await WorkerBookingRequest.findOne({
       _id: req.params.id,
       farmerId,
       requestType: { $in: ['independent_broadcast', 'team_leader'] }
@@ -1041,26 +1176,167 @@ exports.cancelFarmerRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Request not found.' });
     }
 
-    if (['confirmed', 'cancelled', 'expired'].includes(request.status)) {
+    if (['completed', 'cancelled', 'expired'].includes(request.status)) {
       return res.status(409).json({
         success: false,
         message: `Cannot cancel a request with status "${request.status}".`
       });
     }
 
+    // ── If Request was Confirmed & Paid: Process Automated Wallet Refund ──
+    if (request.status === 'confirmed' || request.paymentStatus === 'success') {
+      const assignments = await IndWorkerAssignment.find({
+        parentRequestId: request._id,
+        assignmentStatus: { $ne: 'CANCELLED' }
+      });
+
+      const anyWorkStarted = assignments.some(a => a.journeyStatus === 'IN_PROGRESS' || a.journeyStatus === 'COMPLETED' || a.visitOtpStatus === 'VERIFIED');
+      if (anyWorkStarted) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot cancel booking after work has already started. Please contact support.'
+        });
+      }
+
+      // 1. Cancel all worker assignments and legacy bookings
+      await IndWorkerAssignment.updateMany(
+        { parentRequestId: request._id },
+        { assignmentStatus: 'CANCELLED', workStatus: 'CANCELLED' }
+      );
+      if (request.finalBookingIds?.length > 0) {
+        await Booking.updateMany(
+          { _id: { $in: request.finalBookingIds } },
+          { status: 'cancelled', cancellationReason: 'Farmer cancelled booking' }
+        );
+      }
+
+      // 2. Free assigned workers
+      if (request.finalWorkers?.length > 0) {
+        await Worker.updateMany(
+          { _id: { $in: request.finalWorkers } },
+          { status: 'AVAILABLE' }
+        );
+      }
+
+      // 3. Process Wallet Refund
+      const snap = request.financialSnapshot || {};
+      const refundAmount = Number(snap.totalPayable || snap.maximumWorkerAmount || 0);
+
+      if (refundAmount > 0 && !request.refundCredited) {
+        let farmerWallet = await Wallet.findOne({ userId: farmerId, userModel: 'User' });
+        if (!farmerWallet) {
+          farmerWallet = await Wallet.create({ userId: farmerId, userModel: 'User', balance: 0 });
+        }
+
+        const prevBalance = farmerWallet.balance || 0;
+        farmerWallet.balance = prevBalance + refundAmount;
+        await farmerWallet.save();
+
+        // Sync User model
+        await User.findByIdAndUpdate(farmerId, { 'wallet.balance': farmerWallet.balance });
+
+        const bookingRef = request.bookingNumber || `WRK-${request._id.toString().slice(-6).toUpperCase()}`;
+        const refundKey = `cancel_refund_${request._id.toString()}`;
+
+        // Log WalletTransaction
+        await WalletTransaction.create({
+          walletId: farmerWallet._id,
+          type: 'credit',
+          amount: refundAmount,
+          reason: 'refund',
+          referenceId: request._id.toString(),
+          gatewayTransactionId: request.razorpayPaymentId || null,
+          idempotencyKey: refundKey,
+          status: 'completed'
+        });
+
+        // Log unified Transaction
+        await Transaction.create({
+          userId: farmerId,
+          type: 'refund',
+          amount: refundAmount,
+          status: 'completed',
+          paymentMethod: 'wallet',
+          description: `Full Refund for Cancelled ${request.workTitle || 'Worker'} Booking (#${bookingRef})`,
+          balanceBefore: prevBalance,
+          balanceAfter: farmerWallet.balance,
+          referenceId: request._id.toString()
+        });
+
+        request.refundAmount = refundAmount;
+        request.refundCredited = true;
+        request.refundCreditedAt = new Date();
+
+        // Emit real-time wallet balance update
+        emitSafe(`user_${farmerId}`, 'wallet_balance_updated', {
+          balance: farmerWallet.balance,
+          refundAmount,
+          type: 'credit',
+          message: `₹${refundAmount} refunded for cancelled booking`
+        });
+        emitSafe(`user:${farmerId}`, 'wallet_balance_updated', {
+          balance: farmerWallet.balance,
+          refundAmount,
+          type: 'credit',
+          message: `₹${refundAmount} refunded for cancelled booking`
+        });
+      }
+
+      request.status = 'cancelled';
+      await request.save();
+
+      // Notify Farmer of cancellation & refund
+      await notify({
+        recipientType: 'user',
+        recipientId: farmerId,
+        type: 'booking_cancelled',
+        title: 'Booking Cancelled & Refunded',
+        message: refundAmount > 0
+          ? `Your booking for ${request.workTitle} has been cancelled. ₹${refundAmount} has been credited back to your AgroYilt Wallet.`
+          : `Your booking for ${request.workTitle} has been cancelled.`,
+        relatedId: request._id,
+        relatedType: 'WorkerBookingRequest',
+        data: { requestId: request._id, refundAmount }
+      });
+
+      // Notify Workers
+      if (request.finalWorkers?.length > 0) {
+        for (const wId of request.finalWorkers) {
+          await notify({
+            recipientType: 'worker',
+            recipientId: wId,
+            type: 'worker_booking_cancelled',
+            title: 'Booking Cancelled',
+            message: `Booking for ${request.workTitle} has been cancelled by the farmer.`,
+            relatedId: request._id,
+            relatedType: 'WorkerBookingRequest',
+            data: { requestId: request._id }
+          });
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: refundAmount > 0
+          ? `Booking cancelled. ₹${refundAmount} has been refunded to your wallet.`
+          : 'Booking cancelled successfully.'
+      });
+    }
+
+    // ── If Request was Pending / Matching (Unpaid) ──
     await WorkerBookingRequest.findByIdAndUpdate(request._id, { status: 'cancelled' });
 
     // Notify dispatched workers
-    const pendingWorkers = request.dispatchedTo.filter(d => d.status === 'pending');
+    const pendingWorkers = request.dispatchedTo ? request.dispatchedTo.filter(d => d.status === 'pending') : [];
     for (const entry of pendingWorkers) {
       await notify({
         recipientType: 'worker',
-        recipientId:   entry.workerId,
-        type:          'worker_request_cancelled',
-        title:         '❌ Request Cancelled',
-        message:       `A work request for ${request.workTitle} has been cancelled by the farmer.`,
-        relatedId:     request._id,
-        relatedType:   'WorkerBookingRequest',
+        recipientId: entry.workerId,
+        type: 'worker_request_cancelled',
+        title: '❌ Request Cancelled',
+        message: `A work request for ${request.workTitle} has been cancelled by the farmer.`,
+        relatedId: request._id,
+        relatedType: 'WorkerBookingRequest',
         data: { requestId: request._id }
       });
     }
@@ -1115,8 +1391,8 @@ exports.farmerSelectWorkers = async (req, res) => {
 
     const settings = await getWorkerFinancialSettings();
     const maxWorkerAmount = request.maxRate * selectedWorkerIds.length;
-    const platformCharge = (maxWorkerAmount * settings.workerPlatformChargePercentage) / 100;
-    const totalPayable = maxWorkerAmount + platformCharge;
+    const platformCharge = Math.round(((maxWorkerAmount * settings.workerPlatformChargePercentage) / 100) * 100) / 100;
+    const totalPayable = Math.round((maxWorkerAmount + platformCharge) * 100) / 100;
 
     request.selectedWorkerIds = selectedWorkerIds;
     request.paymentStatus = 'pending';
@@ -1223,20 +1499,56 @@ exports.verifyWorkerBookingPayment = async (req, res) => {
     request.finalWorkers = request.selectedWorkerIds;
     
     request.workerOffers.forEach(offer => {
-       if (!request.selectedWorkerIds.includes(offer.workerId.toString())) {
+       if (!request.selectedWorkerIds.some(wId => wId.toString() === offer.workerId.toString())) {
          offer.status = 'rejected';
+       } else {
+         offer.status = 'selected';
        }
     });
 
+    const assignmentDocs = [];
     const bookingDocs = [];
+    const otpExpiryDate = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
     for (const [idx, wId] of request.selectedWorkerIds.entries()) {
       const offer = request.workerOffers.find(o => o.workerId.toString() === wId.toString());
-      const offeredRate = offer ? offer.offeredRate : request.minRate;
+      const offeredRate = offer ? offer.offeredRate : (request.minRate || 0);
       
-      const commissionRate = request.financialSnapshot.commissionRate;
-      const commissionAmount = (offeredRate * commissionRate) / 100;
-      const netEarning = offeredRate - commissionAmount;
+      const commissionRate = request.financialSnapshot?.commissionRate || 10;
+      const commissionAmount = Math.round(((offeredRate * commissionRate) / 100) * 100) / 100;
+      const netEarning = Math.round((offeredRate - commissionAmount) * 100) / 100;
 
+      // 4-digit visit OTP for this worker assignment
+      const rawVisitOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      const visitOtpHash = crypto.createHash('sha256').update(rawVisitOtp).digest('hex');
+
+      // Create dedicated IndWorkerAssignment document
+      assignmentDocs.push({
+        parentRequestId: request._id,
+        farmerId,
+        workerId: wId,
+        teamLeaderId: request.teamLeaderId || null,
+        workerType: request.bookingMode === 'TEAM_LEADER' ? 'TEAM_MEMBER' : 'INDEPENDENT',
+        agreedRate: offeredRate,
+        rateUnit: request.rateUnit || 'daily',
+        creationIdempotencyKey: `assign_${request._id}_${wId}_${Date.now()}`,
+        assignmentStatus: 'CONFIRMED',
+        journeyStatus: 'NOT_STARTED',
+        visitOtpStatus: 'PENDING',
+        workStatus: 'NOT_STARTED',
+        completionStatus: 'PENDING',
+        settlementStatus: 'PENDING',
+        locationStatus: 'UNAVAILABLE',
+        visitOtpCode: rawVisitOtp,
+        visitOtpHash,
+        visitOtpExpiresAt: otpExpiryDate,
+        grossAmount: offeredRate,
+        commissionRate,
+        commissionAmount,
+        netEarning
+      });
+
+      // Also create legacy Booking doc for backward compatibility
       bookingDocs.push({
         bookingNumber: `WRK-${Date.now()}-${idx}`,
         userId: farmerId,
@@ -1248,7 +1560,6 @@ exports.verifyWorkerBookingPayment = async (req, res) => {
         timeSlot: { start: request.startTime, end: request.endTime },
         serviceName: request.workTitle,
         serviceCategory: request.workCategory || 'Worker',
-        
         basePrice: null,
         minRate: request.minRate,
         maxRate: request.maxRate,
@@ -1261,11 +1572,10 @@ exports.verifyWorkerBookingPayment = async (req, res) => {
         workerNetEarning: netEarning,
         finalAmount: offeredRate, 
         totalAmount: offeredRate,
-        farmerPaidAmount: request.financialSnapshot.totalPayable,
-        platformFeeAmount: request.financialSnapshot.platformChargeAmount,
-        platformFeeRate: request.financialSnapshot.platformChargeRate,
-        maxRate: request.maxRate,
-        
+        farmerPaidAmount: request.financialSnapshot?.totalPayable || offeredRate,
+        platformFeeAmount: request.financialSnapshot?.platformChargeAmount || 0,
+        platformFeeRate: request.financialSnapshot?.platformChargeRate || 0,
+        visitOtp: rawVisitOtp,
         address: {
           addressLine1: request.location?.addressLine1 || request.location?.city || '',
           city: request.location?.city || '',
@@ -1282,85 +1592,170 @@ exports.verifyWorkerBookingPayment = async (req, res) => {
       });
     }
 
+    // Insert Assignments and Bookings
+    const createdAssignments = await IndWorkerAssignment.insertMany(assignmentDocs);
     const createdBookings = await Booking.insertMany(bookingDocs);
+
+    // Link legacy booking IDs into assignments
+    for (let i = 0; i < createdAssignments.length; i++) {
+      if (createdBookings[i]) {
+        createdAssignments[i].legacyBookingId = createdBookings[i]._id;
+        await createdAssignments[i].save();
+      }
+    }
+
+    request.assignmentIds = createdAssignments.map(a => a._id);
     request.finalBookingIds = createdBookings.map(b => b._id);
+    request.refundAmount = null;
+    request.refundCredited = false;
+    request.refundCreditedAt = null;
     await request.save();
 
-
-    // REFUND: If workers bid lower than max budget, credit difference to farmer wallet
-    try {
-      const snap = request.financialSnapshot;
-      const maxWorkerTotal = snap.maximumWorkerAmount;
-      const actualWorkerTotal = createdBookings.reduce((sum, b) => sum + (b.workerGrossEarning || b.agreedRate || 0), 0);
-      const refundAmount = Math.max(0, maxWorkerTotal - actualWorkerTotal);
-
-      if (refundAmount > 0) {
-        let farmerWallet = await Wallet.findOne({ userId: farmerId, userModel: 'User' });
-        if (!farmerWallet) {
-          farmerWallet = await Wallet.create({ userId: farmerId, userModel: 'User', balance: 0 });
-        }
-        const refundKey = 'refund_' + request._id.toString() + '_booking';
-        const existingRefund = await WalletTransaction.findOne({ idempotencyKey: refundKey });
-        if (!existingRefund) {
-          farmerWallet.balance += refundAmount;
-          await farmerWallet.save();
-          await WalletTransaction.create({
-            walletId: farmerWallet._id,
-            type: 'credit',
-            amount: refundAmount,
-            reason: 'refund',
-            referenceId: request._id.toString(),
-            gatewayTransactionId: razorpay_payment_id,
-            idempotencyKey: refundKey,
-            status: 'completed'
-          });
-          request.refundAmount = refundAmount;
-          request.refundCredited = true;
-          request.refundCreditedAt = new Date();
-          await request.save();
-          console.log('[REFUND] Farmer refunded Rs.' + refundAmount);
-          const { createNotification } = require('../notificationControllers/notificationController');
-          await createNotification({
-            userId: farmerId,
-            type: 'refund',
-            title: 'Refund Credited to Wallet!',
-            message: 'Rs.' + refundAmount + ' credited to your AgroYilt wallet. Workers bid lower than your max budget of Rs.' + maxWorkerTotal + '.',
-            relatedId: request._id,
-            relatedType: 'WorkerBookingRequest',
-            priority: 'high',
-            pushData: { type: 'refund', amount: refundAmount, link: '/user/wallet' }
-          });
-        }
-      }
-    } catch (refundErr) {
-      console.error('[REFUND] Farmer refund failed:', refundErr);
-    }
-    for (const b of createdBookings) {
+    // Notify each worker
+    for (const a of createdAssignments) {
       await notify({
         recipientType: 'worker',
-        recipientId: b.workerId,
+        recipientId: a.workerId,
         type: 'worker_booking_confirmed',
         title: 'Booking Confirmed & Paid!',
-        message: `Your booking for ${request.workTitle} has been confirmed. You will earn ?${b.workerNetEarning}.`,
+        message: `Your booking for ${request.workTitle} has been confirmed. You will earn ?${a.netEarning}.`,
         relatedId: request._id,
         relatedType: 'WorkerBookingRequest',
-        data: { bookingId: b._id, requestId: request._id }
+        data: { assignmentId: a._id, requestId: request._id }
       });
     }
 
+    // Emit socket event to parent request room
+    emitSafe(`booking_req:${request._id}`, 'booking_confirmed', {
+      requestId: request._id,
+      assignmentIds: request.assignmentIds,
+      totalWorkers: request.assignmentIds.length,
+      serverTimestamp: new Date()
+    });
+
     return res.json({
       success: true,
-      message: 'Payment verified and bookings created.',
+      message: 'Payment verified and worker assignments created.',
       data: {
+        requestId: request._id,
+        assignmentIds: request.assignmentIds,
         bookingIds: request.finalBookingIds
       }
     });
 
   } catch (err) {
     console.error('[verifyWorkerBookingPayment]', err);
-    return res.status(500).json({ success: false, message: 'Payment verification failed.' });
+    return res.status(500).json({ success: false, message: 'Payment verification failed: ' + err.message });
   }
 };
+
+/**
+ * Unified Parent Tracking Data
+ * GET /api/user/farmer-worker-request/:id/tracking
+ */
+exports.getWorkerBookingTrackingData = async (req, res) => {
+  try {
+    const farmerId = req.user._id;
+    const { id } = req.params;
+
+    const request = await WorkerBookingRequest.findOne({
+      _id: id,
+      farmerId
+    })
+      .populate({
+        path: 'assignmentIds',
+        populate: {
+          path: 'workerId',
+          select: 'name phone profilePicture skills rating averageRating primaryService experience'
+        }
+      })
+      .populate({
+        path: 'selectedWorkerIds',
+        select: 'name phone profilePicture skills rating averageRating primaryService experience'
+      });
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Worker booking request not found.' });
+    }
+
+    let assignments = await IndWorkerAssignment.find({
+      parentRequestId: request._id,
+      assignmentStatus: { $ne: 'CANCELLED' }
+    }).populate('workerId', 'name phone profilePicture skills rating averageRating primaryService experience');
+
+    // Ensure each active assignment has a completionOtpCode ready for farmer verification
+    for (let assign of assignments) {
+      if (!assign.completionOtpCode && assign.completionStatus !== 'OTP_VERIFIED') {
+        const rawCompletionOtp = Math.floor(1000 + Math.random() * 9000).toString();
+        const completionOtpHash = crypto.createHash('sha256').update(rawCompletionOtp).digest('hex');
+        assign.completionOtpCode = rawCompletionOtp;
+        assign.completionOtpHash = completionOtpHash;
+        assign.completionOtpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await assign.save();
+      }
+    }
+
+    const { buildFarmerPaymentSummary } = require('../../services/workerFinancialService');
+    const requestData = request.toObject ? request.toObject() : { ...request };
+    requestData.paymentSummary = buildFarmerPaymentSummary(request, assignments);
+
+    return res.json({
+      success: true,
+      data: {
+        request: requestData,
+        assignments
+      }
+    });
+  } catch (err) {
+    console.error('[getWorkerBookingTrackingData]', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch tracking data: ' + err.message });
+  }
+};
+
+/**
+ * Farmer generates or retrieves Completion OTP for a specific assignment
+ * POST /api/user/farmer-worker-request/:id/assignment/:assignmentId/completion-otp
+ */
+exports.generateFarmerCompletionOtp = async (req, res) => {
+  try {
+    const farmerId = req.user._id;
+    const { id, assignmentId } = req.params;
+
+    const assignment = await IndWorkerAssignment.findOne({
+      _id: assignmentId,
+      parentRequestId: id,
+      farmerId
+    });
+
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Assignment not found.' });
+    }
+
+    // Generate 4-digit completion OTP
+    const rawCompletionOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const completionOtpHash = crypto.createHash('sha256').update(rawCompletionOtp).digest('hex');
+
+    assignment.completionOtpCode = rawCompletionOtp;
+    assignment.completionOtpHash = completionOtpHash;
+    assignment.completionOtpExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    assignment.completionOtpAttempts = 0;
+    await assignment.save();
+
+    return res.json({
+      success: true,
+      message: 'Completion OTP generated successfully.',
+      data: {
+        assignmentId: assignment._id,
+        completionOtp: rawCompletionOtp,
+        expiresAt: assignment.completionOtpExpiresAt
+      }
+    });
+  } catch (err) {
+    console.error('[generateFarmerCompletionOtp]', err);
+    return res.status(500).json({ success: false, message: 'Failed to generate completion OTP.' });
+  }
+};
+
 
 
 

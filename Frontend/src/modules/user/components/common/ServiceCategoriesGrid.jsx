@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { themeColors } from '../../../../theme';
 import OptimizedImage from '../../../../components/common/OptimizedImage';
 

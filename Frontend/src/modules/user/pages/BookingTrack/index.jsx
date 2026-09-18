@@ -1,966 +1,1184 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GoogleMap, useJsApiLoader, DirectionsRenderer, OverlayView, PolylineF } from '@react-google-maps/api';
-import { FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone, FiUser, FiStar, FiShield, FiKey, FiCheckCircle, FiLoader, FiMaximize, FiMinimize, FiClock } from 'react-icons/fi';
+import {
+  FiArrowLeft, FiNavigation, FiMapPin, FiCrosshair, FiPhone,
+  FiUser, FiStar, FiShield, FiKey, FiCheckCircle, FiLoader,
+  FiMaximize, FiMinimize, FiClock, FiRefreshCw, FiUsers,
+  FiTool, FiAlertCircle, FiRadio, FiCheck, FiInfo,
+  FiCamera, FiCopy, FiX, FiEye
+} from 'react-icons/fi';
 import { FaRupeeSign } from 'react-icons/fa';
-import { bookingService } from '../../../../services/bookingService';
-import { paymentService } from '../../../../services/paymentService';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import api from '../../../../services/api';
 import { toastManager } from '../../../../utils/toastManager';
-import { useAppNotifications } from '../../../../hooks/useAppNotifications';
+import { useSocket } from '../../../../context/SocketContext';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
+// Fix Leaflet default marker icon path broken by Vite/webpack bundling
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
-const toAssetUrl = (url) => {
-  if (!url) return '';
-  const clean = url.replace('/api/upload', '/upload');
-  if (clean.startsWith('http')) return clean;
-  const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/api$/, '');
-  return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
+
+// Helper to format relative time
+const formatRelativeTime = (dateStr) => {
+  if (!dateStr) return 'Location not available';
+  const diffSec = Math.max(0, Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000));
+  if (diffSec < 10) return 'Live (Just now)';
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHour = Math.floor(diffMin / 60);
+  return `${diffHour}h ago`;
 };
 
-// Zomato-like Premium Map Style (Silver/Clean)
-const mapStyles = [
-  { "elementType": "geometry", "stylers": [{ "color": "#f5f5f5" }] },
-  { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
-  { "elementType": "labels.text.fill", "stylers": [{ "color": "#616161" }] },
-  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#f5f5f5" }] },
-  { "featureType": "administrative.land_parcel", "elementType": "labels.text.fill", "stylers": [{ "color": "#bdbdbd" }] },
-  { "featureType": "poi", "elementType": "geometry", "stylers": [{ "color": "#eeeeee" }] },
-  { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
-  { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#e5e5e5" }] },
-  { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#ffffff" }] },
-  { "featureType": "road.arterial", "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
-  { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#dadada" }] },
-  { "featureType": "road.highway", "elementType": "labels.text.fill", "stylers": [{ "color": "#616161" }] },
-  { "featureType": "road.local", "elementType": "labels.text.fill", "stylers": [{ "color": "#9e9e9e" }] },
-  { "featureType": "transit.line", "elementType": "geometry", "stylers": [{ "color": "#e5e5e5" }] },
-  { "featureType": "transit.station", "elementType": "geometry", "stylers": [{ "color": "#eeeeee" }] },
-  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#c9c9c9" }] },
-  { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#9e9e9e" }] }
-];
-
-const defaultCenter = { lat: 20.5937, lng: 78.9629 };
-const libraries = ['places', 'geometry'];
+// Status badge styling and configuration
+const STATUS_CONFIG = {
+  NOT_STARTED: {
+    label: 'Waiting to Start',
+    bgColor: 'bg-slate-100 text-slate-700 border-slate-200',
+    dotColor: 'bg-slate-400',
+    icon: FiClock,
+    description: 'Worker has not started the journey yet'
+  },
+  JOURNEY_STARTED: {
+    label: 'On the Way',
+    bgColor: 'bg-blue-50 text-blue-700 border-blue-200',
+    dotColor: 'bg-blue-500 animate-pulse',
+    icon: FiNavigation,
+    description: 'Worker is currently travelling to your farm'
+  },
+  ARRIVED: {
+    label: 'Arrived at Farm',
+    bgColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    dotColor: 'bg-emerald-500',
+    icon: FiMapPin,
+    description: 'Worker has reached your location. Share your OTP to begin work.'
+  },
+  OTP_VERIFIED: {
+    label: 'OTP Verified',
+    bgColor: 'bg-teal-50 text-teal-700 border-teal-200',
+    dotColor: 'bg-teal-500',
+    icon: FiShield,
+    description: 'Visit OTP verified. Starting work.'
+  },
+  IN_PROGRESS: {
+    label: 'Work In Progress',
+    bgColor: 'bg-amber-50 text-amber-700 border-amber-200',
+    dotColor: 'bg-amber-500 animate-pulse',
+    icon: FiTool,
+    description: 'Worker is actively working on your farm'
+  },
+  COMPLETED: {
+    label: 'Work Completed',
+    bgColor: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+    dotColor: 'bg-emerald-600',
+    icon: FiCheckCircle,
+    description: 'Work completed successfully'
+  },
+  CANCELLED: {
+    label: 'Cancelled',
+    bgColor: 'bg-rose-50 text-rose-700 border-rose-200',
+    dotColor: 'bg-rose-500',
+    icon: FiAlertCircle,
+    description: 'Assignment cancelled'
+  }
+};
 
 const BookingTrack = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [booking, setBooking] = useState(null);
+  const socket = useSocket();
+
+  const [trackingData, setTrackingData] = useState(null);
+  const [workersMap, setWorkersMap] = useState({}); // Keyed by assignmentId
   const [loading, setLoading] = useState(true);
-  const [coords, setCoords] = useState(null);
-  const [map, setMap] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState(null); // Rider Location
-  const [directions, setDirections] = useState(null);
-  const [distance, setDistance] = useState('');
-  const [duration, setDuration] = useState('');
-  const [routePath, setRoutePath] = useState([]);
-  const [isAutoCenter, setIsAutoCenter] = useState(true);
-  const [isNavigationMode, setIsNavigationMode] = useState(false);
-
-  const [paying, setPaying] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [selectedWorkerId, setSelectedWorkerId] = useState(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
+  const [selectedProofModal, setSelectedProofModal] = useState(null);
+  // leafletLoaded state removed — L is now imported directly from npm
 
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef({});
 
-  const handleOnlinePayment = async () => {
-    if (paying) return;
+  // ── CRITICAL: Reset all state & destroy map when booking ID changes ──
+  // This prevents stale data and Leaflet "Map container is already initialized" crashes
+  // when the user navigates from one booking track page to another.
+  useEffect(() => {
+    // Reset state for the new booking ID
+    setTrackingData(null);
+    setWorkersMap({});
+    setLoading(true);
+    setRefreshing(false);
+    setSelectedWorkerId(null);
+    setIsFullScreen(false);
+    setRedirectCountdown(3);
+    setSelectedProofModal(null);
 
-    // If a Razorpay order already exists for this booking, reuse it
-    if (booking.razorpayOrderId) {
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: Math.round((booking.finalAmount || 0) * 100),
-        currency: 'INR',
-        order_id: booking.razorpayOrderId,
-        name: 'Appzeto',
-        description: `Payment for ${booking.serviceName}`,
-        handler: async function (response) {
-          toastManager.info('Verifying payment...');
-          const verifyResponse = await paymentService.verifyPayment({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature
-          });
-          toast.dismiss();
-          if (verifyResponse.success) {
-            toastManager.success('Payment successful!');
-            navigate(`/user/booking/${booking._id || booking.id}`);
-          } else {
-            toastManager.error('Payment verification failed');
-          }
-          setPaying(false);
-        },
-        modal: {
-          ondismiss: function () {
-            setPaying(false);
-          }
-        },
-        prefill: { 
-          name: JSON.parse(localStorage.getItem('userData') || '{}').name || 'User', 
-          contact: JSON.parse(localStorage.getItem('userData') || '{}').phone || '' 
-        },
-        theme: { color: "#0F766E" }
-      };
-      setPaying(true);
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-      return;
-    }
-
-    try {
-      setPaying(true);
-      toastManager.info('Creating payment order...');
-      const orderResponse = await paymentService.createOrder(booking._id || booking.id);
-      toast.dismiss();
-
-      if (!orderResponse.success) {
-        toastManager.error(orderResponse.message || 'Failed to create payment order');
-        setPaying(false);
-        return;
+    // Destroy previous Leaflet map instance fully
+    if (mapInstanceRef.current) {
+      try {
+        Object.values(markersRef.current).forEach(m => {
+          if (m && mapInstanceRef.current.hasLayer(m)) mapInstanceRef.current.removeLayer(m);
+        });
+        mapInstanceRef.current.remove();
+      } catch (e) {
+        // Non-fatal cleanup
       }
+      mapInstanceRef.current = null;
+    }
+    markersRef.current = {};
 
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: orderResponse.data.amount * 100,
-        currency: orderResponse.data.currency || 'INR',
-        order_id: orderResponse.data.orderId,
-        name: 'Appzeto',
-        description: `Payment for ${booking.serviceName}`,
-        handler: async function (response) {
-          toastManager.info('Verifying payment...');
-          const verifyResponse = await paymentService.verifyPayment({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature
+    // Also clear _leaflet_id on the container element if it persists
+    if (mapContainerRef.current && mapContainerRef.current._leaflet_id) {
+      delete mapContainerRef.current._leaflet_id;
+    }
+  }, [id]);
+
+  // Cleanup map instance on unmount
+  useEffect(() => {
+    return () => {
+      if (mapInstanceRef.current) {
+        try { mapInstanceRef.current.remove(); } catch (e) {}
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  // 1. Fetch Authoritative Tracking Snapshot from REST API
+  const fetchSnapshot = useCallback(async (showLoader = false) => {
+    try {
+      if (showLoader) setLoading(true);
+      else setRefreshing(true);
+
+      const res = await api.get(`/users/tracking/${id}`);
+      if (res.data?.success && res.data?.data) {
+        const data = res.data.data;
+        setTrackingData(data);
+
+        // Normalize worker assignments by assignmentId / bookingId
+        const newMap = {};
+        if (Array.isArray(data.workers)) {
+          data.workers.forEach(w => {
+            const key = w.assignmentId || w.bookingId || w.workerId;
+            newMap[key] = w;
           });
-          toast.dismiss();
-
-          if (verifyResponse.success) {
-            toastManager.success('Payment successful!');
-            navigate(`/user/booking/${booking._id || booking.id}`);
-          } else {
-            toastManager.error('Payment verification failed');
-          }
-          setPaying(false);
-        },
-        modal: {
-          onhighlight: function () { },
-          ondismiss: function () {
-            setPaying(false);
-          }
-        },
-        prefill: {
-          name: JSON.parse(localStorage.getItem('userData') || '{}').name || 'User',
-          contact: JSON.parse(localStorage.getItem('userData') || '{}').phone || ''
-        },
-        theme: {
-          color: "#0F766E"
         }
-      };
+        setWorkersMap(newMap);
 
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-    } catch (error) {
-      toast.dismiss();
-      toastManager.error('Failed to process payment');
-      setPaying(false);
-    }
-  };
-
-  const handlePayAtHome = async () => {
-    try {
-      toastManager.info('Confirming request...');
-      const response = await paymentService.confirmPayAtHome(booking._id || booking.id);
-      toast.dismiss();
-
-      if (response.success) {
-        toastManager.success('Booking confirmed!');
-        navigate(`/user/booking/${booking._id || booking.id}`);
-      } else {
-        toastManager.error(response.message || 'Failed to confirm booking');
-      }
-    } catch (error) {
-      toast.dismiss();
-      toastManager.error('Failed to process request');
-    }
-  };
-
-  // Track if initial location was set from socket
-  const locationFromSocketRef = useRef(false);
-
-  // Main function to fetch booking data - accessible to all effects
-  const refreshBooking = React.useCallback(async (isFirstLoad = false) => {
-    try {
-      const response = await bookingService.getById(id);
-      if (response.success) {
-        setBooking(response.data);
-
-        // Geocoding and Initial Location Logic
-        // Only run this complex logic on first load or if coords/location are missing
-        if (isFirstLoad || !coords) {
-          const geocoder = new window.google.maps.Geocoder();
-          const bAddr = response.data.address || {};
-
-          // 1. Destination
-          if (bAddr.lat && bAddr.lng) {
-            setCoords({ lat: parseFloat(bAddr.lat), lng: parseFloat(bAddr.lng) });
-          } else {
-            const addressStr = typeof bAddr === 'string' ? bAddr : `${bAddr.addressLine1 || ''}, ${bAddr.city || ''}, ${bAddr.state || ''} ${bAddr.pincode || ''}`;
-            if (addressStr && addressStr.replaceAll(',', '').trim() && !addressStr.toLowerCase().includes('current location')) {
-              geocoder.geocode({ address: addressStr }, (results, status) => {
-                if (status === 'OK' && results[0]) {
-                  setCoords(results[0].geometry.location.toJSON());
-                }
-              });
-            }
-          }
-
-          // 2. Source (Provider Location) - ONLY on first load if no socket location received yet
-          if (isFirstLoad && !locationFromSocketRef.current) {
-            const provider = response.data.workerId || response.data.assignedTo || response.data.vendorId || {};
-            const liveLoc = response.data.liveLocation;
-
-            // Priority 1: Direct booking live location (Persistent)
-            if (liveLoc && liveLoc.lat && liveLoc.lng) {
-              setCurrentLocation({ lat: parseFloat(liveLoc.lat), lng: parseFloat(liveLoc.lng) });
-              if (liveLoc.heading) setHeading(parseFloat(liveLoc.heading));
-            }
-            // Priority 2: Provider's current location (Dynamic)
-            else if (provider.location && provider.location.lat && provider.location.lng) {
-              setCurrentLocation({ lat: parseFloat(provider.location.lat), lng: parseFloat(provider.location.lng) });
-            }
-            // Priority 3: Vendor's address (Static Fallback)
-            else if (response.data.vendorId && provider.address && provider.address.lat && provider.address.lng) {
-              setCurrentLocation({ lat: parseFloat(provider.address.lat), lng: parseFloat(provider.address.lng) });
-            } else {
-              setCurrentLocation(null);
-            }
-          }
+        if (data.workers?.length > 0) {
+          const firstKey = data.workers[0].assignmentId || data.workers[0].bookingId || data.workers[0].workerId;
+          setSelectedWorkerId(prev => prev || firstKey);
         }
       }
-    } catch (error) {
-      // Error fetching booking
+    } catch (err) {
+      console.warn('[BookingTrack] Snapshot error:', err);
+      // Fallback: try legacy booking service
+      try {
+        const fallbackRes = await api.get(`/users/bookings/${id}`);
+        if (fallbackRes.data?.success && fallbackRes.data?.data) {
+          const b = fallbackRes.data.data;
+          const w = b.workerId || {};
+          const singleWorker = {
+            assignmentId: b._id,
+            bookingId: b._id,
+            bookingNumber: b.bookingNumber || `WRK-${b._id.slice(-6).toUpperCase()}`,
+            workerId: w._id || b.workerId,
+            workerName: w.name || 'Assigned Worker',
+            workerPhone: w.phone || '',
+            profilePhoto: w.profilePhoto || null,
+            skills: w.skills || [],
+            rating: w.rating || 5.0,
+            agreedRate: b.agreedRate || b.finalAmount || 0,
+            rateUnit: b.rateUnit || 'daily',
+            journeyStatus: (b.status || '').toUpperCase() === 'JOURNEY_STARTED' ? 'JOURNEY_STARTED' :
+              (b.status === 'in_progress' ? 'IN_PROGRESS' : (b.status === 'completed' ? 'COMPLETED' : 'NOT_STARTED')),
+            currentLocation: b.liveLocation?.lat ? { lat: b.liveLocation.lat, lng: b.liveLocation.lng, heading: b.liveLocation.heading || 0 } : null,
+            lastLocationAt: b.liveLocation?.updatedAt || null,
+            visitOtp: b.visitOtp || null
+          };
+
+          setTrackingData({
+            trackingId: id,
+            workTitle: b.serviceName || 'Farm Work',
+            workCategory: b.serviceCategory || 'Worker Service',
+            destination: b.address ? {
+              addressLine1: b.address.addressLine1 || '',
+              city: b.address.city || '',
+              lat: b.address.lat,
+              lng: b.address.lng
+            } : null,
+            workers: [singleWorker]
+          });
+          setWorkersMap({ [b._id]: singleWorker });
+          setSelectedWorkerId(prev => prev || b._id);
+        }
+      } catch {
+        toastManager.error('Unable to load live tracking snapshot');
+      }
     } finally {
-      if (isFirstLoad) setLoading(false);
+      setLoading(false);
+      setRefreshing(false);
     }
-  }, [id, coords]);
+  }, [id]);
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: apiKey,
-    libraries
-  });
-
-  // Initial Load and Polling
+  // Initial Load & Regular Resync Interval (15s)
   useEffect(() => {
-    if (isLoaded) {
-      refreshBooking(true);
-      const intervalId = setInterval(() => refreshBooking(false), 10000); // Poll every 10s
-      return () => clearInterval(intervalId);
-    }
-  }, [isLoaded, refreshBooking]);
+    fetchSnapshot(true);
+    const interval = setInterval(() => {
+      fetchSnapshot(false);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [fetchSnapshot]);
 
-  const socket = useAppNotifications('user');
-
-  // Socket Listener
+  // Tick clock every 5 seconds for relative timestamps
   useEffect(() => {
-    if (socket && id) {
+    const clockInterval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 5000);
+    return () => clearInterval(clockInterval);
+  }, []);
+
+  // 2. Socket Connection & Real-Time Event Handlers
+  useEffect(() => {
+    if (!socket || !id) return;
+
+    setSocketConnected(socket.connected);
+
+    const onConnect = () => {
+      setSocketConnected(true);
       socket.emit('join_tracking', id);
-
-      const handleLocationUpdate = (data) => {
-        if (data.lat && data.lng) {
-          // Mark that we've received location from socket - don't let booking refresh override
-          locationFromSocketRef.current = true;
-          setCurrentLocation({ lat: parseFloat(data.lat), lng: parseFloat(data.lng) });
-          // Use heading from socket if available (more accurate)
-          if (data.heading !== undefined && data.heading !== null) {
-            setHeading(parseFloat(data.heading));
-          }
-        }
-      };
-
-      const handleBookingUpdate = (data) => {
-        if (data.bookingId === id || data.relatedId === id || data.data?.bookingId === id) {
-          setBooking(prev => {
-            if (!prev) return prev;
-            return { ...prev, ...(data.data || data) };
-          });
-          refreshBooking(false);
-        }
-      };
-
-      socket.on('live_location_update', handleLocationUpdate);
-      socket.on('booking_updated', handleBookingUpdate);
-      socket.on('notification', handleBookingUpdate);
-
-      return () => {
-        socket.off('live_location_update', handleLocationUpdate);
-        socket.off('booking_updated', handleBookingUpdate);
-        socket.off('notification', handleBookingUpdate);
-      };
-    }
-  }, [socket, id]);
-
-  // Animated location for smooth marker movement
-  const [animatedLocation, setAnimatedLocation] = useState(null);
-  const targetLocationRef = useRef(null);
-  const animatedLocationRef = useRef(null);
-  const animationFrameRef = useRef(null);
-
-  // Smooth interpolation for marker movement
-  useEffect(() => {
-    if (!currentLocation) return;
-
-    // Store target location
-    targetLocationRef.current = currentLocation;
-
-    // If no animated location yet, set it directly
-    if (!animatedLocationRef.current) {
-      animatedLocationRef.current = currentLocation;
-      setAnimatedLocation(currentLocation);
-      return;
-    }
-
-    // Animation function using refs to avoid stale closures
-    const animateToTarget = () => {
-      const target = targetLocationRef.current;
-      const current = animatedLocationRef.current;
-
-      if (!target || !current) return;
-
-      // Calculate distance to target
-      const latDiff = target.lat - current.lat;
-      const lngDiff = target.lng - current.lng;
-      const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-
-      // If close enough, snap to target
-      if (distance < 0.00001) {
-        animatedLocationRef.current = target;
-        setAnimatedLocation(target);
-        return;
-      }
-
-      // Lerp factor - lower = smoother but slower
-      const lerpFactor = 0.1;
-
-      const newLat = current.lat + latDiff * lerpFactor;
-      const newLng = current.lng + lngDiff * lerpFactor;
-      const newLocation = { lat: newLat, lng: newLng };
-
-      animatedLocationRef.current = newLocation;
-      setAnimatedLocation(newLocation);
-
-      // Continue animation
-      animationFrameRef.current = requestAnimationFrame(animateToTarget);
+      fetchSnapshot(false); // Resync latest authoritative snapshot on reconnect
     };
 
-    // Cancel previous animation
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
+    const onDisconnect = () => {
+      setSocketConnected(false);
+    };
 
-    // Start new animation
-    animationFrameRef.current = requestAnimationFrame(animateToTarget);
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+
+    // Explicitly join tracking room
+    socket.emit('join_tracking', id);
+
+    // A. Worker Started Journey
+    const handleJourneyStarted = (data) => {
+      const targetId = data.assignmentId || data.bookingId || data.workerId;
+      setWorkersMap(prev => {
+        const existing = prev[targetId] || {};
+        return {
+          ...prev,
+          [targetId]: {
+            ...existing,
+            ...data,
+            journeyStatus: 'JOURNEY_STARTED',
+            journeyStartedAt: data.journeyStartedAt || new Date().toISOString()
+          }
+        };
+      });
+      toastManager.info(`${data.workerName || 'Worker'} has started their journey!`);
+    };
+
+    // B. Worker Location Updated
+    const handleLocationUpdated = (data) => {
+      const targetId = data.assignmentId || data.bookingId || data.workerId;
+      setWorkersMap(prev => {
+        const existing = prev[targetId];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          [targetId]: {
+            ...existing,
+            currentLocation: data.location || { lat: data.lat, lng: data.lng, heading: data.heading || 0 },
+            lastLocationAt: data.lastLocationAt || new Date().toISOString()
+          }
+        };
+      });
+    };
+
+    // C. Worker Arrived at Farm
+    const handleArrived = (data) => {
+      const targetId = data.assignmentId || data.bookingId || data.workerId;
+      setWorkersMap(prev => {
+        const existing = prev[targetId] || {};
+        return {
+          ...prev,
+          [targetId]: {
+            ...existing,
+            ...data,
+            journeyStatus: 'ARRIVED',
+            arrivedAt: data.arrivedAt || new Date().toISOString()
+          }
+        };
+      });
+      toastManager.success(`${data.workerName || 'Worker'} has arrived at your farm!`);
+    };
+
+    // D. OTP Verified / Work Started
+    const handleOtpVerified = (data) => {
+      const targetId = data.assignmentId || data.bookingId || data.workerId;
+      setWorkersMap(prev => {
+        const existing = prev[targetId] || {};
+        return {
+          ...prev,
+          [targetId]: {
+            ...existing,
+            ...data,
+            journeyStatus: 'IN_PROGRESS',
+            otpVerifiedAt: data.otpVerifiedAt || new Date().toISOString()
+          }
+        };
+      });
+      toastManager.success('Visit OTP verified. Work is in progress.');
+    };
+
+    // E. Work Completed
+    const handleWorkCompleted = (data) => {
+      const targetId = data.assignmentId || data.bookingId || data.workerId;
+      setWorkersMap(prev => {
+        const existing = prev[targetId] || {};
+        return {
+          ...prev,
+          [targetId]: {
+            ...existing,
+            ...data,
+            journeyStatus: 'COMPLETED',
+            completedAt: data.completedAt || new Date().toISOString()
+          }
+        };
+      });
+      toastManager.success('Worker marked the job as completed!');
+    };
+
+    // F. Legacy single location fallback
+    const handleLegacyLocation = (data) => {
+      if (data.lat && data.lng) {
+        const targetId = data.bookingId || data.workerId || id;
+        setWorkersMap(prev => {
+          const keys = Object.keys(prev);
+          const matchedKey = keys.find(k => k === targetId) || keys[0];
+          if (!matchedKey) return prev;
+          return {
+            ...prev,
+            [matchedKey]: {
+              ...prev[matchedKey],
+              currentLocation: { lat: Number(data.lat), lng: Number(data.lng), heading: Number(data.heading || 0) },
+              lastLocationAt: data.updatedAt || new Date().toISOString()
+            }
+          };
+        });
+      }
+    };
+
+    // G. Booking Completed / Parent Completed
+    const handleBookingCompleted = (data) => {
+      setTrackingData(prev => prev ? ({ ...prev, isParentCompleted: true, parentStatus: 'completed' }) : prev);
+      toastManager.success('Booking completed and payments settled!');
+      fetchSnapshot(false);
+    };
+
+    // H. Assignment Settled
+    const handleAssignmentSettled = () => {
+      fetchSnapshot(false);
+    };
+
+    // Register all socket listeners
+    socket.on('worker_journey_started', handleJourneyStarted);
+    socket.on('worker_location_updated', handleLocationUpdated);
+    socket.on('worker_arrived', handleArrived);
+    socket.on('worker_otp_verified', handleOtpVerified);
+    socket.on('worker_work_started', handleOtpVerified);
+    socket.on('worker_work_completed', handleWorkCompleted);
+    socket.on('live_location_update', handleLegacyLocation);
+    socket.on('booking_completed', handleBookingCompleted);
+    socket.on('assignment_completion_otp_verified', handleAssignmentSettled);
+    socket.on('assignment_settled', handleAssignmentSettled);
 
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('worker_journey_started', handleJourneyStarted);
+      socket.off('worker_location_updated', handleLocationUpdated);
+      socket.off('worker_arrived', handleArrived);
+      socket.off('worker_otp_verified', handleOtpVerified);
+      socket.off('worker_work_started', handleOtpVerified);
+      socket.off('worker_work_completed', handleWorkCompleted);
+      socket.off('live_location_update', handleLegacyLocation);
+      socket.off('booking_completed', handleBookingCompleted);
+      socket.off('assignment_completion_otp_verified', handleAssignmentSettled);
+      socket.off('assignment_settled', handleAssignmentSettled);
+      socket.emit('leave_tracking', id);
     };
-  }, [currentLocation]);
+  }, [socket, id, fetchSnapshot]);
 
-  const [heading, setHeading] = useState(0);
-  const prevLocationRef = useRef(null);
-  const lastRouteOriginRef = useRef(null);
+  // Derived array of workers from normalized map
+  const workersList = useMemo(() => {
+    return Object.values(workersMap);
+  }, [workersMap]);
 
-  // Calculate Heading based on movement (Direction Sense)
+  // Dynamic status counters
+  const counters = useMemo(() => {
+    const total = workersList.length;
+    const started = workersList.filter(w => ['JOURNEY_STARTED', 'ARRIVED', 'OTP_VERIFIED', 'IN_PROGRESS', 'COMPLETED'].includes(w.journeyStatus)).length;
+    const onJourney = workersList.filter(w => w.journeyStatus === 'JOURNEY_STARTED').length;
+    const arrived = workersList.filter(w => w.journeyStatus === 'ARRIVED').length;
+    const inProgress = workersList.filter(w => ['OTP_VERIFIED', 'IN_PROGRESS'].includes(w.journeyStatus)).length;
+    const completed = workersList.filter(w => w.journeyStatus === 'COMPLETED').length;
+    const notStarted = workersList.filter(w => w.journeyStatus === 'NOT_STARTED').length;
+
+    return { total, started, onJourney, arrived, inProgress, completed, notStarted };
+  }, [workersList]);
+
+  // Overall Completion Check
+  const isAllCompleted = useMemo(() => {
+    if (trackingData?.isParentCompleted || trackingData?.parentStatus === 'completed') return true;
+    if (counters.total > 0 && counters.completed === counters.total) return true;
+    return false;
+  }, [trackingData, counters]);
+
+  // Auto-Redirect Timer on Completion
   useEffect(() => {
-    if (isLoaded && currentLocation && window.google) {
-      if (prevLocationRef.current) {
-        const start = new window.google.maps.LatLng(prevLocationRef.current);
-        const end = new window.google.maps.LatLng(currentLocation);
-        const distanceMoved = window.google.maps.geometry.spherical.computeDistanceBetween(start, end);
+    if (isAllCompleted && !loading) {
+      const countdownInterval = setInterval(() => {
+        setRedirectCountdown(c => (c > 1 ? c - 1 : 1));
+      }, 1000);
 
-        // Update heading only if movement is significant (> 2 meters) to prevent jitter
-        if (distanceMoved > 2) {
-          const newHeading = window.google.maps.geometry.spherical.computeHeading(start, end);
-          setHeading(newHeading);
-        }
-      } else if (coords) {
-        // Initial heading towards destination
-        const start = new window.google.maps.LatLng(currentLocation);
-        const end = new window.google.maps.LatLng(coords);
-        setHeading(window.google.maps.geometry.spherical.computeHeading(start, end));
-      }
-      prevLocationRef.current = currentLocation;
+      const redirectTimer = setTimeout(() => {
+        navigate('/user', { replace: true });
+      }, 3000);
+
+      return () => {
+        clearInterval(countdownInterval);
+        clearTimeout(redirectTimer);
+      };
     }
-  }, [currentLocation, isLoaded, coords]);
+  }, [isAllCompleted, loading, navigate]);
 
-  // DISABLED: Auto heading/tilt sync causes map fluctuation
-  // The heading is now displayed on the marker only, not on the map itself
-  // useEffect(() => {
-  //   if (map && currentLocation && heading && isAutoCenter) {
-  //     map.setHeading(heading);
-  //     map.setTilt(45);
-  //   }
-  // }, [map, heading, isAutoCenter, currentLocation]);
+  // Destination Farm location
+  const destination = trackingData?.destination;
 
-  // Simulate Rider Location (Since we don't have real rider GPS stream yet for User App)
-  // Ideally this would come from a websocket or Firebase subscription
-  // Fallback: Set initial position to allow route calculation
-  /* 
-  // Simulation Removed: Waiting for Real Backend Location Updates
-  // Ideally, use a WebSocket or periodic fetch here to update `currentLocation`
-  // with the real rider's GPS coordinates.
-  */
-
-  // Calculate Route ONCE on initial load only
-  const initialBoundsSetRef = useRef(false);
-  const directionsCalculatedRef = useRef(false);
-
-  const fullRoutePathRef = useRef([]);
-
+  // Render Leaflet Map dynamically
   useEffect(() => {
-    // Only calculate directions ONCE when we have all required data
-    if (isLoaded && currentLocation && coords && map && !directionsCalculatedRef.current) {
-      directionsCalculatedRef.current = true; // Prevent recalculation
+    if (!mapContainerRef.current || loading) return;
 
-      const directionsService = new window.google.maps.DirectionsService();
-      directionsService.route(
-        {
-          origin: currentLocation,
-          destination: coords,
-          travelMode: window.google.maps.TravelMode.DRIVING,
-        },
-        (result, status) => {
-          if (status === window.google.maps.DirectionsStatus.OK) {
-            setDirections(result);
-            const leg = result.routes[0].legs[0];
-            setDistance(leg.distance.text);
-            setDuration(leg.duration.text);
+    // ── NaN Guard Helpers ──
+    const isValidCoord = (lat, lng) => {
+      const la = Number(lat);
+      const lo = Number(lng);
+      return isFinite(la) && isFinite(lo) && la !== 0 && lo !== 0;
+    };
+    const safeNum = (v, fallback) => { const n = Number(v); return isFinite(n) ? n : fallback; };
 
-            // Store full path and set initial state
-            fullRoutePathRef.current = result.routes[0].overview_path;
-            setRoutePath(result.routes[0].overview_path);
+    // Determine default center: destination → first worker with GPS → central India fallback
+    const firstWorkerWithLoc = workersList.find(w =>
+      isValidCoord(w.currentLocation?.lat, w.currentLocation?.lng)
+    );
+    const centerLat = safeNum(destination?.lat, null) ||
+      safeNum(firstWorkerWithLoc?.currentLocation?.lat, null) || 22.7196;
+    const centerLng = safeNum(destination?.lng, null) ||
+      safeNum(firstWorkerWithLoc?.currentLocation?.lng, null) || 75.8577;
 
-            // Center on rider
-            map.setCenter(currentLocation);
-            map.setZoom(15);
-          }
-        }
-      );
+    // ── Initialize map only once (or reconnect if container DOM node changed) ──
+    const containerChanged = mapInstanceRef.current && (
+      typeof mapInstanceRef.current.getContainer === 'function' &&
+      mapInstanceRef.current.getContainer() !== mapContainerRef.current
+    );
+
+    if (!mapInstanceRef.current || containerChanged) {
+      if (mapInstanceRef.current) {
+        try { mapInstanceRef.current.remove(); } catch (e) {}
+        mapInstanceRef.current = null;
+      }
+      if (mapContainerRef.current._leaflet_id) {
+        delete mapContainerRef.current._leaflet_id;
+      }
+      try {
+        const map = L.map(mapContainerRef.current, {
+          zoomControl: false,
+          attributionControl: false
+        }).setView([centerLat, centerLng], 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        mapInstanceRef.current = map;
+
+        setTimeout(() => {
+          if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+        }, 200);
+      } catch (e) {
+        console.warn('[BookingTrack] Map init error:', e.message);
+        return;
+      }
     }
-  }, [isLoaded, coords, map, currentLocation]);
 
-  // Update distance, ETA, and Clear Traveled Path as rider moves
-  useEffect(() => {
-    if (isLoaded && currentLocation && coords && window.google && directionsCalculatedRef.current) {
-      // 1. Calculate straight-line distance & ETA
-      const riderPoint = new window.google.maps.LatLng(currentLocation);
-      const destPoint = new window.google.maps.LatLng(coords);
-      const distanceMeters = window.google.maps.geometry.spherical.computeDistanceBetween(riderPoint, destPoint);
+    const map = mapInstanceRef.current;
+    if (!map) return;
 
-      // Convert to km
-      const distanceKm = distanceMeters / 1000;
+    try { map.invalidateSize(); } catch (e) {}
 
-      // Format distance
-      if (distanceKm < 1) {
-        setDistance(`${Math.round(distanceMeters)} m`);
-      } else {
-        setDistance(`${distanceKm.toFixed(1)} km`);
+    // ── Clear old markers ──
+    Object.values(markersRef.current).forEach(m => {
+      try { if (m && map.hasLayer(m)) map.removeLayer(m); } catch (e) {}
+    });
+    markersRef.current = {};
+
+    const farmLat = safeNum(destination?.lat, null) || centerLat;
+    const farmLng = safeNum(destination?.lng, null) || centerLng;
+
+    // Pre-seed bounds with a valid point to prevent empty-bounds NaN crash
+    const bounds = L.latLngBounds([[farmLat, farmLng]]);
+    let hasPoints = false;
+
+    // ── 1. Destination Farm Marker ──
+    try {
+      const destIcon = L.divIcon({
+        className: 'custom-farm-marker',
+        html: `<div style="background:#059669;color:white;border-radius:9999px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(5,150,105,0.4);border:3px solid white;">
+          <svg stroke="currentColor" fill="none" stroke-width="2.5" viewBox="0 0 24 24" height="18" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        </div>`,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19]
+      });
+      const destMarker = L.marker([farmLat, farmLng], { icon: destIcon }).addTo(map);
+      destMarker.bindPopup(`<b>Farm Destination</b><br/>${destination?.addressLine1 || destination?.city || 'Farm Location'}`);
+      markersRef.current['destination'] = destMarker;
+      bounds.extend([farmLat, farmLng]);
+      hasPoints = true;
+    } catch (e) {
+      console.warn('[BookingTrack] Destination marker error:', e.message);
+    }
+
+    // ── 2. Worker Markers (no selection highlight — handled by separate effect) ──
+    workersList.forEach((w, idx) => {
+      let wLat = safeNum(w.currentLocation?.lat, null);
+      let wLng = safeNum(w.currentLocation?.lng, null);
+
+      if (!isValidCoord(wLat, wLng)) {
+        const angle = (idx * 2 * Math.PI) / Math.max(workersList.length, 1);
+        wLat = farmLat + 0.003 * Math.sin(angle);
+        wLng = farmLng + 0.003 * Math.cos(angle);
       }
+      if (!isFinite(wLat) || !isFinite(wLng)) return;
 
-      // Estimate time (assuming average speed of 30 km/h in city)
-      const avgSpeedKmh = 30;
-      const timeHours = distanceKm / avgSpeedKmh;
-      const timeMinutes = Math.round(timeHours * 60);
+      const isLive = w.journeyStatus === 'JOURNEY_STARTED';
+      const isArrived = w.journeyStatus === 'ARRIVED';
+      const isCompleted = w.journeyStatus === 'COMPLETED';
+      const pinColor = isCompleted ? '#059669' : (isArrived ? '#10B981' : (isLive ? '#2563EB' : '#64748B'));
+      const initial = w.workerName ? w.workerName.charAt(0).toUpperCase() : `${idx + 1}`;
+      const wKey = w.assignmentId || w.bookingId || w.workerId;
 
-      if (timeMinutes < 1) {
-        setDuration('< 1 min');
-      } else if (timeMinutes < 60) {
-        setDuration(`${timeMinutes} min`);
-      } else {
-        const hours = Math.floor(timeMinutes / 60);
-        const mins = timeMinutes % 60;
-        setDuration(`${hours} hr ${mins} min`);
-      }
-
-      // 2. Clear Traveled Path Visualization
-      if (fullRoutePathRef.current && fullRoutePathRef.current.length > 0) {
-        // Find the closest point on the original path to the current rider location
-        let closestIndex = -1;
-        let minDist = Infinity;
-
-        // Optimization: Only check a reasonable window if path is huge, but full check is safer for loops
-        fullRoutePathRef.current.forEach((p, idx) => {
-          const d = window.google.maps.geometry.spherical.computeDistanceBetween(riderPoint, p);
-          if (d < minDist) {
-            minDist = d;
-            closestIndex = idx;
-          }
+      try {
+        const workerIcon = L.divIcon({
+          className: 'custom-worker-marker',
+          html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+            ${isLive ? `<div style="position:absolute;width:48px;height:48px;border-radius:9999px;background:rgba(37,99,235,0.25);animation:ping 2s cubic-bezier(0,0,0.2,1) infinite;top:-4px;"></div>` : ''}
+            <div class="wk-pin" data-wid="${wKey}" style="background:${pinColor};color:white;border-radius:9999px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,0.25);border:3px solid white;transition:transform 0.2s,border-color 0.2s;">${initial}</div>
+            <div style="background:white;color:#1E293B;font-weight:800;font-size:10px;padding:2px 6px;border-radius:6px;margin-top:3px;box-shadow:0 2px 6px rgba(0,0,0,0.15);border:1px solid #E2E8F0;white-space:nowrap;">${w.workerName?.split(' ')[0] || `Worker ${idx + 1}`}</div>
+          </div>`,
+          iconSize: [40, 56],
+          iconAnchor: [20, 20]
         });
 
-        // If we found a close point, update the path to start from CURRENT location, 
-        // then continue from the NEXT point in the original path.
-        if (closestIndex !== -1) {
-          // We splice the array to remove points "behind"
-          // We start drawing from the current rider position explicitly to avoid a gap
-          const remaining = fullRoutePathRef.current.slice(closestIndex + 1);
-          setRoutePath([currentLocation, ...remaining]);
-        }
+        const marker = L.marker([wLat, wLng], { icon: workerIcon }).addTo(map);
+        marker.on('click', () => setSelectedWorkerId(wKey));
+        marker.bindPopup(`<div style="font-family:inherit;font-size:12px;line-height:1.4;">
+          <div style="font-weight:800;font-size:13px;color:#0F172A;">${w.workerName}</div>
+          <div style="color:#64748B;font-weight:600;margin-top:2px;">${STATUS_CONFIG[w.journeyStatus]?.label || w.journeyStatus}</div>
+          <div style="color:#059669;font-weight:700;margin-top:4px;">Rate: ₹${w.agreedRate}/${w.rateUnit || 'day'}</div>
+          ${w.distanceKm ? `<div style="color:#2563EB;font-weight:700;margin-top:2px;">Distance: ${w.distanceKm} km</div>` : ''}
+          ${!isValidCoord(w.currentLocation?.lat, w.currentLocation?.lng) ? `<div style="color:#F59E0B;font-weight:600;font-size:10px;margin-top:2px;">(Waiting for live GPS)</div>` : ''}
+        </div>`);
+
+        if (w.assignmentId) markersRef.current[w.assignmentId] = marker;
+        if (w.bookingId) markersRef.current[w.bookingId] = marker;
+        if (w.workerId) markersRef.current[w.workerId] = marker;
+        markersRef.current[wKey] = marker;
+        bounds.extend([wLat, wLng]);
+        hasPoints = true;
+      } catch (e) {
+        console.warn('[BookingTrack] Worker marker error:', e.message);
+      }
+    });
+
+    if (hasPoints) {
+      try {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+      } catch (e) {
+        try { map.setView([farmLat, farmLng], 14); } catch (e2) {}
       }
     }
-  }, [currentLocation, coords, isLoaded]);
+  // ⚠️ selectedWorkerId intentionally NOT in deps — selection is handled by the effect below
+  }, [destination, workersList, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const mapOptions = useMemo(() => ({
-    disableDefaultUI: true,
-    zoomControl: false,
-    mapTypeId: 'roadmap',
-    gestureHandling: 'greedy',
-    rotateControl: true,
-    tiltControl: true,
-    isFractionalZoomEnabled: true,
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: false,
-    mapId: '8e0a97af9386fefc',
-  }), []);
+  // ── Selection highlight: update marker border/scale WITHOUT rebuilding the map ──
+  // This runs on card click and just mutates the marker's icon HTML in-place.
+  useEffect(() => {
+    if (!selectedWorkerId || !mapInstanceRef.current) return;
 
-  // Memoize Map Markers to prevent flickering/blinking
-  const destinationMarker = useMemo(() => coords && (
-    <OverlayView
-      position={coords}
-      mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-    >
-      <div className="relative -translate-x-1/2 -translate-y-[90%] pointer-events-none flex flex-col items-center">
-        <FiMapPin className="w-10 h-10 text-red-600 drop-shadow-xl fill-red-600 stroke-white stroke-[1.5px]" />
-        <div className="w-3 h-1 bg-black/20 rounded-full blur-[2px] mt-[-2px]"></div>
+    const raf = requestAnimationFrame(() => {
+      if (!mapInstanceRef.current) return;
+
+      try { mapInstanceRef.current.invalidateSize(); } catch (e) {}
+
+      // Update visual selection on all worker pins via DOM manipulation
+      Object.entries(markersRef.current).forEach(([wid, marker]) => {
+        if (wid === 'destination' || !marker) return;
+        try {
+          const el = marker.getElement();
+          if (!el) return;
+          const pin = el.querySelector('.wk-pin');
+          if (!pin) return;
+          const pinWid = pin.getAttribute('data-wid');
+          if (pinWid === selectedWorkerId || wid === selectedWorkerId) {
+            pin.style.border = '3px solid #F59E0B';
+            pin.style.transform = 'scale(1.2)';
+            pin.style.boxShadow = '0 0 16px rgba(245, 158, 11, 0.6)';
+            pin.style.zIndex = '999';
+          } else {
+            pin.style.border = '3px solid white';
+            pin.style.transform = 'scale(1)';
+            pin.style.boxShadow = '0 4px 14px rgba(0,0,0,0.25)';
+            pin.style.zIndex = '1';
+          }
+        } catch (e) {}
+      });
+
+      // Fly to selected marker
+      const marker = markersRef.current[selectedWorkerId];
+      if (marker) {
+        try {
+          const pos = marker.getLatLng();
+          if (isFinite(pos.lat) && isFinite(pos.lng)) {
+            mapInstanceRef.current.flyTo([pos.lat, pos.lng], 16, { animate: true, duration: 0.8 });
+            if (marker.openPopup) marker.openPopup();
+          }
+        } catch (e) {}
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [selectedWorkerId]);
+
+  const handleCenterMap = () => {
+    if (!mapInstanceRef.current || !L) return;
+
+    const safeDLat = isFinite(Number(destination?.lat)) ? Number(destination.lat) : null;
+    const safeDLng = isFinite(Number(destination?.lng)) ? Number(destination.lng) : null;
+
+    // Pre-seed bounds with farm location (or India fallback) to avoid empty-bounds NaN crash
+    const seedLat = safeDLat || 22.7196;
+    const seedLng = safeDLng || 75.8577;
+    const bounds = L.latLngBounds([[seedLat, seedLng]]);
+    let hasPoints = !!(safeDLat && safeDLng);
+
+    workersList.forEach(w => {
+      const marker = markersRef.current[w.assignmentId || w.workerId];
+      if (marker) {
+        try {
+          const pos = marker.getLatLng();
+          if (isFinite(pos.lat) && isFinite(pos.lng)) {
+            bounds.extend([pos.lat, pos.lng]);
+            hasPoints = true;
+          }
+        } catch (e) {}
+      }
+    });
+
+    try {
+      if (hasPoints) {
+        mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+      } else {
+        mapInstanceRef.current.setView([seedLat, seedLng], 14);
+      }
+    } catch (e) {
+      mapInstanceRef.current.setView([seedLat, seedLng], 14);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <LogoLoader text="Loading Live Tracking..." />
       </div>
-    </OverlayView>
-  ), [coords]);
-
-  const riderMarker = useMemo(() => animatedLocation && (
-    <OverlayView
-      position={animatedLocation}
-      mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          transform: 'translate(-50%, -50%)',
-          cursor: 'pointer'
-        }}
-        className="pointer-events-none"
-      >
-        <div
-          className="relative z-20 w-16 h-16"
-          style={{
-            transform: `rotate(${heading}deg)`,
-            transition: 'transform 0.3s ease-out'
-          }}
-        >
-          <img
-            src="/WhatsApp_Image_2026-05-11_at_1.51.50_PM-removebg-preview.png"
-            alt="Rider"
-            className="w-full h-full object-contain drop-shadow-xl"
-          />
-        </div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-teal-500/30 rounded-full animate-ping z-10 pointer-events-none"></div>
-        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-12 h-3 bg-black/20 blur-sm rounded-full z-0"></div>
-      </div>
-    </OverlayView>
-  ), [animatedLocation, heading]);
-
-  if (!isLoaded || loading) return <LogoLoader />;
-
-  // Determine active provider based on priority: Worker -> Assigned -> Vendor
-  const provider = booking?.workerId || booking?.assignedTo || booking?.vendorId || {};
+    );
+  }
 
   return (
-    <div className="h-screen flex flex-col relative bg-white overflow-hidden">
-      {/* Top Floating Header */}
-      {/* Top Floating Header - Always Visible */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-start pointer-events-none">
-        <button
-          onClick={() => navigate(-1)}
-          className="pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-700 hover:bg-white transition-all active:scale-95"
-        >
-          <FiArrowLeft className="w-6 h-6" />
-        </button>
+    <div className="min-h-screen bg-slate-50 pb-24 text-slate-800">
+      {/* ── Top App Bar ── */}
+      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {!isAllCompleted && (
+              <button
+                onClick={() => navigate(-1)}
+                className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center active:scale-95 transition-all shrink-0"
+                title="Back"
+              >
+                <FiArrowLeft size={20} />
+              </button>
+            )}
+            <div className="min-w-0">
+              <h1 className="font-black text-base text-slate-800 truncate flex items-center gap-2">
+                <FiNavigation className="text-emerald-600 shrink-0" />
+                <span>{isAllCompleted ? 'Booking Completed' : 'Live Journey Tracking'}</span>
+              </h1>
+              <p className="text-xs text-slate-500 font-medium truncate">
+                {trackingData?.workTitle || 'Worker Booking'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Connection Indicator */}
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                socketConnected
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-amber-50 text-amber-700 border-amber-200'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+              <span className="hidden sm:inline">{socketConnected ? 'Live Tracking' : 'Reconnecting...'}</span>
+              <FiRadio className="sm:hidden" />
+            </div>
+
+            {/* Manual Resync */}
+            <button
+              onClick={() => fetchSnapshot(false)}
+              disabled={refreshing}
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center active:scale-95 transition-all"
+              title="Refresh"
+            >
+              <FiRefreshCw size={16} className={refreshing ? 'animate-spin text-emerald-600' : ''} />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Full Screen Stats Card */}
-      <AnimatePresence>
-        {isFullScreen && (
+      <div className="max-w-4xl mx-auto p-4 space-y-4">
+        {/* ── Completion Celebration Banner ── */}
+        {isAllCompleted && (
           <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="absolute top-6 left-0 right-0 z-10 flex justify-center pointer-events-none"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-3xl p-6 shadow-xl border border-emerald-500/30 text-center relative overflow-hidden"
           >
-            <div className="pointer-events-auto bg-white/95 backdrop-blur-xl px-6 py-2.5 rounded-full shadow-2xl flex items-center gap-6 border border-white/20 ring-1 ring-black/5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center">
-                  <FiMapPin className="w-4 h-4 text-teal-600" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Remaining</p>
-                  <p className="text-sm font-black text-gray-800">{distance}</p>
-                </div>
-              </div>
+            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-3 text-white shadow-inner">
+              <FiCheckCircle size={36} />
+            </div>
+            <h2 className="text-2xl font-black mb-1">Booking Completed Successfully!</h2>
+            <p className="text-emerald-100 text-sm font-medium mb-4">
+              All assigned workers have finished their tasks and payments are settled.
+            </p>
 
-              <div className="w-px h-8 bg-gray-100"></div>
-
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center">
-                  <FiClock className="w-4 h-4 text-orange-500" />
+            {/* Payment Breakdown Card */}
+            {trackingData?.paymentSummary && (
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 mb-4 text-left border border-white/10 space-y-2 text-xs">
+                <div className="flex justify-between font-medium text-emerald-100">
+                  <span>Total Paid by You</span>
+                  <span className="font-bold text-white">₹{trackingData.paymentSummary.totalPaidAmount?.toLocaleString('en-IN') || 0}</span>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ETA</p>
-                  <p className="text-sm font-black text-gray-800">{duration}</p>
+                <div className="flex justify-between font-medium text-emerald-100">
+                  <span>Worker Earnings</span>
+                  <span className="font-bold text-white">₹{trackingData.paymentSummary.workerReserveAmount?.toLocaleString('en-IN') || 0}</span>
                 </div>
+                <div className="flex justify-between font-medium text-emerald-100">
+                  <span>Platform Fee</span>
+                  <span className="font-bold text-white">₹{trackingData.paymentSummary.platformFeeAmount?.toLocaleString('en-IN') || 0}</span>
+                </div>
+                {trackingData.paymentSummary.refundAmount > 0 && (
+                  <div className="flex justify-between font-bold text-yellow-300 pt-1 border-t border-white/10">
+                    <span>Refund Credited to Wallet</span>
+                    <span>₹{trackingData.paymentSummary.refundAmount?.toLocaleString('en-IN')}</span>
+                  </div>
+                )}
               </div>
+            )}
+
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => navigate('/user', { replace: true })}
+                className="bg-white text-emerald-800 font-black px-6 py-3 rounded-2xl shadow-lg hover:bg-emerald-50 active:scale-95 transition-all text-sm"
+              >
+                Return to Home ({redirectCountdown}s)
+              </button>
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      <div className="flex-1 w-full h-full">
-        <GoogleMap
-          mapContainerStyle={{ width: '100%', height: '100%' }}
-          defaultCenter={defaultCenter}
-          defaultZoom={14}
-          onLoad={map => setMap(map)}
-          onDragStart={() => setIsAutoCenter(false)}
-          onZoomChanged={() => {
-            // Only disable if it's a programmatic zoom check is complicated, 
-            // but usually we want to stop auto-centering if user zooms.
-            // However, fitBounds triggers zoom changed. So we check user interaction.
-          }}
-          options={mapOptions}
-          onHeadingChanged={() => {
-            if (map && isAutoCenter) {
-              const h = map.getHeading();
-              if (Math.abs(h - heading) > 10) {
-                // User manually rotated more than 10 degrees
-                setIsAutoCenter(false);
-              }
-            }
-          }}
-          onTiltChanged={() => {
-            if (map && isAutoCenter) {
-              const t = map.getTilt();
-              if (t !== 45 && t !== 0) {
-                setIsAutoCenter(false);
-              }
-            }
-          }}
-        >
-          {currentLocation ? (
-            <>
-              {directions && (
-                <>
-                  <DirectionsRenderer
-                    directions={directions}
-                    options={{
-                      suppressMarkers: true,
-                      suppressPolylines: true
-                    }}
-                  />
-                  <PolylineF
-                    path={routePath}
-                    options={{
-                      strokeColor: "#0F766E",
-                      strokeWeight: 8,
-                      strokeOpacity: 1,
-                      zIndex: 50
-                    }}
-                  />
-                </>
-              )}
-              {riderMarker}
-            </>
-          ) : (
-            // Fallback when rider location is not yet available
-            <OverlayView
-              position={coords || defaultCenter}
-              mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-            >
-              <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-64 flex flex-col items-center">
-                <div className="bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-xl border border-teal-100 flex items-center gap-3 animate-bounce-slow">
-                  <div className="w-3 h-3 bg-teal-500 rounded-full animate-ping"></div>
-                  <span className="text-xs font-bold text-gray-700">Waiting for rider location...</span>
-                </div>
-              </div>
-            </OverlayView>
-          )}
-
-          {destinationMarker}
-        </GoogleMap>
-
-
-
-        {/* Full Screen Toggle */}
-        <button
-          onClick={() => setIsFullScreen(!isFullScreen)}
-          className="absolute top-24 right-4 p-4 rounded-full shadow-2xl transition-all active:scale-90 z-20 bg-white text-gray-700 hover:bg-gray-50"
-          style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}
-        >
-          {isFullScreen ? <FiMinimize className="w-6 h-6" /> : <FiMaximize className="w-6 h-6" />}
-        </button>
-
-        {/* Recenter Button */}
-        <button
-          onClick={() => {
-            setIsAutoCenter(true);
-            if (map && currentLocation) {
-              map.panTo(currentLocation);
-              map.setZoom(16);
-            }
-          }}
-          className={`absolute top-40 right-4 p-4 rounded-full shadow-2xl transition-all active:scale-90 z-20 ${isAutoCenter ? 'bg-teal-600 text-white animate-pulse' : 'bg-white text-gray-700'}`}
-          style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}
-        >
-          <FiCrosshair className="w-6 h-6" />
-        </button>
-
-        {/* Recenter Button */}
-
-      </div>
-
-      {/* Bottom Status Card */}
-      <div className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-20 p-6 pb-8 transition-transform duration-300 ${isFullScreen ? 'translate-y-full' : ''}`}>
-        <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
-
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-sm font-medium text-teal-600 mb-1 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse"></span>
-              {duration ? (booking?.status === 'in_progress' ? 'Trip in progress' : `Approx. ${duration}`) : 'Monitoring...'}
-            </p>
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight">
-              {['in_progress', 'visited', 'work_done'].includes(booking?.status?.toLowerCase()) ? 'Equipment Status' : 'On the way'}
-            </h2>
+        {/* ── Dynamic Summary & Progress Counters ── */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-wider text-emerald-600">
+                {trackingData?.assignmentType === 'SMART_BROADCAST' ? 'Smart Broadcast Booking' :
+                  (trackingData?.assignmentType === 'TEAM_LEADER' ? 'Team Leader Booking' : 'Direct Worker Hire')}
+              </p>
+              <h2 className="text-xl font-black text-slate-800">{trackingData?.workTitle || 'Farm Work'}</h2>
+            </div>
+            <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-1.5 rounded-2xl border border-slate-100">
+              <FiUsers className="text-slate-500" size={16} />
+              <span className="text-sm font-black text-slate-700">{counters.total} Worker{counters.total !== 1 ? 's' : ''}</span>
+            </div>
           </div>
-          {distance && (
-            <div className="text-right">
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Distance</p>
-              <p className="text-xl font-bold text-gray-800">
-                {distance}
+
+          {/* Metric Status Pills */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-slate-100">
+            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <FiNavigation size={11} className="text-blue-500" /> On Journey
+              </p>
+              <p className="text-lg font-black text-slate-800 mt-0.5">
+                {counters.onJourney} <span className="text-xs text-slate-400 font-bold">/ {counters.total}</span>
               </p>
             </div>
+
+            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <FiMapPin size={11} className="text-emerald-500" /> Arrived
+              </p>
+              <p className="text-lg font-black text-slate-800 mt-0.5">
+                {counters.arrived} <span className="text-xs text-slate-400 font-bold">/ {counters.total}</span>
+              </p>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <FiTool size={11} className="text-amber-500" /> In Progress
+              </p>
+              <p className="text-lg font-black text-slate-800 mt-0.5">
+                {counters.inProgress} <span className="text-xs text-slate-400 font-bold">/ {counters.total}</span>
+              </p>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <FiCheckCircle size={11} className="text-emerald-600" /> Completed
+              </p>
+              <p className="text-lg font-black text-slate-800 mt-0.5">
+                {counters.completed} <span className="text-xs text-slate-400 font-bold">/ {counters.total}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Interactive Live Map Section ── */}
+        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden relative ${isFullScreen ? 'fixed inset-0 z-50 rounded-none' : 'h-[360px] sm:h-[420px]'}`}>
+          <div ref={mapContainerRef} className="w-full h-full min-h-[360px]" style={{ zIndex: 1 }} />
+
+          {/* Floating Map Controls */}
+          <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
+            <button
+              onClick={handleCenterMap}
+              className="w-10 h-10 rounded-2xl bg-white shadow-lg border border-slate-100 text-slate-700 flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all"
+              title="Re-center all workers"
+            >
+              <FiCrosshair size={18} />
+            </button>
+            <button
+              onClick={() => setIsFullScreen(!isFullScreen)}
+              className="w-10 h-10 rounded-2xl bg-white shadow-lg border border-slate-100 text-slate-700 flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all"
+              title={isFullScreen ? 'Exit Fullscreen' : 'Fullscreen'}
+            >
+              {isFullScreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
+            </button>
+          </div>
+
+          {/* Map Status Badge Overlay */}
+          <div className="absolute bottom-4 left-4 z-[400] bg-white/90 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-100 shadow-lg flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-slate-700">
+              {workersList.filter(w => w.currentLocation?.lat).length} of {counters.total} Workers Live on Map
+            </span>
+          </div>
+        </div>
+
+        {/* ── Individual Worker Status List ── */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="font-black text-slate-800 text-sm uppercase tracking-wide flex items-center gap-2">
+              <FiUsers className="text-emerald-600" />
+              <span>Assigned Workers ({workersList.length})</span>
+            </h3>
+            <span className="text-xs text-slate-400 font-bold">Independent Live Tracking</span>
+          </div>
+
+          {workersList.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 text-center border border-slate-100">
+              <FiUsers className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-600">No worker assignments found</p>
+            </div>
+          ) : (
+            workersList.map((worker, idx) => {
+              const statusCfg = STATUS_CONFIG[worker.journeyStatus] || STATUS_CONFIG.NOT_STARTED;
+              const StatusIcon = statusCfg.icon;
+              const workerKey = worker.assignmentId || worker.bookingId || worker.workerId;
+              const isSelected = selectedWorkerId === workerKey;
+              const hasLiveGps = !!worker.currentLocation?.lat;
+
+              return (
+                <div
+                  key={workerKey || idx}
+                  onClick={() => setSelectedWorkerId(workerKey)}
+                  className={`bg-white rounded-3xl border-2 transition-all p-4 sm:p-5 shadow-sm relative overflow-hidden ${
+                    isSelected ? 'border-emerald-500 ring-2 ring-emerald-500/10' : 'border-slate-100 hover:border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    {/* Worker Initial / Photo */}
+                    <div className="relative shrink-0">
+                      {worker.profilePhoto ? (
+                        <img
+                          src={worker.profilePhoto}
+                          alt={worker.workerName}
+                          className="w-12 h-12 rounded-2xl object-cover border border-slate-100 shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-emerald-500/10">
+                          {worker.workerName ? worker.workerName.charAt(0).toUpperCase() : `${idx + 1}`}
+                        </div>
+                      )}
+                      <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${statusCfg.dotColor}`} />
+                    </div>
+
+                    {/* Main Worker Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                        <h4 className="font-black text-slate-800 text-base truncate">
+                          {worker.workerName || `Worker ${idx + 1}`}
+                        </h4>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2.5 py-1 rounded-xl text-xs font-black border flex items-center gap-1.5 ${statusCfg.bgColor}`}>
+                            <StatusIcon size={13} />
+                            {statusCfg.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Meta Tags: Rating, Agreed Rate, Skills */}
+                      <div className="flex items-center gap-2.5 flex-wrap text-xs font-bold text-slate-500 mt-1">
+                        {worker.rating > 0 && (
+                          <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg">
+                            <FiStar size={12} className="fill-amber-500" />
+                            {worker.rating.toFixed(1)}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-0.5 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">
+                          <FaRupeeSign size={10} />
+                          {worker.agreedRate} / {worker.rateUnit || 'day'}
+                        </span>
+                        {worker.distanceKm !== null && worker.distanceKm !== undefined && (
+                          <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">
+                            {worker.distanceKm} km away
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Location Freshness Indicator */}
+                      <div className="flex items-center gap-1.5 mt-2.5 text-xs text-slate-400 font-semibold">
+                        <FiRadio size={12} className={hasLiveGps ? 'text-emerald-500' : 'text-slate-300'} />
+                        <span>
+                          {hasLiveGps
+                            ? formatRelativeTime(worker.lastLocationAt)
+                            : 'Waiting for GPS location...'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Quick Phone Call Button */}
+                    {worker.workerPhone && (
+                      <a
+                        href={`tel:${worker.workerPhone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center active:scale-95 transition-transform shrink-0"
+                        title={`Call ${worker.workerName}`}
+                      >
+                        <FiPhone size={18} />
+                      </a>
+                    )}
+                  </div>
+
+                  {/* ── Visit OTP Banner for Farmer ── */}
+                  {worker.visitOtp &&
+                    ['JOURNEY_STARTED', 'ARRIVED'].includes(worker.journeyStatus) &&
+                    worker.visitOtpStatus !== 'VERIFIED' &&
+                    !['IN_PROGRESS', 'WORK_SUBMITTED', 'COMPLETED', 'CANCELLED'].includes(worker.journeyStatus) &&
+                    !isAllCompleted && (
+                    <div className="mt-4 pt-3 border-t border-slate-100 bg-emerald-50/50 -mx-4 -mb-4 sm:-mx-5 sm:-mb-5 p-4 rounded-b-3xl flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                          <FiKey size={16} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800">Visit Verification OTP</p>
+                          <p className="text-xs text-emerald-600 font-medium">Share this code with {worker.workerName?.split(' ')[0]} upon arrival</p>
+                        </div>
+                      </div>
+                      <div className="bg-white px-3.5 py-1.5 rounded-xl border border-emerald-200 shadow-sm">
+                        <span className="font-mono font-black text-lg text-emerald-700 tracking-widest">
+                          {worker.visitOtp}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Work Proof Photo Button ── */}
+                  {worker.completionProof?.fileUrl && (
+                    <div className="mt-3 pt-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProofModal({
+                            workerName: worker.workerName,
+                            fileUrl: worker.completionProof.fileUrl,
+                            notes: worker.completionProof.notes,
+                            uploadedAt: worker.completionProof.uploadedAt
+                          });
+                        }}
+                        className="w-full py-2.5 px-3 bg-gradient-to-r from-teal-50 to-emerald-50 hover:from-teal-100 hover:to-emerald-100 text-teal-800 border border-teal-200 rounded-2xl text-xs font-black flex items-center justify-between transition-all shadow-sm group"
+                      >
+                        <span className="flex items-center gap-2">
+                          <FiCamera className="text-teal-600 w-4 h-4" />
+                          <span>View Completed Work Proof</span>
+                        </span>
+                        <span className="bg-white px-2 py-0.5 rounded-lg text-[10px] font-bold text-teal-700 border border-teal-100 flex items-center gap-1 group-hover:scale-105 transition-transform">
+                          <FiEye size={12} /> Open Photo
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── Completion OTP Banner for Farmer ── */}
+                  {worker.completionOtp &&
+                    ['IN_PROGRESS', 'WORK_SUBMITTED', 'ARRIVED'].includes(worker.journeyStatus) &&
+                    worker.completionStatus !== 'OTP_VERIFIED' &&
+                    !['COMPLETED', 'CANCELLED'].includes(worker.journeyStatus) &&
+                    !isAllCompleted && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 bg-emerald-50/70 -mx-4 -mb-4 sm:-mx-5 sm:-mb-5 p-4 rounded-b-3xl">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+                            <FiKey size={18} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-900">Completion OTP</p>
+                              <span className="text-[9px] font-bold bg-emerald-200/70 text-emerald-800 px-1.5 py-0.2 rounded-md">Unique</span>
+                            </div>
+                            <p className="text-xs text-emerald-700 font-medium leading-tight">
+                              Share with {worker.workerName?.split(' ')[0]} only after verifying work
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="bg-white px-3.5 py-1.5 rounded-2xl border-2 border-emerald-300 shadow-sm">
+                            <span className="font-mono font-black text-xl text-emerald-900 tracking-widest">
+                              {worker.completionOtp}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard?.writeText(worker.completionOtp);
+                              toastManager.success(`Completion OTP ${worker.completionOtp} copied!`);
+                            }}
+                            className="p-2.5 bg-white text-emerald-700 hover:bg-emerald-100 rounded-2xl border border-emerald-200 transition-colors shadow-sm active:scale-95"
+                            title="Copy OTP"
+                          >
+                            <FiCopy size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
 
-        {/* Address Info */}
-        <div className="bg-gray-50 rounded-2xl p-4 flex items-start gap-4 mb-4 border border-gray-100">
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md text-teal-600 border border-gray-100 shrink-0">
-            <FiMapPin className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-900 mb-0.5">Your Location</h3>
-            <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
-              {(() => {
-                const addr = booking?.address;
-                if (!addr) return 'Loading destination...';
-                if (typeof addr === 'string') return addr;
-                return `${addr.addressLine1 || ''}, ${addr.city || ''} ${addr.pincode || ''}`;
-              })()}
+        {/* ── Farm Destination Details Card ── */}
+        {destination && (
+          <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm">
+            <h4 className="text-xs font-black uppercase tracking-wide text-slate-400 mb-2 flex items-center gap-1.5">
+              <FiMapPin className="text-emerald-600" />
+              <span>Farm Destination</span>
+            </h4>
+            <p className="text-sm font-bold text-slate-800">
+              {[destination.addressLine1, destination.city, destination.state, destination.pincode].filter(Boolean).join(', ') || 'Registered Farm Location'}
             </p>
-          </div>
-        </div>
-
-        {/* Start OTP - Shown for both regular visits and machinery bookings */}
-        {(booking.visitOtp || booking.arrivalOTP || booking.driver_start_otp) && ['confirmed', 'assigned', 'journey_started'].includes(booking?.status?.toLowerCase()) && (
-          <div className="mb-3 relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 p-3 shadow-lg">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10 blur-xl"></div>
-            <div className="relative z-10 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shrink-0">
-                  <FiKey className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">{booking.driver_start_otp ? 'Machinery Start OTP' : 'Start Code'}</p>
-                  <p className="text-2xl font-black text-white tracking-[0.2em] leading-none mt-0.5">
-                    {booking.driver_start_otp || booking.visitOtp || booking.arrivalOTP}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex flex-col items-center justify-center min-w-[100px]">
-                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)] mb-1"></div>
-                <p className="text-[9px] text-blue-50 font-medium text-center leading-tight">{booking.driver_start_otp ? 'Share with driver\nwhen they arrive' : 'Waiting for\narrival'}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Machinery Finish OTP - shown to farmer when vendor marks work as done */}
-        {booking?.driver_end_otp && booking?.status?.toLowerCase() === 'work_done' && (
-          <div className="mb-3 relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 p-3 shadow-lg">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10 blur-xl"></div>
-            <div className="relative z-10 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shrink-0">
-                  <FiCheckCircle className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-wider">Finish OTP</p>
-                  <p className="text-2xl font-black text-white tracking-[0.2em] leading-none mt-0.5">
-                    {booking.driver_end_otp}
-                  </p>
-                </div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex flex-col items-center justify-center">
-                <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse mb-1"></div>
-                <p className="text-[9px] text-emerald-50 font-medium text-center leading-tight">Share only if<br />satisfied</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Professional Arrived Notification */}
-        {booking?.status?.toLowerCase() === 'visited' && !(booking.arrivalOTP || booking.visitOtp) && (
-          <div className="mb-4 relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-700 p-4 shadow-lg flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 shrink-0">
-              <FiCheckCircle className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Professional Arrived</h3>
-              <p className="text-[10px] text-teal-50">Expert is starting the work now.</p>
-            </div>
-          </div>
-        )}
-
-        {/* Waiting for Vendor to initiate Payment */}
-        {!booking.customerConfirmationOTP && booking?.status?.toLowerCase() === 'work_done' && !booking.cashCollected && (
-          <div className="bg-white rounded-2xl p-4 shadow-lg border border-teal-100 mb-4 flex items-center gap-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-teal-50 rounded-full -translate-y-10 translate-x-10 blur-2xl"></div>
-            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0 border border-teal-100">
-              <FiLoader className="w-5 h-5 text-teal-600 animate-spin" />
-            </div>
-            <div className="relative z-10">
-              <h3 className="font-bold text-gray-900 text-sm">Finalizing Bill</h3>
-              <p className="text-[10px] text-gray-500">Professional is finalizing payment details. Please wait...</p>
-            </div>
-          </div>
-        )}
-
-        {/* Final Payment Card - Show when work is done AND bill is finalized (OTP exists) */}
-        {(booking.customerConfirmationOTP || booking.paymentStatus === 'success') && booking?.status?.toLowerCase() === 'work_done' && !booking?.cashCollected && (
-          <div
-            onClick={() => setShowPaymentModal(true)}
-            className={`mb-4 relative overflow-hidden rounded-2xl p-5 shadow-lg cursor-pointer active:scale-[0.98] transition-all ${booking.paymentStatus === 'success'
-              ? 'bg-gradient-to-br from-green-500 via-green-600 to-emerald-700'
-              : 'bg-gradient-to-br from-orange-500 via-orange-600 to-red-600'
-              }`}>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl"></div>
-            <div className="relative z-10 flex flex-col items-center">
-              <div className="flex items-center gap-3 w-full mb-5">
-                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                  {booking.paymentStatus === 'success' ? (
-                    <FiCheckCircle className="w-5 h-5 text-white" />
-                  ) : (
-                    <FaRupeeSign className="w-4 h-4 text-white" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest">
-                    {booking.paymentStatus === 'success' ? 'Payment Received' : 'Final Payment'}
-                  </p>
-                  <p className="text-white text-xs font-medium">
-                    {booking.paymentStatus === 'success' ? 'Verified Successfully' : `Service amount: ₹${(booking.finalAmount || 0).toLocaleString()}`}
-                  </p>
-                </div>
-              </div>
-
-              {booking.paymentStatus !== 'success' ? (
-                <>
-                  <button
-                    onClick={handleOnlinePayment}
-                    className="w-full py-4 bg-white text-orange-600 rounded-xl font-black text-sm shadow-xl hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-2"
-                  >
-                    <FaRupeeSign className="w-3.5 h-3.5" />
-                    Pay Online Now
-                  </button>
-
-                  <div className="mt-6 flex flex-col items-center w-full">
-                    <p className="text-[9px] font-black text-white/60 uppercase tracking-[0.3em] mb-3">Payment Verification OTP</p>
-                    <div className="flex justify-center gap-2.5">
-                      {String(booking.customerConfirmationOTP || booking.paymentOtp || '0000').split('').map((digit, idx) => (
-                        <div
-                          key={idx}
-                          className="w-10 h-12 bg-white/15 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 shadow-md"
-                        >
-                          <span className="text-xl font-black text-white">{digit}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="mt-4 text-[9px] text-white/70 text-center font-medium bg-black/10 px-4 py-1.5 rounded-full">
-                      Share with professional to confirm cash payment
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <div className="w-full py-4 bg-white/10 backdrop-blur-md text-white rounded-xl font-bold text-sm border border-white/20 flex items-center justify-center gap-2">
-                  <FiCheckCircle className="w-4 h-4 text-green-200" />
-                  Booking Completed
-                </div>
-              )}
-
-              {booking.paymentStatus !== 'success' && (
-                <p className="mt-4 text-[10px] text-white/70 text-center font-medium">
-                  Professional will mark as completed after cash collection.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Agent Info */}
-        {(provider?._id || provider?.id) && (
-          <div className="bg-gray-50 rounded-2xl p-4 flex items-center gap-4 mb-4 border border-gray-100">
-            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center border-2 border-white shadow-md overflow-hidden relative shrink-0">
-              {(provider.profileImage || provider.profilePhoto) ? (
-                <>
-                  <img
-                    src={toAssetUrl(provider.profileImage || provider.profilePhoto)}
-                    alt="Agent"
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.querySelector('.fallback-icon').style.display = 'block'; }}
-                  />
-                  <FiUser className="w-7 h-7 text-gray-400 fallback-icon hidden absolute" />
-                </>
-              ) : (
-                <FiUser className="w-7 h-7 text-gray-400" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-gray-900 line-clamp-1 text-lg">
-                {provider.name || 'Service Partner'}
-              </h3>
-              <div className="flex items-center gap-1 text-yellow-500">
-                <FiStar className="w-3.5 h-3.5 fill-current" />
-                <span className="text-sm font-bold text-gray-700">4.8</span>
-                <span className="text-xs text-gray-400">• Verified Professional</span>
-              </div>
-            </div>
-
-            {/* Call Button */}
-            {provider.phone && (
-              <a
-                href={`tel:${provider.phone}`}
-                className="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center active:scale-90 transition-transform shadow-sm"
-              >
-                <FiPhone className="w-5 h-5" />
-              </a>
-            )}
           </div>
         )}
       </div>
 
+      {/* ── Work Proof Photo Lightbox Modal ── */}
+      {selectedProofModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setSelectedProofModal(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl p-5 w-full max-w-md shadow-2xl overflow-hidden relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center">
+                  <FiCamera size={16} />
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-800 text-sm">{selectedProofModal.workerName} - Work Proof</h4>
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    {selectedProofModal.uploadedAt ? new Date(selectedProofModal.uploadedAt).toLocaleString('en-IN') : 'Uploaded upon completion'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedProofModal(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center"
+              >
+                <FiX size={16} />
+              </button>
+            </div>
 
+            <div className="rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 aspect-video relative flex items-center justify-center">
+              <img 
+                src={selectedProofModal.fileUrl} 
+                alt="Work Proof" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {selectedProofModal.notes && (
+              <div className="mt-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600">
+                <span className="font-bold text-slate-700 block mb-0.5">Worker Notes:</span>
+                {selectedProofModal.notes}
+              </div>
+            )}
+
+            <button
+              onClick={() => setSelectedProofModal(null)}
+              className="mt-4 w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-teal-600/20 active:scale-95 transition-all"
+            >
+              Done / Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

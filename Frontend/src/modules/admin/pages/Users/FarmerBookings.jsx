@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiSearch, FiLoader, FiCalendar, FiClock, FiUser, FiShoppingBag, FiArrowRight } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';

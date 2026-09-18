@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiMapPin, FiClock, FiDollarSign, FiUser, FiPhone, FiNavigation, FiArrowRight, FiEdit, FiCheckCircle, FiCreditCard, FiX, FiCheck, FiTool, FiXCircle, FiAward, FiPackage, FiAlertCircle, FiDownload, FiAlertTriangle, FiLoader, FiKey } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1397,7 +1397,7 @@ export default function BookingDetails() {
                   <div className="relative px-2">
                     {/* Track Line */}
                     <div className="absolute left-6 right-6 top-[15px] h-1.5 bg-gray-100/80 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(16,185,129,0.3)]" style={{
+                      <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(16₹85₹29,0.3)]" style={{
                         width: booking.status === 'completed' || booking.status === 'work_done' ? '100%' :
                           booking.status === 'in_progress' || booking.status === 'visited' ? '66%' :
                             booking.status === 'journey_started' ? '33%' : '0%'

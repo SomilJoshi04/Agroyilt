@@ -44,8 +44,8 @@ const WorkerBookingRequests = () => {
   const handleAction = async (id, action, minRate, maxRate) => {
     if (action === 'accept') {
       const rate = Number(offeredRates[id]);
-      if (!rate || rate < minRate || rate > maxRate) {
-        toast.error(`Please enter a valid rate between ?${minRate} and ?${maxRate}`);
+      if (!rate || (minRate && rate < minRate) || (maxRate && rate > maxRate)) {
+        toast.error(`Please enter a valid rate between ₹${minRate || 0} and ₹${maxRate}`);
         return;
       }
       try {
@@ -120,7 +120,7 @@ const WorkerBookingRequests = () => {
             <div className="col-span-2 mt-2 pt-2 border-t border-slate-200">
               <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><FiDollarSign /> Farmer Budget</p>
               <p className="font-black text-lg text-emerald-600">
-                ?{req.minRate} - ?{req.maxRate} <span className="text-xs text-slate-400 font-medium">/{req.rateUnit || 'daily'}</span>
+                ₹{req.minRate} - ₹{req.maxRate} <span className="text-xs text-slate-400 font-medium">/{req.rateUnit || 'daily'}</span>
               </p>
             </div>
           </div>
@@ -130,7 +130,7 @@ const WorkerBookingRequests = () => {
               <p className="text-xs font-bold text-slate-500 mb-2">Submit your rate offer to the farmer:</p>
               <div className="flex gap-2 items-center">
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">?</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                   <input 
                     type="number" 
                     value={offeredRates[req._id] || ''} 

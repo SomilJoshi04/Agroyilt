@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { themeColors } from '../../../../../theme';
 
 const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRetry, isWorker }) => {

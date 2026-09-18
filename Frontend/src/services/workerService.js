@@ -61,6 +61,42 @@ const workerService = {
     return response.data;
   },
 
+  // ── Independent Worker Assignment Lifecycle (Unified Architecture) ──
+  getAssignmentDetails: async (assignmentId) => {
+    const response = await api.get(`/workers/assignments/${assignmentId}`);
+    return response.data;
+  },
+
+  startAssignmentJourney: async (assignmentId) => {
+    const response = await api.post(`/workers/assignments/${assignmentId}/start-journey`);
+    return response.data;
+  },
+
+  assignmentReached: async (assignmentId) => {
+    const response = await api.post(`/workers/assignments/${assignmentId}/arrived`);
+    return response.data;
+  },
+
+  verifyAssignmentVisitOtp: async (assignmentId, otp) => {
+    const response = await api.post(`/workers/assignments/${assignmentId}/verify-visit-otp`, { otp });
+    return response.data;
+  },
+
+  submitAssignmentProof: async (assignmentId, data) => {
+    const response = await api.post(`/workers/assignments/${assignmentId}/submit-proof`, data);
+    return response.data;
+  },
+
+  verifyAssignmentCompletionOtp: async (assignmentId, otp) => {
+    const response = await api.post(`/workers/assignments/${assignmentId}/verify-completion-otp`, { otp });
+    return response.data;
+  },
+
+  updateAssignmentLocation: async (assignmentId, locationData) => {
+    const response = await api.patch(`/workers/assignments/${assignmentId}/location`, locationData);
+    return response.data;
+  },
+
   initiateCashCollection: async (id, totalAmount, extraItems = []) => {
     const response = await api.post(`/bookings/cash/${id}/initiate`, {
       totalAmount,
@@ -88,7 +124,7 @@ const workerService = {
     return response.data;
   },
 
-  respondToRequest: async (id, action) => {
+  respondToRequest: async (id, action, data = {}) => {
     const response = await api.patch(`/workers/booking-request/${id}/respond`, { action, ...data });
     return response.data;
   },

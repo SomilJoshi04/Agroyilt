@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FiClock, 
@@ -350,7 +350,7 @@ const SettlementHistory = () => {
 
                         <p className="text-xs text-gray-600 mb-1">
                           Via {settlement.paymentMethod === 'upi' ? 'UPI' : 'Bank Transfer'}
-                          {settlement.paymentReference && ` • Ref: ${settlement.paymentReference}`}
+                          {settlement.paymentReference && ` ? Ref: ${settlement.paymentReference}`}
                         </p>
 
                         <p className="text-xs text-gray-400">{formatDate(settlement.createdAt)}</p>

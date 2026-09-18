@@ -1,4 +1,4 @@
-// Location Permission Checker Component for Agroyilt
+﻿// Location Permission Checker Component for Agroyilt
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import LocationAccessModal from './LocationAccessModal';

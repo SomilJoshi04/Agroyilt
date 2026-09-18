@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { FiGrid, FiPlus, FiEdit2, FiTrash2, FiPackage, FiSearch } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
@@ -49,12 +49,12 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
 
         if (categoriesRes.success) {
           mappedCategories = categoriesRes.categories.map(cat => ({
-            id: (cat.id || cat._id?.$oid || cat._id)?.toString() || "",
+            id: (cat.id || cat._id?.$oid || cat._id) ?.toString() || "",
             title: cat.title,
             slug: cat.slug,
             icon: cat.icon || "",
             parentCategories: Array.isArray(cat.parentCategories) ? cat.parentCategories.map(p => (p._id || p.id || p).toString()) : [],
-            parentCategory: (cat.parentCategory?._id || cat.parentCategory?.id || cat.parentCategory)?.toString() || ""
+            parentCategory: (cat.parentCategory?._id || cat.parentCategory?.id || cat.parentCategory) ?.toString() || ""
           }));
         }
 
@@ -352,7 +352,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                               </span>
                               {service.parentSourceId && (
                                 <span className="text-[10px] bg-yellow-50 text-yellow-700 border border-yellow-100 px-1.5 py-0.5 rounded uppercase">
-                                  Parent: {categories.find(c => String(c.id) === String(service.parentSourceId))?.title || 'Unknown'}
+                                  Parent: {categories.find(c => String(c.id) === String(service.parentSourceId)) ?.title || 'Unknown'}
                                 </span>
                               )}
                             </div>

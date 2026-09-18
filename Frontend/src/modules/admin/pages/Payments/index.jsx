@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import PaymentOverview from './PaymentOverview';
 import OwnerPayments from './OwnerPayments';
 import FarmerPayments from './FarmerPayments';
+import WorkerPayments from './WorkerPayments';
 import PaymentReports from './PaymentReports';
 import AdminRevenue from './AdminRevenue';
 
@@ -15,6 +16,7 @@ const Payments = () => {
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<PaymentOverview />} />
           <Route path="users" element={<FarmerPayments />} />
+          <Route path="workers" element={<WorkerPayments />} />
           <Route path="vendors" element={<OwnerPayments />} />
           <Route path="revenue" element={<AdminRevenue />} />
           <Route path="reports" element={<PaymentReports />} />

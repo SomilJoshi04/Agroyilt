@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import NativeSmartLocks from './components/NativeSmartLocks';
@@ -27,7 +27,7 @@ const Native = () => {
               if (data.status === 'OK' && data.results.length > 0) {
                 const result = data.results[0];
                 const getComponent = (type) =>
-                  result.address_components.find(c => c.types.includes(type))?.long_name || '';
+                  result.address_components.find(c => c.types.includes(type)) ?.long_name || '';
 
                 const area = getComponent('sublocality_level_1') || getComponent('neighborhood') || getComponent('locality');
                 const city = getComponent('locality') || getComponent('administrative_area_level_2');

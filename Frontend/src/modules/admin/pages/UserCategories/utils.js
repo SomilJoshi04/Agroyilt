@@ -1,4 +1,4 @@
-export const LS_KEY = "adminUserAppCatalog";
+﻿export const LS_KEY = "adminUserAppCatalog";
 
 export const toAssetUrl = (url) => {
   if (!url) return '';

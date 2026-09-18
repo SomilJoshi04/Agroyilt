@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   ComposedChart,
@@ -25,8 +25,8 @@ const RevenueVsBookingsChart = ({ data, period = 'month' }) => {
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload || !payload.length) return null;
-    const revenue = payload.find((p) => p.dataKey === 'revenue')?.value ?? 0;
-    const orders = payload.find((p) => p.dataKey === 'orders')?.value ?? 0;
+    const revenue = payload.find((p) => p.dataKey === 'revenue') ?.value ?? 0;
+    const orders = payload.find((p) => p.dataKey === 'orders') ?.value ?? 0;
     return (
       <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
         <p className="text-sm font-semibold text-gray-800 mb-2">{label}</p>

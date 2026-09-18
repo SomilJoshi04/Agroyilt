@@ -28,9 +28,11 @@ import {
 } from 'react-icons/fi';
 import { MdAccountBalanceWallet } from 'react-icons/md';
 import NotificationBell from '../../components/common/NotificationBell';
+import { useSocket } from '../../../../context/SocketContext';
 
 const Account = () => {
   const navigate = useNavigate();
+  const socket = useSocket();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [userProfile, setUserProfile] = useState({
@@ -97,6 +99,28 @@ const Account = () => {
 
     fetchProfile();
   }, []);
+
+  // Listen for real-time wallet balance updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleWalletUpdate = (data) => {
+      if (data && data.balance !== undefined) {
+        setUserProfile(prev => ({
+          ...prev,
+          walletBalance: data.balance
+        }));
+      }
+    };
+
+    socket.on('wallet_balance_updated', handleWalletUpdate);
+    socket.on('wallet_updated', handleWalletUpdate);
+
+    return () => {
+      socket.off('wallet_balance_updated', handleWalletUpdate);
+      socket.off('wallet_updated', handleWalletUpdate);
+    };
+  }, [socket]);
 
   // Format phone number for display
   const formatPhoneNumber = (phone) => {
@@ -241,7 +265,7 @@ const Account = () => {
           {/* Elevated Profile Card */}
           <motion.div
             variants={itemVariants}
-            className="bg-white rounded-[28px] p-5 shadow-[0_32px_64px_-16px_rgba(52,121,137,0.15)] mb-8 relative overflow-hidden border border-white"
+            className="bg-white rounded-[28px] p-5 shadow-[0_32px_64px_-16px_rgba(52₹21₹37,0.15)] mb-8 relative overflow-hidden border border-white"
           >
             {/* Vivid Brand Accents */}
             <div className="absolute top-0 right-0 w-48 h-48 rounded-full -mr-20 -mt-20 blur-3xl opacity-[0.2]"

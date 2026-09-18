@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiUser, FiBriefcase, FiPhone, FiMail, FiMapPin, FiChevronDown, FiCamera, FiUpload } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../theme';
@@ -15,7 +15,7 @@ import flutterBridge from '../../../../utils/flutterBridge';
 const vendorProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   businessName: z.string().optional(),
-  phone: z.string().regex(/^\+?[0-9]{10,13}$/, "Invalid phone number"),
+  phone: z.string().regex(/^\+?[0-9]{10₹3}$/, "Invalid phone number"),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   address: z.custom((val) => {
     return (typeof val === 'string' && val.trim().length > 0) ||

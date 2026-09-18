@@ -1,4 +1,4 @@
-export const formatCurrency = (value) => {
+﻿export const formatCurrency = (value) => {
   const n = Number(value || 0);
   return `₹${n.toLocaleString('en-IN')}`;
 };

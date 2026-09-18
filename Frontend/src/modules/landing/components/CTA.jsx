@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import ctaBg from '../landing_images/fertilizer_seeds4.jpg';
@@ -47,7 +47,7 @@ const CTA = () => {
 
                         <p className="mt-12 text-green-200 text-sm font-medium uppercase tracking-widest flex items-center justify-center space-x-3">
                             <span className="w-8 h-px bg-green-400"></span>
-                            <span><TranslatedText>No Credit Card Required • Instant Activation</TranslatedText></span>
+                            <span><TranslatedText>No Credit Card Required ? Instant Activation</TranslatedText></span>
                             <span className="w-8 h-px bg-green-400"></span>
                         </p>
                     </motion.div>

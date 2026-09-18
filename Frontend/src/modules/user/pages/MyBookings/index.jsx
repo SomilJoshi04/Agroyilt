@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiClock, FiMapPin, FiCheckCircle, FiXCircle, FiLoader, FiCalendar, FiChevronRight, FiSearch } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -403,7 +403,7 @@ const MyBookings = () => {
                         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Slot</p>
                         <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
                           <span>{formatDate(booking.scheduledDate)}</span>
-                          <span className="text-slate-300">•</span>
+                          <span className="text-slate-300">?</span>
                           <span>{booking.scheduledTime || booking.timeSlot?.start || 'N/A'}</span>
                         </div>
                       </div>

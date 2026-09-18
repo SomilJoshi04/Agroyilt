@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronRight, FiChevronLeft, FiUser, FiTruck, FiTool, FiUsers, FiX } from 'react-icons/fi';
 import { useBrand } from '../../../context/BrandContext';
@@ -213,11 +213,11 @@ const AppRegister = () => {
             fontSize: '1rem', fontWeight: 700,
             cursor: selected ? 'pointer' : 'not-allowed',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-            boxShadow: selected ? '0 4px 16px rgba(46,125,50,0.35)' : 'none',
+            boxShadow: selected ? '0 4px 16px rgba(46₹25,50,0.35)' : 'none',
             transition: 'all 0.2s ease',
           }}
         >
-          <span>Continue as {selected ? roles.find(r => r.id === selected)?.label : '...'}</span>
+          <span>Continue as {selected ? roles.find(r => r.id === selected) ?.label : '...'}</span>
           {selected && <FiChevronRight size={20} />}
         </button>
 

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { FiShoppingCart } from 'react-icons/fi';
 
 const CartIcon = ({ itemCount = 0, onClick }) => {

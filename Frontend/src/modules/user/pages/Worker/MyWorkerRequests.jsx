@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import {
   FiArrowLeft, FiClock, FiCheck, FiX,
   FiRefreshCcw, FiUsers, FiUser, FiPlus,
-  FiAlertCircle
+  FiAlertCircle, FiNavigation
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import workerBookingService from '../../../../services/workerBookingService';
@@ -28,8 +28,8 @@ const STATUS_COLORS = {
 const STATUS_LABELS = {
   pending:                     'Waiting for Responses',
   matching:                    'Matching Workers…',
-  awaiting_farmer_confirmation:'⚠️ Your Confirmation Needed',
-  confirmed:                   '✅ Confirmed',
+  awaiting_farmer_confirmation:'Confirmation Needed',
+  confirmed:                   'Confirmed',
   accepted:                    'Worker Accepted',
   leader_accepted:             'Leader Accepted',
   collecting_members:          'Gathering Team',
@@ -108,11 +108,13 @@ const MyWorkerRequests = () => {
   // ── Render: Farmer-first broadcast request card ─────────────────────────
   const renderFarmerRequest = (req) => {
     const isPartial = req.status === 'awaiting_farmer_confirmation';
+    const isConfirmed = req.status === 'confirmed';
+
     return (
       <div
         key={req._id}
         className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mb-4 cursor-pointer active:scale-[0.99] transition-all"
-        onClick={() => navigate(`/user/farmer-worker-request/${req._id}`)}
+        onClick={() => navigate(`/user/farmer-worker-request/${req._id}`, { state: { fromHistory: true } })}
       >
         <div className="p-5">
           {/* Header row */}
@@ -137,8 +139,8 @@ const MyWorkerRequests = () => {
                 {req.workCategory || 'Farm Work'} &bull;&nbsp;
                 <span className="text-slate-600 font-bold">{req.requiredWorkers} worker{req.requiredWorkers !== 1 ? 's' : ''} needed</span>
               </p>
-              <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${req.requestType === 'independent_broadcast' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-                {req.requestType === 'independent_broadcast' ? '👤 Independent' : '👥 Team Leader'}
+              <span className={`inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${req.requestType === 'independent_broadcast' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                {req.requestType === 'independent_broadcast' ? <><FiUser size={10} /> Independent</> : <><FiUsers size={10} /> Team Leader</>}
               </span>
             </div>
           </div>
@@ -160,6 +162,26 @@ const MyWorkerRequests = () => {
               <p className="text-[10px] font-black text-slate-700">{new Date(req.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
             </div>
           </div>
+
+          {/* Live Tracking CTA on confirmed cards */}
+          {isConfirmed && (
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                <FiCheck size={14} className="text-emerald-500 stroke-[3]" />
+                Workers Confirmed
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/user/booking/${req._id}/track`, { state: { fromHistory: true } });
+                }}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+              >
+                <FiNavigation size={12} className="animate-pulse" />
+                <span>Live Tracking</span>
+              </button>
+            </div>
+          )}
 
           {/* Partial confirmation alert */}
           {isPartial && (

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
   FiArrowLeft, FiMapPin, FiCalendar, FiClock,
-  FiUsers, FiTag, FiFileText, FiDollarSign, FiInfo
+  FiUsers, FiTag, FiFileText, FiDollarSign, FiInfo, FiCheckCircle
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import workerBookingService from '../../../../services/workerBookingService';
@@ -31,23 +31,23 @@ const WorkerRequestForm = () => {
   const today = new Date().toISOString().split('T')[0];
 
   const [formData, setFormData] = useState({
-    workCategory:           '',
-    workTitle:              '',
-    workDescription:        '',
-    requiredSkills:         [],   // array
+    workCategory: '',
+    workTitle: '',
+    workDescription: '',
+    requiredSkills: [],   // array
     requiredWorkers:        '1',
-    scheduledDate:          '',
-    startTime:              '',
-    endTime:                '',
+    scheduledDate: '',
+    startTime: '',
+    endTime: '',
     rateUnit:               'daily',
-    minRate:                '',
-    maxRate:                '',
+    minRate: '',
+    maxRate: '',
     // Location fields
-    addressLine1:           '',
-    city:                   '',
-    state:                  '',
-    lat:                    '',
-    lng:                    '',
+    addressLine1: '',
+    city: '',
+    state: '',
+    lat: '',
+    lng: '',
     additionalInstructions: ''
   });
 
@@ -563,8 +563,12 @@ const WorkerRequestForm = () => {
             disabled={loading}
             className="w-full py-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-3xl font-black text-base shadow-lg shadow-emerald-200/60 active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-2"
           >
-            {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-            {loading ? 'Submitting...' : '🌾 Submit Request'}
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <FiCheckCircle size={18} />
+            )}
+            {loading ? 'Submitting...' : 'Submit Request'}
           </button>
 
         </form>

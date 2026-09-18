@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { FiUpload, FiX, FiImage, FiCamera } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../theme';
 import flutterBridge from '../../../../utils/flutterBridge';

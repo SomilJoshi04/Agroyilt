@@ -195,11 +195,11 @@ const getAllTransactions = async (req, res) => {
 
     const transactions = await Transaction.find(query)
       .populate('userId', 'name email phone')
-      .populate('vendorId', 'name email phone')
-      .populate('workerId', 'name email phone')
+      .populate('vendorId', 'name email phone businessName address')
+      .populate('workerId', 'name email phone profilePhoto profileImage workerType skills address')
       .populate({
         path: 'bookingId',
-        select: 'bookingNumber userId',
+        select: 'bookingNumber serviceName finalAmount basePrice status userId scheduledDate',
         populate: {
           path: 'userId',
           select: 'name email phone'
@@ -268,7 +268,7 @@ const getTransactionStats = async (req, res) => {
     // --- STANDARD LOGIC FOR OTHERS ---
     let matchQuery = {
       status: 'completed',
-      type: { $in: ['credit', 'debit', 'refund', 'commission', 'cash_collected', 'payment'] }
+      type: { $in: ['credit', 'debit', 'refund', 'commission', 'cash_collected', 'payment', 'worker_payment', 'earnings_credit', 'withdrawal', 'settlement'] }
     };
 
     // Apply entity filter
@@ -288,12 +288,12 @@ const getTransactionStats = async (req, res) => {
           _id: null,
           totalRevenue: {
             $sum: {
-              $cond: [{ $in: ['$type', ['credit', 'commission', 'cash_collected', 'payment', 'platform_fee', 'convenience_fee', 'gst', 'penalty', 'tds_deduction']] }, '$amount', 0]
+              $cond: [{ $in: ['$type', ['credit', 'commission', 'cash_collected', 'payment', 'platform_fee', 'convenience_fee', 'gst', 'penalty', 'tds_deduction', 'earnings_credit', 'worker_payment', 'settlement']] }, '$amount', 0]
             }
           },
           totalRefunds: {
             $sum: {
-              $cond: [{ $in: ['$type', ['refund', 'withdrawal']] }, '$amount', 0] // Withdrawal is not exactly refund but money out
+              $cond: [{ $in: ['$type', ['refund', 'withdrawal', 'debit']] }, '$amount', 0]
             }
           }
         }

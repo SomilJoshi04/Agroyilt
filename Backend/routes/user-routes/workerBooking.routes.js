@@ -6,8 +6,14 @@ const wb  = require('../../controllers/workerControllers/workerBookingController
 const gb  = require('../../controllers/workerControllers/groupBookingController');
 const fwr = require('../../controllers/workerControllers/farmerWorkerRequestController');
 const wsc = require('../../controllers/workerControllers/workerSettlementController');
+const tc  = require('../../controllers/bookingControllers/trackingController');
 
 // ── Public / User-auth routes ──────────────────────────────────────────────
+
+// ── MULTI-WORKER LIVE TRACKING (NEW) ───────────────────────────────────────
+router.get('/tracking/:id',                                  authenticate, tc.getTrackingSnapshot);
+router.get('/booking/:id/tracking',                          authenticate, tc.getTrackingSnapshot);
+router.get('/farmer-worker-request/:id/tracking',            authenticate, tc.getTrackingSnapshot);
 
 // ── FARMER-FIRST BROADCAST REQUEST ROUTES (NEW) ────────────────────────────
 router.post('/farmer-worker-request',                        authenticate, fwr.createFarmerRequest);
@@ -16,6 +22,7 @@ router.get('/farmer-worker-request/:id',                     authenticate, fwr.g
 router.post('/farmer-worker-request/:id/select-workers',     authenticate, fwr.farmerSelectWorkers);
 router.post('/farmer-worker-request/:id/create-payment',     authenticate, fwr.createWorkerBookingPayment);
 router.post('/farmer-worker-request/:id/verify-payment',     authenticate, fwr.verifyWorkerBookingPayment);
+router.post('/farmer-worker-request/:id/assignment/:assignmentId/completion-otp', authenticate, fwr.generateFarmerCompletionOtp);
 router.delete('/farmer-worker-request/:id',                  authenticate, fwr.cancelFarmerRequest);
 
 // Settlement

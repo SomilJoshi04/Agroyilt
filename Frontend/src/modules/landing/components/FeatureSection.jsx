@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { HiOutlineMap, HiOutlineCalendar, HiOutlineBadgeCheck, HiOutlineCloud, HiOutlineChartBar, HiOutlineLockClosed } from 'react-icons/hi';
 import { usePageTranslation } from '../../../hooks/usePageTranslation';
@@ -18,7 +18,7 @@ const FeatureCard = ({ feature, idx }) => {
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
       className="relative group overflow-hidden rounded-3xl border border-green-100 bg-white p-6 cursor-default flex-shrink-0 w-[85%] min-w-0 sm:min-w-[45%] lg:min-w-0 snap-center shadow-xl shadow-green-900/5 h-full flex flex-col"
-      style={{ boxShadow: hovered ? '0 20px 40px rgba(21,128,61,0.12)' : '0 2px 8px rgba(0,0,0,0.04)' }}
+      style={{ boxShadow: hovered ? '0 20px 40px rgba(21₹28,61,0.12)' : '0 2px 8px rgba(0,0,0,0.04)' }}
     >
       {/* Animated BG glow */}
       <motion.div

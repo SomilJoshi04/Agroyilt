@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { vendorTheme as themeColors } from '../../../../theme';
 
 import LogoLoader from '../../../../components/common/LogoLoader';

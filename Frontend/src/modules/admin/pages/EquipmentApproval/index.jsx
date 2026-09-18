@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { 
   FiCheckCircle, FiXCircle, FiEye, FiClock, 
   FiTruck, FiUser, FiMapPin, FiCalendar, FiSearch, FiFilter, FiMoreVertical, FiTrash2, FiSmartphone
@@ -137,7 +137,7 @@ const EquipmentApproval = () => {
                         </div>
                         <div>
                           <p className="text-sm font-black text-slate-800 leading-tight">{item.name}</p>
-                          <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{item.modelNumber} • {item.year} Mfg</p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{item.modelNumber} ? {item.year} Mfg</p>
                         </div>
                       </div>
                     </td>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { toastManager } from '../utils/toastManager';
 import { playNotificationSound, isSoundEnabled } from '../utils/notificationSound';
@@ -56,7 +56,7 @@ export const useVendorNotifications = (vendorId, onNewBooking) => {
           <strong>New Booking Request!</strong>
           <p className="text-sm mt-1">{data.serviceName}</p>
           <p className="text-xs text-gray-600">
-            {data.customerName} • {data.distance?.toFixed(1)}km away
+            {data.customerName} ? {data.distance?.toFixed(1)}km away
           </p>
         </div>,
         {

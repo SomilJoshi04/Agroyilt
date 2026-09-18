@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import CategoryCard from '../../../components/common/CategoryCard';
 import TranslatedText from '../../../../../components/TranslatedText';
 const toAssetUrl = (url) => {
@@ -32,7 +32,7 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
         <div className="flex flex-col">
           <h2 className="text-[18px] sm:text-[20px] font-black text-gray-900 tracking-tight flex items-center gap-2">
             <TranslatedText>{title}</TranslatedText>
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59₹30,246,0.5)]"></div>
           </h2>
           <p className="text-[10px] sm:text-[11px] text-gray-500 font-bold uppercase tracking-[0.14em] mt-0.5">
             <TranslatedText>{subtitle}</TranslatedText>
@@ -61,7 +61,7 @@ const ServiceCategories = React.memo(({ categories, onCategoryClick, onSeeAllCli
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-100 to-emerald-50 text-green-600 text-lg font-black">
-                      {category.title?.charAt(0)?.toUpperCase() || '?'}
+                      {category.title?.charAt(0) ?.toUpperCase() || '?'}
                     </div>
                   )
                 }

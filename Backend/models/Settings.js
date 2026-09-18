@@ -62,6 +62,18 @@ const settingsSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
+  workerPlatformChargePercentage: {
+    type: Number,
+    default: 1, // 1% default platform fee for worker booking
+    min: 0,
+    max: 100
+  },
+  workerCommissionPercentage: {
+    type: Number,
+    default: 10, // 10% default admin commission on worker earnings
+    min: 0,
+    max: 100
+  },
   vendorCashLimit: {
     type: Number,
     default: 10000,

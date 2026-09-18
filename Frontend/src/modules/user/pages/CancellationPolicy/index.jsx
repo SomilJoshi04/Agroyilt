@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useState, useEffect } from 'react'; // Added hooks
+﻿import React, { useLayoutEffect, useState, useEffect } from 'react'; // Added hooks
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiAlertCircle, FiClock, FiCheckCircle, FiInfo } from 'react-icons/fi';
 import { themeColors } from '../../../../theme';
@@ -81,7 +81,7 @@ const CancellationPolicy = () => {
                 <h3 className="text-sm font-bold text-gray-900">Before Journey Start</h3>
                 <p className="text-xs text-gray-500 mt-1 mb-2">Any time before the provider starts travel to your farm</p>
                 <div className="inline-block px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-lg border border-green-100">
-                  Full Refund • No Fee
+                  Full Refund ? No Fee
                 </div>
               </div>
             </div>

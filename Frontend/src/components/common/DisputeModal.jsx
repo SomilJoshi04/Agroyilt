@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiAlertTriangle, FiX, FiCamera, FiUpload, FiLoader, FiCheckCircle } from 'react-icons/fi';
 import { toastManager } from '../../utils/toastManager';

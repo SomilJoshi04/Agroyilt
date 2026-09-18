@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiChevronRight, FiTag, FiLogOut } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -212,9 +212,9 @@ const Profile = () => {
                     <FiStar className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300" />
                     <span className="text-white text-sm font-bold">{profile.rating}</span>
                   </div>
-                  <span className="text-white/60 text-xs">•</span>
+                  <span className="text-white/60 text-xs">?</span>
                   <p className="text-sm text-white opacity-90 font-medium">{profile.completedJobs} Completed</p>
-                  <span className="text-white/60 text-xs">•</span>
+                  <span className="text-white/60 text-xs">?</span>
                   <p className="text-sm text-white opacity-90 font-medium">{profile.totalJobs} Total</p>
                 </div>
               </div>

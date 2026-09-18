@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { FiX, FiMapPin, FiClock, FiDollarSign, FiArrowRight, FiBell, FiAlertCircle, FiMinimize2, FiUsers } from 'react-icons/fi';
 import { FaRupeeSign } from 'react-icons/fa';
@@ -178,7 +178,7 @@ const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLe
           </div>
 
           {/* Service Details Card */}
-          <div className="bg-white rounded-[1.5rem] p-4 border border-teal-100 shadow-[0_8px_25px_-5px_rgba(20,184,166,0.15)] relative overflow-hidden">
+          <div className="bg-white rounded-[1.5rem] p-4 border border-teal-100 shadow-[0_8px_25px_-5px_rgba(20₹84₹66,0.15)] relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-teal-400 to-emerald-500" />
 
             <div className="pl-3">

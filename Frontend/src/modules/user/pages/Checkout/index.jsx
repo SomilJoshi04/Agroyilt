@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { FiArrowLeft, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiPhone, FiHome, FiClock, FiEdit2, FiCheckCircle, FiInfo, FiCreditCard, FiDollarSign } from 'react-icons/fi';
@@ -276,7 +276,7 @@ const Checkout = () => {
 
 
   const getAddressComponent = (type) => {
-    return addressDetails?.components?.find(c => c.types.includes(type))?.long_name || '';
+    return addressDetails?.components?.find(c => c.types.includes(type)) ?.long_name || '';
   };
 
   const handleProceed = async () => {
@@ -339,7 +339,7 @@ const Checkout = () => {
       let finalTime = selectedTime;
       let finalTimeSlot = {
         start: selectedTime,
-        end: getTimeSlots().find(slot => slot.value === selectedTime)?.end || selectedTime
+        end: getTimeSlots().find(slot => slot.value === selectedTime) ?.end || selectedTime
       };
 
       if (bookingType === 'instant') {
@@ -366,7 +366,7 @@ const Checkout = () => {
           lng: addressDetails?.lng
         },
         scheduledDate: finalDate, // Date object
-        scheduledTime: bookingType === 'instant' ? "ASAP" : (getTimeSlots().find(slot => slot.value === finalTime)?.display || finalTime),
+        scheduledTime: bookingType === 'instant' ? "ASAP" : (getTimeSlots().find(slot => slot.value === finalTime) ?.display || finalTime),
         timeSlot: finalTimeSlot,
         amount: amountToPay,
 
@@ -544,7 +544,7 @@ const Checkout = () => {
       let finalTimeDisplay = selectedTime;
       let timeSlotObj = {
         start: selectedTime,
-        end: getTimeSlots().find(slot => slot.value === selectedTime)?.end || selectedTime
+        end: getTimeSlots().find(slot => slot.value === selectedTime) ?.end || selectedTime
       };
 
       if (rentalType === 'daily' || rentalType === 'monthly' || rentalType === 'land_based') {
@@ -558,7 +558,7 @@ const Checkout = () => {
         finalTimeDisplay = "ASAP";
         timeSlotObj = { start: "Now", end: "45 mins" };
       } else {
-        finalTimeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
+        finalTimeDisplay = getTimeSlots().find(slot => slot.value === selectedTime) ?.display || selectedTime;
       }
 
       // Create booking request
@@ -783,8 +783,8 @@ const Checkout = () => {
           }
         },
         prefill: {
-          name: contactDetails.name || JSON.parse(localStorage.getItem('userData'))?.name || 'User',
-          email: JSON.parse(localStorage.getItem('userData'))?.email || '',
+          name: contactDetails.name || JSON.parse(localStorage.getItem('userData')) ?.name || 'User',
+          email: JSON.parse(localStorage.getItem('userData')) ?.email || '',
           contact: contactDetails.phone || userPhone
         },
         theme: {
@@ -869,7 +869,7 @@ const Checkout = () => {
     // Save to profile
     if (locationObj) {
       try {
-        const getComp = (type) => locationObj.components?.find(c => c.types.includes(type))?.long_name || '';
+        const getComp = (type) => locationObj.components?.find(c => c.types.includes(type)) ?.long_name || '';
 
         const newAddress = {
           type: 'home',
@@ -1448,7 +1448,7 @@ const Checkout = () => {
                     return (
                       <div className="flex items-center gap-2 text-[11px] text-slate-400 font-bold uppercase tracking-tight">
                         <span>{unitLabel}: ₹{unitPrice.toLocaleString('en-IN')}</span>
-                        {item.serviceCount > 1 && <span>• Qty: {item.serviceCount}</span>}
+                        {item.serviceCount > 1 && <span>? Qty: {item.serviceCount}</span>}
                       </div>
                     );
                   })()}
@@ -1529,7 +1529,7 @@ const Checkout = () => {
             <div className="flex items-center gap-3">
               <FiPhone className="w-5 h-5 text-gray-600" />
               <div>
-                <p className="text-sm font-medium text-black">{contactDetails.name || JSON.parse(localStorage.getItem('userData'))?.name || 'Verified Farmer'}</p>
+                <p className="text-sm font-medium text-black">{contactDetails.name || JSON.parse(localStorage.getItem('userData')) ?.name || 'Verified Farmer'}</p>
                 <p className="text-xs text-gray-600">{contactDetails.phone || userPhone || 'Loading...'}</p>
               </div>
             </div>
@@ -1780,19 +1780,19 @@ const Checkout = () => {
                           const eMonth = monthNames[endDate.getMonth()];
                           displayStr += ` - ${eDay}, ${eDateNum} ${eMonth}`;
                         } else if (rentalType === 'hourly') {
-                          const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
-                          displayStr += ` • ${timeDisplay}`;
+                          const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime) ?.display || selectedTime;
+                          displayStr += ` ? ${timeDisplay}`;
                           if (estimatedDuration) displayStr += ` (${estimatedDuration} Hours)`;
                         } else if (rentalType === 'daily') {
-                          const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
-                          if (timeDisplay && timeDisplay !== '00:00') displayStr += ` • ${timeDisplay}`;
+                          const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime) ?.display || selectedTime;
+                          if (timeDisplay && timeDisplay !== '00:00') displayStr += ` ? ${timeDisplay}`;
                           if (localDays) displayStr += ` (${localDays} Day${localDays > 1 ? 's' : ''})`;
                         } else if (rentalType === 'land_based') {
-                          const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
-                          if (timeDisplay && timeDisplay !== '00:00') displayStr += ` • ${timeDisplay}`;
+                          const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime) ?.display || selectedTime;
+                          if (timeDisplay && timeDisplay !== '00:00') displayStr += ` ? ${timeDisplay}`;
                         } else {
-                          const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
-                          if (timeDisplay && timeDisplay !== '00:00') displayStr += ` • ${timeDisplay}`;
+                          const timeDisplay = getTimeSlots().find(slot => slot.value === selectedTime) ?.display || selectedTime;
+                          if (timeDisplay && timeDisplay !== '00:00') displayStr += ` ? ${timeDisplay}`;
                         }
                         
                         return displayStr;
@@ -1899,7 +1899,7 @@ const Checkout = () => {
                   <input
                     type="tel"
                     maxLength={10}
-                    value={contactDetails.phone?.replace('+91', '')?.replace(/^\+91/, '') || ''}
+                    value={contactDetails.phone?.replace('+91', '') ?.replace(/^\+91/, '') || ''}
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, '');
                       setContactDetails(prev => ({ ...prev, phone: val }));

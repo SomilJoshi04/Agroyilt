@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { FiPlus, FiEdit2, FiTrash2, FiStar, FiSearch, FiUpload, FiUser } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../../components/CardShell";
@@ -227,7 +227,7 @@ const Reviews = () => {
           <div>
             <label className="block text-sm font-bold mb-1 text-gray-700">Rating (1-5)</label>
             <select className="w-full px-4 py-2 border rounded-xl text-sm outline-none" value={form.rating} onChange={e => setForm({...form, rating: parseInt(e.target.value)})}>
-                {[5,4,3,2,1].map(r => <option key={r} value={r}>{r} Stars</option>)}
+                {[5,4,3,2₹].map(r => <option key={r} value={r}>{r} Stars</option>)}
             </select>
           </div>
           <div>

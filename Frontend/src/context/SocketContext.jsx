@@ -3,6 +3,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { motion, useMotionValue, useTransform } from 'framer-motion'; // eslint-disable-line no-unused-vars
+import { toast } from 'react-hot-toast';
+import { FiBell, FiClock, FiCheckCircle, FiAlertCircle, FiX, FiTruck, FiUsers } from 'react-icons/fi';
 import { toastManager } from '../utils/toastManager';
 import { playNotificationSound, isSoundEnabled, playAlertRing } from '../utils/notificationSound';
 import { registerFCMToken } from '../services/pushNotificationService';
@@ -35,8 +37,8 @@ const SwipeableNotification = ({ t, data, onClick }) => {
       <div className="flex-1 w-0 p-4">
         <div className="flex items-start">
           <div className="flex-shrink-0 pt-0.5">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md">
-              <span className="text-lg">🔔</span>
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md">
+              <FiBell className="text-lg" />
             </div>
           </div>
           <div className="ml-3 flex-1">
@@ -57,7 +59,7 @@ const SwipeableNotification = ({ t, data, onClick }) => {
           }}
           className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-medium text-gray-400 hover:text-gray-500 focus:outline-none"
         >
-          ✕
+          <FiX />
         </button>
       </div>
     </motion.div>
@@ -104,7 +106,7 @@ export const SocketProvider = ({ children }) => {
         tokenKey = 'accessToken';
         break;
     }
-    return localStorage.getItem(tokenKey);
+    return localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey);
   })();
 
   useEffect(() => {
@@ -125,14 +127,8 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // Reuse existing socket if userType hasn't changed (effectively) is handled by React deps
-    // But basic useEffect will re-run if dependencies change.
-    // userType changes -> re-run.
-
     // Disconnect previous if any
     if (socket) {
-      // Optimization: if we are already connected with same token/auth, maybe don't reconnect?
-      // But determining that is hard. Simpler to reconnect.
       socket.disconnect();
     }
 
@@ -163,12 +159,39 @@ export const SocketProvider = ({ children }) => {
         registerFCMToken(userType, true).catch(() => {});
       }
 
+      // If admin, join admin-specific room
+      if (userType === 'admin') {
+        const adminData = JSON.parse(sessionStorage.getItem('adminData') || localStorage.getItem('adminData') || '{}');
+        const adminId = adminData.id || adminData._id;
+        if (adminId) {
+          newSocket.emit('join_admin_room', adminId);
+        }
+      }
+
       // If vendor, join vendor-specific room
       if (userType === 'vendor') {
         const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
         const vendorId = vendorData.id || vendorData._id;
         if (vendorId) {
           newSocket.emit('join_vendor_room', vendorId);
+        }
+      }
+
+      // If worker, join worker-specific room
+      if (userType === 'worker') {
+        const workerData = JSON.parse(localStorage.getItem('workerData') || sessionStorage.getItem('workerData') || '{}');
+        const workerId = workerData.id || workerData._id;
+        if (workerId) {
+          newSocket.emit('join_worker_room', workerId);
+        }
+      }
+
+      // If user (farmer), join user-specific room
+      if (userType === 'user') {
+        const userData = JSON.parse(localStorage.getItem('userData') || sessionStorage.getItem('userData') || '{}');
+        const userId = userData.id || userData._id;
+        if (userId) {
+          newSocket.emit('join_user_room', userId);
         }
       }
     });
@@ -183,7 +206,7 @@ export const SocketProvider = ({ children }) => {
 
     // Listen for generic notifications
     newSocket.on('notification', (data) => {
-      // console.log('🔔 App Notification received:', data);
+      // console.log('ðŸ”” App Notification received:', data);
 
       if (isSoundEnabled(userType)) {
         playNotificationSound();
@@ -234,7 +257,7 @@ export const SocketProvider = ({ children }) => {
       // Dispatch update events to refresh UI components
       if (userType === 'worker') {
         window.dispatchEvent(new Event('workerJobsUpdated'));
-        if (data.type === 'worker_booking_request') {
+        if (data.type === 'worker_booking_request' || data.type === 'new_booking_request' || data.type === 'booking_request' || data.type === 'group_booking_request') {
           // Play loud alert ring
           try {
             playAlertRing(true);
@@ -269,15 +292,65 @@ export const SocketProvider = ({ children }) => {
       if (userType === 'user') {
         window.dispatchEvent(new Event('userBookingsUpdated'));
       }
+      if (userType === 'admin') {
+        window.dispatchEvent(new Event('adminNotificationsUpdated'));
+        window.dispatchEvent(new Event('adminStatsUpdated'));
+      }
     });
 
     // Listen for real-time booking updates
     newSocket.on('booking_updated', () => {
-      // console.log('Booking Updated:', data);
       if (userType === 'user') window.dispatchEvent(new Event('userBookingsUpdated'));
       if (userType === 'vendor') window.dispatchEvent(new Event('vendorJobsUpdated'));
       if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
     });
+
+    // Multi-Worker Live Tracking Global Events
+    const handleTrackingEvent = (eventType, data) => {
+      window.dispatchEvent(new CustomEvent('workerTrackingEvent', {
+        detail: { eventType, data }
+      }));
+      if (userType === 'user') window.dispatchEvent(new Event('userBookingsUpdated'));
+      if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
+    };
+
+    newSocket.on('worker_journey_started', (data) => handleTrackingEvent('worker_journey_started', data));
+    newSocket.on('worker_location_updated', (data) => handleTrackingEvent('worker_location_updated', data));
+    newSocket.on('worker_arrived', (data) => handleTrackingEvent('worker_arrived', data));
+    newSocket.on('worker_otp_verified', (data) => handleTrackingEvent('worker_otp_verified', data));
+    newSocket.on('worker_work_started', (data) => handleTrackingEvent('worker_work_started', data));
+    newSocket.on('worker_work_completed', (data) => handleTrackingEvent('worker_work_completed', data));
+
+    // Listen for special Worker Booking Requests
+    if (userType === 'worker') {
+      const handleWorkerIncoming = (data) => {
+        try {
+          playAlertRing(true);
+        } catch (soundErr) {
+          console.warn('[SOCKET] Could not play alert ringtone:', soundErr);
+        }
+
+        const requestData = data.data || data;
+        const reqId = data.relatedId || requestData.requestId || requestData._id;
+
+        window.dispatchEvent(new CustomEvent('workerIncomingBooking', {
+          detail: {
+            data: requestData,
+            relatedId: reqId
+          }
+        }));
+        window.dispatchEvent(new Event('workerJobsUpdated'));
+      };
+
+      newSocket.on('worker_booking_request', handleWorkerIncoming);
+      newSocket.on('new_booking_request', handleWorkerIncoming);
+      newSocket.on('booking_request', handleWorkerIncoming);
+      newSocket.on('group_booking_request', handleWorkerIncoming);
+
+      newSocket.on('worker_booking_update', (data) => {
+        window.dispatchEvent(new Event('workerJobsUpdated'));
+      });
+    }
 
     // Listen for special Vendor Booking Requests
     if (userType === 'vendor') {
@@ -292,10 +365,9 @@ export const SocketProvider = ({ children }) => {
 
           // Show immediate toast banner
           toastManager.success(
-            `🔔 New Booking: ${data.serviceName || 'Equipment Service'} (₹${data.price || ''})`,
+            `New Booking: ${data.serviceName || 'Equipment Service'} (₹${data.price || ''})`,
             {
               duration: 8000,
-              icon: '🚜',
               style: {
                 background: '#047857',
                 color: '#fff',
@@ -318,7 +390,7 @@ export const SocketProvider = ({ children }) => {
                 : (data.distance || 'Near you')
             },
             timeSlot: {
-              date: data.scheduledDate, // Raw string to avoid RangeError on invalid format
+              date: data.scheduledDate,
               time: data.scheduledTime
             },
             status: 'requested',
@@ -361,7 +433,6 @@ export const SocketProvider = ({ children }) => {
 
       // Listen for booking_taken - when another vendor accepts a job
       newSocket.on('booking_taken', (data) => {
-      
         const takenBookingId = String(data.bookingId);
 
         // Remove from localStorage
@@ -380,7 +451,7 @@ export const SocketProvider = ({ children }) => {
         }
 
         // Show toast notification
-        toastManager.error(data.message || 'Job taken by another vendor', { icon: '⚡' });
+        toastManager.error(data.message || 'Job taken by another vendor');
 
         // Dispatch specific remove event for instant UI update
         window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: takenBookingId } }));
@@ -414,11 +485,7 @@ export const SocketProvider = ({ children }) => {
                   ? 'bg-orange-50 text-orange-600 border border-orange-100' 
                   : 'bg-teal-50 text-teal-600 border border-teal-100'
               }`}>
-                {reminderAlert.type === 'booking_ending' ? (
-                  <span className="text-3xl">⏳</span>
-                ) : (
-                  <span className="text-3xl">⏰</span>
-                )}
+                <FiClock className="w-8 h-8" />
               </div>
               
               <h3 className="text-lg font-black text-gray-900 mb-2 uppercase tracking-tight">
@@ -468,3 +535,4 @@ export const SocketProvider = ({ children }) => {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useSocket = () => useContext(SocketContext);
+

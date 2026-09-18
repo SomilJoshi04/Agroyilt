@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiUsers, FiUserPlus, FiUserCheck, FiUserX, FiCheck, FiX, FiLogOut } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
@@ -279,7 +279,7 @@ const WorkerTeam = () => {
                   <div key={worker._id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
                     <div>
                       <div className="font-semibold text-gray-800">{worker.name}</div>
-                      <div className="text-xs text-gray-500">{worker.workerType === 'TEAM_LEADER' ? 'Team Leader' : 'Independent Worker'} • {worker.phone}</div>
+                      <div className="text-xs text-gray-500">{worker.workerType === 'TEAM_LEADER' ? 'Team Leader' : 'Independent Worker'} ? {worker.phone}</div>
                     </div>
                     <button 
                       onClick={() => sendRequest(worker._id, worker.workerType === 'TEAM_LEADER' ? 'MERGE_TEAM' : 'JOIN_WORKER')}

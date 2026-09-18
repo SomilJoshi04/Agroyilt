@@ -1,4 +1,4 @@
-import { toast } from 'react-hot-toast';
+﻿import { toast } from 'react-hot-toast';
 
 const DEDUPE_WINDOW_MS = 4000;
 const activeToasts = new Map();

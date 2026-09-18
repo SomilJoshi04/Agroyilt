@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect } from 'react';
+﻿import React, { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import PageTransition from '../components/common/PageTransition';
 import BottomNav from '../components/layout/BottomNav';

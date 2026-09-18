@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiEye } from 'react-icons/fi';
 import { formatCurrency } from '../../utils/adminHelpers';
@@ -61,7 +61,7 @@ const RecentBookings = ({ bookings = [], onViewBooking }) => {
               </div>
               <p className="text-sm text-gray-600 truncate">{b.user?.name || 'Farmer'}</p>
               <p className="text-xs text-gray-500 mt-1">
-                {new Date(b.createdAt || b.acceptedAt || b.assignedAt || b.visitedAt || b.completedAt || Date.now()).toLocaleString()} •{' '}
+                {new Date(b.createdAt || b.acceptedAt || b.assignedAt || b.visitedAt || b.completedAt || Date.now()).toLocaleString()} ?{' '}
                 {b.serviceType || 'Equipment'}
               </p>
             </div>

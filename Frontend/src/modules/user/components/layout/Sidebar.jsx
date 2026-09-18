@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -128,7 +128,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                         className="text-2xl font-bold text-transparent bg-clip-text"
                         style={{ backgroundImage: themeColors.gradient }}
                       >
-                        {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                        {user?.name?.charAt(0) ?.toUpperCase() || 'U'}
                       </span>
                     )}
                   </div>

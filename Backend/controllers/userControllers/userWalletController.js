@@ -1,32 +1,43 @@
 const User = require('../../models/User');
+const Wallet = require('../../models/Wallet');
+const WalletTransaction = require('../../models/WalletTransaction');
+const Transaction = require('../../models/Transaction');
 const { validationResult } = require('express-validator');
-const { createOrder } = require('../../services/razorpayService');
+const { createOrder, verifyPayment } = require('../../services/razorpayService');
 
 /**
- * Get wallet balance
+ * Get wallet balance (Single Source of Truth: Wallet collection)
  */
 const getWalletBalance = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const user = await User.findById(userId).select('wallet');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
+    let wallet = await Wallet.findOne({ userId, userModel: 'User' });
+    if (!wallet) {
+      // Seed from User model if legacy balance exists
+      const user = await User.findById(userId).select('wallet');
+      const initialBalance = user?.wallet?.balance || 0;
+      wallet = await Wallet.create({
+        userId,
+        userModel: 'User',
+        balance: initialBalance,
+        currency: 'INR'
       });
     }
 
-    res.status(200).json({
+    // Keep User model in sync
+    await User.findByIdAndUpdate(userId, { 'wallet.balance': wallet.balance });
+
+    return res.status(200).json({
       success: true,
       data: {
-        balance: user.wallet.balance || 0
+        balance: wallet.balance,
+        currency: wallet.currency || 'INR'
       }
     });
   } catch (error) {
     console.error('Get wallet balance error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch wallet balance. Please try again.'
     });
@@ -34,7 +45,7 @@ const getWalletBalance = async (req, res) => {
 };
 
 /**
- * Add money to wallet
+ * Add money to wallet (Create Razorpay Order)
  */
 const addMoneyToWallet = async (req, res) => {
   try {
@@ -50,7 +61,6 @@ const addMoneyToWallet = async (req, res) => {
     const userId = req.user.id;
     const { amount } = req.body;
 
-    // Validate amount
     if (amount < 100) {
       return res.status(400).json({
         success: false,
@@ -58,7 +68,6 @@ const addMoneyToWallet = async (req, res) => {
       });
     }
 
-    // Create Razorpay order for wallet top-up
     const orderResult = await createOrder(
       amount,
       'INR',
@@ -76,7 +85,7 @@ const addMoneyToWallet = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Payment order created successfully',
       data: {
@@ -88,7 +97,7 @@ const addMoneyToWallet = async (req, res) => {
     });
   } catch (error) {
     console.error('Add money to wallet error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to create payment order. Please try again.'
     });
@@ -96,7 +105,7 @@ const addMoneyToWallet = async (req, res) => {
 };
 
 /**
- * Verify wallet top-up payment
+ * Verify wallet top-up payment & credit balance
  */
 const verifyWalletTopup = async (req, res) => {
   try {
@@ -117,10 +126,7 @@ const verifyWalletTopup = async (req, res) => {
       amount
     } = req.body;
 
-    // Verify signature
-    const { verifyPayment } = require('../../services/razorpayService');
     const isValid = verifyPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
-
     if (!isValid) {
       return res.status(400).json({
         success: false,
@@ -128,31 +134,43 @@ const verifyWalletTopup = async (req, res) => {
       });
     }
 
-    // Get user
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+    let wallet = await Wallet.findOne({ userId, userModel: 'User' });
+    if (!wallet) {
+      wallet = await Wallet.create({ userId, userModel: 'User', balance: 0 });
     }
 
-    // Add money to wallet
-    const previousBalance = user.wallet.balance || 0;
-    user.wallet.balance = previousBalance + amount;
-    await user.save();
+    const previousBalance = wallet.balance || 0;
+    const topupAmount = Number(amount);
+    wallet.balance = previousBalance + topupAmount;
+    await wallet.save();
 
-    // Create Transaction Record
-    const Transaction = require('../../models/Transaction');
-    await Transaction.create({
-      userId: user._id,
+    // Sync User model
+    await User.findByIdAndUpdate(userId, { 'wallet.balance': wallet.balance });
+
+    const idempotencyKey = `topup_${razorpay_payment_id}`;
+
+    // 1. Create WalletTransaction
+    await WalletTransaction.create({
+      walletId: wallet._id,
       type: 'credit',
-      amount: amount,
+      amount: topupAmount,
+      reason: 'topup',
+      referenceId: razorpay_payment_id,
+      gatewayTransactionId: razorpay_payment_id,
+      idempotencyKey,
+      status: 'completed'
+    });
+
+    // 2. Create Transaction record for unified passbook
+    await Transaction.create({
+      userId,
+      type: 'credit',
+      amount: topupAmount,
       status: 'completed',
-      paymentMethod: 'razorpay', // or online
-      description: 'Wallet Top-up',
+      paymentMethod: 'razorpay',
+      description: 'Wallet Top-up via Razorpay',
       balanceBefore: previousBalance,
-      balanceAfter: user.wallet.balance,
+      balanceAfter: wallet.balance,
       referenceId: razorpay_payment_id,
       metadata: {
         orderId: razorpay_order_id,
@@ -160,16 +178,16 @@ const verifyWalletTopup = async (req, res) => {
       }
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Money added to wallet successfully',
       data: {
-        balance: user.wallet.balance
+        balance: wallet.balance
       }
     });
   } catch (error) {
     console.error('Verify wallet topup error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to add money to wallet. Please try again.'
     });
@@ -177,41 +195,67 @@ const verifyWalletTopup = async (req, res) => {
 };
 
 /**
- * Get wallet transaction history
+ * Get unified wallet transaction history / Passbook
  */
 const getWalletTransactions = async (req, res) => {
   try {
     const userId = req.user.id;
     const { page = 1, limit = 20 } = req.query;
-
-    const Transaction = require('../../models/Transaction');
-
-    // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Get transactions
-    const transactions = await Transaction.find({ userId })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    let wallet = await Wallet.findOne({ userId, userModel: 'User' });
+    const walletId = wallet ? wallet._id : null;
 
-    // Get total count
-    const total = await Transaction.countDocuments({ userId });
+    // Fetch from WalletTransaction and Transaction
+    const [walletTxns, generalTxns] = await Promise.all([
+      walletId ? WalletTransaction.find({ walletId }).sort({ createdAt: -1 }).limit(100).lean() : [],
+      Transaction.find({ userId }).sort({ createdAt: -1 }).limit(100).lean()
+    ]);
 
-    // Format transactions
-    const formattedTransactions = transactions.map(txn => ({
-      id: txn._id,
-      type: txn.type, // 'credit', 'debit', 'refund', 'penalty' etc.
-      amount: txn.amount,
-      description: txn.description,
-      date: txn.createdAt,
-      status: txn.status,
-      balanceAfter: txn.balanceAfter
-    }));
+    // Merge and deduplicate by referenceId / idempotencyKey
+    const seenRefs = new Set();
+    const merged = [];
 
-    res.status(200).json({
+    walletTxns.forEach(wt => {
+      const ref = wt.referenceId || wt.gatewayTransactionId || wt.idempotencyKey || wt._id.toString();
+      seenRefs.add(ref);
+      merged.push({
+        id: wt._id,
+        type: wt.type || 'credit',
+        amount: wt.amount,
+        description: wt.reason === 'refund' ? 'Booking Unused Reserve Refund' : (wt.reason === 'topup' ? 'Wallet Top-up' : (wt.reason || 'Wallet Credit')),
+        date: wt.createdAt,
+        status: wt.status || 'completed',
+        referenceId: wt.referenceId
+      });
+    });
+
+    generalTxns.forEach(gt => {
+      const ref = gt.referenceId || gt._id.toString();
+      if (!seenRefs.has(ref)) {
+        seenRefs.add(ref);
+        merged.push({
+          id: gt._id,
+          type: gt.type || 'credit',
+          amount: gt.amount,
+          description: gt.description || 'Wallet Transaction',
+          date: gt.createdAt,
+          status: gt.status || 'completed',
+          balanceAfter: gt.balanceAfter,
+          referenceId: gt.referenceId
+        });
+      }
+    });
+
+    // Sort descending by date
+    merged.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const total = merged.length;
+    const paginated = merged.slice(skip, skip + parseInt(limit));
+
+    return res.status(200).json({
       success: true,
-      data: formattedTransactions,
+      data: paginated,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -221,7 +265,7 @@ const getWalletTransactions = async (req, res) => {
     });
   } catch (error) {
     console.error('Get wallet transactions error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch transaction history. Please try again.'
     });

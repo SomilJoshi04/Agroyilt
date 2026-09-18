@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { FiX, FiMapPin, FiClock, FiArrowRight, FiBell, FiBriefcase, FiMinimize2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { playAlertRing, stopAlertRing } from '../../../../utils/notificationSound';
@@ -155,7 +155,7 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
                       </div>
                       <div>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Time</p>
-                        <p className="text-sm font-bold text-gray-800">{job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'Today'} • {job.scheduledTime || 'Flexible'}</p>
+                        <p className="text-sm font-bold text-gray-800">{job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'Today'} ? {job.scheduledTime || 'Flexible'}</p>
                       </div>
                     </div>
                   </div>

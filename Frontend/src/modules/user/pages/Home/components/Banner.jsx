@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import homepageBanner from '../../../../../assets/images/pages/Home/Banner/homepage-banner.png';
 import { optimizeCloudinaryUrl } from '../../../../../utils/cloudinaryOptimize';
 

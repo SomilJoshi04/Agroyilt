@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiDollarSign, FiCheck, FiX, FiEye, FiClock, FiUsers, FiTrendingUp, FiAlertCircle, FiDownload, FiRefreshCw } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -586,7 +586,7 @@ const SettlementManagement = () => {
                     </div>
                     <div>
                       <p className="font-bold text-gray-900 text-sm">{vendor.name}</p>
-                      <p className="text-xs text-gray-500">{vendor.businessName} • {vendor.phone}</p>
+                      <p className="text-xs text-gray-500">{vendor.businessName} ? {vendor.phone}</p>
                     </div>
                   </div>
                 </td>
@@ -676,7 +676,7 @@ const SettlementManagement = () => {
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-gray-900">{settlement.vendorId?.name || 'Unknown'} <span className="font-normal text-gray-500">paid</span> ₹{settlement.amount?.toLocaleString()}</h4>
-                  <p className="text-xs text-gray-500">{formatDate(settlement.createdAt)} • via {settlement.paymentMethod}</p>
+                  <p className="text-xs text-gray-500">{formatDate(settlement.createdAt)} ? via {settlement.paymentMethod}</p>
                 </div>
               </div>
               <div className="text-right">

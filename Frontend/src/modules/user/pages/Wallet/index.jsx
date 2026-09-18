@@ -7,9 +7,11 @@ import { walletService } from '../../../../services/walletService';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import NotificationBell from '../../components/common/NotificationBell';
 import { themeColors } from '../../../../theme';
+import { useSocket } from '../../../../context/SocketContext';
 
 const Wallet = () => {
   const navigate = useNavigate();
+  const socket = useSocket();
   const [walletBalance, setWalletBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,31 +28,51 @@ const Wallet = () => {
     return () => { document.body.removeChild(script); };
   }, []);
 
-  useEffect(() => {
-    const loadWalletData = async () => {
-      try {
-        setLoading(true);
-        const [balanceResponse, transactionsResponse] = await Promise.all([
-          walletService.getBalance(),
-          walletService.getTransactions()
-        ]);
+  const loadWalletData = async (showLoader = true) => {
+    try {
+      if (showLoader) setLoading(true);
+      const [balanceResponse, transactionsResponse] = await Promise.all([
+        walletService.getBalance(),
+        walletService.getTransactions()
+      ]);
 
-        if (balanceResponse.success) {
-          setWalletBalance(balanceResponse.data.balance || 0);
-        }
-
-        if (transactionsResponse.success) {
-          setTransactions(transactionsResponse.data || []);
-        }
-      } catch (error) {
-        toastManager.error('Failed to load wallet data');
-      } finally {
-        setLoading(false);
+      if (balanceResponse.success) {
+        setWalletBalance(balanceResponse.data.balance || 0);
       }
+
+      if (transactionsResponse.success) {
+        setTransactions(transactionsResponse.data || []);
+      }
+    } catch (error) {
+      if (showLoader) toastManager.error('Failed to load wallet data');
+    } finally {
+      if (showLoader) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadWalletData(true);
+  }, []);
+
+  // Listen for real-time wallet events
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpdate = (data) => {
+      if (data && data.balance !== undefined) {
+        setWalletBalance(data.balance);
+      }
+      loadWalletData(false);
     };
 
-    loadWalletData();
-  }, []);
+    socket.on('wallet_balance_updated', handleUpdate);
+    socket.on('wallet_updated', handleUpdate);
+
+    return () => {
+      socket.off('wallet_balance_updated', handleUpdate);
+      socket.off('wallet_updated', handleUpdate);
+    };
+  }, [socket]);
 
   const handleAddMoney = async (e) => {
     e.preventDefault();
@@ -250,7 +272,7 @@ const Wallet = () => {
                   });
 
                   // Determine styles based on transaction type
-                  let typeStyle = { color: 'text-gray-600', bg: 'bg-gray-100', icon: '•', sign: '' };
+                  let typeStyle = { color: 'text-gray-600', bg: 'bg-gray-100', icon: '?', sign: '' };
 
                   if (['credit', 'refund', 'topup', 'referral', 'cashback', 'cash_collected'].includes(item.type)) {
                     // User requested cash_collected in GREEN

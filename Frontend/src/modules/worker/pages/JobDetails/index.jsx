@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { FiMapPin, FiPhone, FiClock, FiUser, FiCheck, FiX, FiArrowRight, FiNavigation, FiTool, FiCheckCircle, FiDollarSign, FiCamera, FiPlus, FiTrash, FiXCircle, FiAward, FiFileText } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -14,20 +14,130 @@ import { toastManager } from '../../../../utils/toastManager';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import { useLocationTracking } from '../../../../hooks/useLocationTracking';
 
+// Real-time Active Work Stopwatch component
+const ActiveWorkStopwatch = ({ job }) => {
+  const [elapsed, setElapsed] = useState('00:00:00');
+
+  useEffect(() => {
+    let start = null;
+    if (job?.startedAt) start = new Date(job.startedAt);
+    else if (job?.workStartedAt) start = new Date(job.workStartedAt);
+    else if (job?.inProgressAt) start = new Date(job.inProgressAt);
+    else if (job?.journeyStartedAt) start = new Date(job.journeyStartedAt);
+    else if (job?.createdAt) start = new Date(job.createdAt);
+
+    const startTime = start ? start.getTime() : Date.now();
+
+    const updateTimer = () => {
+      const diffMs = Math.max(0, Date.now() - startTime);
+      const totalSecs = Math.floor(diffMs / 1000);
+      const hours = String(Math.floor(totalSecs / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((totalSecs % 3600) / 60)).padStart(2, '0');
+      const secs = String(totalSecs % 60).padStart(2, '0');
+      setElapsed(`${hours}:${mins}:${secs}`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [job]);
+
+  const startDisplay = job?.scheduledTime || (job?.startedAt ? new Date(job.startedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Recently');
+
+  return (
+    <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white rounded-2xl p-4 mb-4 shadow-lg flex items-center justify-between border border-amber-300/30 animate-fadeIn">
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-sm shadow-inner">
+          <FiClock className="w-6 h-6 animate-pulse" />
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+            <p className="text-[11px] font-black uppercase tracking-wider text-amber-100">Live Work Timer</p>
+          </div>
+          <p className="text-2xl font-mono font-black tracking-wider text-white mt-0.5">{elapsed}</p>
+        </div>
+      </div>
+      <div className="text-right text-xs text-amber-100">
+        <p className="font-semibold text-[10px] uppercase tracking-wider">Started At</p>
+        <p className="font-bold text-white text-sm">{startDisplay}</p>
+      </div>
+    </div>
+  );
+};
+
+const getDurationInfo = (job) => {
+  if (!job) return null;
+  let start = null;
+  if (job.startedAt) start = new Date(job.startedAt);
+  else if (job.workStartedAt) start = new Date(job.workStartedAt);
+  else if (job.inProgressAt) start = new Date(job.inProgressAt);
+  else if (job.journeyStartedAt) start = new Date(job.journeyStartedAt);
+  else if (job.scheduledDate && job.scheduledTime) {
+    try {
+      const dateStr = new Date(job.scheduledDate).toISOString().split('T')[0];
+      const timeParts = job.scheduledTime.trim().split(' ')[0].split(':');
+      if (timeParts.length >= 2) {
+        let h = parseInt(timeParts[0], 10);
+        const m = parseInt(timeParts[1], 10);
+        if (job.scheduledTime.toLowerCase().includes('pm') && h < 12) h += 12;
+        if (job.scheduledTime.toLowerCase().includes('am') && h === 12) h = 0;
+        const d = new Date(dateStr);
+        d.setHours(h, m, 0, 0);
+        start = d;
+      }
+    } catch (e) {}
+  }
+  if (!start && job.createdAt) start = new Date(job.createdAt);
+
+  let end = null;
+  if (job.completedAt) end = new Date(job.completedAt);
+  else if (job.workDoneAt) end = new Date(job.workDoneAt);
+  else if (job.updatedAt && ['completed', 'work_done'].includes(job.status?.toLowerCase())) end = new Date(job.updatedAt);
+
+  if (start && end && end >= start) {
+    const diffMs = end.getTime() - start.getTime();
+    const totalSecs = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+
+    let durationStr = '';
+    if (hours > 0) durationStr = `${hours}h ${mins}m ${secs}s`;
+    else if (mins > 0) durationStr = `${mins}m ${secs}s`;
+    else durationStr = `${secs}s`;
+
+    return {
+      startTime: job.scheduledTime || start.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      endTime: end.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      fullDate: end.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+      duration: durationStr
+    };
+  }
+  return null;
+};
+
 const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [otpInput, setOtpInput] = useState(['', '', '', '']); // Array for 4 digit OTP
+  const [otpInput, setOtpInput] = useState(['', '', '', '']); 
   const [workPhotos, setWorkPhotos] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [collectionAmount, setCollectionAmount] = useState('');
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
   const actionLoadingRef = useRef(false);
+
+  // Live completion is active ONLY if worker just finished the job in the current session
+  const [justCompletedLocally, setJustCompletedLocally] = useState(Boolean(location.state?.justCompleted));
+  const isLiveCompletion = Boolean(justCompletedLocally);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -53,14 +163,42 @@ const JobDetails = () => {
       if (response.success) {
         // Map items for consistency
         const data = response.data;
-        if (!data.workerFinancials && data.providerType === 'WORKER') {
-          data.workerFinancials = {
-            workerOfferedRate: data.workerOfferedRate || data.agreedRate || data.finalAmount || 0,
-            commissionRate: data.commissionRate || 0,
-            commissionAmount: data.commissionAmount || 0,
-            netEarnings: data.workerNetEarning || data.finalAmount || 0
-          };
-        }
+        const gross = Number(
+          data.paymentSummary?.grossAmount ||
+          data.paymentSummary?.agreedRate ||
+          data.workerFinancials?.workerOfferedRate ||
+          data.workerGrossEarning ||
+          data.agreedRate ||
+          data.workerOfferedRate ||
+          data.finalAmount ||
+          0
+        );
+        const commRate = Number(
+          data.paymentSummary?.commissionRate ??
+          data.workerFinancials?.commissionRate ??
+          (data.commissionRate !== undefined && data.commissionRate !== null && data.commissionRate > 0 ? data.commissionRate : 10)
+        );
+        const commAmt = Number(
+          data.paymentSummary?.commissionAmount ??
+          data.workerFinancials?.commissionAmount ??
+          (data.commissionAmount !== undefined && data.commissionAmount !== null && data.commissionAmount > 0 ? data.commissionAmount : Math.round((gross * commRate) / 100))
+        );
+        const net = Number(
+          data.paymentSummary?.netEarning ??
+          data.workerFinancials?.netEarnings ??
+          (data.workerNetEarning !== undefined && data.workerNetEarning !== null && data.workerNetEarning > 0 ? data.workerNetEarning : (gross - commAmt))
+        );
+
+        data.workerFinancials = {
+          workerOfferedRate: gross,
+          commissionRate: commRate,
+          commissionAmount: commAmt,
+          netEarnings: net
+        };
+        data.workerGrossEarning = gross;
+        data.commissionRate = commRate;
+        data.commissionAmount = commAmt;
+        data.workerNetEarning = net;
         setJob({
           ...data,
           items: data.bookedItems || []
@@ -85,6 +223,26 @@ const JobDetails = () => {
     window.addEventListener('workerJobsUpdated', handleUpdate);
     return () => window.removeEventListener('workerJobsUpdated', handleUpdate);
   }, [id]);
+
+  const statusLower = job?.status?.toLowerCase() || '';
+
+  // Auto-redirect to dashboard ONLY if this was an active live completion in the current session
+  useEffect(() => {
+    if (statusLower === 'completed' && !loading && isLiveCompletion) {
+      const countdownInterval = setInterval(() => {
+        setRedirectCountdown(c => (c > 1 ? c - 1 : 1));
+      }, 1000);
+
+      const redirectTimer = setTimeout(() => {
+        navigate('/worker/dashboard', { replace: true });
+      }, 3000);
+
+      return () => {
+        clearInterval(countdownInterval);
+        clearTimeout(redirectTimer);
+      };
+    }
+  }, [statusLower, loading, isLiveCompletion, navigate]);
 
   // Socket for live location tracking
   const socket = useAppNotifications('worker');
@@ -144,6 +302,7 @@ const JobDetails = () => {
       if (response.success) {
         toastManager.success('Payment collected & Job Completed!');
         setIsPaymentModalOpen(false);
+        setJustCompletedLocally(true);
         fetchJobDetails();
       }
     } catch (error) {
@@ -232,6 +391,7 @@ const JobDetails = () => {
       if (response && response.success) {
         toastManager.success(response.message || 'Updated successfully');
         setIsCompletionModalOpen(false);
+        setJustCompletedLocally(true);
         fetchJobDetails();
       }
       setActionLoading(false);
@@ -297,7 +457,6 @@ const JobDetails = () => {
     return colors[status.toLowerCase()] || '#6B7280';
   };
 
-  const statusLower = job?.status?.toLowerCase() || '';
   const isAccepted = job?.workerResponse === 'ACCEPTED' || (job?.workerId && !['requested', 'searching', 'pending'].includes(statusLower));
   const isPendingAcceptance = !isAccepted && job?.workerResponse !== 'REJECTED' && ['requested', 'searching', 'pending', 'confirmed', 'assigned'].includes(statusLower);
 
@@ -405,10 +564,39 @@ const JobDetails = () => {
     }
 
     if (statusLower === 'completed') {
+      const netAmount = (job.workerFinancials?.netEarnings || job.workerNetEarning || (job.finalAmount ? Math.round(job.finalAmount * 0.9) : 0));
       return (
-        <div className="bg-green-100 border-2 border-green-500 rounded-xl p-3 text-center text-green-700 font-bold shadow-md">
-          <FiCheckCircle className="w-6 h-6 mx-auto mb-1" />
-          JOB COMPLETED & SETTLED
+        <div className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-5 text-center text-emerald-800 shadow-lg">
+          <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-600 shadow-sm">
+            <FiCheckCircle className="w-8 h-8" />
+          </div>
+          <h3 className="font-black text-lg text-emerald-900">Job Completed & Payment Settled</h3>
+          <p className="text-xs text-emerald-700 font-medium mt-1 mb-4">
+            Your net earnings of ₹{Number(netAmount).toLocaleString('en-IN')} have been credited to your AgroYilt wallet.
+          </p>
+          {isLiveCompletion ? (
+            <button
+              onClick={() => navigate('/worker/dashboard', { replace: true })}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-6 py-3 rounded-xl text-sm shadow-md active:scale-95 transition-all inline-flex items-center gap-2"
+            >
+              Go to Dashboard ({redirectCountdown}s)
+            </button>
+          ) : (
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => navigate('/worker/jobs')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md active:scale-95 transition-all"
+              >
+                Back to My Jobs
+              </button>
+              <button
+                onClick={() => navigate('/worker/wallet')}
+                className="bg-white border border-emerald-300 text-emerald-800 font-bold px-4 py-2.5 rounded-xl text-xs shadow-sm hover:bg-emerald-100 active:scale-95 transition-all"
+              >
+                View in Wallet
+              </button>
+            </div>
+          )}
         </div>
       );
     }
@@ -418,7 +606,17 @@ const JobDetails = () => {
 
   return (
     <div className="min-h-screen pb-40" style={{ background: themeColors.backgroundGradient }}>
-      <Header title="Job Details" />
+      <Header
+        title="Job Details"
+        showBack={!isLiveCompletion}
+        onBack={() => {
+          if (location.state?.fromDashboard) {
+            navigate('/worker/dashboard');
+          } else {
+            navigate('/worker/jobs');
+          }
+        }}
+      />
 
       <main className="px-4 py-6">
         {/* View Timeline Button & Top Action Banner */}
@@ -430,6 +628,10 @@ const JobDetails = () => {
             <FiClock className="w-5 h-5 text-gray-500" />
             View Job Timeline
           </button>
+
+          {['in_progress', 'journey_started', 'visited'].includes(statusLower) && (
+            <ActiveWorkStopwatch job={job} />
+          )}
 
           {renderActionButtons(false)}
         </div>
@@ -506,16 +708,62 @@ const JobDetails = () => {
               </button>
             </div>
 
-            <div className="flex items-start gap-3">
-              <FiClock className="w-5 h-5 text-gray-400 mt-1" />
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase mb-1">Scheduled Time</p>
-                <p className="text-sm text-gray-700 font-medium">
-                  {new Date(job.scheduledDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </p>
-                <p className="text-sm font-bold text-blue-600 mt-0.5">{job.scheduledTime}</p>
-              </div>
-            </div>
+            {/* Rich Work Timeline & Scheduled / Completed Block */}
+            {(() => {
+              const dur = getDurationInfo(job);
+              const isCompleted = ['completed', 'work_done'].includes(statusLower);
+
+              if (isCompleted) {
+                return (
+                  <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 my-2">
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-emerald-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700">
+                          <FiClock className="w-4 h-4" />
+                        </div>
+                        <h4 className="font-bold text-xs text-emerald-900 uppercase tracking-wider">Work Timeline & Duration</h4>
+                      </div>
+                      {dur?.duration && (
+                        <span className="px-2.5 py-1 bg-emerald-600 text-white rounded-full text-xs font-black shadow-sm">
+                          ⏱ {dur.duration}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5 text-xs">
+                      <div className="bg-white rounded-xl p-3 border border-emerald-100 shadow-sm">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Scheduled / Started</p>
+                        <p className="font-black text-gray-800 text-sm mt-0.5">{job.scheduledTime || dur?.startTime || 'N/A'}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          {new Date(job.scheduledDate || job.createdAt).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        </p>
+                      </div>
+                      <div className="bg-white rounded-xl p-3 border border-emerald-100 shadow-sm">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Completed At</p>
+                        <p className="font-black text-emerald-700 text-sm mt-0.5">
+                          {dur?.endTime || (job.completedAt ? new Date(job.completedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A')}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          {job.completedAt ? new Date(job.completedAt).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="flex items-start gap-3">
+                  <FiClock className="w-5 h-5 text-gray-400 mt-1" />
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase mb-1">Scheduled Time</p>
+                    <p className="text-sm text-gray-700 font-medium">
+                      {new Date(job.scheduledDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </p>
+                    <p className="text-sm font-bold text-blue-600 mt-0.5">{job.scheduledTime}</p>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Agriculture / Drone Specific Details */}
             {(job.landSize || job.cropType || job.chemicalUsed) && (
@@ -583,27 +831,29 @@ const JobDetails = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-800">Your Earnings</h3>
-                  <p className="text-xs text-slate-500">Independent Worker Settlement</p>
+                  <p className="text-xs text-slate-500">Worker Payment Breakdown</p>
                 </div>
               </div>
-              <div className="space-y-2 mb-4 text-sm">
+              <div className="space-y-2.5 mb-4 text-sm">
                 <div className="flex justify-between text-gray-600">
-                  <span>Agreed Rate</span>
-                  <span className="font-bold text-gray-800">?{(job.workerFinancials.workerOfferedRate || 0).toFixed(2)}</span>
+                  <span className="font-medium">Agreed Rate (Gross)</span>
+                  <span className="font-bold text-gray-800">₹{(job.workerFinancials.workerOfferedRate || job.workerGrossEarning || job.finalAmount || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-amber-600">
-                  <span>Platform Commission ({job.workerFinancials.commissionRate}%)</span>
-                  <span className="font-bold">-?{(job.workerFinancials.commissionAmount || 0).toFixed(2)}</span>
+                  <span className="font-medium">Platform Fee ({job.workerFinancials.commissionRate || 10}%)</span>
+                  <span className="font-bold text-red-500">-₹{(job.workerFinancials.commissionAmount ?? Math.round(((job.workerFinancials.workerOfferedRate || job.finalAmount || 0) * (job.workerFinancials.commissionRate || 10)) / 100)).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Extra Charges (Added by you)</span>
-                  <span className="font-bold text-gray-800">+?{(job.extraChargesTotal || 0).toFixed(2)}</span>
-                </div>
+                {Number(job.extraChargesTotal) > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span className="font-medium">Extra Charges (Added by you)</span>
+                    <span className="font-bold text-gray-800">+₹{(job.extraChargesTotal || 0).toFixed(2)}</span>
+                  </div>
+                )}
               </div>
               <div className="flex justify-between items-end pt-3 border-t border-gray-100">
                 <span className="text-gray-900 font-bold">Net Earnings (To Wallet)</span>
                 <span className="text-2xl font-black text-emerald-600">
-                  ?{((job.workerFinancials.netEarnings || 0) + (job.extraChargesTotal || 0)).toFixed(2)}
+                  ₹{((job.workerFinancials.netEarnings ?? ((job.workerFinancials.workerOfferedRate || job.finalAmount || 0) - (job.workerFinancials.commissionAmount ?? 0))) + (job.extraChargesTotal || 0)).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -812,11 +1062,25 @@ const JobDetails = () => {
           </div>
 
           {job.status === 'completed' && (
-            <div className="mb-2">
-              <div className="flex justify-between text-xs font-bold text-gray-400 uppercase mb-1">
+            <div className="space-y-2 border-t border-gray-200/60 pt-3">
+              <div className="flex justify-between items-center text-xs font-bold text-gray-400 uppercase">
                 <span>Completed At</span>
-                <span className="text-gray-600">{new Date(job.completedAt).toLocaleString()}</span>
+                <span className="text-gray-700 font-semibold">{new Date(job.completedAt || job.updatedAt).toLocaleString('en-IN')}</span>
               </div>
+              {(() => {
+                const dur = getDurationInfo(job);
+                if (dur?.duration) {
+                  return (
+                    <div className="flex justify-between items-center text-xs font-bold text-gray-400 uppercase">
+                      <span>Total Work Duration</span>
+                      <span className="text-emerald-700 font-black bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 shadow-sm">
+                        ⏱ {dur.duration}
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           )}
         </div>
@@ -836,13 +1100,14 @@ const JobDetails = () => {
           onClose={() => setIsCompletionModalOpen(false)}
           job={job}
           loading={actionLoading}
-          onComplete={async (photos) => {
+          onComplete={async (photos, otp) => {
             try {
               setActionLoading(true);
-              const response = await workerService.completeJob(id, { workPhotos: photos });
+              const response = await workerService.completeJob(id, { workPhotos: photos, otp });
               if (response && response.success) {
                 toastManager.success(response.message || 'Job Completed successfully');
                 setIsCompletionModalOpen(false);
+                setJustCompletedLocally(true);
                 fetchJobDetails();
               } else {
                 toastManager.error(response?.message || 'Failed to complete job');

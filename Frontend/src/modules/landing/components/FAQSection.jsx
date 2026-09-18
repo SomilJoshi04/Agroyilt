@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiMinus, FiHelpCircle } from 'react-icons/fi';
 import TranslatedText from '../../../components/TranslatedText';

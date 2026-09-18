@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiUser, FiCheck, FiArrowRight, FiUserPlus, FiCamera } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { FiStar } from 'react-icons/fi';
 
 const ReviewCard = ({ booking, onWriteReview }) => {

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Earnings Service
  * Handles all earnings-related API calls
  * 

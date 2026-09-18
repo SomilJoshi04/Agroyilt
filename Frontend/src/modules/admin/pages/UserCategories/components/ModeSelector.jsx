@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 const ModeSelector = ({ mode, onChange }) => (
   <div className="flex gap-3">

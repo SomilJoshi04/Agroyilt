@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect } from 'react';
+﻿import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import PageTransition from '../components/common/PageTransition';
@@ -6,7 +6,7 @@ import BottomNav from '../components/layout/BottomNav';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
-import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
+import WorkerBookingRequestAlertModal from '../components/bookings/WorkerBookingRequestAlertModal';
 
 // Lazy load wrapper with error handling
 const lazyLoad = (importFunc) => {
@@ -63,10 +63,20 @@ const LoadingFallback = () => (
 
 const WorkerRoutes = () => {
   const location = useLocation();
+  const [incomingRequestData, setIncomingRequestData] = useState(null);
 
-  // Enable global notifications for worker
-  // Global notifications are now handled by SocketProvider at App level
-  // useAppNotifications('worker');
+  useEffect(() => {
+    const handleIncomingBooking = (e) => {
+      console.log('[WorkerRoutes] Incoming Booking Request Event:', e.detail);
+      const data = e.detail?.data || e.detail;
+      setIncomingRequestData(data);
+    };
+
+    window.addEventListener('workerIncomingBooking', handleIncomingBooking);
+    return () => {
+      window.removeEventListener('workerIncomingBooking', handleIncomingBooking);
+    };
+  }, []);
 
   // Check if current route should hide bottom nav
   const shouldHideBottomNav =
@@ -110,6 +120,17 @@ const WorkerRoutes = () => {
         </Suspense>
       </div>
 
+      {/* Global Worker Booking Request Alert Modal */}
+      <WorkerBookingRequestAlertModal
+        isOpen={!!incomingRequestData}
+        requestData={incomingRequestData}
+        onClose={() => setIncomingRequestData(null)}
+        onRequestResponded={() => {
+          setIncomingRequestData(null);
+          window.dispatchEvent(new Event('workerJobsUpdated'));
+        }}
+      />
+
       {/* BottomNav is OUTSIDE Suspense so it persists during page loads */}
       {shouldShowBottomNav && <BottomNav />}
     </ErrorBoundary>
@@ -117,4 +138,3 @@ const WorkerRoutes = () => {
 };
 
 export default WorkerRoutes;
-

@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+﻿import React, { memo } from 'react';
 import { themeColors } from '../../../../theme';
 import { optimizeCloudinaryUrl } from '../../../../utils/cloudinaryOptimize';
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   FiPieChart,
@@ -109,7 +109,7 @@ const OwnerAnalytics = () => {
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Active Rate</p>
               <h3 className="text-lg font-bold text-gray-900">
                 {data.totalVendors > 0 
-                  ? Math.round(((data.statusDistribution.find(s => s._id === 'approved')?.count || 0) / data.totalVendors) * 100) 
+                  ? Math.round(((data.statusDistribution.find(s => s._id === 'approved') ?.count || 0) / data.totalVendors) * 100) 
                   : 0}%
               </h3>
             </div>

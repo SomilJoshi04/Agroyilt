@@ -1066,9 +1066,29 @@ const getUserBookings = async (req, res) => {
     // Get total count
     const total = await Booking.countDocuments(query);
 
+    // Enrich with parent WorkerBookingRequest ID for independent worker bookings
+    const WorkerBookingRequest = require('../../models/WorkerBookingRequest');
+    const enrichedBookings = await Promise.all(bookings.map(async (b) => {
+      const bObj = b.toObject();
+      if (!bObj.workerRequestId && (bObj.providerType === 'WORKER' || (bObj.bookingNumber && bObj.bookingNumber.startsWith('WRK-')))) {
+        try {
+          const parentReq = await WorkerBookingRequest.findOne({
+            $or: [{ finalBookingIds: b._id }, { finalBookingId: b._id }]
+          }).select('_id');
+          if (parentReq) {
+            bObj.workerRequestId = parentReq._id;
+            bObj.parentRequestId = parentReq._id;
+          }
+        } catch (e) {}
+      } else if (bObj.workerRequestId) {
+        bObj.parentRequestId = bObj.workerRequestId;
+      }
+      return bObj;
+    }));
+
     res.status(200).json({
       success: true,
-      data: bookings,
+      data: enrichedBookings,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -1112,10 +1132,50 @@ const getBookingById = async (req, res) => {
     const VendorBill = require('../../models/VendorBill');
     const bill = await VendorBill.findOne({ bookingId: booking._id });
 
-    // Convert to object to attach bill
+    // Convert to object to attach bill and canonical financial summary
     const bookingData = booking.toObject();
     if (bill) {
       bookingData.bill = bill;
+    }
+
+    // Check if Independent Worker booking
+    const isWorkerBooking = booking.providerType === 'WORKER' || Boolean(booking.workerRequestId) || (booking.bookingNumber && booking.bookingNumber.startsWith('WRK-'));
+    if (isWorkerBooking) {
+      bookingData.providerType = 'WORKER';
+      try {
+        const WorkerBookingRequest = require('../../models/WorkerBookingRequest');
+        const IndWorkerAssignment = require('../../models/IndWorkerAssignment');
+        const { buildFarmerPaymentSummary } = require('../../services/workerFinancialService');
+
+        let parentRequest = null;
+        if (booking.workerRequestId) {
+          parentRequest = await WorkerBookingRequest.findById(booking.workerRequestId);
+        } else {
+          parentRequest = await WorkerBookingRequest.findOne({
+            $or: [
+              { finalBookingIds: booking._id },
+              { finalBookingId: booking._id }
+            ]
+          });
+        }
+
+        let assignments = [];
+        if (parentRequest) {
+          assignments = await IndWorkerAssignment.find({ parentRequestId: parentRequest._id });
+        } else {
+          assignments = await IndWorkerAssignment.find({ legacyBookingId: booking._id });
+        }
+
+        bookingData.paymentSummary = buildFarmerPaymentSummary(parentRequest, assignments, booking);
+        if (parentRequest) {
+          bookingData.parentRequestId = parentRequest._id;
+          bookingData.financialSnapshot = parentRequest.financialSnapshot;
+          bookingData.refundAmount = parentRequest.refundAmount;
+          bookingData.refundCredited = parentRequest.refundCredited;
+        }
+      } catch (finErr) {
+        console.warn('[userBookingController getBookingById] Worker paymentSummary enrichment warning:', finErr.message);
+      }
     }
 
     res.status(200).json({

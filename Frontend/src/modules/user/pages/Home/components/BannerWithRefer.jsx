@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import winterBanner from '../../../../../assets/images/pages/Home/Banner/Winter-banner.png';
 
 const BannerWithRefer = ({ imageUrl, onBannerClick, onReferClick }) => {

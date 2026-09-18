@@ -1,4 +1,4 @@
-import api from './api';
+﻿import api from './api';
 
 /**
  * Vendor Equipment Service
@@ -56,7 +56,7 @@ export const vendorEquipmentService = {
           })
           .map(c => ({
             ...c,
-            id: c.id || (c._id?.$oid || c._id)?.toString() || ""
+            id: c.id || (c._id?.$oid || c._id) ?.toString() || ""
           }))
       };
     }
@@ -85,7 +85,7 @@ export const vendorEquipmentService = {
           })
           .map(c => ({
             ...c,
-            id: c.id || (c._id?.$oid || c._id)?.toString() || ""
+            id: c.id || (c._id?.$oid || c._id) ?.toString() || ""
           }))
       };
     }

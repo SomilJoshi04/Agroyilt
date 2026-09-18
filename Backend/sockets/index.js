@@ -46,61 +46,133 @@ const initializeSocket = (server) => {
 
     // Join user-specific room for notifications
     if (socket.userRole === 'USER') {
-      socket.join(`user_${socket.userId.toString()}`);
+      const uId = socket.userId.toString();
+      socket.join(`user_${uId}`);
+      socket.join(`user:${uId}`);
     } else if (socket.userRole === 'VENDOR') {
       const room = `vendor_${socket.userId.toString()}`;
       socket.join(room);
+      socket.join(`vendor:${socket.userId.toString()}`);
       console.log(`[SOCKET SERVER] ✅ VENDOR ${socket.userId} auto-joined room: ${room}`);
       // Update vendor online status
       updateVendorOnlineStatus(socket.userId, true, socket.id);
     } else if (socket.userRole === 'WORKER') {
-      socket.join(`worker_${socket.userId.toString()}`);
+      const wId = socket.userId.toString();
+      socket.join(`worker_${wId}`);
+      socket.join(`worker:${wId}`);
+      console.log(`[SOCKET SERVER] ✅ WORKER ${socket.userId} auto-joined rooms: worker_${wId} & worker:${wId}`);
       // Update worker online status
       updateWorkerOnlineStatus(socket.userId, true, socket.id);
-    } else if (socket.userRole === 'ADMIN') {
+    } else if (socket.userRole === 'ADMIN' || socket.userRole === 'admin' || socket.userRole === 'super_admin') {
       socket.join(`admin_${socket.userId.toString()}`);
+      socket.join('admin_global');
+      console.log(`[SOCKET SERVER]  ADMIN ${socket.userId} joined room: admin_${socket.userId} & admin_global`);
     }
 
     // Explicit Room Join Events (Fallback/Frontend Initiated)
+    socket.on('join_admin_room', (adminId) => {
+      if (adminId) {
+        socket.join(`admin_${adminId.toString()}`);
+        socket.join('admin_global');
+        console.log(`Socket ${socket.id} explicitly joined admin rooms`);
+      }
+    });
+
     socket.on('join_vendor_room', (vendorId) => {
-      // Security check: ensure the socket user actually IS this vendor
-      if (socket.userRole === 'VENDOR' && socket.userId.toString() === vendorId.toString()) {
-        socket.join(`vendor_${vendorId.toString()}`);
-        console.log(`Socket ${socket.id} explicitly joined room vendor_${vendorId}`);
+      if (vendorId) {
+        const vId = vendorId.toString();
+        socket.join(`vendor_${vId}`);
+        socket.join(`vendor:${vId}`);
+        console.log(`Socket ${socket.id} explicitly joined room vendor_${vId}`);
       }
     });
 
     socket.on('join_user_room', (userId) => {
-      // Ensure strings for comparison
-      if (socket.userRole === 'USER' && socket.userId.toString() === userId.toString()) {
-        socket.join(`user_${userId.toString()}`);
-        console.log(`Socket ${socket.id} explicitly joined room user_${userId}`);
+      if (userId) {
+        const uId = userId.toString();
+        socket.join(`user_${uId}`);
+        socket.join(`user:${uId}`);
+        console.log(`Socket ${socket.id} explicitly joined room user_${uId}`);
       }
     });
 
     socket.on('join_worker_room', (workerId) => {
-      if (socket.userRole === 'WORKER' && socket.userId === workerId) {
-        socket.join(`worker_${workerId}`);
-        console.log(`Socket ${socket.id} explicitly joined room worker_${workerId}`);
+      if (workerId) {
+        const wId = workerId.toString();
+        socket.join(`worker_${wId}`);
+        socket.join(`worker:${wId}`);
+        console.log(`Socket ${socket.id} explicitly joined room worker_${wId}`);
       }
     });
 
-    // Live Tracking Events
-    socket.on('join_tracking', async (bookingId) => {
-      socket.join(`booking_${bookingId}`);
-      console.log(`User ${socket.userId} joined tracking for booking_${bookingId}`);
+    // Live Tracking Events (Multi-Worker & Single Provider)
+    socket.on('join_tracking', async (trackingId) => {
+      if (!trackingId) return;
+      const tId = trackingId.toString();
+      socket.join(`booking_${tId}`);
+      socket.join(`booking:${tId}`);
+      socket.join(`booking_req_${tId}`);
+      socket.join(`booking_req:${tId}`);
+      console.log(`[Socket] User ${socket.userId} (${socket.userRole}) joined tracking for booking_${tId} & booking_req:${tId}`);
 
-      // Disconnect Recovery: Send last known location from Redis
+      // If trackingId is a WorkerBookingRequest or Booking with siblings, join related booking rooms
+      try {
+        const Booking = require('../models/Booking');
+        const WorkerBookingRequest = require('../models/WorkerBookingRequest');
+
+        const parentReq = await WorkerBookingRequest.findById(tId).select('finalBookingIds assignmentIds');
+        if (parentReq) {
+          if (parentReq.finalBookingIds) {
+            parentReq.finalBookingIds.forEach(bId => {
+              socket.join(`booking_${bId.toString()}`);
+              socket.join(`booking:${bId.toString()}`);
+            });
+          }
+          if (parentReq.assignmentIds) {
+            parentReq.assignmentIds.forEach(aId => {
+              socket.join(`assignment_${aId.toString()}`);
+              socket.join(`assignment:${aId.toString()}`);
+            });
+          }
+        } else {
+          const singleBooking = await Booking.findById(tId).select('workerRequestId');
+          if (singleBooking?.workerRequestId) {
+            socket.join(`booking_req_${singleBooking.workerRequestId.toString()}`);
+            socket.join(`booking_req:${singleBooking.workerRequestId.toString()}`);
+          }
+        }
+      } catch (e) {
+        // Non-fatal room join helper
+      }
+
+      // Disconnect Recovery: Send last known location from Redis if available
       try {
         const { getLiveLocation } = require('../services/redisService');
-        const cachedLocation = await getLiveLocation(bookingId);
+        const cachedLocation = await getLiveLocation(tId);
         if (cachedLocation) {
           socket.emit('live_location_update', cachedLocation);
-          console.log(`[Socket] Sent cached location to user for booking ${bookingId}`);
         }
       } catch (error) {
         console.error('[Socket] Error fetching cached location:', error);
       }
+    });
+
+    socket.on('join_booking_req', (requestId) => {
+      if (!requestId) return;
+      const rId = requestId.toString();
+      socket.join(`booking_req_${rId}`);
+      socket.join(`booking_req:${rId}`);
+      console.log(`[Socket] User ${socket.userId} joined room booking_req:${rId}`);
+    });
+
+    // Worker leaves tracking room when navigating away
+    socket.on('leave_tracking', (trackingId) => {
+      if (!trackingId) return;
+      const tId = trackingId.toString();
+      socket.leave(`booking_${tId}`);
+      socket.leave(`booking:${tId}`);
+      socket.leave(`booking_req_${tId}`);
+      socket.leave(`booking_req:${tId}`);
     });
 
     // Vendor acknowledges receiving booking alert
@@ -142,49 +214,77 @@ const initializeSocket = (server) => {
     const locationUpdateTimestamps = new Map();
 
     socket.on('update_location', async (data) => {
-      // data: { bookingId, lat, lng, heading }
+      // data: { bookingId, requestId, lat, lng, heading }
+      if (!data || !data.bookingId) return;
+
       const lat = parseFloat(data.lat);
       const lng = parseFloat(data.lng);
       const heading = parseFloat(data.heading) || 0;
 
-      if (isNaN(lat) || isNaN(lng)) return;
+      // Validate coordinates bounds
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return;
+      }
 
-      // Rate limiting: max 1 update per 2 seconds per booking
+      // Rate limiting: max 1 update per 2 seconds per worker
       const rateLimitKey = `${socket.userId}:${data.bookingId}`;
       const lastUpdate = locationUpdateTimestamps.get(rateLimitKey) || 0;
       const now = Date.now();
       if (now - lastUpdate < 2000) {
-        return; // Skip this update, too frequent
+        return; // Skip too-frequent update
       }
       locationUpdateTimestamps.set(rateLimitKey, now);
 
-      const locationPayload = {
+      const serverTime = new Date();
+
+      // Multi-worker standard payload
+      const multiWorkerLocationPayload = {
+        bookingId: data.bookingId.toString(),
+        requestId: data.requestId ? data.requestId.toString() : null,
+        assignmentId: data.bookingId.toString(),
+        workerId: socket.userId.toString(),
+        location: {
+          lat,
+          lng,
+          heading
+        },
+        lastLocationAt: serverTime,
+        serverTime
+      };
+
+      // Legacy single provider payload
+      const legacyPayload = {
         lat,
         lng,
         heading,
-        role: socket.userRole
+        workerId: socket.userId.toString(),
+        bookingId: data.bookingId.toString(),
+        role: socket.userRole,
+        updatedAt: serverTime
       };
 
-      // DEBUG: Log the broadcast
-      console.log(`[Socket] 📍 Broadcasting location to booking_${data.bookingId}:`, { lat: lat.toFixed(6), lng: lng.toFixed(6), heading });
+      // 1. Broadcast multi-worker event to booking room
+      socket.to(`booking_${data.bookingId}`).emit('worker_location_updated', multiWorkerLocationPayload);
+      socket.to(`booking_${data.bookingId}`).emit('live_location_update', legacyPayload);
 
-      // 1. Broadcast to everyone in the booking room (User is listening)
-      socket.to(`booking_${data.bookingId}`).emit('live_location_update', locationPayload);
+      // If this booking belongs to a parent request, also broadcast to request room
+      if (data.requestId) {
+        socket.to(`booking_req_${data.requestId}`).emit('worker_location_updated', multiWorkerLocationPayload);
+      }
 
       // 2. Cache in Redis with TTL for disconnect recovery
       try {
         const { setLiveLocation, setVendorLocation } = require('../services/redisService');
-        await setLiveLocation(data.bookingId, locationPayload, 30); // 30 second TTL
+        await setLiveLocation(data.bookingId, legacyPayload, 45); // 45 second TTL
 
-        // Also update vendor geo cache
         if (socket.userRole === 'VENDOR') {
           await setVendorLocation(socket.userId, lat, lng);
         }
       } catch (error) {
-        console.error('[Socket] Error caching live location:', error);
+        // Non-fatal redis error
       }
 
-      // 3. Save latest location to Database (for initial tracking load)
+      // 3. Save latest location to Database atomically
       try {
         const Vendor = require('../models/Vendor');
         const Worker = require('../models/Worker');
@@ -195,7 +295,7 @@ const initializeSocket = (server) => {
             lat,
             lng,
             heading,
-            updatedAt: new Date()
+            updatedAt: serverTime
           },
           geoLocation: {
             type: 'Point',
@@ -203,26 +303,49 @@ const initializeSocket = (server) => {
           }
         };
 
-        // Update Provider (Vendor/Worker) location
         if (socket.userRole === 'VENDOR') {
           await Vendor.findByIdAndUpdate(socket.userId, updateData);
         } else if (socket.userRole === 'WORKER') {
           await Worker.findByIdAndUpdate(socket.userId, updateData);
         }
 
-        // Update the specific Booking with live tracking data
-        if (data.bookingId) {
-          await Booking.findByIdAndUpdate(data.bookingId, {
-            liveLocation: {
-              lat,
-              lng,
-              heading,
-              updatedAt: new Date()
+        // Atomically update specific Booking live location
+        const updatedBooking = await Booking.findOneAndUpdate(
+          {
+            _id: data.bookingId,
+            $or: [
+              { 'liveLocation.updatedAt': { $lte: serverTime } },
+              { 'liveLocation.updatedAt': null },
+              { 'liveLocation': null }
+            ]
+          },
+          {
+            $set: {
+              liveLocation: {
+                lat,
+                lng,
+                heading,
+                updatedAt: serverTime
+              }
             }
-          });
+          },
+          { new: true }
+        ).select('userId workerRequestId');
+
+        // Broadcast to Farmer's personal room if parent request room wasn't explicitly joined
+        if (updatedBooking) {
+          if (updatedBooking.workerRequestId && !data.requestId) {
+            socket.to(`booking_req_${updatedBooking.workerRequestId}`).emit('worker_location_updated', {
+              ...multiWorkerLocationPayload,
+              requestId: updatedBooking.workerRequestId.toString()
+            });
+          }
+          if (updatedBooking.userId) {
+            socket.to(`user_${updatedBooking.userId}`).emit('worker_location_updated', multiWorkerLocationPayload);
+          }
         }
       } catch (error) {
-        console.error('Error saving live location:', error);
+        console.error('[Socket] Error saving live location:', error);
       }
     });
 

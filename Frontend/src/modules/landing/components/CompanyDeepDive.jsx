@@ -1,15 +1,15 @@
-import React, { useMemo, useRef, useState } from 'react';
+﻿import React, { useMemo, useRef, useState } from 'react';
 import { motion, useInView, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { FiTrendingUp, FiTarget, FiBox, FiUsers, FiGlobe, FiShield } from 'react-icons/fi';
 import { usePageTranslation } from '../../../hooks/usePageTranslation';
 
 // Color palette per card index
 const cardColors = [
-    { bg: 'from-green-500 to-green-700', glow: 'rgba(34,197,94,0.35)', light: 'bg-green-50', text: 'text-green-700' },
-    { bg: 'from-blue-500 to-blue-700', glow: 'rgba(59,130,246,0.35)', light: 'bg-blue-50', text: 'text-blue-700' },
+    { bg: 'from-green-500 to-green-700', glow: 'rgba(34₹97,94,0.35)', light: 'bg-green-50', text: 'text-green-700' },
+    { bg: 'from-blue-500 to-blue-700', glow: 'rgba(59₹30,246,0.35)', light: 'bg-blue-50', text: 'text-blue-700' },
     { bg: 'from-purple-500 to-purple-700', glow: 'rgba(168,85,247,0.35)', light: 'bg-purple-50', text: 'text-purple-700' },
-    { bg: 'from-orange-500 to-orange-700', glow: 'rgba(249,115,22,0.35)', light: 'bg-orange-50', text: 'text-orange-700' },
-    { bg: 'from-cyan-500 to-cyan-700', glow: 'rgba(6,182,212,0.35)', light: 'bg-cyan-50', text: 'text-cyan-700' },
+    { bg: 'from-orange-500 to-orange-700', glow: 'rgba(249₹15,22,0.35)', light: 'bg-orange-50', text: 'text-orange-700' },
+    { bg: 'from-cyan-500 to-cyan-700', glow: 'rgba(6₹82,212,0.35)', light: 'bg-cyan-50', text: 'text-cyan-700' },
     { bg: 'from-rose-500 to-rose-700', glow: 'rgba(244,63,94,0.35)', light: 'bg-rose-50', text: 'text-rose-700' },
 ];
 

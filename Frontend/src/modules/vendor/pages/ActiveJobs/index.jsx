@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, memo } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiMapPin, FiClock, FiUser, FiFilter, FiSearch, FiLoader, FiPackage } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -328,7 +328,7 @@ const ActiveJobs = memo(() => {
                         <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
                           <FiClock className="w-4 h-4" style={{ color: statusColor }} />
                         </div>
-                        <span className="text-gray-700 font-medium">{job.timeSlot?.date} • {job.timeSlot?.time}</span>
+                        <span className="text-gray-700 font-medium">{job.timeSlot?.date} ? {job.timeSlot?.time}</span>
                       </div>
 
                       {/* Rental Details — daily/hourly/land_based */}

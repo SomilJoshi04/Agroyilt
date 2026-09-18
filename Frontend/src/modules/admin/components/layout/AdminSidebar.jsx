@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -84,6 +84,7 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/payments": {
       "Payment Overview": "/admin/payments/overview",
       "Farmer Payments": "/admin/payments/users",
+      "Worker Payments": "/admin/payments/workers",
       "Owner Payments": "/admin/payments/vendors",
       "Admin Revenue": "/admin/payments/revenue",
       "Payment Reports": "/admin/payments/reports",

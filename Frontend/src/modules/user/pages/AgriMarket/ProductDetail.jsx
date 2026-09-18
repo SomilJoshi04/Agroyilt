@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { 
     FiChevronLeft, 
     FiChevronRight,
@@ -229,7 +229,7 @@ const ProductDetail = () => {
                     </div>
                     
                     <div className="space-y-3">
-                        <div className="p-4 pl-6 bg-white rounded-2xl border border-teal-100 shadow-[0_4px_20px_-4px_rgba(20,184,166,0.1)] relative overflow-hidden">
+                        <div className="p-4 pl-6 bg-white rounded-2xl border border-teal-100 shadow-[0_4px_20px_-4px_rgba(20₹84₹66,0.1)] relative overflow-hidden">
                             <div className="absolute top-0 left-0 w-2.5 h-full bg-teal-500"></div>
                             <div className="flex justify-between items-center mb-4 gap-2">
                                 <div className="min-w-0 flex-1">

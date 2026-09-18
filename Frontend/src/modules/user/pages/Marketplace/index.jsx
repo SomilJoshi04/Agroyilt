@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiShoppingCart, FiArrowLeft, FiPlus, FiFilter, FiTag } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';

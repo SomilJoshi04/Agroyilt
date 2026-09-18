@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { FiX, FiLayers, FiArrowLeft, FiPlus, FiCheck } from 'react-icons/fi';
@@ -89,7 +89,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
           _id: worker.id || worker._id,
           id: worker.id || worker._id,
           title: `${worker.name} (Independent Worker)`,
-          description: `Rating: ${worker.rating || 4.8}★ • Skills: ${worker.skills?.join(', ') || 'General Labour'}`,
+          description: `Rating: ${worker.rating || 4.8}★ ? Skills: ${worker.skills?.join(', ') || 'General Labour'}`,
           icon: worker.profilePhoto || '',
           hourly_price: worker.hourlyRate || 0,
           daily_price: worker.dailyRate || 0,
@@ -139,7 +139,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
         const mappedListings = machineryList.map(equipment => ({
           _id: equipment._id,
           title: equipment.name,
-          description: `${equipment.vendor?.businessName || equipment.vendor?.name || 'Vendor'} • ${equipment.distance ? (equipment.distance/1000).toFixed(1) + 'km away' : ''}`,
+          description: `${equipment.vendor?.businessName || equipment.vendor?.name || 'Vendor'} ? ${equipment.distance ? (equipment.distance/1000).toFixed(1) + 'km away' : ''}`,
           icon: equipment.images?.[0] || '',
           hourly_price: equipment.pricing?.hourly?.isEnabled ? equipment.pricing.hourly.price : 0,
           land_price: equipment.pricing?.land_based?.isEnabled ? equipment.pricing.land_based.price : 0,

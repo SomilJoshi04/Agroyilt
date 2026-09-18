@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+﻿import React, { useMemo, useState, useEffect } from "react";
 import { FiGrid, FiPlus, FiTrash2, FiSave, FiEdit2, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
@@ -638,7 +638,7 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
                       <td className="py-2.5 px-3">
                         <div className="text-sm text-gray-600">
                           {b.slug
-                            ? `Equipment: ${allServices.find(s => s.slug === b.slug)?.title || b.slug}`
+                            ? `Equipment: ${allServices.find(s => s.slug === b.slug) ?.title || b.slug}`
                             : (b.targetCategoryId ? getCategoryTitle(b.targetCategoryId) : "—")
                           }
                         </div>
@@ -864,7 +864,7 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
                     <td className="py-2.5 px-3">
                       <div className="text-sm text-gray-600">
                         {s.slug
-                          ? `Service: ${allServices.find(svc => svc.slug === s.slug)?.title || s.slug}`
+                          ? `Service: ${allServices.find(svc => svc.slug === s.slug) ?.title || s.slug}`
                           : (s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—")
                         }
                       </div>
@@ -967,7 +967,7 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
                         <td className="py-4 px-4">
                           <div className="text-sm text-gray-600">
                             {s.slug
-                              ? `Service: ${allServices.find(svc => svc.slug === s.slug)?.title || s.slug}`
+                              ? `Service: ${allServices.find(svc => svc.slug === s.slug) ?.title || s.slug}`
                               : (s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—")
                             }
                           </div>
@@ -1091,7 +1091,7 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
                       <td className="py-4 px-4">
                         <div className="text-sm text-gray-600">
                           {s.slug
-                            ? `Service: ${allServices.find(svc => svc.slug === s.slug)?.title || s.slug}`
+                            ? `Service: ${allServices.find(svc => svc.slug === s.slug) ?.title || s.slug}`
                             : (s.targetCategoryId ? getCategoryTitle(s.targetCategoryId) : "—")
                           }
                         </div>

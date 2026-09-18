@@ -1,12 +1,16 @@
+﻿'use strict';
 const mongoose = require('mongoose');
 
 /**
- * WorkerBookingRequest
+ * WorkerBookingRequest — Parent document for a farmer's worker hiring event.
  *
- * Supports TWO modes:
- *  1. Legacy single-worker request (farmer selects specific worker) — workerId is set.
- *  2. Farmer-first broadcast request (backend auto-matches workers) — workerId is null,
- *     requiredWorkers > 1 is allowed, dispatchedTo array tracks worker responses.
+ * UNIFIED ARCHITECTURE:
+ *   1 WorkerBookingRequest  →  N IndWorkerAssignment (one per selected worker)
+ *
+ * bookingMode is ALWAYS determined by the backend using independentWorkerLimitSnapshot.
+ * The frontend must NEVER determine booking mode.
+ *
+ * Legacy fields are preserved (but marked deprecated) so existing data remains readable.
  */
 const workerBookingRequestSchema = new mongoose.Schema({
   farmerId: {
@@ -16,7 +20,7 @@ const workerBookingRequestSchema = new mongoose.Schema({
     index: true
   },
 
-  // --- Legacy single-worker mode: specific worker chosen by farmer ---
+  // DEPRECATED: legacy single-worker target (kept for backward compat only)
   workerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Worker',
@@ -25,11 +29,11 @@ const workerBookingRequestSchema = new mongoose.Schema({
   },
 
   // Work Details
-  workCategory:          { type: String, default: '' },
-  workTitle:             { type: String, default: '' },
-  workDescription:       { type: String, default: '' },
-  requiredSkills:        [{ type: String }],
-  additionalInstructions:{ type: String, default: '' },
+  workCategory:           { type: String, default: '' },
+  workTitle:              { type: String, default: '' },
+  workDescription:        { type: String, default: '' },
+  requiredSkills:         [{ type: String }],
+  additionalInstructions: { type: String, default: '' },
 
   // Schedule
   scheduledDate: { type: Date, required: true, index: true },
@@ -47,10 +51,10 @@ const workerBookingRequestSchema = new mongoose.Schema({
     lng:          Number
   },
 
-  // Rate Negotiation (legacy / single-worker)
-  workerRate:        { type: Number, default: null }, // Snapshot at request creation
-  farmerOfferedRate: { type: Number, default: null }, // Farmer's opening offer
-  agreedRate:        { type: Number, default: null }, // Set only after agreement
+  // Rate Negotiation (legacy / single-worker only)
+  workerRate:        { type: Number, default: null },
+  farmerOfferedRate: { type: Number, default: null },
+  agreedRate:        { type: Number, default: null },
 
   negotiation: [{
     by:        { type: String, enum: ['farmer', 'worker'], required: true },
@@ -59,54 +63,73 @@ const workerBookingRequestSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
   }],
 
-  // ── NEW: Farmer-First Broadcast Fields ────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════
+  // UNIFIED BOOKING MODE (set by backend — never frontend)
+  // ════════════════════════════════════════════════════════════════════════
 
-  // How many workers the farmer needs (1 = legacy single, >1 = broadcast)
-  requiredWorkers: { type: Number, default: 1, min: 1 },
+  /**
+   * bookingMode — how this request was routed (immutable after creation).
+   *   INDEPENDENT_WORKERS — requiredWorkers <= independentWorkerLimitSnapshot
+   *   TEAM_LEADER         — requiredWorkers >  independentWorkerLimitSnapshot
+   */
+  bookingMode: {
+    type: String,
+    enum: ['INDEPENDENT_WORKERS', 'TEAM_LEADER'],
+    default: null,
+    index: true
+  },
 
-  // How backend routed this request (set by backend, never trust frontend)
+  /**
+   * DEPRECATED: requestType — kept for backward compat with old documents.
+   * New code should use bookingMode. Both are set on new requests.
+   */
   requestType: {
     type: String,
     enum: ['single', 'independent_broadcast', 'team_leader'],
     default: 'single'
   },
 
-  // Snapshot of Admin settings used at routing time (for audit history)
+  // How many workers the farmer needs
+  requiredWorkers: { type: Number, default: 1, min: 1 },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // ADMIN ROUTING SNAPSHOT (immutable after creation)
+  // CRITICAL: routing must never be re-evaluated using current Admin settings.
+  // ════════════════════════════════════════════════════════════════════════
+  independentWorkerLimitSnapshot: { type: Number, default: null },
+
+  // Full routing snapshot (for audit)
   routingSnapshot: {
     maxIndependentWorkerRequest: { type: Number, default: null },
     workerSearchRadiusKm:        { type: Number, default: null }
   },
 
-  // Workers this request was dispatched to (broadcast mode)
+  // ════════════════════════════════════════════════════════════════════════
+  // DISPATCH — workers who were notified about this request
+  // ════════════════════════════════════════════════════════════════════════
   dispatchedTo: [{
     workerId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', required: true },
     status:      { type: String, enum: ['pending', 'accepted', 'rejected', 'withdrawn'], default: 'pending' },
     respondedAt: { type: Date, default: null }
   }],
 
-  // Aggregated counts (kept in sync by controller)
   eligibleWorkersCount:   { type: Number, default: 0 },
   dispatchedWorkersCount: { type: Number, default: 0 },
   acceptedWorkersCount:   { type: Number, default: 0 },
   rejectedWorkersCount:   { type: Number, default: 0 },
 
-  // Workers who confirmed (populated at final booking creation)
-  finalWorkers: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Worker'
-  }],
+  // Workers who confirmed (set at final booking creation)
+  finalWorkers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Worker' }],
 
-  // Farmer accepted a partial count?
   farmerAcceptedPartial: { type: Boolean, default: false },
 
-  // Budget range (used in broadcast mode)
+  // Budget range
   minRate: { type: Number, default: null },
   maxRate: { type: Number, default: null },
 
-  // =============================================
-  // WORKER OFFER RATES (new privacy-safe system)
-  // =============================================
-  // Each worker's submitted rate (stored server-side, NOT exposed to Farmer pre-payment)
+  // ════════════════════════════════════════════════════════════════════════
+  // WORKER OFFERS — stored server-side, NOT exposed to Farmer pre-payment
+  // ════════════════════════════════════════════════════════════════════════
   workerOffers: [{
     workerId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', required: true },
     offeredRate: { type: Number, required: true },
@@ -115,14 +138,21 @@ const workerBookingRequestSchema = new mongoose.Schema({
   }],
 
   // Worker IDs explicitly selected by Farmer (before payment)
-  selectedWorkerIds: [{
+  selectedWorkerIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Worker' }],
+
+  // ════════════════════════════════════════════════════════════════════════
+  // NEW: IndWorkerAssignment references (unified architecture)
+  // These are created after successful payment verification.
+  // This is the new source of truth for per-worker lifecycle.
+  // ════════════════════════════════════════════════════════════════════════
+  assignmentIds: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Worker'
+    ref: 'IndWorkerAssignment'
   }],
 
-  // =============================================
-  // PAYMENT TRACKING (for the initial max-budget payment)
-  // =============================================
+  // ════════════════════════════════════════════════════════════════════════
+  // PAYMENT TRACKING
+  // ════════════════════════════════════════════════════════════════════════
   paymentStatus: {
     type: String,
     enum: ['not_started', 'pending', 'success', 'failed', 'cash_pending'],
@@ -149,31 +179,45 @@ const workerBookingRequestSchema = new mongoose.Schema({
     createdAt:            { type: Date, default: null }
   },
 
-  // ── Status ────────────────────────────────────────────────────────────────
+  // Refund tracking
+  refundAmount:      { type: Number, default: null },
+  refundCredited:    { type: Boolean, default: false },
+  refundCreditedAt:  { type: Date, default: null },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // STATUS — parent-level lifecycle
+  // ════════════════════════════════════════════════════════════════════════
   status: {
     type: String,
     enum: [
-      'pending',                   // Waiting for worker(s) to respond
-      'matching',                  // Backend is finding workers (brief interim state)
-      'accepted',                  // Single-worker: worker accepted
-      'rejected',                  // Single-worker: worker rejected
-      'awaiting_farmer_confirmation', // Partial accepted — farmer must decide
-      'confirmed',                 // All workers confirmed, booking created
-      'cancelled',                 // Farmer cancelled
-      'expired'                    // Timed out without completion
+      'pending',                     // Dispatched; waiting for worker responses
+      'matching',                    // Backend finding workers (brief interim)
+      'accepted',                    // Single-worker (legacy): worker accepted
+      'rejected',                    // All workers rejected / no one accepted
+      'awaiting_farmer_confirmation', // Enough acceptances; farmer must select & pay
+      'confirmed',                   // Payment done; IndWorkerAssignment docs created
+      'in_progress',                 // At least one assignment journey started
+      'partially_completed',         // Some assignments settled, others pending
+      'completed',                   // All selected assignments settled
+      'cancelled',                   // Farmer or admin cancelled
+      'expired'                      // Timed out without completion
     ],
     default: 'pending',
     index: true
   },
 
-  // Reference to final Booking record(s) (created after acceptance)
+  // ════════════════════════════════════════════════════════════════════════
+  // DEPRECATED LEGACY FIELDS — kept for backward compat; do NOT use for
+  // new lifecycle logic. New code must use assignmentIds.
+  // ════════════════════════════════════════════════════════════════════════
+
+  // @deprecated — use assignmentIds instead
   finalBookingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
     default: null
   },
-
-  // Multiple bookings for broadcast mode
+  // @deprecated — use assignmentIds instead
   finalBookingIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking'
@@ -188,17 +232,17 @@ const workerBookingRequestSchema = new mongoose.Schema({
   rejectionReason: { type: String, default: null }
 }, { timestamps: true });
 
-// ── Indexes ───────────────────────────────────────────────────────────────────
+// ── Indexes ──────────────────────────────────────────────────────────────────
 workerBookingRequestSchema.index({ farmerId: 1, status: 1 });
 workerBookingRequestSchema.index({ workerId: 1, status: 1 });
 workerBookingRequestSchema.index({ 'dispatchedTo.workerId': 1 });
 workerBookingRequestSchema.index({ workerId: 1, scheduledDate: 1, status: 1 });
-workerBookingRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index
-// Prevent duplicate pending broadcast request from same farmer for same date+time
+workerBookingRequestSchema.index({ bookingMode: 1, status: 1 });
+workerBookingRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL
+// Prevent duplicate active broadcast from same farmer for same date+time
 workerBookingRequestSchema.index(
   { farmerId: 1, scheduledDate: 1, startTime: 1, requestType: 1 },
   { partialFilterExpression: { status: 'pending', requestType: 'independent_broadcast' } }
 );
 
 module.exports = mongoose.model('WorkerBookingRequest', workerBookingRequestSchema);
-

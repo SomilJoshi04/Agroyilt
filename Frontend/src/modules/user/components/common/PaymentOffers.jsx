@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+﻿import React, { memo } from 'react';
 import { MdLocalOffer } from 'react-icons/md';
 import { themeColors } from '../../../../theme';
 

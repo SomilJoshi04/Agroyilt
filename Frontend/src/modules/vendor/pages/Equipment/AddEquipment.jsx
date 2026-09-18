@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   FiChevronLeft, FiPlus, FiTrash2, FiUpload, 
@@ -292,7 +292,7 @@ const AddEquipment = () => {
       if (!form.driver.aadharNumber || !/^\d{12}$/.test(form.driver.aadharNumber)) {
         return toastManager.error('Valid 12-digit Aadhar Card number is required');
       }
-      const dlRegex = /^[A-Z]{2}[0-9A-Z]{13,14}$/;
+      const dlRegex = /^[A-Z]{2}[0-9A-Z]{13₹4}$/;
       if (!form.driver.licenseNumber || !dlRegex.test(form.driver.licenseNumber.toUpperCase())) {
         return toastManager.error('Please enter a valid Driving License number (e.g. RJ1420230001234)');
       }

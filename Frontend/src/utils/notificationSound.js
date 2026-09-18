@@ -1,112 +1,91 @@
-// Notification Sound Utility
-// Plays notification sound when new booking request arrives
+﻿// Notification Sound Utility
+// Plays notification sound and alert rings across User, Vendor, Worker, and Admin panels
 
 let audioContext = null;
-let notificationSound = null;
 
-// Initialize audio context
+// Initialize Web Audio API context
 const initAudio = () => {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioContext && typeof window !== 'undefined') {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      audioContext = new AudioCtx();
+    }
   }
 };
 
-// Unlock AudioContext on first user interaction
+// Global unlock on first user interaction (browser autoplay policy requirement)
 const unlockAudioContext = () => {
   if (audioContext && audioContext.state === 'suspended') {
-    audioContext.resume();
+    audioContext.resume().catch(() => {});
   }
-  // We only need this to happen once
-  document.removeEventListener('click', unlockAudioContext);
-  document.removeEventListener('touchstart', unlockAudioContext);
-  document.removeEventListener('keydown', unlockAudioContext);
+  // Remove one-time listeners
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('click', unlockAudioContext);
+    document.removeEventListener('touchstart', unlockAudioContext);
+    document.removeEventListener('keydown', unlockAudioContext);
+    document.removeEventListener('pointerdown', unlockAudioContext);
+  }
 };
 
 if (typeof document !== 'undefined') {
-  document.addEventListener('click', unlockAudioContext);
-  document.addEventListener('touchstart', unlockAudioContext);
-  document.addEventListener('keydown', unlockAudioContext);
+  document.addEventListener('click', unlockAudioContext, { passive: true });
+  document.addEventListener('touchstart', unlockAudioContext, { passive: true });
+  document.addEventListener('keydown', unlockAudioContext, { passive: true });
+  document.addEventListener('pointerdown', unlockAudioContext, { passive: true });
 }
 
-// Create a premium notification sound (Major Chord / Chime)
-const createNotificationSound = (type = 'chime') => {
-  if (!audioContext) initAudio();
-
-  const primaryGain = audioContext.createGain();
-  primaryGain.connect(audioContext.destination);
-
-  const playTone = (freq, type, startTime, duration, vol) => {
-    const osc = audioContext.createOscillator();
-    const g = audioContext.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, startTime);
-
-    g.gain.setValueAtTime(0, startTime);
-    g.gain.linearRampToValueAtTime(vol, startTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-
-    osc.connect(g);
-    g.connect(primaryGain);
-
-    osc.start(startTime);
-    osc.stop(startTime + duration);
-  };
-
-  const now = audioContext.currentTime;
-
-  if (type === 'chime') {
-    // Richer chime using harmonics (C5, E5, G5)
-    playTone(523.25, 'sine', now, 0.6, 0.2); // C5
-    playTone(659.25, 'sine', now + 0.05, 0.5, 0.15); // E5
-    playTone(783.99, 'sine', now + 0.1, 0.4, 0.1); // G5
-  } else if (type === 'beep') {
-    playTone(880, 'sine', now, 0.2, 0.2);
-  } else if (type === 'ring') {
-    // A more urgent "Electronic Ring"
-    playTone(660, 'triangle', now, 0.1, 0.15);
-    playTone(880, 'triangle', now + 0.1, 0.1, 0.15);
-  }
-
-  return primaryGain;
-};
-
-// Play notification sound (Premium Chime)
-// Play notification sound (Premium Alert)
+// Play notification sound (Plays clear MP3 audio with synthesized fallback)
 export const playNotificationSound = async () => {
   try {
-    initAudio();
+    // 1. First priority: Play real audio file (MP3)
+    const audio = new Audio('/notification.mp3');
+    audio.volume = 1.0;
 
-    // Ensure AudioContext is running (fix for 'suspended' state restriction)
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        // If autoplay blocked or file failed, fallback to Web Audio synthesizer
+        console.warn('[NotificationSound] Audio file play restricted, falling back to synthesizer:', err?.message || err);
+        playSynthesizedChime();
+      });
+      return true;
+    }
+  } catch (error) {
+    console.warn('[NotificationSound] Audio constructor error, fallback:', error);
+    playSynthesizedChime();
+  }
+};
+
+// Synthesized Chime Fallback using Web Audio API
+const playSynthesizedChime = () => {
+  try {
+    initAudio();
+    if (!audioContext) return;
+
     if (audioContext.state === 'suspended') {
-      try {
-        await audioContext.resume();
-      } catch (e) {
-        console.warn('Could not resume audio context:', e);
-      }
+      audioContext.resume().catch(() => {});
     }
 
-    // Play a sequence of tones for a more distinct alert
     const now = audioContext.currentTime;
 
-    // Main chime (Louder and Clearer C Major 7th)
+    // Rich C-Major Bell Chord (C5, E5, G5, C6)
     const tones = [
-      { freq: 523.25, time: 0, dur: 0.8 },   // C5
-      { freq: 659.25, time: 0.1, dur: 0.8 }, // E5
-      { freq: 783.99, time: 0.2, dur: 0.8 }, // G5
-      { freq: 987.77, time: 0.3, dur: 1.0 }  // B5
+      { freq: 523.25, time: 0, dur: 0.6, vol: 0.35 },    // C5
+      { freq: 659.25, time: 0.08, dur: 0.6, vol: 0.35 }, // E5
+      { freq: 783.99, time: 0.16, dur: 0.7, vol: 0.35 }, // G5
+      { freq: 1046.50, time: 0.24, dur: 0.9, vol: 0.40 } // C6
     ];
 
-    tones.forEach(({ freq, time, dur }) => {
+    tones.forEach(({ freq, time, dur, vol }) => {
       const osc = audioContext.createOscillator();
       const gain = audioContext.createGain();
 
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, now + time);
 
-      // Increased Volume
       gain.gain.setValueAtTime(0, now + time);
-      gain.gain.linearRampToValueAtTime(0.4, now + time + 0.05); // Faster attack, louder peak
-      gain.gain.exponentialRampToValueAtTime(0.01, now + time + dur);
+      gain.gain.linearRampToValueAtTime(vol, now + time + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + time + dur);
 
       osc.connect(gain);
       gain.connect(audioContext.destination);
@@ -114,19 +93,35 @@ export const playNotificationSound = async () => {
       osc.start(now + time);
       osc.stop(now + time + dur);
     });
-
-    return true;
-  } catch (error) {
-    console.error('Error playing notification sound:', error);
-    return false;
+  } catch (e) {
+    console.error('[NotificationSound] Synthesizer error:', e);
   }
 };
 
-// Play single beep for small interactions
+// Play single short beep for small interactions
 export const playSingleBeep = () => {
   try {
     initAudio();
-    createNotificationSound('beep');
+    if (!audioContext) return;
+
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => {});
+    }
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioContext.currentTime);
+
+    gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.15);
     return true;
   } catch (error) {
     console.error('Error playing beep:', error);
@@ -134,40 +129,32 @@ export const playSingleBeep = () => {
   }
 };
 
-// Play urgent ring for booking alerts
-let currentAudio = null; // Global variable to track current playing audio
+// Play urgent ring for booking alerts / incoming calls
+let currentAudio = null;
 
 export const playAlertRing = (loop = false) => {
   try {
-    // If audio is already playing, do nothing if we want to sustain it, or restart ??
-    // Actually, proper behavior: if playing, stop previous and start new to ensure fresh start
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
     }
 
     const audio = new Audio('/booking-alert.mp3');
+    audio.volume = 1.0;
     if (loop) audio.loop = true;
-    currentAudio = audio; // Track the new audio instance
+    currentAudio = audio;
 
-    audio.play().catch(e => {
-      // Suppress the NotAllowedError from cluttering the console as it's an expected browser behavior before interaction
+    audio.play().catch((e) => {
       if (e.name === 'NotAllowedError') {
-        console.warn('Audio play blocked by browser. User interaction required first.');
-        // Optionally dispatch an event so UI can show an "Enable Sound" button
+        console.warn('[NotificationSound] Audio blocked: User interaction required on this tab first.');
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('audio-play-blocked'));
         }
-      } else if (e.name === 'AbortError') {
-        // This is a harmless error that occurs if audio.pause() is called before audio.play() finishes loading.
-        // It happens when modals are quickly opened and closed, or alerts are replaced rapidly.
-        console.warn('Audio play was aborted normally (play request interrupted by pause).');
-      } else {
-        console.error('Error playing alert file:', e);
+      } else if (e.name !== 'AbortError') {
+        console.error('Error playing alert ring:', e);
       }
     });
 
-    // Cleanup when audio finishes (if not looping)
     audio.onended = () => {
       if (currentAudio === audio) {
         currentAudio = null;
@@ -189,19 +176,19 @@ export const stopAlertRing = () => {
   }
 };
 
-// Check if sound is enabled in settings
-export const isSoundEnabled = (userType = 'vendor') => {
-  let storageKey = 'vendorData';
+// Check if sound is enabled in settings (checks localStorage & sessionStorage)
+export const isSoundEnabled = (userType = 'admin') => {
+  let storageKey = 'adminData';
   if (userType === 'user') storageKey = 'userData';
   else if (userType === 'worker') storageKey = 'workerData';
-  else if (userType === 'admin') storageKey = 'adminData';
+  else if (userType === 'vendor') storageKey = 'vendorData';
 
-  const dataString = localStorage.getItem(storageKey);
+  const dataString = sessionStorage.getItem(storageKey) || localStorage.getItem(storageKey);
   if (dataString) {
     try {
       const data = JSON.parse(dataString);
-      return data.settings?.soundAlerts !== false; // Default true
-    } catch (error) {
+      return data.settings?.soundAlerts !== false; // Default is true
+    } catch {
       return true;
     }
   }
@@ -212,5 +199,6 @@ export default {
   playNotificationSound,
   playSingleBeep,
   playAlertRing,
+  stopAlertRing,
   isSoundEnabled
 };

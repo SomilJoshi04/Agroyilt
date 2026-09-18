@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiUsers, FiBriefcase, FiActivity, FiDollarSign } from 'react-icons/fi';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiCloud, FiCloudRain, FiSun, FiWind, FiMapPin, FiArrowRight } from 'react-icons/fi';
 import { motion } from 'framer-motion';

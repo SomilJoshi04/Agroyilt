@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { FiArrowLeft, FiShield, FiLock, FiCheckCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiShield, FiLock, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import workerBookingService from '../../../../services/workerBookingService';
 
@@ -17,8 +17,8 @@ const WorkerSelectionPayment = () => {
       try {
         const res = await workerBookingService.getFarmerRequestById(id);
         if (res.data.paymentStatus === 'success') {
-           navigate(`/user/farmer-worker-request/${id}`);
-           return;
+          navigate(`/user/farmer-worker-request/${id}`);
+          return;
         }
         setRequest(res.data);
       } catch (err) {
@@ -65,7 +65,7 @@ const WorkerSelectionPayment = () => {
         handler: async function (response) {
           try {
             toast.loading('Verifying payment...', { id: 'verify-toast' });
-            
+
             // Verify Payment on Backend
             await workerBookingService.verifyWorkerBookingPayment(id, {
               razorpay_payment_id: response.razorpay_payment_id,
@@ -114,12 +114,12 @@ const WorkerSelectionPayment = () => {
   const financials = request.financialSnapshot;
   if (!financials) {
     return (
-       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-         <FiAlertCircle size={40} className="text-red-500 mb-4" />
-         <h2 className="text-xl font-black text-slate-800 mb-2">Financial details missing</h2>
-         <p className="text-slate-500 mb-6 text-center">Please go back and select workers again.</p>
-         <button onClick={() => navigate(-1)} className="px-6 py-2 bg-slate-800 text-white rounded-full font-bold">Go Back</button>
-       </div>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <FiAlertCircle size={40} className="text-red-500 mb-4" />
+        <h2 className="text-xl font-black text-slate-800 mb-2">Financial details missing</h2>
+        <p className="text-slate-500 mb-6 text-center">Please go back and select workers again.</p>
+        <button onClick={() => navigate(-1)} className="px-6 py-2 bg-slate-800 text-white rounded-full font-bold">Go Back</button>
+      </div>
     );
   }
 
@@ -145,53 +145,53 @@ const WorkerSelectionPayment = () => {
         {/* Bill Summary */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
           <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-100">
-             <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center">
-               <FiShield size={24} />
-             </div>
-             <div>
-               <h2 className="text-lg font-black text-slate-800">Payment Summary</h2>
-               <p className="text-xs font-bold text-slate-500">Lock in your maximum budget</p>
-             </div>
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center">
+              <FiShield size={24} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-800">Payment Summary</h2>
+              <p className="text-xs font-bold text-slate-500">Lock in your maximum budget</p>
+            </div>
           </div>
 
           <div className="space-y-4">
-             <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-600">Selected Workers</span>
-                <span className="text-sm font-black text-slate-800">{financials.selectedWorkerCount}</span>
-             </div>
-             
-             <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-600">Max Rate per Worker</span>
-                <span className="text-sm font-black text-slate-800">?{financials.maximumBudget}</span>
-             </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-slate-600">Selected Workers</span>
+              <span className="text-sm font-black text-slate-800">{financials.selectedWorkerCount}</span>
+            </div>
 
-             <div className="flex justify-between items-center pt-2">
-                <span className="text-sm font-medium text-slate-600">Max Worker Payout</span>
-                <span className="text-sm font-black text-slate-800">?{financials.maximumWorkerAmount}</span>
-             </div>
-             
-             {financials.platformChargeAmount > 0 && (
-               <div className="flex justify-between items-center text-amber-600">
-                  <span className="text-sm font-medium">Platform Fee ({financials.platformChargeRate}%)</span>
-                  <span className="text-sm font-black">?{financials.platformChargeAmount}</span>
-               </div>
-             )}
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-slate-600">Max Rate per Worker</span>
+              <span className="text-sm font-black text-slate-800">₹{financials.maximumBudget}</span>
+            </div>
+
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-sm font-medium text-slate-600">Max Worker Payout</span>
+              <span className="text-sm font-black text-slate-800">₹{financials.maximumWorkerAmount}</span>
+            </div>
+
+            {financials.platformChargeAmount > 0 && (
+              <div className="flex justify-between items-center text-amber-600">
+                <span className="text-sm font-medium">Platform Fee ({financials.platformChargeRate}%)</span>
+                <span className="text-sm font-black">₹{financials.platformChargeAmount}</span>
+              </div>
+            )}
           </div>
-          
+
           <div className="mt-6 pt-6 border-t border-slate-100 flex items-end justify-between">
-             <div>
-                <p className="text-xs uppercase tracking-wider font-bold text-slate-400 mb-1">Total Payable</p>
-                <p className="text-3xl font-black text-emerald-600">?{financials.totalPayable}</p>
-             </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider font-bold text-slate-400 mb-1">Total Payable</p>
+              <p className="text-3xl font-black text-emerald-600">₹{financials.totalPayable}</p>
+            </div>
           </div>
         </div>
 
         {/* Info Card */}
         <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5 flex gap-3">
-           <FiCheckCircle className="text-blue-500 shrink-0 mt-0.5" size={20} />
-           <p className="text-xs text-blue-800 font-medium leading-relaxed">
-             <strong className="font-bold">Why pay the max budget?</strong> Workers may bid lower than your max rate. Any unused amount after payment will be instantly credited back to your AgroYilt wallet. You are fully protected.
-           </p>
+          <FiCheckCircle className="text-blue-500 shrink-0 mt-0.5" size={20} />
+          <p className="text-xs text-blue-800 font-medium leading-relaxed">
+            <strong className="font-bold">Why pay the max budget?</strong> Workers may bid lower than your max rate. Any unused amount after payment will be instantly credited back to your AgroYilt wallet. You are fully protected.
+          </p>
         </div>
 
         <button
@@ -203,7 +203,7 @@ const WorkerSelectionPayment = () => {
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
             <>
-              <FiLock /> Pay ?{financials.totalPayable} Securely
+              <FiLock /> Pay ₹{financials.totalPayable} Securely
             </>
           )}
         </button>

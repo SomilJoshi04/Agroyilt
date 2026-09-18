@@ -19,24 +19,77 @@ const getDashboardStats = async (req, res) => {
       });
     }
 
-    // 2. Calculate Total Earnings
-    // Aggregate from completed bookings where workerId matches
-    const earningStats = await Booking.aggregate([
-      {
-        $match: {
-          workerId: worker._id,
-          status: { $in: [BOOKING_STATUS.COMPLETED, BOOKING_STATUS.WORK_DONE] }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$finalAmount" }
-        }
-      }
-    ]);
+    // 2. Calculate Total Net Earnings
+    let totalEarnings = 0;
+    try {
+      const IndWorkerAssignment = require('../../models/IndWorkerAssignment');
+      const Transaction = require('../../models/Transaction');
 
-    const totalEarnings = earningStats.length > 0 ? earningStats[0].total : 0;
+      const [assignStats, txnStats, bookingStats] = await Promise.all([
+        IndWorkerAssignment.aggregate([
+          {
+            $match: {
+              workerId: worker._id,
+              $or: [
+                { assignmentStatus: 'COMPLETED' },
+                { settlementStatus: 'SETTLED' },
+                { journeyStatus: 'COMPLETED' }
+              ]
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$netEarning' }
+            }
+          }
+        ]),
+        Transaction.aggregate([
+          {
+            $match: {
+              workerId: worker._id,
+              type: { $in: ['earnings_credit', 'worker_payment'] },
+              status: 'completed'
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$amount' }
+            }
+          }
+        ]),
+        Booking.aggregate([
+          {
+            $match: {
+              workerId: worker._id,
+              status: { $in: [BOOKING_STATUS.COMPLETED, BOOKING_STATUS.WORK_DONE] }
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: {
+                $sum: {
+                  $ifNull: [
+                    '$workerNetEarning',
+                    { $multiply: [{ $ifNull: ['$finalAmount', '$agreedRate', 0] }, 0.9] }
+                  ]
+                }
+              }
+            }
+          }
+        ])
+      ]);
+
+      const txnTotal = txnStats.length > 0 ? txnStats[0].total : 0;
+      const assignTotal = assignStats.length > 0 ? assignStats[0].total : 0;
+      const bookingTotal = bookingStats.length > 0 ? bookingStats[0].total : 0;
+
+      totalEarnings = txnTotal > 0 ? txnTotal : (assignTotal > 0 ? assignTotal : bookingTotal);
+    } catch (err) {
+      console.warn('[getDashboardStats] Earning calculation fallback:', err.message);
+    }
 
     const BookingRequest = require('../../models/BookingRequest');
     const myRequests = await BookingRequest.find({ workerId: worker._id, status: { $ne: 'REJECTED' } }).select('bookingId');

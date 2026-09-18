@@ -1,4 +1,4 @@
-import React, { memo, useRef, useEffect } from 'react';
+﻿import React, { memo, useRef, useEffect } from 'react';
 import { gsap } from 'gsap';
 import { AiFillStar } from 'react-icons/ai';
 import { themeColors } from '../../../../theme';

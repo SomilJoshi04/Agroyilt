@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   FiUsers,
@@ -430,7 +430,7 @@ const WorkerAnalytics = () => {
                           />
                         ) : (
                           <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
-                            {worker.name?.charAt(0)?.toUpperCase() || 'W'}
+                            {worker.name?.charAt(0) ?.toUpperCase() || 'W'}
                           </div>
                         )}
                         <div>

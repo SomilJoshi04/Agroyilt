@@ -25,6 +25,8 @@ const AdminSettings = () => {
     tdsPercentage: 1,
     platformFeePercentage: 1,
     bookingCommissionPercentage: 10,
+    workerCommissionPercentage: 10,
+    workerPlatformChargePercentage: 1,
     rentalGstPercentage: 5
   });
 
@@ -294,6 +296,8 @@ const AdminSettings = () => {
             vendorCashLimit: res.settings.vendorCashLimit || 10000,
             cancellationPenalty: res.settings.cancellationPenalty ?? 49,
             bookingCommissionPercentage: res.settings.bookingCommissionPercentage ?? 10,
+            workerCommissionPercentage: res.settings.workerCommissionPercentage ?? 10,
+            workerPlatformChargePercentage: res.settings.workerPlatformChargePercentage ?? 1,
             rentalGstPercentage: res.settings.rentalGstPercentage ?? 5
           });
 
@@ -832,7 +836,7 @@ const AdminSettings = () => {
                   <div className="flex flex-wrap items-center gap-2 mt-1">
                     <p className="text-sm text-gray-500 flex items-center gap-1">
                       {isSuperAdmin && <FiShield className="text-amber-500" />}
-                      {isSuperAdmin ? 'Super Admin' : 'Admin'} • {profile.email}
+                      {isSuperAdmin ? 'Super Admin' : 'Admin'} ? {profile.email}
                     </p>
                     {profile.role !== 'super_admin' ? (
                       <span className="px-2 py-0.5 bg-teal-50 text-teal-700 text-[10px] font-bold rounded-lg border border-teal-100 flex items-center gap-1">
@@ -950,12 +954,12 @@ const AdminSettings = () => {
                       <input type="number" name="cancellationPenalty" value={financialSettings.cancellationPenalty} onChange={handleFinancialChange}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
                     </div>
-                    {/* Booking Commission Field */}
-                    <div className="md:col-span-2">
+                    {/* Vendor Booking Commission Field */}
+                    <div className="md:col-span-1">
                       <div className="flex justify-between items-center mb-1.5">
-                        <label className="block text-xs font-semibold text-gray-500 uppercase">Booking Commission (%)</label>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase">Vendor Commission (%)</label>
                         <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">
-                          Vendor Gets: {100 - (financialSettings.bookingCommissionPercentage || 0)}%
+                          Vendor Keeps: {100 - (financialSettings.bookingCommissionPercentage || 0)}%
                         </span>
                       </div>
                       <input
@@ -965,7 +969,38 @@ const AdminSettings = () => {
                         min="0" max="100"
                         className="w-full px-4 py-2.5 bg-orange-50 border border-orange-200 rounded-lg outline-none focus:border-orange-500 transition-all font-bold text-orange-700"
                       />
-                      <p className="text-[10px] text-gray-400 mt-1">Commission % deducted from vendor per booking — this will be visible in the vendor's booking popup</p>
+                      <p className="text-[10px] text-gray-400 mt-1">Deducted from vendor earnings per machine/equipment booking</p>
+                    </div>
+
+                    {/* Worker Commission Field */}
+                    <div className="md:col-span-1">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase">Worker Commission (%)</label>
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                          Worker Keeps: {100 - (financialSettings.workerCommissionPercentage || 0)}%
+                        </span>
+                      </div>
+                      <input
+                        type="number" name="workerCommissionPercentage"
+                        value={financialSettings.workerCommissionPercentage}
+                        onChange={handleFinancialChange}
+                        min="0" max="100"
+                        className="w-full px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg outline-none focus:border-emerald-500 transition-all font-bold text-emerald-700"
+                      />
+                      <p className="text-[10px] text-gray-400 mt-1">Deducted from independent worker earnings per completed job</p>
+                    </div>
+
+                    {/* Worker Platform Charge */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Worker Booking Platform Fee (%)</label>
+                      <input
+                        type="number" name="workerPlatformChargePercentage"
+                        value={financialSettings.workerPlatformChargePercentage}
+                        onChange={handleFinancialChange}
+                        min="0" max="100"
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all font-bold text-gray-800"
+                      />
+                      <p className="text-[10px] text-gray-400 mt-1">Upfront platform fee charged to farmer on worker hire requests (default 1%)</p>
                     </div>
                   </div>
                   <div className="flex justify-end pt-2">

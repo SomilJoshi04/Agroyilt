@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { HiOutlineUser, HiOutlineTruck, HiOutlineShieldCheck } from 'react-icons/hi';
 import { usePageTranslation } from '../../../hooks/usePageTranslation';

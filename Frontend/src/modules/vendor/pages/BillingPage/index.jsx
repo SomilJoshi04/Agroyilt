@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiCheck, FiTool, FiArrowLeft, FiDollarSign, FiClock, FiKey } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -348,3 +348,4 @@ const BillingPage = () => {
 };
 
 export default BillingPage;
+

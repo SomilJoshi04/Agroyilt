@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+﻿import React, { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiClock, FiMapPin, FiBell } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../../theme';
@@ -116,7 +116,7 @@ const PendingBookings = memo(({ bookings, setPendingBookings, setActiveAlertBook
                     <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wide">{booking.brandName}</span>
                   </div>
                 )}
-                <p className="text-xs text-gray-500 font-medium line-clamp-1">{booking.customerName || 'Farmer'} • {booking.location?.address || 'Location'}</p>
+                <p className="text-xs text-gray-500 font-medium line-clamp-1">{booking.customerName || 'Farmer'} ? {booking.location?.address || 'Location'}</p>
               </div>
               <div className="flex flex-col items-center shrink-0">
                 {booking.categoryIcon ? (
@@ -135,7 +135,7 @@ const PendingBookings = memo(({ bookings, setPendingBookings, setActiveAlertBook
                 <FiClock className="w-4 h-4" />
                 <span>
                   {booking.timeSlot?.date || (booking.scheduledDate ? new Date(booking.scheduledDate).toLocaleDateString() : '')}
-                  {(booking.timeSlot?.date || booking.scheduledDate) ? ' • ' : ''}
+                  {(booking.timeSlot?.date || booking.scheduledDate) ? ' ? ' : ''}
                   {booking.timeSlot?.time || booking.scheduledTime || 'N/A'}
                 </span>
               </div>

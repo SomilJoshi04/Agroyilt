@@ -1,4 +1,4 @@
-// BookingMap component for tracking vendor journey and arrival verification
+﻿// BookingMap component for tracking vendor journey and arrival verification
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';

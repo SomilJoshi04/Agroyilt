@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUsers, FiPlus, FiEdit2, FiTrash2, FiSearch, FiUser, FiBriefcase, FiPhone } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -227,7 +227,7 @@ const WorkersList = () => {
                                 {displayStatus}
                               </span>
                             </div>
-                            <span className="text-gray-300">•</span>
+                            <span className="text-gray-300">?</span>
                             <span className="text-gray-500 font-medium text-xs font-mono">{worker.phone}</span>
                           </div>
                         </div>

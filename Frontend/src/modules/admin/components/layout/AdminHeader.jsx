@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { FiMenu, FiBell, FiLogOut } from 'react-icons/fi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -68,6 +68,7 @@ const AdminHeader = ({ onMenuClick }) => {
       { path: '/admin/bookings/notifications', title: 'Order Notifications', description: 'Track booking alerts and updates' },
       { path: '/admin/equipment-catalog', title: 'Equipment Catalog', description: 'Manage agricultural equipment, categories, and brands' },
       { path: '/admin/payments/users', title: 'Farmer Transactions', description: 'Monitor farmer financial transactions' },
+      { path: '/admin/payments/workers', title: 'Worker Payments', description: 'Monitor farm worker earnings, payouts, and settlements' },
       { path: '/admin/payments/vendors', title: 'Owner Transactions', description: 'Monitor equipment owner earnings and payouts' },
       { path: '/admin/payments/revenue', title: 'Admin Revenue', description: 'Track platform commissions and income' },
       { path: '/admin/payments/reports', title: 'Payment Report', description: 'Analyze payment data and financial insights' },
@@ -124,9 +125,14 @@ const AdminHeader = ({ onMenuClick }) => {
 
   useEffect(() => {
     fetchNotifications();
-    // Optional: Poll every 60 seconds
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
+    const handleUpdate = () => fetchNotifications();
+    window.addEventListener('adminNotificationsUpdated', handleUpdate);
+    // Poll every 30 seconds as fallback
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => {
+      window.removeEventListener('adminNotificationsUpdated', handleUpdate);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleMarkAsRead = async (id) => {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+﻿import React, { useMemo, useState, useRef } from 'react';
 import { motion, useInView, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { HiOutlineSearch, HiOutlineShieldCheck, HiOutlineCurrencyDollar, HiOutlineClock, HiArrowRight } from 'react-icons/hi';
 import { usePageTranslation } from '../../../hooks/usePageTranslation';
@@ -93,7 +93,7 @@ const SolutionRow = ({ item, index, getTranslatedText }) => {
         animate={{
           backgroundColor: hovered ? '#16a34a' : 'rgba(255,255,255,0.08)',
           scale: hovered ? 1.1 : 1,
-          boxShadow: hovered ? '0 0 20px rgba(74,222,128,0.4)' : 'none',
+          boxShadow: hovered ? '0 0 20px rgba(74,222₹28,0.4)' : 'none',
         }}
         transition={{ duration: 0.3 }}
         className="w-11 h-11 rounded-2xl flex items-center justify-center text-green-400 text-xl flex-shrink-0"
@@ -286,7 +286,7 @@ const ProblemSolution = () => {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: 0.5 + i * 0.08 }}
-                  whileHover={{ scale: 1.08, backgroundColor: 'rgba(74,222,128,0.15)', borderColor: '#4ade80' }}
+                  whileHover={{ scale: 1.08, backgroundColor: 'rgba(74,222₹28,0.15)', borderColor: '#4ade80' }}
                   className="bg-green-800/50 text-green-300 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-green-700/50 cursor-default transition-colors"
                 >
                   {getTranslatedText(tag)}

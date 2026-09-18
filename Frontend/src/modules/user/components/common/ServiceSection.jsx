@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { AiFillStar } from 'react-icons/ai';
 import { themeColors } from '../../../../theme';
 
@@ -38,7 +38,7 @@ const ServiceSection = ({
                 <span className="text-base font-bold text-black">₹{service.price}</span>
                 {service.duration && (
                   <>
-                    <span className="text-sm text-gray-600">•</span>
+                    <span className="text-sm text-gray-600">?</span>
                     <span className="text-sm text-gray-600">{service.duration}</span>
                   </>
                 )}
@@ -55,7 +55,7 @@ const ServiceSection = ({
                 <ul className="space-y-1 mb-3">
                   {service.features.map((feature, index) => (
                     <li key={index} className="text-sm text-gray-700 flex items-start">
-                      <span className="mr-2">•</span>
+                      <span className="mr-2">?</span>
                       <span>{feature}</span>
                     </li>
                   ))}

@@ -117,6 +117,11 @@ const notificationSchema = new mongoose.Schema({
       'group_member_rejected',
       'group_member_selected',
       'group_member_not_selected',
+      'worker_journey_started',
+      'worker_arrived',
+      'worker_work_submitted',
+      'assignment_settled',
+      'refund',
       'general'
     ],
     index: true
@@ -139,7 +144,6 @@ const notificationSchema = new mongoose.Schema({
   },
   relatedType: {
     type: String,
-    enum: ['booking', 'payment', 'user', 'vendor', 'worker', 'service', 'scrap', 'withdrawal', 'team', 'team_request', 'worker_booking_request', 'worker_group_request'],
     default: null
   },
   // Notification Status

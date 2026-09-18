@@ -1,4 +1,4 @@
-import { gsap } from 'gsap';
+﻿import { gsap } from 'gsap';
 
 // Note: ScrollTrigger is intentionally removed from this optimized file to prevent
 // 'removeChild' errors during mobile resize/layout shifts. We rely entirely on

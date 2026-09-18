@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
   FiArrowLeft, FiClock, FiMapPin, FiUsers, FiCalendar,
-  FiCheck, FiX, FiXCircle, FiAlertCircle, FiRefreshCcw, FiCreditCard
+  FiCheck, FiX, FiXCircle, FiAlertCircle, FiRefreshCcw, FiCreditCard,
+  FiNavigation, FiStar, FiPhone
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import workerBookingService from '../../../../services/workerBookingService';
@@ -114,7 +115,21 @@ const FarmerRequestDetail = () => {
     );
   }
 
-  if (!request) return null;
+  if (!request) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <FiAlertCircle size={48} className="text-slate-400 mb-3" />
+        <h2 className="text-xl font-bold text-slate-800 mb-1">Request Not Found</h2>
+        <p className="text-slate-500 text-sm mb-6">Could not load the work request details.</p>
+        <button
+          onClick={() => navigate('/user/my-worker-requests')}
+          className="px-6 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold"
+        >
+          My Requests
+        </button>
+      </div>
+    );
+  }
 
   const statusConf = STATUS_CONFIG[request.status] || { color: 'bg-slate-100', label: request.status };
   const canCancel = ['pending', 'matching', 'awaiting_farmer_confirmation'].includes(request.status);
@@ -158,7 +173,7 @@ const FarmerRequestDetail = () => {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-black text-emerald-600">?{request.maxRate}</p>
+              <p className="text-2xl font-black text-emerald-600">₹{request.maxRate}</p>
               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Per Worker / Day</p>
             </div>
           </div>
@@ -247,11 +262,11 @@ const FarmerRequestDetail = () => {
                            {worker?.name || 'Worker'}
                          </p>
                          <div className="flex items-center gap-2 mt-1">
-                           {worker?.rating > 0 && (
-                             <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">
-                               ? {worker.rating.toFixed(1)}
-                             </span>
-                           )}
+                            {worker?.rating > 0 && (
+                              <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">
+                                <FiStar size={10} className="fill-amber-500" /> {worker.rating.toFixed(1)}
+                              </span>
+                            )}
                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md uppercase tracking-wide">
                              Privacy Hidden
                            </span>
@@ -277,7 +292,7 @@ const FarmerRequestDetail = () => {
                      <button
                        onClick={handleProceedToPayment}
                        disabled={processing}
-                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm shadow-[0_4px_12px_rgba(5,150,105,0.25)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm shadow-[0_4px_12px_rgba(5₹50₹05,0.25)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                      >
                        {processing ? (
                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -300,16 +315,27 @@ const FarmerRequestDetail = () => {
           <div className="bg-white rounded-3xl border-2 border-emerald-500 shadow-sm p-5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-10 opacity-50" />
             
-            <div className="flex items-center gap-2 mb-4">
-               <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                 <FiCheck size={16} className="stroke-[3]" />
-               </div>
-               <h3 className="font-black text-emerald-800 text-sm uppercase tracking-wide">
-                 Booking Confirmed
-               </h3>
+            <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                  <FiCheck size={16} className="stroke-[3]" />
+                </div>
+                <h3 className="font-black text-emerald-800 text-sm uppercase tracking-wide">
+                  Booking Confirmed
+                </h3>
+              </div>
+
+              {/* Live Tracking Action Button */}
+              <button
+                onClick={() => navigate(`/user/booking/${request._id}/track`, { state: { fromHistory: true } })}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+              >
+                <FiNavigation size={14} className="animate-pulse" />
+                <span>Live Tracking Map</span>
+              </button>
             </div>
             
-            <p className="text-xs text-slate-500 font-medium mb-4">Your payment was successful and worker details are now unlocked. You can contact them directly.</p>
+            <p className="text-xs text-slate-500 font-medium mb-4">Your payment was successful and worker details are unlocked. You can track their live journey to your farm in real time.</p>
 
             <div className="space-y-3">
               {request.finalWorkers.map((w, i) => (
@@ -320,13 +346,23 @@ const FarmerRequestDetail = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-black text-slate-800">{w?.name || 'Worker'}</p>
                     <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                      {w?.rating > 0 && <span className="text-xs text-slate-500 font-bold">★ {w?.rating?.toFixed(1)}</span>}
-                      {w?.phone && <span className="text-xs text-slate-600 font-bold">📞 {w?.phone}</span>}
+                      {w?.rating > 0 && (
+                        <span className="text-xs text-amber-600 font-bold flex items-center gap-0.5">
+                          <FiStar size={11} className="fill-amber-500" />
+                          {w?.rating?.toFixed(1)}
+                        </span>
+                      )}
+                      {w?.phone && (
+                        <span className="text-xs text-slate-600 font-bold flex items-center gap-1">
+                          <FiPhone size={11} />
+                          {w?.phone}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right flex flex-col items-end mr-3">
                     <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Agreed Rate</p>
-                    <p className="text-lg font-black text-emerald-600">₹{request.workerOffers?.find(o => o.workerId?._id === w?._id || o.workerId === w?._id)?.offeredRate || request.maxRate}</p>
+                    <p className="text-lg font-black text-emerald-600">₹{request.workerOffers?.find(o => (o.workerId?._id || o.workerId) ?.toString() === (w?._id || w) ?.toString()) ?.offeredRate || request.maxRate}</p>
                   </div>
                   {w?.phone && (
                     <a
@@ -334,15 +370,167 @@ const FarmerRequestDetail = () => {
                       className="w-10 h-10 rounded-full bg-emerald-500 text-white shadow-sm shadow-emerald-200 flex items-center justify-center active:scale-95 transition-transform shrink-0"
                       title={`Call ${w.name}`}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                        <path fillRule="evenodd" d="M1.5 4.5a3 3 0 013-3h1.372c.86 0 1.61.586 1.819 1.42l1.105 4.423a1.875 1.875 0 01-.694 1.955l-1.293.97c-.135.101-.164.249-.126.352a11.285 11.285 0 006.697 6.697c.103.038.25.009.352-.126l.97-1.293a1.875 1.875 0 011.955-.694l4.423 1.105c.834.209 1.42.959 1.42 1.82V19.5a3 3 0 01-3 3h-2.25C8.552 22.5 1.5 15.448 1.5 6.75V4.5z" clipRule="evenodd" />
-                      </svg>
+                      <FiPhone size={16} />
                     </a>
                   )}
                 </div>
               ))}
             </div>
+
+            {/* Bottom Full-Width Live Tracking Button */}
+            <div className="mt-4 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => navigate(`/user/booking/${request._id}/track`, { state: { fromHistory: true } })}
+                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl font-black text-sm shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                <FiNavigation className="animate-pulse" />
+                <span>Track All Workers Live ({request.finalWorkers.length})</span>
+              </button>
+            </div>
           </div>
+        )}
+
+        {/* Canonical Farmer Payment Summary */}
+        {(request.paymentStatus === 'success' || request.paymentSummary) && (
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3.5">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                ₹
+              </div>
+              <div>
+                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wide">Payment Summary</h3>
+                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                  Authoritative Breakdown
+                </span>
+              </div>
+            </div>
+
+            {(() => {
+              const isPaid = request.paymentStatus === 'success';
+              const effectiveWorkerCount = isPaid
+                ? (request.paymentSummary?.selectedWorkerCount || request.selectedWorkerIds?.length || 1)
+                : (selectedWorkerIds.length > 0 ? selectedWorkerIds.length : (request.selectedWorkerIds?.length || request.requiredWorkers || 1));
+
+              const ratePerWorker = Number(request.paymentSummary?.maxRatePerWorker || request.maxRate || request.minRate || 0);
+              const reserveAmount = isPaid
+                ? Number(request.paymentSummary?.workerReserveAmount || (ratePerWorker * effectiveWorkerCount))
+                : (ratePerWorker * effectiveWorkerCount);
+
+              const platformRate = Number(request.financialSnapshot?.platformChargeRate || request.paymentSummary?.platformChargeRate || 10);
+              const platformFee = isPaid
+                ? Number(request.paymentSummary?.platformFeeAmount || request.financialSnapshot?.platformChargeAmount || Math.round((reserveAmount * platformRate) / 100))
+                : Math.round((reserveAmount * platformRate) / 100);
+
+              const totalAmount = isPaid
+                ? Number(request.paymentSummary?.totalPaidAmount || request.financialSnapshot?.totalPayable || (reserveAmount + platformFee))
+                : (reserveAmount + platformFee);
+
+              return (
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center text-slate-600">
+                    <span className="font-medium">Workers Selected</span>
+                    <span className="font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-full text-xs">
+                      {effectiveWorkerCount}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-slate-600">
+                    <span className="font-medium">Maximum Rate / Worker</span>
+                    <span className="font-bold text-slate-900">
+                      ₹{ratePerWorker.toLocaleString('en-IN')}
+                      <span className="text-xs text-slate-400 font-normal ml-1">/{request.rateUnit || 'day'}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-slate-600">
+                    <div>
+                      <span className="font-medium">Worker Payment Reserve</span>
+                      <span className="block text-[11px] text-slate-400">
+                        ₹{ratePerWorker.toLocaleString('en-IN')} × {effectiveWorkerCount}
+                      </span>
+                    </div>
+                    <span className="font-bold text-slate-900">
+                      ₹{reserveAmount.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-slate-600">
+                    <span className="font-medium">Platform Fee ({platformRate}%)</span>
+                    <span className="font-bold text-slate-900">
+                      +₹{platformFee.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-dashed border-slate-200 my-1" />
+
+                  <div className="flex justify-between items-center bg-teal-50/60 p-3 rounded-2xl border border-teal-100">
+                    <div>
+                      <span className="font-black text-teal-900 text-sm block">{isPaid ? 'Total Paid' : 'Total Payable'}</span>
+                      <span className="text-[10px] text-teal-700 font-medium">Reserve + Platform Fee</span>
+                    </div>
+                    <span className="text-xl font-black text-teal-700">
+                      ₹{totalAmount.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+              {/* Settlement & Refund Section */}
+              <div className="pt-2 space-y-2">
+                <div className="flex justify-between items-center text-slate-600">
+                  <span className="font-medium">Actual Worker Amount</span>
+                  <span className="font-bold text-slate-900">
+                    {request.paymentSummary?.actualWorkerAmount !== null && request.paymentSummary?.actualWorkerAmount !== undefined ? (
+                      `₹${Number(request.paymentSummary.actualWorkerAmount).toLocaleString('en-IN')}`
+                    ) : (
+                      <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        Pending / In Progress
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide">Refund Status</span>
+                    <span className={`text-xs font-black px-2.5 py-0.5 rounded-full border ${
+                      request.paymentSummary?.refundStatus === 'REFUNDED'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : request.paymentSummary?.refundStatus === 'PENDING'
+                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : 'bg-gray-100 text-gray-600 border-gray-200'
+                    }`}>
+                      {request.paymentSummary?.refundStatus || (request.refundCredited ? 'REFUNDED' : 'PENDING')}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-1 border-t border-emerald-100">
+                    <span className="text-sm font-bold text-emerald-900">Refund Amount</span>
+                    <span className="text-base font-black text-emerald-700">
+                      {request.paymentSummary?.refundAmount !== null && request.paymentSummary?.refundAmount !== undefined ? (
+                        `₹${Number(request.paymentSummary.refundAmount).toLocaleString('en-IN')}`
+                      ) : (
+                        <span className="text-xs font-medium text-emerald-600 italic">Pending Settlement</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <p className="text-[10px] text-emerald-600 leading-tight">
+                    {request.paymentSummary?.refundStatus === 'REFUNDED'
+                      ? 'Unused reserve has been credited to your AgroYilt wallet.'
+                      : 'Unused worker reserve will be automatically credited to your wallet once work is completed.'}
+                  </p>
+                </div>
+              </div>
+
+              {request.razorpayPaymentId && (
+                <div className="flex justify-between items-center text-xs text-slate-400 pt-1">
+                  <span>Payment Ref</span>
+                  <span className="font-mono text-slate-600">{request.razorpayPaymentId}</span>
+                </div>
+              )}
+            </div>
         )}
 
         {/* Work Description */}

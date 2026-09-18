@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+﻿import React, { memo } from 'react';
 import { AiFillStar } from 'react-icons/ai';
 import { themeColors } from '../../../../theme';
 

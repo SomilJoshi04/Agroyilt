@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+﻿import React, { useRef, useEffect } from 'react';
 import { createOptimizedScrollAnimation, createOptimizedStaggerAnimation } from '../../../../../utils/optimizedScrollTrigger';
 import ServiceWithRatingCard from '../../../components/common/ServiceWithRatingCard';
 import { themeColors } from '../../../../../theme';

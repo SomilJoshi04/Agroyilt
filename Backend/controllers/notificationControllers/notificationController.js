@@ -83,31 +83,17 @@ const createNotification = async ({
       else if (workerId) room = `worker_${workerId.toString()}`;
       else if (adminId) room = `admin_${adminId.toString()}`;
 
-      if (io && room) {
-        // Check if user is actively connected to the room
-        const roomSize = io.sockets.adapter.rooms.get(room)?.size || 0;
-        isOnline = roomSize > 0;
+      if (io) {
+        if (room) {
+          io.to(room).emit('notification', notification);
+          console.log(`[Notification]  Emitted socket notification to ${room}`);
+        }
+        if (adminId) {
+          io.to('admin_global').emit('notification', notification);
+        }
       }
     } catch (e) {
-      console.log('Socket check failed:', e.message);
-    }
-
-    // DECISION: If User is Online (Socket Connected) -> Send Socket Event ONLY (Skip Push)
-    // If User is Offline -> Send Push Notification
-
-    // Override skipPush if user is online (to avoid double notification)
-    if (isOnline) {
-      console.log(`[Notification] User ${room} is ONLINE. Sending Socket event.`);
-      // Prevent duplicate notification on active device
-      // skipPush = true; // REVERTED: Causes missing notifications if mobile app is background
-
-      // Emit Socket Event immediately
-      if (io && room) {
-        io.to(room).emit('notification', notification);
-      }
-    } else {
-      console.log(`[Notification] User ${room} is OFFLINE. Sending Push Notification.`);
-      // Socket emit useless here, but safe to ignore
+      console.log('Socket notification emit failed:', e.message);
     }
 
     // Send Push Notification (If not skipped)

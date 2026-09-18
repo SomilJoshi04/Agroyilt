@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiClock, FiCheckCircle, FiXCircle, FiMapPin, FiChevronRight, FiUser, FiSearch } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
@@ -125,7 +125,7 @@ const AssignedJobs = () => {
 
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
-      <Header title="My Jobs" showSearch={true} />
+      <Header title="My Jobs" showSearch={true} onBack={() => navigate('/worker/dashboard')} />
 
       <main className="px-4 py-6">
         {/* Search Bar */}
@@ -200,7 +200,7 @@ const AssignedJobs = () => {
               return (
                 <div
                   key={job._id}
-                  onClick={() => navigate(`/worker/job/${job._id}`)}
+                  onClick={() => navigate(`/worker/job/${job._id}`, { state: { fromJobs: true } })}
                   className="rounded-xl p-4 shadow-lg cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
                   style={{
                     background: 'linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%)',
@@ -252,7 +252,7 @@ const AssignedJobs = () => {
                           border: `1px solid ${hexToRgba(themeColors.button, 0.2)}`,
                         }}
                       >
-                        â‚¹{job.finalAmount}
+                        ₹{job.workerNetEarning || job.paymentSummary?.netEarning || (job.workerFinancials?.netEarnings ?? (job.finalAmount ? (job.providerType === 'WORKER' || job.bookingNumber?.startsWith('WRK-') ? Math.round(job.finalAmount * 0.9) : job.finalAmount) : 0))}
                       </div>
                     </div>
 
@@ -272,12 +272,100 @@ const AssignedJobs = () => {
                         <span className="text-gray-700 font-medium truncate">{job.address?.addressLine1 || 'Address not available'}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
-                          <FiClock className="w-4 h-4" style={{ color: statusColor }} />
-                        </div>
-                        <span className="text-gray-700 font-medium">{job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'N/A'} â€¢ {job.scheduledTime || 'N/A'}</span>
-                      </div>
+                      {(() => {
+                        const statusLower = (job.status || '').toLowerCase();
+                        const isCompleted = ['completed', 'work_done'].includes(statusLower);
+                        const isActive = ['in_progress', 'journey_started', 'visited'].includes(statusLower);
+
+                        const dateStr = job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString('en-IN', {
+                          month: 'numeric',
+                          day: 'numeric',
+                          year: 'numeric'
+                        }) : (job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-IN') : 'N/A');
+
+                        let startTimeStr = job.scheduledTime || '';
+                        let startDate = null;
+                        if (job.startedAt) startDate = new Date(job.startedAt);
+                        else if (job.inProgressAt) startDate = new Date(job.inProgressAt);
+                        else if (job.createdAt) startDate = new Date(job.createdAt);
+
+                        if (!startTimeStr && startDate) {
+                          startTimeStr = startDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+                        }
+
+                        let endDate = null;
+                        let endTimeStr = '';
+                        if (isCompleted) {
+                          if (job.completedAt) endDate = new Date(job.completedAt);
+                          else if (job.workDoneAt) endDate = new Date(job.workDoneAt);
+                          else if (job.updatedAt) endDate = new Date(job.updatedAt);
+
+                          if (endDate) {
+                            endTimeStr = endDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+                          }
+                        }
+
+                        let durationStr = null;
+                        if (isCompleted && endDate && startDate && endDate >= startDate) {
+                          const diffMs = endDate.getTime() - startDate.getTime();
+                          const totalSecs = Math.floor(diffMs / 1000);
+                          const hours = Math.floor(totalSecs / 3600);
+                          const mins = Math.floor((totalSecs % 3600) / 60);
+                          const secs = totalSecs % 60;
+                          if (hours > 0) durationStr = `${hours}h ${mins}m ${secs}s`;
+                          else if (mins > 0) durationStr = `${mins}m ${secs}s`;
+                          else durationStr = `${secs}s`;
+                        }
+
+                        if (isCompleted) {
+                          return (
+                            <div className="flex items-start gap-2 text-xs">
+                              <div className="p-1 rounded bg-emerald-50 text-emerald-600 shrink-0 mt-0.5">
+                                <FiClock className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-1 text-gray-700 font-medium">
+                                  <span>{dateStr}</span>
+                                  <span>•</span>
+                                  <span className="font-bold text-emerald-800">
+                                    {startTimeStr} {endTimeStr ? `→ ${endTimeStr}` : ''}
+                                  </span>
+                                  {durationStr && (
+                                    <span className="bg-emerald-100/70 text-emerald-800 text-[10px] font-black px-1.5 py-0.5 rounded-md">
+                                      {durationStr}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (isActive) {
+                          return (
+                            <div className="flex items-center gap-2 text-xs">
+                              <div className="p-1 rounded bg-amber-50 text-amber-600 shrink-0">
+                                <FiClock className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="text-amber-800 font-bold flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                                In Progress • Started at {startTimeStr || 'N/A'}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
+                              <FiClock className="w-4 h-4" style={{ color: statusColor }} />
+                            </div>
+                            <span className="text-gray-700 font-medium">
+                              {dateStr} • {startTimeStr || 'N/A'}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -291,6 +379,3 @@ const AssignedJobs = () => {
 };
 
 export default AssignedJobs;
-
-
-

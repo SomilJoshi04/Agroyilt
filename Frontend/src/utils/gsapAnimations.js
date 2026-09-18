@@ -1,4 +1,4 @@
-import { gsap } from 'gsap';
+﻿import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 // Register ScrollTrigger plugin
@@ -337,4 +337,5 @@ export const cleanupScrollTriggers = () => {
     // ScrollTrigger may not be initialized in some contexts; safe to ignore.
   }
 };
+
 

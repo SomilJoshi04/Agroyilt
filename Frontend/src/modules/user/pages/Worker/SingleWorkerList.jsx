@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -142,7 +142,7 @@ const FilterPanel = ({ filters, setFilters, onClose }) => (
                 onClick={() => setFilters(p => ({ ...p, minRating: r }))}
                 className={`flex-1 py-2 rounded-2xl text-xs font-black border transition-all ${filters.minRating === r ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
               >
-                {r === 0 ? 'Any' : `${r}+⭐`}
+                {r === 0 ? 'Any' : `${r}+ ★`}
               </button>
             ))}
           </div>
@@ -224,7 +224,7 @@ const WorkerDetailsModal = ({ worker, onClose, onHire }) => {
               </h2>
               <div className="flex items-center gap-3 mt-1">
                 <StarRow rating={worker.rating} />
-                <span className="text-xs text-slate-400 font-bold">• {worker.completedJobs || 0} Jobs Done</span>
+                <span className="text-xs text-slate-400 font-bold">? {worker.completedJobs || 0} Jobs Done</span>
               </div>
             </div>
             <div className="text-right shrink-0">
@@ -377,7 +377,7 @@ const SingleWorkerList = () => {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-4xl mb-4">👷</p>
+            <FiUser className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p className="font-black text-slate-700 text-lg">No Workers Found</p>
             <p className="text-slate-500 text-sm mt-2">Try adjusting your filters or search terms.</p>
           </div>

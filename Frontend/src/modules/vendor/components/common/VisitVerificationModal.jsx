@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toastManager } from '../../../../utils/toastManager';
 import { FiX, FiCheckCircle } from 'react-icons/fi';
@@ -47,13 +47,13 @@ const VisitVerificationModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
 
     // Auto-focus next input
     if (sanitized && index < 3) {
-      document.getElementById(`visit-otp-${index + 1}`)?.focus();
+      document.getElementById(`visit-otp-${index + 1}`) ?.focus();
     }
   };
 
   const handleKeyDown = (index, e) => {
     if (e.key === 'Backspace' && !otpInput[index] && index > 0) {
-      document.getElementById(`visit-otp-${index - 1}`)?.focus();
+      document.getElementById(`visit-otp-${index - 1}`) ?.focus();
     }
   };
 

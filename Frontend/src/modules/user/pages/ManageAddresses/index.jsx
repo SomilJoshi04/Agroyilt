@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toastManager } from '../../../../utils/toastManager';
 import { FiArrowLeft, FiPlus, FiMoreVertical, FiEdit2, FiTrash2, FiMapPin, FiNavigation } from 'react-icons/fi';
@@ -65,7 +65,7 @@ const ManageAddresses = () => {
   };
 
   const getComponent = (components, type) => {
-    return components?.find(c => c.types.includes(type))?.long_name || '';
+    return components?.find(c => c.types.includes(type)) ?.long_name || '';
   };
 
   const handleSaveAddress = async (savedHouseNumber, locationObj) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
     FiChevronLeft,
     FiMapPin,
@@ -620,7 +620,7 @@ const SoilTesting = () => {
                                                     className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-12 font-bold outline-none text-left flex items-center justify-between transition-all text-slate-700"
                                                 >
                                                     <FiFileText className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-                                                    <span className="truncate text-sm">{testOptions.find(o => o.value === formData.testType)?.label}</span>
+                                                    <span className="truncate text-sm">{testOptions.find(o => o.value === formData.testType) ?.label}</span>
                                                     <FiChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                                                 </button>
 

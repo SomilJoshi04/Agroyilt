@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { FaReact, FaNodeJs, FaWhatsapp } from 'react-icons/fa';
 import { SiFirebase, SiExpress, SiGooglemaps } from 'react-icons/si';

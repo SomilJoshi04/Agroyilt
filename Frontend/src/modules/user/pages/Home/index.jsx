@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -125,7 +125,7 @@ const Home = () => {
       const components = locationObj.components || locationObj.address_components;
       let city = '';
       if (components) {
-        const getComponent = (type) => components.find(c => c.types.includes(type))?.long_name || '';
+        const getComponent = (type) => components.find(c => c.types.includes(type)) ?.long_name || '';
         city = getComponent('locality') || getComponent('administrative_area_level_2');
       }
 
@@ -193,7 +193,7 @@ const Home = () => {
                 if (data.status === 'OK' && data.results.length > 0) {
                   const result = data.results[0];
                   const getComponent = (type) =>
-                    result.address_components.find(c => c.types.includes(type))?.long_name || '';
+                    result.address_components.find(c => c.types.includes(type)) ?.long_name || '';
 
                   const area = getComponent('sublocality_level_1') || getComponent('neighborhood') || getComponent('locality');
                   const city = getComponent('locality') || getComponent('administrative_area_level_2');
@@ -555,14 +555,14 @@ const Home = () => {
               }}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(251,146,60,0.18)', border: '1px solid rgba(251,146,60,0.35)' }}>
+                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(251₹46,60,0.18)', border: '1px solid rgba(251₹46,60,0.35)' }}>
                   <span className="text-sm">📍</span>
                 </div>
                 <div className="min-w-0">
                   <p className="text-[11.5px] font-black text-white leading-tight" style={{ letterSpacing: '0.01em' }}>
                     Service not available in your city
                   </p>
-                  <p className="text-[9.5px] font-semibold leading-tight" style={{ color: 'rgba(251,146,60,0.75)' }}>
+                  <p className="text-[9.5px] font-semibold leading-tight" style={{ color: 'rgba(251₹46,60,0.75)' }}>
                     Showing All-India default catalog
                   </p>
                 </div>
@@ -573,7 +573,7 @@ const Home = () => {
                 style={{
                   background: 'linear-gradient(135deg, #f97316, #ea580c)',
                   color: '#fff',
-                  boxShadow: '0 2px 8px rgba(249,115,22,0.45)'
+                  boxShadow: '0 2px 8px rgba(249₹15,22,0.45)'
                 }}
               >
                 Change

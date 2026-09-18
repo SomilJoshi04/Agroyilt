@@ -53,7 +53,9 @@ exports.updateSettings = async (req, res, next) => {
       supportEmail, supportPhone, supportWhatsapp,
       // Branding Settings
       appName, appTagline, appLogo, appFavicon,
-      // Worker Hiring Routing Rules
+      // Worker Hiring & Commission Rules
+      workerCommissionPercentage,
+      workerPlatformChargePercentage,
       maxIndependentWorkerRequest,
       workerSearchRadiusKm
     } = req.body;
@@ -127,7 +129,19 @@ exports.updateSettings = async (req, res, next) => {
       if (appLogo !== undefined) settings.appLogo = appLogo;
       if (appFavicon !== undefined) settings.appFavicon = appFavicon;
 
-      // Worker Hiring Routing Rules
+      // Worker Hiring & Commission Rules
+      if (workerCommissionPercentage !== undefined) {
+        const val = Number(workerCommissionPercentage);
+        if (!isNaN(val) && val >= 0 && val <= 100) {
+          settings.workerCommissionPercentage = val;
+        }
+      }
+      if (workerPlatformChargePercentage !== undefined) {
+        const val = Number(workerPlatformChargePercentage);
+        if (!isNaN(val) && val >= 0 && val <= 100) {
+          settings.workerPlatformChargePercentage = val;
+        }
+      }
       if (maxIndependentWorkerRequest !== undefined) {
         const val = parseInt(maxIndependentWorkerRequest, 10);
         if (isNaN(val) || val < 1) {

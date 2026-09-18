@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { FiShoppingBag, FiMapPin, FiPhone, FiMail, FiUser, FiExternalLink, FiSearch, FiCheckCircle, FiEye, FiX } from 'react-icons/fi';
 import api from '../../../../services/api';
 import { toastManager } from '../../../../utils/toastManager';

@@ -46,7 +46,7 @@ const LiveBookingCard = ({ hasBottomNav }) => {
       case 'JOURNEY_STARTED':
         return { label: 'Worker on the Way', icon: FiNavigation, color: 'bg-orange-500', sub: 'Track location live', pulse: true };
       case 'VISITED':
-        return { label: 'Reached & Started Work', icon: FiMapPin, color: 'bg-green-500', sub: 'At your location • Work Started' };
+        return { label: 'Reached & Started Work', icon: FiMapPin, color: 'bg-green-500', sub: 'At your location ? Work Started' };
       case 'IN_PROGRESS':
         return { label: 'Reached & Working', icon: FiTool, color: 'bg-purple-500', sub: 'Work successfully started' };
       case 'WORK_DONE':
@@ -106,8 +106,9 @@ const LiveBookingCard = ({ hasBottomNav }) => {
         // Find the first booking that is in an active state (checking both cases to be safe)
         const ongoing = res.data.find(b => {
           const s = b.status?.toUpperCase();
-          // Hide LiveBookingCard if status is WORK_DONE and review is already done
-          if (s === 'WORK_DONE' && b.rating) return false;
+          if (s === 'COMPLETED' || s === 'CANCELLED') return false;
+          // Hide LiveBookingCard if status is WORK_DONE and review is already done or settlement completed
+          if (s === 'WORK_DONE' && (b.rating || b.settlementStatus === 'completed' || b.workerPaymentStatus === 'paid')) return false;
 
           return ['ASSIGNED', 'STARTED', 'JOURNEY_STARTED', 'VISITED', 'IN_PROGRESS', 'WORK_DONE', 'SEARCHING', 'REQUESTED'].includes(s);
         });
@@ -213,7 +214,7 @@ const LiveBookingCard = ({ hasBottomNav }) => {
               {statusInfo.label}
             </h4>
             <p className="text-xs text-gray-500 truncate">
-              {statusInfo.sub} • {activeBooking.serviceName}
+              {statusInfo.sub} ? {activeBooking.serviceName}
             </p>
           </div>
 

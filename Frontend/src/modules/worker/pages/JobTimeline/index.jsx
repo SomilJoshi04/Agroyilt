@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiCheck, FiClock, FiUser, FiMapPin, FiTool, FiDollarSign, FiCheckCircle, FiX, FiNavigation } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
@@ -377,7 +377,7 @@ const JobTimeline = () => {
                       {stage.timestamp && (
                         <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mt-2 flex items-center gap-1">
                           <FiClock className="w-3 h-3" />
-                          {new Date(stage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(stage.timestamp).toLocaleDateString()}
+                          {new Date(stage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ? {new Date(stage.timestamp).toLocaleDateString()}
                         </p>
                       )}
 

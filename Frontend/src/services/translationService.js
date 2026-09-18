@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Frontend Translation Service
  * Implements request batching and queuing to minimize API calls.
  */

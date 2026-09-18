@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { 
     FiPackage, 
     FiTruck, 
@@ -308,8 +308,8 @@ const EcommerceOrders = () => {
                                                 <p className="text-slate-800 font-extrabold text-sm">{item.name}</p>
                                                 <p className="text-slate-400 mt-0.5 font-bold">
                                                     {item.productId?.unit || 'bag'}
-                                                    {item.bagWeight ? ` • ${item.bagWeight}kg` : ''}
-                                                    {` • ₹${item.price} per unit`}
+                                                    {item.bagWeight ? ` ? ${item.bagWeight}kg` : ''}
+                                                    {` ? ₹${item.price} per unit`}
                                                 </p>
                                             </div>
                                             <p className="text-slate-800 font-black text-sm text-right">

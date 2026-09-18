@@ -1,4 +1,4 @@
-// JobMap component for tracking worker journey and arrival verification
+﻿// JobMap component for tracking worker journey and arrival verification
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -169,7 +169,7 @@ const JobMap = () => {
     }
 
     setIsSimulating(true);
-    toastManager.success('🚀 Simulation started! Following the road.');
+    toastManager.success('Simulation started. Following the road.');
 
     // Generate detailed points along the specific road path
     const pathPoints = [];
@@ -215,7 +215,7 @@ const JobMap = () => {
     simulationRef.current = setInterval(() => {
       if (pathIndex >= pathPoints.length) {
         stopSimulation();
-        toastManager.success('✅ Arrived at destination!');
+        toastManager.success('Arrived at destination.');
         return;
       }
 
@@ -721,7 +721,7 @@ const JobMap = () => {
             className={`absolute top-56 right-4 px-4 py-3 rounded-full shadow-2xl transition-all active:scale-90 z-50 text-xs font-bold ${isSimulating ? 'bg-red-500 text-white' : 'bg-purple-600 text-white'}`}
             style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}
           >
-            {isSimulating ? '⏹ Stop' : '🚀 Simulate'}
+            {isSimulating ? 'Stop Simulation' : 'Simulate'}
           </button>
         )}
       </div>

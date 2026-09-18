@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiMapPin } from 'react-icons/fi';
 import { Helmet } from 'react-helmet-async';
@@ -102,7 +102,7 @@ const AllMachineryCategories = () => {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-100 to-emerald-50 text-green-600 text-lg font-black">
-                            {category.title?.charAt(0)?.toUpperCase() || '?'}
+                            {category.title?.charAt(0) ?.toUpperCase() || '?'}
                           </div>
                         )
                       }

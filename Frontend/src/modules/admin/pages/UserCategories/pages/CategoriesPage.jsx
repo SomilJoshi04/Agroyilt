@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { FiGrid, FiPlus, FiEdit2, FiTrash2, FiSave, FiChevronUp, FiChevronDown, FiMove, FiX, FiSearch } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
@@ -64,7 +64,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
   const getCategoryId = (value) => {
     if (!value) return null;
     if (typeof value === "string") return value;
-    if (typeof value === "object") return (value.id || value._id || null)?.toString?.() || null;
+    if (typeof value === "object") return (value.id || value._id || null) ?.toString?.() || null;
     return value?.toString?.() || null;
   };
 
@@ -72,7 +72,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
     if (!value) return "";
     if (typeof value === "object" && value.title) return value.title;
     const id = getCategoryId(value);
-    return categoriesBase.find(cat => cat.id === id)?.title || "";
+    return categoriesBase.find(cat => cat.id === id) ?.title || "";
   };
 
   const categoriesFiltered = useMemo(() => {
@@ -107,7 +107,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
 
       if (response.success && response.categories) {
         const mapped = response.categories.map(cat => ({
-          id: (cat.id || cat._id?.$oid || cat._id)?.toString() || "",
+          id: (cat.id || cat._id?.$oid || cat._id) ?.toString() || "",
           title: cat.title,
           slug: cat.slug,
           homeIconUrl: cat.homeIconUrl || "",
@@ -218,7 +218,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
   };
 
   const normalizeCategory = (cat) => ({
-    id: (cat.id || cat._id?.$oid || cat._id)?.toString() || "",
+    id: (cat.id || cat._id?.$oid || cat._id) ?.toString() || "",
     title: cat.title,
     slug: cat.slug,
     homeIconUrl: cat.homeIconUrl || "",
@@ -457,7 +457,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, cities = [] }) => {
                           </span>
                         ) : (
                           <span className="inline-block whitespace-nowrap px-2 py-1 bg-blue-50 text-blue-700 rounded text-[10px] font-black border border-blue-200 w-fit">
-                            {cities?.find(cty => cty._id === c.city || cty.id === c.city)?.name || c.city || 'CITY SPECIFIC'}
+                            {cities?.find(cty => cty._id === c.city || cty.id === c.city) ?.name || c.city || 'CITY SPECIFIC'}
                           </span>
                         )}
                       </div>

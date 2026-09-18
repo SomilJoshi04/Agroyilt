@@ -156,7 +156,7 @@ const Wallet = () => {
 
   return (
     <div className="min-h-screen pb-24" style={{ background: themeColors.backgroundGradient }}>
-      <Header title="My Wallet" />
+      <Header title="My Wallet" onBack={() => navigate('/worker/dashboard')} />
 
       <main className="px-4 py-6">
         {/* Balance Card */}
@@ -165,14 +165,16 @@ const Wallet = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-white/80 text-sm font-medium mb-1">Available Balance</p>
-                <p className="text-3xl font-bold mb-4">₹{wallet.balance?.toLocaleString() || 0}</p>
+                <p className="text-3xl font-bold mb-4">
+                  ₹{Number(wallet?.balance ?? wallet?.wallet?.balance ?? 0).toLocaleString('en-IN')}
+                </p>
               </div>
               <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
                 <FiDollarSign className="w-6 h-6 text-white" />
               </div>
             </div>
             <div className="w-full bg-white/10 text-white py-2 rounded-xl font-medium text-xs text-center border border-white/20">
-              {wallet.vendorId ? 'Payments are managed by your Vendor' : 'Direct Platform Payouts Active'}
+              {(wallet?.vendorId || wallet?.wallet?.vendorId) ? 'Payments are managed by your Vendor' : 'Direct Platform Payouts Active'}
             </div>
           </div>
         </div>

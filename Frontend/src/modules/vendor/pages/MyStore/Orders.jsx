@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
     FiChevronLeft, 
@@ -268,7 +268,7 @@ const StoreOrders = () => {
                                             <p className="font-bold text-slate-800 text-sm">{order.items[0]?.name || 'Item'} {order.items?.length > 1 && `(+${order.items.length - 1})`}</p>
                                             <p className="text-xs text-slate-500 font-medium my-0.5">
                                                 Qty: {order.items[0]?.quantity || 1} {order.items[0]?.productId?.unit || 'bag'}{order.items[0]?.quantity > 1 ? 's' : ''}
-                                                {order.items[0]?.bagWeight ? ` • ${order.items[0]?.bagWeight}kg` : ''}
+                                                {order.items[0]?.bagWeight ? ` ? ${order.items[0]?.bagWeight}kg` : ''}
                                             </p>
                                             <p className="text-[10px] text-teal-600 font-bold">{format(new Date(order.createdAt), 'dd MMM, hh:mm a')}</p>
                                             {order.trackingDetails?.courierName && (

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader, FiPower, FiTrash2, FiPlus, FiUpload } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -831,7 +831,7 @@ const AllOwners = () => {
                         <input type="text" placeholder="Shop Name *" required maxLength="50" className={`w-full text-xs p-2 rounded border outline-none transition-colors ${shopFormData.shopName.length > 0 && !/^[A-Za-z0-9\s.,&'-]{3,50}$/.test(shopFormData.shopName) ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'}`} value={shopFormData.shopName} onChange={e => setShopFormData({...shopFormData, shopName: e.target.value})} />
                       </div>
                       <div>
-                        <input type="text" placeholder="License No. (e.g. GSTIN / 07AABCD1234E1Z5)" maxLength="15" className={`w-full text-xs p-2 rounded border outline-none transition-colors ${shopFormData.shopLicense.length > 0 && !/^[A-Za-z0-9-]{5,15}$/.test(shopFormData.shopLicense) ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'}`} value={shopFormData.shopLicense} onChange={e => setShopFormData({...shopFormData, shopLicense: e.target.value.toUpperCase()})} />
+                        <input type="text" placeholder="License No. (e.g. GSTIN / 07AABCD1234E1Z5)" maxLength="15" className={`w-full text-xs p-2 rounded border outline-none transition-colors ${shopFormData.shopLicense.length > 0 && !/^[A-Za-z0-9-]{5₹5}$/.test(shopFormData.shopLicense) ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'}`} value={shopFormData.shopLicense} onChange={e => setShopFormData({...shopFormData, shopLicense: e.target.value.toUpperCase()})} />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-xs font-semibold text-gray-700 mb-1">Pin Shop Location on Map</label>

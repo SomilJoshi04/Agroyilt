@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+﻿import React, { useRef, useEffect } from 'react';
 import { createOptimizedScrollAnimation, createOptimizedStaggerAnimation } from '../../../../../utils/optimizedScrollTrigger';
 import SimpleServiceCard from '../../../components/common/SimpleServiceCard';
 import waterPurifierImage from '../../../../../assets/images/pages/Home/NewAndNoteworthy/water-purifiers.png';

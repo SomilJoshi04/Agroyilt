@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiCheckCircle, FiClock, FiTrendingUp, FiChevronRight, FiUser, FiBell, FiMapPin, FiArrowRight } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
@@ -10,7 +10,7 @@ import { SkeletonProfileHeader, SkeletonDashboardStats, SkeletonList } from '../
 import OptimizedImage from '../../../../components/common/OptimizedImage';
 import { useSocket } from '../../../../context/SocketContext';
 import WorkerJobAlertModal from '../../components/bookings/WorkerJobAlertModal';
-import WorkerBookingRequestAlertModal from '../../components/bookings/WorkerBookingRequestAlertModal';
+// WorkerBookingRequestAlertModal is handled globally in WorkerRoutes
 import LogoLoader from '../../../../components/common/LogoLoader';
 
 
@@ -84,7 +84,7 @@ const Dashboard = () => {
   const socket = useSocket();
 
   const [alertJobId, setAlertJobId] = useState(null);
-  const [incomingRequestData, setIncomingRequestData] = useState(null);
+
 
 
   // Fetch Dashboard Data Function
@@ -110,7 +110,7 @@ const Dashboard = () => {
           address: profile.address,
           workerType: profile.workerType || 'WORKER',
           teamId: profile.teamId || null,
-          status: profile.status || 'OFFLINE',
+          status: (profile.status === 'ONLINE' || profile.status === 'AVAILABLE' || profile.status === 'active') ? 'ONLINE' : (profile.status || 'OFFLINE'),
         });
       }
 
@@ -142,25 +142,32 @@ const Dashboard = () => {
       }
 
       // If there's any pending request, pop it up
-      if (pendingRequestsRes.success && pendingRequestsRes.data?.length > 0) {
+      if (pendingRequestsRes?.success && pendingRequestsRes.data?.length > 0) {
         const reqDoc = pendingRequestsRes.data[0];
-        setIncomingRequestData({
-          requestId:       reqDoc._id,
-          farmerId:        reqDoc.farmerId,
-          workTitle:       reqDoc.workTitle,
-          workCategory:    reqDoc.workCategory,
-          workDescription: reqDoc.workDescription,
-          requiredSkills:  reqDoc.requiredSkills,
-          requiredWorkers: reqDoc.requiredWorkers,
-          scheduledDate:   reqDoc.scheduledDate,
-          startTime:       reqDoc.startTime,
-          endTime:         reqDoc.endTime,
-          location:        reqDoc.location,
-          minRate:         reqDoc.minRate,
-          maxRate:         reqDoc.maxRate,
-          rateUnit:        reqDoc.rateUnit,
-          isFarmerBroadcast: true
-        });
+        if (reqDoc && reqDoc._id && (reqDoc.minRate || reqDoc.maxRate || reqDoc.farmerOfferedRate)) {
+          window.dispatchEvent(new CustomEvent('workerIncomingBooking', {
+            detail: {
+              data: {
+                requestId:       reqDoc._id,
+                farmerId:        reqDoc.farmerId,
+                workTitle:       reqDoc.workTitle,
+                workCategory:    reqDoc.workCategory,
+                workDescription: reqDoc.workDescription,
+                requiredSkills:  reqDoc.requiredSkills,
+                requiredWorkers: reqDoc.requiredWorkers,
+                scheduledDate:   reqDoc.scheduledDate,
+                startTime:       reqDoc.startTime,
+                endTime:         reqDoc.endTime,
+                location:        reqDoc.location,
+                minRate:         reqDoc.minRate,
+                maxRate:         reqDoc.maxRate,
+                rateUnit:        reqDoc.rateUnit,
+                isFarmerBroadcast: true
+              },
+              relatedId: reqDoc._id
+            }
+          }));
+        }
       }
 
       setLoading(false);
@@ -177,7 +184,8 @@ const Dashboard = () => {
     
     try {
       setIsTogglingStatus(true);
-      const newStatus = workerProfile.status === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
+      const isCurrentlyOnline = workerProfile.status === 'ONLINE' || workerProfile.status === 'AVAILABLE' || workerProfile.status === 'active';
+      const newStatus = isCurrentlyOnline ? 'OFFLINE' : 'ONLINE';
       
       const res = await workerService.updateProfile({ status: newStatus });
       
@@ -203,17 +211,14 @@ const Dashboard = () => {
       fetchDashboardData();
     };
     
-    const handleIncomingBooking = (e) => {
-      console.log('Incoming Booking Request:', e.detail);
-      setIncomingRequestData(e.detail.data);
-    };
+    
 
     window.addEventListener('workerJobsUpdated', handleUpdate);
-    window.addEventListener('workerIncomingBooking', handleIncomingBooking);
+
 
     return () => {
       window.removeEventListener('workerJobsUpdated', handleUpdate);
-      window.removeEventListener('workerIncomingBooking', handleIncomingBooking);
+
     };
 
   }, []);
@@ -314,9 +319,9 @@ const Dashboard = () => {
                   onClick={handleToggleStatus}
                   className="inline-flex items-center gap-1.5 mt-1 bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md px-3 py-1 rounded-full cursor-pointer border border-white/30"
                 >
-                  <div className={`w-2 h-2 rounded-full ${workerProfile.status === 'ONLINE' ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]' : 'bg-red-400'}`}></div>
+                  <div className={`w-2 h-2 rounded-full ${(workerProfile.status === 'ONLINE' || workerProfile.status === 'AVAILABLE' || workerProfile.status === 'active') ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]' : 'bg-red-400'}`}></div>
                   <span className="text-xs font-bold text-white tracking-wide">
-                    {isTogglingStatus ? 'UPDATING...' : (workerProfile.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE')}
+                    {isTogglingStatus ? 'UPDATING...' : ((workerProfile.status === 'ONLINE' || workerProfile.status === 'AVAILABLE' || workerProfile.status === 'active') ? 'ONLINE' : 'OFFLINE')}
                   </span>
                 </div>
               </div>
@@ -388,7 +393,7 @@ const Dashboard = () => {
                   <div className="flex-1">
                     <p className="text-xs text-white font-semibold mb-1 opacity-90 uppercase tracking-wide">This Month</p>
                     <p className="text-2xl font-bold text-white leading-tight">
-                      ₹{stats.thisMonthEarnings.toLocaleString()}
+                      {'\u20B9'}{stats.thisMonthEarnings.toLocaleString()}
                     </p>
                   </div>
                   <div
@@ -758,16 +763,11 @@ const Dashboard = () => {
         }}
       />
 
-      <WorkerBookingRequestAlertModal
-        isOpen={!!incomingRequestData}
-        requestData={incomingRequestData}
-        onClose={() => setIncomingRequestData(null)}
-        onRequestResponded={() => fetchDashboardData()}
-      />
 
     </div>
   );
 };
 
 export default Dashboard;
+
 
