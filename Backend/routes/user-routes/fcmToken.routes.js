@@ -62,8 +62,7 @@ router.post('/save', authenticate, async (req, res) => {
     res.json({
       success: true,
       message: 'FCM token saved successfully',
-      role: req.user?.role || 'user',
-      fcmToken: token
+      role: req.user?.role || 'user'
     });
   } catch (error) {
     console.error('Error saving FCM token:', error);
