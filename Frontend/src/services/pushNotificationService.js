@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Push Notification Service
  * Handles FCM token registration and notification handling
  * 
@@ -223,14 +223,8 @@ async function saveTokenToBackend(token, userType, platform) {
 
     const payload = {
       token: token,
-      platform: platform,
-      appVersion: '1.0.0'
+      platform: platform
     };
-
-    if (platform === 'web') {
-      payload.deviceId = getOrCreateDeviceId();
-      payload.browser = getBrowserName();
-    }
 
     const response = await fetch(`${baseUrl}${endpoint}`, {
       method: 'POST',

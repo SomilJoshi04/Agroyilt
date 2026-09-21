@@ -1,4 +1,4 @@
-﻿import api from '../../../services/api';
+import api from '../../../services/api';
 import { registerFCMToken } from '../../../services/pushNotificationService';
 
 /**
@@ -120,9 +120,9 @@ export const logout = async () => {
  */
 export const register = async (vendorData) => {
   try {
-    console.log('Calling vendor register API with data:', vendorData);
+    console.log('[VENDOR AUTH] Initiating vendor registration request');
     const response = await api.post('/vendors/auth/register', vendorData);
-    console.log('Vendor register API response:', response.data);
+    console.log('[VENDOR AUTH] Vendor registration request completed');
     if (response.data.success && response.data.accessToken) {
       localStorage.setItem('vendorAccessToken', response.data.accessToken);
       localStorage.setItem('vendorRefreshToken', response.data.refreshToken);

@@ -200,7 +200,7 @@ const createCategory = async (req, res) => {
       bookingType
     } = req.body;
 
-    console.log('Creating category with payload:', req.body);
+    console.log('[CATEGORY] Creating category:', title);
 
     const slugToCheck = slug?.trim().toLowerCase() || title.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
     const finalScope = scope || (cityIds && cityIds.length > 0 ? 'CITY_SPECIFIC' : 'GLOBAL');
@@ -320,10 +320,7 @@ const updateCategory = async (req, res) => {
       bookingType
     } = req.body;
 
-    const category = await Category.findById(id);
-    console.log('[updateCategory] Request body parentCategories:', parentCategories, '| id:', id);
-    console.log('[updateCategory] Full req.body:', req.body);
-    console.log('[updateCategory] sectionType received:', sectionType);
+    console.log('[updateCategory] Request updating id:', id);
 
     if (!category) {
       return res.status(404).json({

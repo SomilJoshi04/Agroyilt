@@ -6,7 +6,8 @@ const Service = require('../models/Service');
 // Create Plan
 exports.createPlan = async (req, res) => {
   try {
-    console.log('DEBUG: Create Plan Body:', JSON.stringify(req.body, null, 2));
+    // Log operation safely without full payload dump
+    console.log('[PLAN] Creating plan:', req.body?.name);
     const { name, price, highlights, validityDays, freeCategories, freeBrands, freeServices,
             marketplaceDiscountPercentage, rentalDiscountPercentage } = req.body;
 
@@ -68,8 +69,7 @@ exports.getPlanById = async (req, res) => {
 // Update Plan
 exports.updatePlan = async (req, res) => {
   try {
-    console.log('DEBUG: Update Plan ID:', req.params.id);
-    console.log('DEBUG: Update Plan Body:', JSON.stringify(req.body, null, 2));
+    console.log('[PLAN] Updating plan:', req.params.id);
     const plan = await Plan.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
     res.status(200).json({ success: true, data: plan });

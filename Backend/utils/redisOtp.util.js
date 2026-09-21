@@ -3,7 +3,8 @@ const { getRedis, isRedisConnected } = require('../services/redisService');
 const Token = require('../models/Token'); // Fallback model
 const { TOKEN_TYPES } = require('./constants'); // Need to ensure constants file is reachable or define types here
 // Note: imports might need adjustment based on directory structure. 
-// constants is in ../utils/constants.js usually, but this file is in utils/ so ./constants
+// Helper to mask phone numbers in logs
+const maskPhone = (phone) => (phone && phone.length >= 4 ? `${phone.slice(0, 2)}****${phone.slice(-2)}` : '****');
 
 // Constants if not imported
 const OTP_EXPIRY = parseInt(process.env.OTP_EXPIRY_SECONDS) || 300;
@@ -44,7 +45,7 @@ const checkRateLimit = async (phone) => {
   // iOS Test Numbers - Always allow, never rate limit
   const TEST_NUMBERS = ['6268455485', '6260491554'];
   if (TEST_NUMBERS.includes(phone)) {
-    console.log(`[OTP] iOS test number, skipping rate limit for ${phone}`);
+    console.log(`[OTP] iOS test number, skipping rate limit for ${maskPhone(phone)}`);
     return true;
   }
 
@@ -79,7 +80,7 @@ const storeOTP = async (phone, otpHash) => {
       const key = `otp:${phone}`;
       const data = JSON.stringify({ hash: otpHash, attempts: 0 });
       await redis.set(key, data, 'EX', OTP_EXPIRY);
-      console.log(`[OTP] Stored in Redis for ${phone}`);
+      console.log(`[OTP] Stored in Redis for ${maskPhone(phone)}`);
       return true;
     } catch (err) {
       console.error('[OTP] Redis store failed, falling back to MongoDB:', err);
@@ -100,7 +101,7 @@ const storeOTP = async (phone, otpHash) => {
       expiresAt: new Date(Date.now() + OTP_EXPIRY * 1000),
       attempts: 0
     });
-    console.log(`[OTP] Stored in MongoDB (Fallback) for ${phone}`);
+    console.log(`[OTP] Stored in MongoDB (Fallback) for ${maskPhone(phone)}`);
     return true;
   } catch (err) {
     console.error('[OTP] MongoDB fallback failed:', err);
@@ -113,18 +114,18 @@ const storeOTP = async (phone, otpHash) => {
  * Returns: { success: true/false, message: string }
  */
 const verifyOTP = async (phone, plainOtp) => {
-  console.log(`[OTP] Verifying OTP for phone: ${phone}, OTP: ${plainOtp}`);
+  const maskedPhone = maskPhone(phone);
+  console.log(`[OTP] Verifying OTP for phone: ${maskedPhone}`);
 
   // iOS Test Numbers - Bypass OTP verification for App Store review
   const TEST_NUMBERS = ['6268455485', '6260491554'];
   if (TEST_NUMBERS.includes(phone) && plainOtp === '123456') {
-    console.log(`[OTP] ✅ iOS Test number bypass for ${phone}`);
+    console.log(`[OTP] ✅ iOS Test number bypass for ${maskPhone(phone)}`);
     return { success: true };
   }
 
   const redis = getRedis();
   const inputHash = hashOTP(plainOtp);
-  console.log(`[OTP] Input OTP hash: ${inputHash.substring(0, 10)}...`);
 
   // 1. Try Redis
   if (isRedisConnected() && redis) {
@@ -133,13 +134,13 @@ const verifyOTP = async (phone, plainOtp) => {
       const data = await redis.get(key);
 
       if (data) {
-        console.log(`[OTP] Found in Redis for ${phone}`);
+        console.log(`[OTP] Found in Redis for ${maskPhone(phone)}`);
         const otpData = JSON.parse(data);
 
         // Check attempts
         if (otpData.attempts >= MAX_ATTEMPTS) {
           await redis.del(key);
-          console.log(`[OTP] Max attempts exceeded for ${phone}`);
+          console.log(`[OTP] Max attempts exceeded for ${maskPhone(phone)}`);
           return { success: false, message: 'Too many attempts. Please request new OTP.' };
         }
 
@@ -151,16 +152,16 @@ const verifyOTP = async (phone, plainOtp) => {
           if (ttl > 0) {
             await redis.set(key, JSON.stringify(otpData), 'EX', ttl);
           }
-          console.log(`[OTP] Invalid OTP for ${phone}, attempts: ${otpData.attempts}`);
+          console.log(`[OTP] Invalid OTP for ${maskPhone(phone)}, attempts: ${otpData.attempts}`);
           return { success: false, message: 'Invalid OTP' };
         }
 
         // Success
         await redis.del(key);
-        console.log(`[OTP] ✅ Verification successful for ${phone}`);
+        console.log(`[OTP] ✅ Verification successful for ${maskPhone(phone)}`);
         return { success: true };
       } else {
-        console.log(`[OTP] Not found in Redis for ${phone}, checking MongoDB...`);
+        console.log(`[OTP] Not found in Redis for ${maskPhone(phone)}, checking MongoDB...`);
       }
     } catch (err) {
       console.error('[OTP] Redis verify failed, trying MongoDB:', err);
@@ -176,23 +177,23 @@ const verifyOTP = async (phone, plainOtp) => {
     });
 
     if (!tokenDoc) {
-      console.log(`[OTP] ❌ Not found in MongoDB for ${phone}`);
+      console.log(`[OTP] ❌ Not found in MongoDB for ${maskPhone(phone)}`);
       return { success: false, message: 'Invalid or expired OTP. Please request a new one.' };
     }
 
-    console.log(`[OTP] Found in MongoDB for ${phone}`);
+    console.log(`[OTP] Found in MongoDB for ${maskPhone(phone)}`);
 
     // Check expiry
     if (tokenDoc.expiresAt < new Date()) {
       await Token.deleteOne({ _id: tokenDoc._id });
-      console.log(`[OTP] Expired in MongoDB for ${phone}`);
+      console.log(`[OTP] Expired in MongoDB for ${maskPhone(phone)}`);
       return { success: false, message: 'OTP expired. Please request a new one.' };
     }
 
     // Check attempts
     if (tokenDoc.attempts >= MAX_ATTEMPTS) {
       await Token.deleteOne({ _id: tokenDoc._id });
-      console.log(`[OTP] Max attempts exceeded in MongoDB for ${phone}`);
+      console.log(`[OTP] Max attempts exceeded in MongoDB for ${maskPhone(phone)}`);
       return { success: false, message: 'Too many attempts. Please request a new one.' };
     }
 
@@ -211,13 +212,13 @@ const verifyOTP = async (phone, plainOtp) => {
     if (!isMatch) {
       tokenDoc.attempts += 1;
       await tokenDoc.save();
-      console.log(`[OTP] Invalid OTP in MongoDB for ${phone}, attempts: ${tokenDoc.attempts}`);
+      console.log(`[OTP] Invalid OTP in MongoDB for ${maskPhone(phone)}, attempts: ${tokenDoc.attempts}`);
       return { success: false, message: 'Invalid OTP' };
     }
 
     // Success
     await Token.deleteOne({ _id: tokenDoc._id }); // Or mark used
-    console.log(`[OTP] ✅ Verification successful (MongoDB) for ${phone}`);
+    console.log(`[OTP] ✅ Verification successful (MongoDB) for ${maskPhone(phone)}`);
     return { success: true };
 
   } catch (err) {

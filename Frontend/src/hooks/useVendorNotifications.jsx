@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { toastManager } from '../utils/toastManager';
 import { playNotificationSound, isSoundEnabled } from '../utils/notificationSound';
@@ -43,7 +43,7 @@ export const useVendorNotifications = (vendorId, onNewBooking) => {
 
     // Listen for new booking requests
     socket.on('new_booking_request', (data) => {
-      console.log('🔔 New booking request received:', data);
+      console.log('🔔 [SOCKET] New booking request received');
 
       // Play notification sound
       if (data.playSound && isSoundEnabled()) {

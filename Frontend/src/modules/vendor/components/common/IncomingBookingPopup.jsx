@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { FiCheck, FiX, FiMapPin, FiClock } from 'react-icons/fi';
@@ -13,7 +13,7 @@ const IncomingBookingPopup = () => {
 
   useEffect(() => {
     const handleIncomingBooking = (e) => {
-      console.log('Incoming Booking Event Received:', e.detail);
+      console.log('[BOOKING] Incoming booking alert received');
       setIncomingData(e.detail);
       
       // Initialize and play sound

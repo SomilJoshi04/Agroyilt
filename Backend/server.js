@@ -14,7 +14,7 @@ dotenv.config();
 
 console.log('[Server Startup] NODE_ENV:', process.env.NODE_ENV);
 console.log('[Server Startup] PORT:', process.env.PORT || 5000);
-console.log('[Server Startup] MONGODB_URI starts with:', process.env.MONGODB_URI?.substring(0, 15) + '...');
+console.log('[Server Startup] MONGODB_URI:', process.env.MONGODB_URI ? 'Configured' : 'Missing');
 
 // Connect to database
 connectDB();
@@ -94,15 +94,6 @@ if (process.env.PRERENDER_TOKEN) {
 } else if (process.env.NODE_ENV === 'production') {
   app.use(prerender);
 }
-
-// DEBUG: Log Booking Request Body
-app.use('/api/users/bookings', (req, res, next) => {
-  if (req.method === 'POST') {
-    console.log('DEBUG: POST /api/users/bookings BODY:', JSON.stringify(req.body, null, 2));
-  }
-  next();
-});
-// (Old Vendor Register Logger Removed)
 
 
 

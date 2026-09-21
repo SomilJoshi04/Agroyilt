@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiVolume2, FiGlobe, FiInfo, FiLogOut, FiTrash2, FiMapPin, FiShield } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -23,8 +23,8 @@ const Settings = () => {
   const handleSendTestNotification = async () => {
     console.log('[Test Notification] Send button clicked');
     console.log('[Test Notification] Current settings state:', settings);
-    console.log('[Test Notification] Stored FCM token (web):', localStorage.getItem('fcm_token_vendor_web'));
-    console.log('[Test Notification] Stored FCM token (mobile):', localStorage.getItem('fcm_token_vendor_mobile'));
+    console.log('[Test Notification] Stored FCM token (web):', localStorage.getItem('fcm_token_vendor_web') ? 'Present (Hidden for security)' : 'Missing');
+    console.log('[Test Notification] Stored FCM token (mobile):', localStorage.getItem('fcm_token_vendor_mobile') ? 'Present (Hidden for security)' : 'Missing');
     console.log('[Test Notification] Notification.permission:', typeof Notification !== 'undefined' ? Notification.permission : 'Not supported');
     console.log('[Test Notification] Vendor Access Token:', localStorage.getItem('vendorAccessToken') ? 'Present (Hidden for security)' : 'Missing');
 

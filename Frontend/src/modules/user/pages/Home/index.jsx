@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -421,7 +421,6 @@ const Home = () => {
   };
 
   const handleAddClick = async (service) => {
-    console.log('[DEBUG] handleAddClick payload:', service);
     try {
       if (service.serviceId && service.categoryId) {
         const cartItemData = {
@@ -692,15 +691,6 @@ const Home = () => {
                   if (c.showOnHome === false) return false;
                   // If it has a parent category, it should ONLY show if isAlwaysMain is true
                   const hasParent = c.parentCategory || (c.parentCategories && c.parentCategories.length > 0);
-                  
-                  if (c.title === 'Rotavator') {
-                    console.log('Rotavator data:', {
-                      parentCategory: c.parentCategory,
-                      parentCategories: c.parentCategories,
-                      isAlwaysMain: c.isAlwaysMain,
-                      hasParent
-                    });
-                  }
 
                   if (hasParent) {
                     return c.isAlwaysMain === true;

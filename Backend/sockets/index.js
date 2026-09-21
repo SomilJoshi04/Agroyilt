@@ -42,7 +42,7 @@ const initializeSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(`Socket connected: ${socket.id} (User: ${socket.userId}, Role: ${socket.userRole})`);
+    console.log(`[Socket] Client connected (User: ${socket.userId}, Role: ${socket.userRole})`);
 
     // Join user-specific room for notifications
     if (socket.userRole === 'USER') {
@@ -74,7 +74,6 @@ const initializeSocket = (server) => {
       if (adminId) {
         socket.join(`admin_${adminId.toString()}`);
         socket.join('admin_global');
-        console.log(`Socket ${socket.id} explicitly joined admin rooms`);
       }
     });
 
@@ -83,7 +82,6 @@ const initializeSocket = (server) => {
         const vId = vendorId.toString();
         socket.join(`vendor_${vId}`);
         socket.join(`vendor:${vId}`);
-        console.log(`Socket ${socket.id} explicitly joined room vendor_${vId}`);
       }
     });
 
@@ -92,7 +90,6 @@ const initializeSocket = (server) => {
         const uId = userId.toString();
         socket.join(`user_${uId}`);
         socket.join(`user:${uId}`);
-        console.log(`Socket ${socket.id} explicitly joined room user_${uId}`);
       }
     });
 
@@ -101,7 +98,6 @@ const initializeSocket = (server) => {
         const wId = workerId.toString();
         socket.join(`worker_${wId}`);
         socket.join(`worker:${wId}`);
-        console.log(`Socket ${socket.id} explicitly joined room worker_${wId}`);
       }
     });
 
@@ -350,7 +346,7 @@ const initializeSocket = (server) => {
     });
 
     socket.on('disconnect', () => {
-      console.log(`Socket disconnected: ${socket.id}`);
+      console.log(`[Socket] Client disconnected (Role: ${socket.userRole || 'UNKNOWN'})`);
       // Update online status
       if (socket.userRole === 'VENDOR') {
         updateVendorOnlineStatus(socket.userId, false, null);

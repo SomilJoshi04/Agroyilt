@@ -114,7 +114,9 @@ const createTransporter = () => {
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   try {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.log(`[EMAIL SERVICE] OTP for ${email}: ${otp}`);
+      if (process.env.NODE_ENV === 'development' || process.env.USE_DEFAULT_OTP === 'true') {
+        console.log(`[DEV EMAIL SERVICE] OTP generated for email (credentials not configured)`);
+      }
       return { success: true };
     }
 

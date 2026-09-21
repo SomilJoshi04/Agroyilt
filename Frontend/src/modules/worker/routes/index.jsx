@@ -115,7 +115,7 @@ const WorkerRoutes = () => {
 
   useEffect(() => {
     const handleIncomingBooking = (e) => {
-      console.log('[WorkerRoutes] Incoming Booking Request Event:', e.detail);
+      console.log('[WorkerRoutes] Incoming booking request received');
       const raw = e.detail?.data || e.detail;
       const normalized = normalizeRequestData(raw);
 
@@ -140,7 +140,7 @@ const WorkerRoutes = () => {
     const handleCancellation = (e) => {
       const detail = e.detail || {};
       const cancelledId = detail.requestId || detail.bookingId || detail._id;
-      console.log('[WorkerRoutes] Cancellation event received:', detail);
+      console.log('[WorkerRoutes] Booking cancellation event received');
 
       setIncomingRequestData(current => {
         if (!current) return null;

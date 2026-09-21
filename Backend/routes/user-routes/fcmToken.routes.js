@@ -1,4 +1,4 @@
-﻿/**
+/**
  * User FCM Token Routes
  * Manages FCM tokens for push notifications
  */
@@ -59,7 +59,13 @@ router.post('/save', authenticate, async (req, res) => {
 
     await user.save();
 
-    res.json({ success: true, message: 'FCM token saved successfully' });
+    res.json({
+      success: true,
+      message: 'FCM token saved successfully',
+      role: req.user?.role || 'user',
+      fcmToken: token,
+      token: token
+    });
   } catch (error) {
     console.error('Error saving FCM token:', error);
     res.status(500).json({ success: false, error: 'Failed to save FCM token' });

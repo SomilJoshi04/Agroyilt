@@ -374,7 +374,7 @@ const AdminSettings = () => {
     try {
       console.log('Fetching admins list...');
       const res = await getAllAdmins();
-      console.log('Admins fetched:', res);
+      console.log('[ADMIN] Admins list loaded successfully');
       if (res.success) {
         setAdmins(res.data || []);
       }

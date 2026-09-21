@@ -114,8 +114,6 @@ const updateProfile = async (req, res) => {
     const vendorId = req.user.id;
     const { name, businessName, address, profilePhoto, serviceCategory, skills, aadharNumber, aadharDocument, panNumber, panDocument } = req.body;
 
-    console.log('Update Vendor Profile Body:', JSON.stringify(req.body, null, 2));
-
     const vendor = await Vendor.findById(vendorId);
 
     if (!vendor) {

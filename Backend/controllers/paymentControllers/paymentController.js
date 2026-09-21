@@ -56,7 +56,7 @@ const createPaymentOrder = async (req, res) => {
       }
     );
 
-    console.log('Razorpay order result:', orderResult);
+    console.log('[PAYMENT] Razorpay order created:', orderResult.orderId);
 
     if (!orderResult.success) {
       console.error('Razorpay order creation failed:', orderResult.error);
