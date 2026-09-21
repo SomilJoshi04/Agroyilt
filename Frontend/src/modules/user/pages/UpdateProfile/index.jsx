@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiUser, FiMail, FiPhone, FiCamera, FiPlus, FiMapPin, FiTrash2, FiMap } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -6,6 +6,7 @@ import { themeColors } from '../../../../theme';
 import { userAuthService } from '../../../../services/authService';
 import AddressSelectionModal from '../Checkout/components/AddressSelectionModal';
 import { z } from "zod";
+import authStorage from '../../../../utils/authStorage';
 
 // Zod schema
 const profileSchema = z.object({
@@ -38,10 +39,9 @@ const UpdateProfile = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // First check localStorage
-        const storedUserData = localStorage.getItem('userData');
-        if (storedUserData) {
-          const userData = JSON.parse(storedUserData);
+        // First check current tab session
+        const userData = authStorage.getUserData('user');
+        if (userData) {
           setFormData({
             name: userData.name || '',
             email: userData.email || '',
@@ -63,17 +63,13 @@ const UpdateProfile = () => {
             farms: user.farms || [],
           });
 
-          // Update localStorage with fresh data including photo
-          if (storedUserData) {
-            const updatedLocal = { ...JSON.parse(storedUserData), ...user };
-            localStorage.setItem('userData', JSON.stringify(updatedLocal));
-          }
+          // Update session with fresh data including photo
+          authStorage.updateUserData('user', user);
         }
       } catch (error) {
-        // Use localStorage data if API fails
-        const storedUserData = localStorage.getItem('userData');
-        if (storedUserData) {
-          const userData = JSON.parse(storedUserData);
+        // Use session data if API fails
+        const userData = authStorage.getUserData('user');
+        if (userData) {
           setFormData({
             name: userData.name || '',
             email: userData.email || '',
@@ -269,16 +265,9 @@ const UpdateProfile = () => {
 
       if (response.success) {
         toastManager.success('Profile updated successfully!');
-        // Update local storage
+        // Update session
         if (response.user) {
-          const storedUserData = localStorage.getItem('userData');
-          if (storedUserData) {
-            const existingData = JSON.parse(storedUserData);
-            const updatedData = { ...existingData, ...response.user };
-            localStorage.setItem('userData', JSON.stringify(updatedData));
-          } else {
-            localStorage.setItem('userData', JSON.stringify(response.user));
-          }
+          authStorage.updateUserData('user', response.user);
         }
         navigate('/user/account');
       } else {

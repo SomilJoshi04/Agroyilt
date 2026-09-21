@@ -1,8 +1,9 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toastManager } from '../../../utils/toastManager';
 import api from '../../../services/api';
 import { FiChevronLeft, FiCheckCircle, FiShield } from 'react-icons/fi';
+import authStorage from '../../../utils/authStorage';
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -25,8 +26,8 @@ const AppRegistrationFee = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [feeData, setFeeData] = useState(null);
 
-  const preAuthToken = localStorage.getItem('preAuthToken');
-  const pendingRole = localStorage.getItem('pendingRole');
+  const preAuthToken = sessionStorage.getItem('preAuthToken') || localStorage.getItem('preAuthToken');
+  const pendingRole = sessionStorage.getItem('pendingRole') || localStorage.getItem('pendingRole');
 
   useEffect(() => {
     if (!preAuthToken || !pendingRole) {
@@ -171,13 +172,16 @@ const AppRegistrationFee = () => {
 
     const target = roleMap[pendingRole];
     if (target) {
-      if (data.accessToken) localStorage.setItem(target.access, data.accessToken);
-      if (data.refreshToken) localStorage.setItem(target.refresh, data.refreshToken);
-
-      const profileToSave = target.profile || { role: pendingRole.toLowerCase() };
-      localStorage.setItem(target.dataKey, JSON.stringify(profileToSave));
+      const canonicalRole = pendingRole.toLowerCase();
+      authStorage.setAuthSession(canonicalRole, {
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: target.profile || { role: canonicalRole }
+      });
     }
 
+    sessionStorage.removeItem('preAuthToken');
+    sessionStorage.removeItem('pendingRole');
     localStorage.removeItem('preAuthToken');
     localStorage.removeItem('pendingRole');
 

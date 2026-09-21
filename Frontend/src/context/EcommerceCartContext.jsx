@@ -1,5 +1,6 @@
-﻿import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { ecommerceCartService } from '../services/ecommerceCartService';
+import authStorage from '../utils/authStorage';
 
 const EcommerceCartContext = createContext(null);
 
@@ -17,7 +18,7 @@ export const EcommerceCartProvider = ({ children }) => {
         return;
       }
 
-      const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+      const token = authStorage.getAccessToken('user');
       if (!token) {
         setCartItems([]);
         setCartCount(0);

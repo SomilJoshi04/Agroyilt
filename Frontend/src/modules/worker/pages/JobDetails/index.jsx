@@ -14,6 +14,7 @@ import api from '../../../../services/api';
 import { toastManager } from '../../../../utils/toastManager';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import { useLocationTracking } from '../../../../hooks/useLocationTracking';
+import authStorage from '../../../../utils/authStorage';
 
 // Real-time Active Work Stopwatch component
 const ActiveWorkStopwatch = ({ job }) => {
@@ -260,7 +261,7 @@ const JobDetails = () => {
     };
   }, [id, socket]);
 
-  const localWorker = JSON.parse(localStorage.getItem('workerData') || '{}');
+  const localWorker = authStorage.getUserData('worker') || {};
   const currentWorkerId = localWorker._id || localWorker.id || (typeof job?.workerId === 'string' ? job.workerId : job?.workerId?._id);
   const isDaily = job?.bookingType === 'DAILY' || job?.rateUnit === 'daily';
 

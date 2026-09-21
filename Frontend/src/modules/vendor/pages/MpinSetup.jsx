@@ -1,9 +1,10 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiLock } from 'react-icons/fi';
 import { toastManager } from '../../../utils/toastManager';
 // authService exports vendorAuthService, let's import it
 import { vendorAuthService } from '../../../services/authService';
+import authStorage from '../../../utils/authStorage';
 import LogoLoader from '../../../components/common/LogoLoader';
 
 const VendorMpinSetup = () => {
@@ -100,15 +101,12 @@ const VendorMpinSetup = () => {
 
       if (response.success) {
         toastManager.success('MPIN set successfully!');
-        const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
-        vendorData.isMpinSet = true;
-        localStorage.setItem('vendorData', JSON.stringify(vendorData));
+        const vendorData = authStorage.getUserData('vendor') || {};
+        authStorage.updateUserData('vendor', { isMpinSet: true });
         
         if (isFirstTime && vendorData.approvalStatus !== 'approved') {
           toastManager.info('Your account is registered and pending admin approval. You can login with your MPIN once approved.', { duration: 6000 });
-          localStorage.removeItem('vendorAccessToken');
-          localStorage.removeItem('vendorRefreshToken');
-          localStorage.removeItem('vendorData');
+          authStorage.clearAuthSession('vendor');
           navigate('/vendor/login', { replace: true });
         } else {
           navigate('/vendor', { replace: true });
@@ -176,12 +174,10 @@ const VendorMpinSetup = () => {
               <button
                 type="button"
                 onClick={() => {
-                  const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
+                  const vendorData = authStorage.getUserData('vendor') || {};
                   if (vendorData.approvalStatus !== 'approved') {
                     toastManager.info('Your registration is complete and pending admin approval.');
-                    localStorage.removeItem('vendorAccessToken');
-                    localStorage.removeItem('vendorRefreshToken');
-                    localStorage.removeItem('vendorData');
+                    authStorage.clearAuthSession('vendor');
                     navigate('/vendor/login', { replace: true });
                   } else {
                     navigate('/vendor', { replace: true });

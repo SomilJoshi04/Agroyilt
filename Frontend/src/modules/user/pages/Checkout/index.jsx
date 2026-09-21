@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { FiArrowLeft, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiPhone, FiHome, FiClock, FiEdit2, FiCheckCircle, FiInfo, FiCreditCard, FiDollarSign } from 'react-icons/fi';
@@ -15,6 +15,7 @@ import { configService } from '../../../../services/configService';
 import { publicCatalogService } from '../../../../services/catalogService';
 import { getPlans } from '../../services/planService';
 import { userAuthService } from '../../../../services/authService';
+import authStorage from '../../../../utils/authStorage';
 import { useCart } from '../../../../context/CartContext';
 import LiveBookingCard from '../../components/booking/LiveBookingCard';
 import RentalTypeCard from './components/RentalTypeCard';
@@ -98,19 +99,16 @@ const Checkout = () => {
   useEffect(() => {
     const loadUserData = () => {
       try {
-        const storedUserData = localStorage.getItem('userData');
-        if (storedUserData && storedUserData !== 'undefined') {
-          const userData = JSON.parse(storedUserData);
-          if (userData && userData.phone) {
+        const userData = authStorage.getUserData('user');
+        if (userData) {
+          if (userData.phone) {
             setUserPhone(userData.phone);
           }
           // Initialize contact details for editing
-          if (userData) {
-            setContactDetails({
-              name: userData.name || '',
-              phone: userData.phone || ''
-            });
-          }
+          setContactDetails({
+            name: userData.name || '',
+            phone: userData.phone || ''
+          });
         }
       } catch (err) {
         console.error("Failed to parse user data:", err);
@@ -436,7 +434,7 @@ const Checkout = () => {
 
     const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
     const socket = io(socketUrl, {
-      auth: { token: localStorage.getItem('accessToken') },
+      auth: { token: authStorage.getAccessToken('user') },
       transports: ['websocket', 'polling']
     });
 
@@ -783,8 +781,8 @@ const Checkout = () => {
           }
         },
         prefill: {
-          name: contactDetails.name || JSON.parse(localStorage.getItem('userData')) ?.name || 'User',
-          email: JSON.parse(localStorage.getItem('userData')) ?.email || '',
+          name: contactDetails.name || (authStorage.getUserData('user')?.name) || 'User',
+          email: (authStorage.getUserData('user')?.email) || '',
           contact: contactDetails.phone || userPhone
         },
         theme: {
@@ -1529,7 +1527,7 @@ const Checkout = () => {
             <div className="flex items-center gap-3">
               <FiPhone className="w-5 h-5 text-gray-600" />
               <div>
-                <p className="text-sm font-medium text-black">{contactDetails.name || JSON.parse(localStorage.getItem('userData')) ?.name || 'Verified Farmer'}</p>
+                <p className="text-sm font-medium text-black">{contactDetails.name || (authStorage.getUserData('user')?.name) || 'Verified Farmer'}</p>
                 <p className="text-xs text-gray-600">{contactDetails.phone || userPhone || 'Loading...'}</p>
               </div>
             </div>

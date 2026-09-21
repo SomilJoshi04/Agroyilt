@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { toastManager } from '../utils/toastManager';
 import { playNotificationSound, isSoundEnabled } from '../utils/notificationSound';
+import authStorage from '../utils/authStorage';
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
 
@@ -18,7 +19,7 @@ export const useVendorNotifications = (vendorId, onNewBooking) => {
     // Initialize Socket.IO connection
     const socket = io(SOCKET_URL, {
       auth: {
-        token: localStorage.getItem('vendorAccessToken'),
+        token: authStorage.getAccessToken('vendor'),
         vendorId: vendorId
       },
       transports: ['websocket', 'polling']

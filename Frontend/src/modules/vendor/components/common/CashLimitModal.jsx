@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiAlertTriangle, FiX } from 'react-icons/fi';
 import { getWalletBalance } from '../../services/walletService';
+import authStorage from '../../../../utils/authStorage';
 
 const CashLimitModal = () => {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ const CashLimitModal = () => {
   const checkLimit = async () => {
     try {
       // Check if user is logged in before making the call
-      const token = sessionStorage.getItem('vendorAccessToken') || localStorage.getItem('vendorAccessToken');
+      const token = authStorage.getAccessToken('vendor');
       if (!token) return;
 
       const wallet = await getWalletBalance();

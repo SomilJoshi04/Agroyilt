@@ -1,5 +1,6 @@
 import api from '../../../services/api';
 import { registerFCMToken } from '../../../services/pushNotificationService';
+import authStorage from '../../../utils/authStorage';
 
 /**
  * Notify Flutter WebView about successful login
@@ -46,15 +47,16 @@ export const verifyLogin = async (data) => {
     const isPending = response.data.vendor?.adminApproval?.toLowerCase() === 'pending';
 
     if (response.data.success && !response.data.isNewUser && response.data.accessToken && !isPending) {
-      localStorage.setItem('vendorAccessToken', response.data.accessToken);
-      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
-      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      authStorage.setAuthSession('vendor', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.vendor
+      });
 
       // Notify Flutter about the login for mobile app FCM token handling
       notifyFlutterLogin(response.data);
 
       // Register FCM token after successful login
-      console.log('[VENDOR AUTH] Vendor login successful via verify-login, registering FCM token...');
       registerFCMToken('vendor', true).catch(err => {
         console.error('[VENDOR AUTH] FCM token registration failed:', err);
       });
@@ -75,11 +77,13 @@ export const login = async (credentials) => {
   try {
     const response = await api.post('/vendors/auth/login', credentials);
 
-    // Store tokens in localStorage
+    // Store tokens in tab-isolated session storage
     if (response.data.success && response.data.accessToken) {
-      localStorage.setItem('vendorAccessToken', response.data.accessToken);
-      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
-      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      authStorage.setAuthSession('vendor', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.vendor
+      });
     }
 
     return response.data;
@@ -96,19 +100,11 @@ export const login = async (credentials) => {
 export const logout = async () => {
   try {
     const response = await api.post('/vendors/auth/logout');
-
-    // Clear tokens
-    localStorage.removeItem('vendorAccessToken');
-    localStorage.removeItem('vendorRefreshToken');
-    localStorage.removeItem('vendorData');
-
+    authStorage.clearAuthSession('vendor');
     return response.data;
   } catch (error) {
     console.error('Error logging out:', error);
-    // Clear tokens anyway
-    localStorage.removeItem('vendorAccessToken');
-    localStorage.removeItem('vendorRefreshToken');
-    localStorage.removeItem('vendorData');
+    authStorage.clearAuthSession('vendor');
     throw error;
   }
 };
@@ -120,13 +116,13 @@ export const logout = async () => {
  */
 export const register = async (vendorData) => {
   try {
-    console.log('[VENDOR AUTH] Initiating vendor registration request');
     const response = await api.post('/vendors/auth/register', vendorData);
-    console.log('[VENDOR AUTH] Vendor registration request completed');
     if (response.data.success && response.data.accessToken) {
-      localStorage.setItem('vendorAccessToken', response.data.accessToken);
-      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
-      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      authStorage.setAuthSession('vendor', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.vendor
+      });
     }
     return response.data;
   } catch (error) {
@@ -242,19 +238,7 @@ export const requestPasswordReset = async (email) => {
  */
 export const verifyToken = async () => {
   try {
-    // TODO: Replace with actual API call
-    // const token = localStorage.getItem('vendorToken');
-    // if (!token) return false;
-    // 
-    // const response = await fetch(`${API_BASE_URL}/auth/verify`, {
-    //   headers: {
-    //     'Authorization': `Bearer ${token}`,
-    //   },
-    // });
-    // return response.ok;
-
-    // Mock implementation
-    return !!localStorage.getItem('vendorToken');
+    return authStorage.isAuthenticated('vendor');
   } catch (error) {
     console.error('Error verifying token:', error);
     return false;

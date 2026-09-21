@@ -245,16 +245,23 @@ const login = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
-    const { platform = 'web' } = req.body;
+    const { platform = 'web', token, fcmToken, clearAll = false } = req.body;
+    const targetToken = fcmToken || token;
 
-    // Clear FCM tokens based on platform
     if (req.user && req.user._id) {
-      const updateQuery = platform === 'mobile'
-        ? { $set: { fcmTokenMobile: [] } }
-        : { $set: { fcmTokens: [] } };
-
-      await User.findByIdAndUpdate(req.user._id, updateQuery);
-      console.log(`[AUTH] ✅ ${platform} FCM tokens cleared for user: ${req.user._id}`);
+      if (targetToken) {
+        // Targeted removal of only this session's device token
+        await User.findByIdAndUpdate(req.user._id, {
+          $pull: { fcmTokens: { token: targetToken } }
+        });
+        console.log(`[AUTH] ✅ Targeted FCM token removed for user: ${req.user._id}`);
+      } else if (clearAll) {
+        const updateQuery = platform === 'mobile'
+          ? { $set: { fcmTokenMobile: [] } }
+          : { $set: { fcmTokens: [] } };
+        await User.findByIdAndUpdate(req.user._id, updateQuery);
+        console.log(`[AUTH] ✅ ${platform} FCM tokens cleared for user: ${req.user._id}`);
+      }
     }
 
     res.status(200).json({

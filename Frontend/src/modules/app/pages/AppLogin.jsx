@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronLeft, FiPhone, FiCheckCircle, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { toastManager } from '../../../utils/toastManager';
@@ -6,6 +6,7 @@ import { z } from 'zod';
 import api from '../../../services/api';
 import { userAuthService, vendorAuthService, workerAuthService } from '../../../services/authService';
 import { useBrand } from '../../../context/BrandContext';
+import authStorage from '../../../utils/authStorage';
 
 // Phone validation
 const phoneSchema = z.object({
@@ -41,11 +42,11 @@ const AppLogin = () => {
   const mpinInputRef = useRef(null);
   const otpInputRefs = useRef([]);
 
-  // Auto-redirect if already logged in
+  // Auto-redirect if already logged in in this tab
   useEffect(() => {
-    if (localStorage.getItem('accessToken')) navigate('/user', { replace: true });
-    else if (localStorage.getItem('vendorAccessToken')) navigate('/vendor', { replace: true });
-    else if (localStorage.getItem('workerAccessToken')) navigate('/worker', { replace: true });
+    if (authStorage.isAuthenticated('user')) navigate('/user', { replace: true });
+    else if (authStorage.isAuthenticated('vendor')) navigate('/vendor', { replace: true });
+    else if (authStorage.isAuthenticated('worker')) navigate('/worker', { replace: true });
   }, [navigate]);
 
   // Resend timer
@@ -144,8 +145,8 @@ const AppLogin = () => {
 
       if (errorData?.code === 'REGISTRATION_FEE_REQUIRED') {
         toastManager.error(errorData.message);
-        localStorage.setItem('preAuthToken', errorData.preAuthToken);
-        localStorage.setItem('pendingRole', errorData.role);
+        sessionStorage.setItem('preAuthToken', errorData.preAuthToken);
+        sessionStorage.setItem('pendingRole', errorData.role);
         navigate('/app/registration-fee', { replace: true });
         return;
       }

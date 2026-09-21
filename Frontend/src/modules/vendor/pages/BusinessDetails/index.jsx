@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiSave, FiUploadCloud, FiCheckCircle, FiMapPin, FiCamera, FiUpload, FiClock, FiAlertCircle } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -7,6 +7,7 @@ import { FormContainer, FormSection } from '../../../../components/common';
 import { vendorAuthService } from '../../../../services/authService';
 import api from '../../../../services/api';
 import AddressSelectionModal from '../../../user/pages/Checkout/components/AddressSelectionModal';
+import authStorage from '../../../../utils/authStorage';
 
 const BusinessDetails = () => {
   const navigate = useNavigate();
@@ -37,8 +38,8 @@ const BusinessDetails = () => {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    // Load from local storage first
-    const storedVendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
+    // Load from tab-isolated session storage first
+    const storedVendorData = authStorage.getUserData('vendor') || {};
     if (storedVendorData && Object.keys(storedVendorData).length > 0) {
       setProfile(storedVendorData);
       

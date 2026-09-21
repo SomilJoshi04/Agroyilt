@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiArrowRight, FiSettings, FiChevronRight, FiCreditCard, FiLogOut, FiTrash2, FiClock, FiCheckCircle, FiPackage, FiActivity } from 'react-icons/fi';
 import { FaWallet, FaTractor } from 'react-icons/fa';
@@ -9,6 +9,7 @@ import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import vendorProductService from '../../services/vendorProductService';
+import authStorage from '../../../../utils/authStorage';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -59,8 +60,8 @@ const Profile = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      // Try to load from local storage first for immediate display
-      const storedVendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
+      // Load from tab-isolated session storage first for immediate display
+      const storedVendorData = authStorage.getUserData('vendor') || {};
       if (storedVendorData && Object.keys(storedVendorData).length > 0) {
         setProfile({
           name: storedVendorData.name || 'Vendor Name',
@@ -113,7 +114,7 @@ const Profile = () => {
             isEmailVerified: vendorData.isEmailVerified || false,
             shopDetails: vendorData.shopDetails || null
           });
-          localStorage.setItem('vendorData', JSON.stringify(vendorData));
+          authStorage.updateUserData('vendor', vendorData);
         } else {
           if (!storedVendorData || Object.keys(storedVendorData).length === 0) {
             setError(response.message || 'Failed to fetch profile');

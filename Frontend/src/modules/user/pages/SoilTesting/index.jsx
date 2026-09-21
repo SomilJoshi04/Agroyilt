@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     FiChevronLeft,
     FiMapPin,
@@ -22,6 +22,7 @@ import soilTestService from '../../../../services/soilTestService';
 import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import flutterBridge from '../../../../utils/flutterBridge';
+import authStorage from '../../../../utils/authStorage';
 
 const SoilTesting = () => {
     const navigate = useNavigate();
@@ -41,7 +42,7 @@ const SoilTesting = () => {
         longitude: null,
         cropType: '',
         testType: 'Basic',
-        phoneNumber: JSON.parse(localStorage.getItem('userData') || '{}').phone || ''
+        phoneNumber: authStorage.getUserData('user')?.phone || ''
     });
 
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -121,7 +122,7 @@ const SoilTesting = () => {
             longitude: null,
             cropType: '',
             testType: 'Basic',
-            phoneNumber: JSON.parse(localStorage.getItem('userData') || '{}').phone || ''
+            phoneNumber: authStorage.getUserData('user')?.phone || ''
         });
     };
 
@@ -225,8 +226,8 @@ const SoilTesting = () => {
                         }
                     },
                     prefill: {
-                        name: JSON.parse(localStorage.getItem('userData') || '{}').name || 'Farmer',
-                        contact: JSON.parse(localStorage.getItem('userData') || '{}').phone || ''
+                        name: authStorage.getUserData('user')?.name || 'Farmer',
+                        contact: authStorage.getUserData('user')?.phone || ''
                     },
                     theme: { color: '#0d9488' }
                 };

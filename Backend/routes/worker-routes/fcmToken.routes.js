@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../../middleware/authMiddleware');
+const { isWorker } = require('../../middleware/roleMiddleware');
 const { sendPushNotification } = require('../../services/firebaseAdmin');
 const Worker = require('../../models/Worker');
 const User = require('../../models/User');
@@ -18,45 +19,45 @@ const MAX_TOKENS = 10; // Maximum tokens per platform
  * @desc    Save FCM token for worker
  * @access  Private (Worker)
  */
-router.post('/save', authenticate, async (req, res) => {
+router.post('/save', authenticate, isWorker, async (req, res) => {
   try {
-    const { token, platform = 'web', deviceId = null, browser = null, appVersion = null } = req.body;
+    const { token, platform = 'web' } = req.body;
     const workerId = req.user._id;
 
     if (!token) {
       return res.status(400).json({ success: false, error: 'Token is required' });
     }
 
-    const worker = await Worker.findById(workerId);
-    if (!worker) {
-      return res.status(404).json({ success: false, error: 'Worker not found' });
-    }
+    const validPlatform = ['web', 'android', 'ios', 'mobile'].includes(platform) ? platform : 'web';
 
-    if (!Array.isArray(worker.fcmTokens)) worker.fcmTokens = [];
-    // Filter out old token if it exists anywhere
-    worker.fcmTokens = worker.fcmTokens.filter(t => t.token !== token);
-
-    // Filter out old device if same deviceId exists (to replace token on same device)
-    if (deviceId) {
-      worker.fcmTokens = worker.fcmTokens.filter(t => t.deviceId !== deviceId);
-    }
-
-    // Add new token object to front
-    worker.fcmTokens.unshift({
-      token,
-      platform,
-      deviceId,
-      browser,
-      appVersion,
-      updatedAt: new Date()
+    // 1. Remove duplicate token atomically
+    await Worker.findByIdAndUpdate(workerId, {
+      $pull: { fcmTokens: { token: token } }
     });
 
-    // Enforce max tokens
-    if (worker.fcmTokens.length > MAX_TOKENS) {
-      worker.fcmTokens = worker.fcmTokens.slice(0, MAX_TOKENS);
-    }
+    // 2. Add new token to beginning and cap at MAX_TOKENS atomically
+    const updatedWorker = await Worker.findByIdAndUpdate(
+      workerId,
+      {
+        $push: {
+          fcmTokens: {
+            $each: [{
+              token,
+              platform: validPlatform,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }],
+            $position: 0,
+            $slice: MAX_TOKENS
+          }
+        }
+      },
+      { new: true }
+    );
 
-    await worker.save();
+    if (!updatedWorker) {
+      return res.status(404).json({ success: false, error: 'Worker not found' });
+    }
 
     res.json({
       success: true,
@@ -65,7 +66,7 @@ router.post('/save', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Error saving FCM token:', error);
-    res.status(500).json({ success: false, error: 'Failed to save FCM token' });
+    res.status(500).json({ success: false, error: error.message || 'Failed to save FCM token' });
   }
 });
 
@@ -74,7 +75,7 @@ router.post('/save', authenticate, async (req, res) => {
  * @desc    Remove FCM token for worker
  * @access  Private (Worker)
  */
-router.delete('/remove', authenticate, async (req, res) => {
+router.delete('/remove', authenticate, isWorker, async (req, res) => {
   try {
     const { token } = req.body;
     const workerId = req.user._id;
@@ -105,7 +106,7 @@ router.delete('/remove', authenticate, async (req, res) => {
  * @desc    Remove ALL FCM tokens for a specific platform (called during logout)
  * @access  Private (Worker)
  */
-router.delete('/remove-all', authenticate, async (req, res) => {
+router.delete('/remove-all', authenticate, isWorker, async (req, res) => {
   try {
     const workerId = req.user._id;
     const { platform = 'web' } = req.body;

@@ -133,10 +133,18 @@ exports.updateSettings = async (req, res, next) => {
       if (supportWhatsapp !== undefined) settings.supportWhatsapp = supportWhatsapp;
 
       // Branding update
-      if (appName !== undefined) settings.appName = appName;
-      if (appTagline !== undefined) settings.appTagline = appTagline;
-      if (appLogo !== undefined) settings.appLogo = appLogo;
-      if (appFavicon !== undefined) settings.appFavicon = appFavicon;
+      if (appName !== undefined && typeof appName === 'string' && appName.trim()) {
+        settings.appName = appName.trim();
+      }
+      if (appTagline !== undefined && typeof appTagline === 'string') {
+        settings.appTagline = appTagline.trim();
+      }
+      if (appLogo !== undefined && typeof appLogo === 'string' && appLogo.trim()) {
+        settings.appLogo = appLogo.trim();
+      }
+      if (appFavicon !== undefined && typeof appFavicon === 'string' && appFavicon.trim()) {
+        settings.appFavicon = appFavicon.trim();
+      }
 
       // Worker Hiring & Commission Rules
       if (workerCommissionPercentage !== undefined) {
@@ -177,6 +185,21 @@ exports.updateSettings = async (req, res, next) => {
       if (extensionExpiryMinutes !== undefined) settings.extensionExpiryMinutes = Math.max(1, Number(extensionExpiryMinutes) || 30);
 
       await settings.save();
+
+      // Emit real-time branding update via Socket.io ONLY AFTER database save succeeds
+      try {
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('branding:updated', {
+            appName: settings.appName,
+            appTagline: settings.appTagline,
+            appLogo: settings.appLogo,
+            appFavicon: settings.appFavicon
+          });
+        }
+      } catch (socketErr) {
+        console.error('[SETTINGS] Error emitting branding:updated socket event:', socketErr);
+      }
     }
 
     // Propagate vendorCashLimit to all existing vendors if it was changed
@@ -223,3 +246,67 @@ exports.getPublicSettings = async (req, res, next) => {
     });
   }
 };
+
+// GET /api/public/logo - Dynamic Public Logo Endpoint
+// Resolves to the current admin-configured logo from MongoDB Settings.appLogo
+exports.getPublicLogo = async (req, res) => {
+  try {
+    const settings = await Settings.findOne({ type: 'global' }).select('appLogo');
+    let logoUrl = settings?.appLogo?.trim();
+
+    if (!logoUrl) {
+      logoUrl = '/AgroyiltLogo.png';
+    }
+
+    // Cache control: allow caching for short time (60s), allow CDN/stale-while-revalidate, NEVER immutable
+    res.set({
+      'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+      'Pragma': 'public'
+    });
+
+    if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
+      return res.redirect(302, logoUrl);
+    }
+
+    const frontendUrl = (process.env.FRONTEND_URL || 'https://agroyilt.com').replace(/\/$/, '');
+    const cleanPath = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
+    return res.redirect(302, `${frontendUrl}${cleanPath}`);
+  } catch (error) {
+    console.error('[SETTINGS] Error resolving public logo:', error);
+    res.set({
+      'Cache-Control': 'public, max-age=60',
+      'Pragma': 'public'
+    });
+    return res.redirect(302, 'https://agroyilt.com/AgroyiltLogo.png');
+  }
+};
+
+// GET /api/public/favicon - Dynamic Public Favicon Endpoint
+// Priority: Settings.appFavicon > Settings.appLogo > default AgroYilt logo
+exports.getPublicFavicon = async (req, res) => {
+  try {
+    const settings = await Settings.findOne({ type: 'global' }).select('appFavicon appLogo');
+    let favUrl = settings?.appFavicon?.trim() || settings?.appLogo?.trim() || '/AgroyiltLogo.png';
+
+    res.set({
+      'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+      'Pragma': 'public'
+    });
+
+    if (favUrl.startsWith('http://') || favUrl.startsWith('https://')) {
+      return res.redirect(302, favUrl);
+    }
+
+    const frontendUrl = (process.env.FRONTEND_URL || 'https://agroyilt.com').replace(/\/$/, '');
+    const cleanPath = favUrl.startsWith('/') ? favUrl : `/${favUrl}`;
+    return res.redirect(302, `${frontendUrl}${cleanPath}`);
+  } catch (error) {
+    console.error('[SETTINGS] Error resolving public favicon:', error);
+    res.set({
+      'Cache-Control': 'public, max-age=60',
+      'Pragma': 'public'
+    });
+    return res.redirect(302, 'https://agroyilt.com/AgroyiltLogo.png');
+  }
+};
+

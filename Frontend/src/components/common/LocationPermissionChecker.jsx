@@ -1,8 +1,9 @@
-﻿// Location Permission Checker Component for Agroyilt
+// Location Permission Checker Component for Agroyilt
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import LocationAccessModal from './LocationAccessModal';
 import flutterBridge from '../../utils/flutterBridge';
+import authStorage from '../../utils/authStorage';
 
 export const LocationPermissionChecker = () => {
     const [showModal, setShowModal] = useState(false);
@@ -10,14 +11,12 @@ export const LocationPermissionChecker = () => {
     const location = useLocation();
 
     useEffect(() => {
-        // ... previous user logic ...
-        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
-        const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+        const vendorData = authStorage.getUserData('vendor') || {};
+        const workerData = authStorage.getUserData('worker') || {};
 
         let type = 'user';
-        if (vendorData._id || vendorData.id) type = 'vendor';
-        else if (workerData._id || workerData.id) type = 'worker';
+        if (location.pathname.startsWith('/vendor') || vendorData._id || vendorData.id) type = 'vendor';
+        else if (location.pathname.startsWith('/worker') || workerData._id || workerData.id) type = 'worker';
         setUserType(type);
 
         const isHomePage = [

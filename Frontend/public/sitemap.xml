@@ -2,46 +2,46 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- Main Landing Page -->
   <url>
-    <loc>https://grooagri.com/</loc>
-    <lastmod>2026-04-14</lastmod>
+    <loc>https://agroyilt.com/</loc>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
 
   <!-- Blogs Section -->
   <url>
-    <loc>https://grooagri.com/blogs</loc>
-    <lastmod>2026-04-14</lastmod>
+    <loc>https://agroyilt.com/blogs</loc>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
 
   <!-- Articles Section -->
   <url>
-    <loc>https://grooagri.com/articles</loc>
-    <lastmod>2026-04-14</lastmod>
+    <loc>https://agroyilt.com/articles</loc>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
 
   <!-- Machinery Explorer -->
   <url>
-    <loc>https://grooagri.com/user/machinery-explorer</loc>
-    <lastmod>2026-04-14</lastmod>
+    <loc>https://agroyilt.com/user/machinery-explorer</loc>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
 
   <!-- Auth Pages -->
   <url>
-    <loc>https://grooagri.com/user/login</loc>
-    <lastmod>2026-04-14</lastmod>
+    <loc>https://agroyilt.com/user/login</loc>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://grooagri.com/user/signup</loc>
-    <lastmod>2026-04-14</lastmod>
+    <loc>https://agroyilt.com/user/signup</loc>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>

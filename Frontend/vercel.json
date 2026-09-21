@@ -3,10 +3,22 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/logo.png",
+      "destination": "https://api.agroyilt.com/api/public/logo",
+      "permanent": false
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "https://api.agroyilt.com/api/public/favicon",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
-}
+}

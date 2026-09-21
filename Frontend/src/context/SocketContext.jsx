@@ -8,6 +8,7 @@ import { FiBell, FiClock, FiCheckCircle, FiAlertCircle, FiX, FiTruck, FiUsers } 
 import { toastManager } from '../utils/toastManager';
 import { playNotificationSound, isSoundEnabled, playAlertRing, playCancellationAlert, stopAlertRing } from '../utils/notificationSound';
 import { registerFCMToken } from '../services/pushNotificationService';
+import authStorage from '../utils/authStorage';
 
 const SwipeableNotification = ({ t, data, onClick }) => {
   const x = useMotionValue(0);
@@ -76,38 +77,24 @@ export const SocketProvider = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Determine user type based on path
+  // Determine user type based on path or active tab session
   const getUserType = (path) => {
     if (path.startsWith('/vendor')) return 'vendor';
     if (path.startsWith('/worker')) return 'worker';
     if (path.startsWith('/admin')) return 'admin';
     if (path.startsWith('/user')) return 'user';
+    // If on general path (e.g. '/', '/services', '/cart', '/checkout'), check if this tab has an active session
+    if (authStorage.isAuthenticated('user')) return 'user';
+    if (authStorage.isAuthenticated('worker')) return 'worker';
+    if (authStorage.isAuthenticated('vendor')) return 'vendor';
+    if (authStorage.isAuthenticated('admin')) return 'admin';
     return null;
   };
 
   const userType = getUserType(location.pathname);
 
   // Compute token to reactively trigger socket connection/disconnection on auth state change
-  const token = (() => {
-    if (!userType) return null;
-    let tokenKey = 'accessToken';
-    switch (userType) {
-      case 'vendor':
-        tokenKey = 'vendorAccessToken';
-        break;
-      case 'worker':
-        tokenKey = 'workerAccessToken';
-        break;
-      case 'admin':
-        tokenKey = 'adminAccessToken';
-        break;
-      case 'user':
-      default:
-        tokenKey = 'accessToken';
-        break;
-    }
-    return localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey);
-  })();
+  const token = userType ? authStorage.getAccessToken(userType) : null;
 
   useEffect(() => {
     if (!userType) {
@@ -161,7 +148,7 @@ export const SocketProvider = ({ children }) => {
 
       // If admin, join admin-specific room
       if (userType === 'admin') {
-        const adminData = JSON.parse(sessionStorage.getItem('adminData') || localStorage.getItem('adminData') || '{}');
+        const adminData = authStorage.getUserData('admin') || {};
         const adminId = adminData.id || adminData._id;
         if (adminId) {
           newSocket.emit('join_admin_room', adminId);
@@ -170,7 +157,7 @@ export const SocketProvider = ({ children }) => {
 
       // If vendor, join vendor-specific room
       if (userType === 'vendor') {
-        const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
+        const vendorData = authStorage.getUserData('vendor') || {};
         const vendorId = vendorData.id || vendorData._id;
         if (vendorId) {
           newSocket.emit('join_vendor_room', vendorId);
@@ -179,7 +166,7 @@ export const SocketProvider = ({ children }) => {
 
       // If worker, join worker-specific room
       if (userType === 'worker') {
-        const workerData = JSON.parse(localStorage.getItem('workerData') || sessionStorage.getItem('workerData') || '{}');
+        const workerData = authStorage.getUserData('worker') || {};
         const workerId = workerData.id || workerData._id;
         if (workerId) {
           newSocket.emit('join_worker_room', workerId);
@@ -188,7 +175,7 @@ export const SocketProvider = ({ children }) => {
 
       // If user (farmer), join user-specific room
       if (userType === 'user') {
-        const userData = JSON.parse(localStorage.getItem('userData') || sessionStorage.getItem('userData') || '{}');
+        const userData = authStorage.getUserData('user') || {};
         const userId = userData.id || userData._id;
         if (userId) {
           newSocket.emit('join_user_room', userId);
@@ -328,6 +315,13 @@ export const SocketProvider = ({ children }) => {
       if (userType === 'vendor') window.dispatchEvent(new Event('vendorJobsUpdated'));
       if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
     });
+
+    // Listen for real-time branding updates from Admin Panel
+    newSocket.on('branding:updated', (data) => {
+      console.log('🎨 [SOCKET] branding:updated event received:', data);
+      window.dispatchEvent(new CustomEvent('brandingUpdated', { detail: data }));
+    });
+
 
     // Multi-Worker Live Tracking Global Events
     const handleTrackingEvent = (eventType, data) => {

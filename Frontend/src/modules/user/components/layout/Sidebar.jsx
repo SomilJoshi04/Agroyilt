@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { themeColors } from '../../../../theme';
 import { userAuthService } from '../../../../services/authService';
+import authStorage from '../../../../utils/authStorage';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const [user, setUser] = useState(null);
@@ -24,16 +25,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
-      const storedUserData = localStorage.getItem('userData');
-      if (storedUserData) {
-        try {
-          setUser(JSON.parse(storedUserData));
-        } catch (e) {
-          console.error("Failed to parse user data", e);
-        }
-      } else {
-        setUser(null);
-      }
+      setUser(authStorage.getUserData('user') || null);
     }
   }, [isOpen]);
 

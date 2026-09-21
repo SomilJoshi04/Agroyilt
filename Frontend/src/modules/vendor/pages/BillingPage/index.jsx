@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiCheck, FiTool, FiArrowLeft, FiDollarSign, FiClock, FiKey } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -6,6 +6,7 @@ import vendorBillService from '../../../../services/vendorBillService';
 import vendorWalletService from '../../../../services/vendorWalletService';
 import { getBookingById } from '../../services/bookingService';
 import OtpVerificationModal from './OtpVerificationModal';
+import authStorage from '../../../../utils/authStorage';
 
 const BillingPage = () => {
   const { id } = useParams();
@@ -68,7 +69,7 @@ const BillingPage = () => {
       } else {
         // Fallback global settings
         try {
-          const token = localStorage.getItem('vendorAccessToken');
+          const token = authStorage.getAccessToken('vendor');
           const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/vendors/settings`, { headers: { Authorization: `Bearer ${token}` } });
           const data = await res.json();
           if (data.success && data.data?.global) {

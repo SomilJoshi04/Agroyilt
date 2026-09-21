@@ -29,6 +29,7 @@ import {
 import { MdAccountBalanceWallet } from 'react-icons/md';
 import NotificationBell from '../../components/common/NotificationBell';
 import { useSocket } from '../../../../context/SocketContext';
+import authStorage from '../../../../utils/authStorage';
 
 const Account = () => {
   const navigate = useNavigate();
@@ -50,10 +51,9 @@ const Account = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // First check localStorage
-        const storedUserData = localStorage.getItem('userData');
-        if (storedUserData) {
-          const userData = JSON.parse(storedUserData);
+        // First check current tab session
+        const userData = authStorage.getUserData('user');
+        if (userData) {
           setUserProfile({
             name: userData.name || 'Verified Farmer',
             phone: userData.phone || '',
@@ -68,6 +68,7 @@ const Account = () => {
         // Fetch fresh data from API
         const response = await userAuthService.getProfile();
         if (response.success && response.user) {
+          authStorage.updateUserData('user', response.user);
           setUserProfile({
             name: response.user.name || 'Verified Farmer',
             phone: response.user.phone || '',
@@ -80,10 +81,9 @@ const Account = () => {
           });
         }
       } catch (error) {
-        // Use localStorage data if API fails
-        const storedUserData = localStorage.getItem('userData');
-        if (storedUserData) {
-          const userData = JSON.parse(storedUserData);
+        // Use session data if API fails
+        const userData = authStorage.getUserData('user');
+        if (userData) {
           setUserProfile({
             name: userData.name || 'Verified Farmer',
             phone: userData.phone || '',

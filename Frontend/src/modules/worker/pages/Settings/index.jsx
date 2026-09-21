@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiVolume2, FiGlobe, FiLogOut, FiShield } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -8,6 +8,7 @@ import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import workerService from '../../../../services/workerService';
 import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
+import authStorage from '../../../../utils/authStorage';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -46,9 +47,8 @@ const Settings = () => {
           // Sync with localStorage for legacy components
           localStorage.setItem('workerSettings', JSON.stringify(res.worker.settings));
 
-          // Also sync workerData for global utility usage
-          const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
-          localStorage.setItem('workerData', JSON.stringify({ ...workerData, settings: res.worker.settings }));
+          // Also sync workerData in tab-isolated session
+          authStorage.updateUserData('worker', { settings: res.worker.settings });
         }
         setLoading(false);
       } catch (error) {
@@ -66,9 +66,8 @@ const Settings = () => {
       if (res.success) {
         localStorage.setItem('workerSettings', JSON.stringify(newSettings));
 
-        // Also sync workerData for global utility usage
-        const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
-        localStorage.setItem('workerData', JSON.stringify({ ...workerData, settings: newSettings }));
+        // Also sync workerData in tab-isolated session
+        authStorage.updateUserData('worker', { settings: newSettings });
 
         return true;
       }

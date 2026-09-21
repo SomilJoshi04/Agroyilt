@@ -1,9 +1,10 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { vendorDashboardService } from '../modules/vendor/services/dashboardService';
 import maintenanceService from '../modules/vendor/services/maintenanceService';
 import { isWithinInterval, parseISO } from 'date-fns';
 import { registerFCMToken } from '../services/pushNotificationService';
 import { playAlertRing } from '../utils/notificationSound';
+import authStorage from '../utils/authStorage';
 
 const VendorDashboardContext = createContext(null);
 
@@ -51,7 +52,7 @@ export const VendorDashboardProvider = ({ children }) => {
 
   const getInitialProfile = () => {
     try {
-      const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
+      const profile = authStorage.getUserData('vendor') || {};
       return {
         name: profile.name || 'Vendor Name',
         businessName: profile.businessName || 'Business Name',
@@ -100,7 +101,7 @@ export const VendorDashboardProvider = ({ children }) => {
   // Helper to get current vendor ID
   const getCurrentVendorId = () => {
     try {
-      const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
+      const vendorData = authStorage.getUserData('vendor') || {};
       return String(vendorData._id || vendorData.id || '');
     } catch {
       return '';
@@ -267,9 +268,9 @@ export const VendorDashboardProvider = ({ children }) => {
     setRecentJobs(recentJobsData);
     localStorage.setItem('vendorDashboardRecentJobs', JSON.stringify(recentJobsData));
 
-    // Load vendor profile from localStorage safely
+    // Load vendor profile from session safely
     try {
-      const profile = JSON.parse(localStorage.getItem('vendorData') || '{}');
+      const profile = authStorage.getUserData('vendor') || {};
       setVendorProfile({
         name: profile.name || 'Vendor Name',
         businessName: profile.businessName || 'Business Name',
@@ -357,7 +358,7 @@ export const VendorDashboardProvider = ({ children }) => {
 
   // Initial load when context mounts
   useEffect(() => {
-    const token = localStorage.getItem('vendorAccessToken');
+    const token = authStorage.getAccessToken('vendor');
     if (token) {
       // Check cache again defensively to prevent missing data
       const cachedStr = localStorage.getItem('vendorDashboardStats');

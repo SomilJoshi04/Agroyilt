@@ -44,41 +44,45 @@ const initializeSocket = (server) => {
   io.on('connection', (socket) => {
     console.log(`[Socket] Client connected (User: ${socket.userId}, Role: ${socket.userRole})`);
 
+    const normalizedRole = (socket.userRole || '').toUpperCase();
+
     // Join user-specific room for notifications
-    if (socket.userRole === 'USER') {
+    if (normalizedRole === 'USER') {
       const uId = socket.userId.toString();
       socket.join(`user_${uId}`);
       socket.join(`user:${uId}`);
-    } else if (socket.userRole === 'VENDOR') {
+    } else if (normalizedRole === 'VENDOR') {
       const room = `vendor_${socket.userId.toString()}`;
       socket.join(room);
       socket.join(`vendor:${socket.userId.toString()}`);
       console.log(`[SOCKET SERVER] ✅ VENDOR ${socket.userId} auto-joined room: ${room}`);
       // Update vendor online status
       updateVendorOnlineStatus(socket.userId, true, socket.id);
-    } else if (socket.userRole === 'WORKER') {
+    } else if (normalizedRole === 'WORKER') {
       const wId = socket.userId.toString();
       socket.join(`worker_${wId}`);
       socket.join(`worker:${wId}`);
       console.log(`[SOCKET SERVER] ✅ WORKER ${socket.userId} auto-joined rooms: worker_${wId} & worker:${wId}`);
       // Update worker online status
       updateWorkerOnlineStatus(socket.userId, true, socket.id);
-    } else if (socket.userRole === 'ADMIN' || socket.userRole === 'admin' || socket.userRole === 'super_admin') {
+    } else if (normalizedRole === 'ADMIN' || normalizedRole === 'SUPER_ADMIN') {
       socket.join(`admin_${socket.userId.toString()}`);
       socket.join('admin_global');
       console.log(`[SOCKET SERVER]  ADMIN ${socket.userId} joined room: admin_${socket.userId} & admin_global`);
     }
 
-    // Explicit Room Join Events (Fallback/Frontend Initiated)
+    // Explicit Room Join Events (Fallback/Frontend Initiated with security verification)
     socket.on('join_admin_room', (adminId) => {
-      if (adminId) {
+      const role = (socket.userRole || '').toUpperCase();
+      if ((role === 'ADMIN' || role === 'SUPER_ADMIN') && socket.userId?.toString() === adminId?.toString()) {
         socket.join(`admin_${adminId.toString()}`);
         socket.join('admin_global');
       }
     });
 
     socket.on('join_vendor_room', (vendorId) => {
-      if (vendorId) {
+      const role = (socket.userRole || '').toUpperCase();
+      if (role === 'VENDOR' && socket.userId?.toString() === vendorId?.toString()) {
         const vId = vendorId.toString();
         socket.join(`vendor_${vId}`);
         socket.join(`vendor:${vId}`);
@@ -86,7 +90,8 @@ const initializeSocket = (server) => {
     });
 
     socket.on('join_user_room', (userId) => {
-      if (userId) {
+      const role = (socket.userRole || '').toUpperCase();
+      if (role === 'USER' && socket.userId?.toString() === userId?.toString()) {
         const uId = userId.toString();
         socket.join(`user_${uId}`);
         socket.join(`user:${uId}`);
@@ -94,7 +99,8 @@ const initializeSocket = (server) => {
     });
 
     socket.on('join_worker_room', (workerId) => {
-      if (workerId) {
+      const role = (socket.userRole || '').toUpperCase();
+      if (role === 'WORKER' && socket.userId?.toString() === workerId?.toString()) {
         const wId = workerId.toString();
         socket.join(`worker_${wId}`);
         socket.join(`worker:${wId}`);

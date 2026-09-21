@@ -7,6 +7,7 @@ import CityManagement from '../Cities';
 import { toastManager } from '../../../../utils/toastManager';
 import { useBrand } from '../../../../context/BrandContext';
 import api from '../../../../services/api';
+import authStorage from '../../../../utils/authStorage';
 
 const AdminSettings = () => {
   const { refreshBrandSettings } = useBrand();
@@ -210,7 +211,7 @@ const AdminSettings = () => {
 
   const [profile, setProfile] = useState(() => {
     try {
-      const stored = JSON.parse(sessionStorage.getItem('adminData') || localStorage.getItem('adminData') || '{}');
+      const stored = authStorage.getUserData('admin') || {};
       return {
         name: stored.name || '',
         email: stored.email || '',
@@ -248,7 +249,7 @@ const AdminSettings = () => {
 
   const storedRole = (() => {
     try {
-      const stored = JSON.parse(sessionStorage.getItem('adminData') || localStorage.getItem('adminData') || '{}');
+      const stored = authStorage.getUserData('admin') || {};
       return (stored.role || '').toLowerCase();
     } catch { return ''; }
   })();
@@ -269,9 +270,7 @@ const AdminSettings = () => {
             profilePhoto: res.data.profilePhoto || null,
             assignedCity: res.data.cityName || res.data.cityId?.name || ''
           }));
-          const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-          const newData = { ...adminData, ...res.data };
-          localStorage.setItem('adminData', JSON.stringify(newData));
+          authStorage.updateUserData('admin', res.data);
         }
       } catch (error) {
         console.error('Error loading admin profile:', error);
@@ -615,6 +614,12 @@ const AdminSettings = () => {
       if (res.success) {
         toastManager.success('App Branding & Identity updated successfully!');
         if (refreshBrandSettings) refreshBrandSettings();
+        try {
+          const bc = new BroadcastChannel('agroyilt_branding');
+          bc.postMessage({ type: 'BRANDING_UPDATED', data: brandingSettings });
+          bc.close();
+        } catch (bcErr) {}
+        window.dispatchEvent(new CustomEvent('brandingUpdated', { detail: brandingSettings }));
       } else {
         toastManager.error(res.message || 'Failed to update branding');
       }
@@ -650,11 +655,11 @@ const AdminSettings = () => {
       }
 
       await updateAdminProfile(updateData);
-      const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-      adminData.email = profile.email;
-      adminData.name = profile.name;
-      adminData.profilePhoto = profile.profilePhoto;
-      localStorage.setItem('adminData', JSON.stringify(adminData));
+      authStorage.updateUserData('admin', {
+        email: profile.email,
+        name: profile.name,
+        profilePhoto: profile.profilePhoto
+      });
 
       toastManager.success('Profile updated');
       setProfile(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));

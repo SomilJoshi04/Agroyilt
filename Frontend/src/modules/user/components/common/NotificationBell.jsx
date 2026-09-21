@@ -1,9 +1,10 @@
-﻿import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell } from 'react-icons/fi';
 import { gsap } from 'gsap';
 import { themeColors } from '../../../../theme';
 import api from '../../../../services/api';
+import authStorage from '../../../../utils/authStorage';
 
 const NotificationBell = ({ notificationCount = 0 }) => {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ const NotificationBell = ({ notificationCount = 0 }) => {
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
-        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+        const token = authStorage.getAccessToken('user');
         if (!token) return; // Not logged in, count 0
 
         const res = await api.get('/notifications/user');

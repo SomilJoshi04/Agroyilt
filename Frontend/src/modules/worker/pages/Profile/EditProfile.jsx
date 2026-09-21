@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiSave, FiUser, FiPhone, FiMail,
@@ -15,6 +15,7 @@ import { z } from "zod";
 
 // Zod schema
 import flutterBridge from '../../../../utils/flutterBridge';
+import authStorage from '../../../../utils/authStorage';
 
 const workerProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -305,13 +306,11 @@ const EditProfile = () => {
       await workerService.updateProfile(payload);
       toastManager.success('Profile updated successfully');
 
-      // Update local storage to keep session in sync if needed
-      const currentWorker = JSON.parse(localStorage.getItem('workerData') || '{}');
-      localStorage.setItem('workerData', JSON.stringify({
-        ...currentWorker,
+      // Update tab-isolated worker session
+      authStorage.updateUserData('worker', {
         ...payload,
-        profilePhoto: payload.profilePhoto || currentWorker.profilePhoto
-      }));
+        profilePhoto: payload.profilePhoto
+      });
 
       navigate('/worker/profile');
     } catch (error) {

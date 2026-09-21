@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ensureIds, loadCatalog } from "./utils";
@@ -10,6 +10,7 @@ import BrandsPage from "./pages/BrandsPage";
 
 import SearchableCitySelect from "./components/SearchableCitySelect";
 import { cityService } from "../../services/cityService";
+import authStorage from "../../../../utils/authStorage";
 
 const UserCategories = () => {
   const [catalog, setCatalog] = useState(() => ensureIds(loadCatalog()));
@@ -65,8 +66,7 @@ const UserCategories = () => {
   // Get admin role to control UI visibility
   const isAdminSuper = (() => {
     try {
-      const storedData = sessionStorage.getItem('adminData') || localStorage.getItem('adminData');
-      const stored = JSON.parse(storedData || '{}');
+      const stored = authStorage.getUserData('admin') || {};
       return (stored.role || 'admin') === 'super_admin';
     } catch (e) {
       return false;

@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="icon" type="image/png" href="/AgroyiltLogo.png" id="dynamic-favicon" />
+  <link rel="apple-touch-icon" href="/AgroyiltLogo.png" id="dynamic-apple-icon" />
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
   
@@ -16,12 +17,18 @@
   <!-- Open Graph / Social Media -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://agroyilt.com/" />
-  <meta property="og:title" content="Agroyilt | Modern Farming Solutions" />
+  <meta property="og:title" id="dynamic-og-title" content="Agroyilt | Modern Farming Solutions" />
   <meta property="og:description" content="Book professional agriculture machinery with ease. Empowering farmers with technology and reliable equipment." />
-  <meta property="og:image" content="https://agroyilt.com/logo.png" />
+  <meta property="og:image" id="dynamic-og-image" content="https://agroyilt.com/logo.png" />
+  
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Agroyilt | Modern Farming Solutions" />
+  <meta name="twitter:description" content="Book professional agriculture machinery with ease. Empowering farmers with technology and reliable equipment." />
+  <meta name="twitter:image" id="dynamic-twitter-image" content="https://agroyilt.com/logo.png" />
 
   <!-- Structured Data (JSON-LD) for Sitelinks & Organization -->
-  <script type="application/ld+json">
+  <script type="application/ld+json" id="dynamic-jsonld-org">
     {
       "@context": "https://schema.org",
       "@type": "Organization",

@@ -1,10 +1,11 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toastManager } from '../../../../utils/toastManager';
 import { FiX, FiCheckCircle } from 'react-icons/fi';
 import { verifySelfVisit } from '../../services/bookingService';
 import flutterBridge from '../../../../utils/flutterBridge';
 import LocationAccessModal from '../../../../components/common/LocationAccessModal';
+import authStorage from '../../../../utils/authStorage';
 
 /**
  * Reusable Visit Verification Modal
@@ -23,10 +24,10 @@ const VisitVerificationModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
 
   // Detect user type
   React.useEffect(() => {
-    const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
-    const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
-    if (workerData._id || workerData.id) setUserType('worker');
-    else if (vendorData._id || vendorData.id) setUserType('vendor');
+    const workerData = authStorage.getUserData('worker') || {};
+    const vendorData = authStorage.getUserData('vendor') || {};
+    if (window.location.pathname.startsWith('/worker') || workerData._id || workerData.id) setUserType('worker');
+    else if (window.location.pathname.startsWith('/vendor') || vendorData._id || vendorData.id) setUserType('vendor');
   }, []);
 
   // Auto-verify as last digit enters

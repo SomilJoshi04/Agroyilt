@@ -1,5 +1,6 @@
-﻿import api from './api';
+import api from './api';
 import { registerFCMToken, removeFCMToken } from './pushNotificationService';
+import authStorage from '../utils/authStorage';
 
 /**
  * Notify Flutter WebView about successful login
@@ -47,9 +48,11 @@ export const userAuthService = {
   register: async (data) => {
     const response = await api.post('/users/auth/register', data);
     if (response.data.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
-      localStorage.setItem('userData', JSON.stringify(response.data.user));
+      authStorage.setAuthSession('user', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.user
+      });
       notifyFlutterLogin(response.data);
       registerFCMToken('user', true).catch(console.error);
     }
@@ -60,9 +63,11 @@ export const userAuthService = {
   login: async (data) => {
     const response = await api.post('/users/auth/login', data);
     if (response.data.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
-      localStorage.setItem('userData', JSON.stringify(response.data.user));
+      authStorage.setAuthSession('user', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.user
+      });
       notifyFlutterLogin(response.data);
       registerFCMToken('user', true).catch(console.error);
     }
@@ -78,16 +83,14 @@ export const userAuthService = {
     } catch (error) {
       console.error('Logout error:', error);
     }
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('userData');
+    authStorage.clearAuthSession('user');
   },
 
   // Get profile
   getProfile: async () => {
     const response = await api.get('/users/profile');
     if (response.data.user) {
-      localStorage.setItem('userData', JSON.stringify(response.data.user));
+      authStorage.updateUserData('user', response.data.user);
     }
     return response.data;
   },
@@ -96,7 +99,7 @@ export const userAuthService = {
   updateProfile: async (data) => {
     const response = await api.put('/users/profile', data);
     if (response.data.user) {
-      localStorage.setItem('userData', JSON.stringify(response.data.user));
+      authStorage.updateUserData('user', response.data.user);
     }
     return response.data;
   },
@@ -105,9 +108,11 @@ export const userAuthService = {
   loginWithMpin: async (data) => {
     const response = await api.post('/users/auth/login-mpin', data);
     if (response.data.success && response.data.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
-      localStorage.setItem('userData', JSON.stringify(response.data.user));
+      authStorage.setAuthSession('user', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.user
+      });
       notifyFlutterLogin(response.data);
       registerFCMToken('user', true).catch(console.error);
     }
@@ -134,10 +139,8 @@ export const userAuthService = {
     await removeFCMToken('user').catch(() => {}); // Silent fail
     const response = await api.delete('/users/auth/delete-account');
     if (response.data.success) {
-      // Only clear localStorage AFTER backend confirms deletion
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userData');
+      // Clear tab-isolated user session after deletion confirmation
+      authStorage.clearAuthSession('user');
       localStorage.removeItem('currentAddress');
       localStorage.removeItem('currentCity');
     }
@@ -165,9 +168,11 @@ export const vendorAuthService = {
   register: async (data) => {
     const response = await api.post('/vendors/auth/register', data);
     if (response.data.success && response.data.accessToken) {
-      localStorage.setItem('vendorAccessToken', response.data.accessToken);
-      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
-      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      authStorage.setAuthSession('vendor', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.vendor
+      });
     }
     return response.data;
   },
@@ -178,21 +183,17 @@ export const vendorAuthService = {
     const { email, ...loginData } = data;
     const response = await api.post('/vendors/auth/login', loginData);
     if (response.data.accessToken) {
-      localStorage.setItem('vendorAccessToken', response.data.accessToken);
-      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
-      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      authStorage.setAuthSession('vendor', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.vendor
+      });
       notifyFlutterLogin(response.data);
       // Register FCM token after successful login
-      console.log('[AUTH] Vendor login successful, registering FCM token...');
       try {
-        const fcmToken = await registerFCMToken('vendor', true);
-        if (fcmToken) {
-          console.log('[AUTH] ✅ Vendor FCM token registered successfully');
-        } else {
-          console.log('[AUTH] ⚠️ Vendor FCM token registration returned null');
-        }
+        await registerFCMToken('vendor', true);
       } catch (err) {
-        console.error('[AUTH] ❌ Vendor FCM token registration failed:', err);
+        console.error('[AUTH] Vendor FCM token registration failed:', err);
       }
     }
     return response.data;
@@ -207,16 +208,14 @@ export const vendorAuthService = {
     } catch (error) {
       console.error('Logout error:', error);
     }
-    localStorage.removeItem('vendorAccessToken');
-    localStorage.removeItem('vendorRefreshToken');
-    localStorage.removeItem('vendorData');
+    authStorage.clearAuthSession('vendor');
   },
 
   // Get profile
   getProfile: async () => {
     const response = await api.get('/vendors/profile');
     if (response.data.vendor) {
-      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      authStorage.updateUserData('vendor', response.data.vendor);
     }
     return response.data;
   },
@@ -225,7 +224,7 @@ export const vendorAuthService = {
   updateProfile: async (data) => {
     const response = await api.put('/vendors/profile', data);
     if (response.data.vendor) {
-      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      authStorage.updateUserData('vendor', response.data.vendor);
     }
     return response.data;
   },
@@ -233,15 +232,12 @@ export const vendorAuthService = {
   // Update business profile
   updateBusinessProfile: async (data) => {
     const response = await api.put('/vendors/profile/business', data);
-    // Update local storage with new services and labDetails
+    // Update session storage with new services and labDetails
     if (response.data.success) {
-      const currentData = JSON.parse(localStorage.getItem('vendorData') || '{}');
-      const updatedData = { 
-        ...currentData, 
+      authStorage.updateUserData('vendor', {
         service: response.data.service,
-        labDetails: response.data.labDetails 
-      };
-      localStorage.setItem('vendorData', JSON.stringify(updatedData));
+        labDetails: response.data.labDetails
+      });
       
       // Dispatch event to update profile UI
       window.dispatchEvent(new Event('vendorProfileUpdated'));
@@ -253,9 +249,11 @@ export const vendorAuthService = {
   loginWithMpin: async (data) => {
     const response = await api.post('/vendors/auth/login-mpin', data);
     if (response.data.success && response.data.accessToken) {
-      localStorage.setItem('vendorAccessToken', response.data.accessToken);
-      localStorage.setItem('vendorRefreshToken', response.data.refreshToken);
-      localStorage.setItem('vendorData', JSON.stringify(response.data.vendor));
+      authStorage.setAuthSession('vendor', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.vendor
+      });
       notifyFlutterLogin(response.data);
       registerFCMToken('vendor', true).catch(console.error);
     }
@@ -282,10 +280,8 @@ export const vendorAuthService = {
     await removeFCMToken('vendor').catch(() => {}); // Silent fail
     const response = await api.delete('/vendors/auth/delete-account');
     if (response.data.success) {
-      // Only clear localStorage AFTER backend confirms deletion
-      localStorage.removeItem('vendorAccessToken');
-      localStorage.removeItem('vendorRefreshToken');
-      localStorage.removeItem('vendorData');
+      // Clear tab-isolated vendor session after backend confirms deletion
+      authStorage.clearAuthSession('vendor');
       localStorage.removeItem('vendorSettings');
       localStorage.removeItem('vendorProfile');
     }
@@ -313,9 +309,11 @@ export const workerAuthService = {
   register: async (data) => {
     const response = await api.post('/workers/auth/register', data);
     if (response.data.accessToken) {
-      localStorage.setItem('workerAccessToken', response.data.accessToken);
-      localStorage.setItem('workerRefreshToken', response.data.refreshToken);
-      localStorage.setItem('workerData', JSON.stringify(response.data.worker));
+      authStorage.setAuthSession('worker', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.worker
+      });
       notifyFlutterLogin(response.data);
     }
     return response.data;
@@ -327,9 +325,11 @@ export const workerAuthService = {
     const { email, ...loginData } = data;
     const response = await api.post('/workers/auth/login', loginData);
     if (response.data.accessToken) {
-      localStorage.setItem('workerAccessToken', response.data.accessToken);
-      localStorage.setItem('workerRefreshToken', response.data.refreshToken);
-      localStorage.setItem('workerData', JSON.stringify(response.data.worker));
+      authStorage.setAuthSession('worker', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.worker
+      });
       notifyFlutterLogin(response.data);
       registerFCMToken('worker', true).catch(console.error);
     }
@@ -345,16 +345,14 @@ export const workerAuthService = {
     } catch (error) {
       console.error('Logout error:', error);
     }
-    localStorage.removeItem('workerAccessToken');
-    localStorage.removeItem('workerRefreshToken');
-    localStorage.removeItem('workerData');
+    authStorage.clearAuthSession('worker');
   },
 
   // Get profile
   getProfile: async () => {
     const response = await api.get('/workers/profile');
     if (response.data.worker) {
-      localStorage.setItem('workerData', JSON.stringify(response.data.worker));
+      authStorage.updateUserData('worker', response.data.worker);
     }
     return response.data;
   },
@@ -363,7 +361,7 @@ export const workerAuthService = {
   updateProfile: async (data) => {
     const response = await api.put('/workers/profile', data);
     if (response.data.worker) {
-      localStorage.setItem('workerData', JSON.stringify(response.data.worker));
+      authStorage.updateUserData('worker', response.data.worker);
     }
     return response.data;
   },
@@ -372,9 +370,11 @@ export const workerAuthService = {
   loginWithMpin: async (data) => {
     const response = await api.post('/workers/auth/login-mpin', data);
     if (response.data.success && response.data.accessToken) {
-      localStorage.setItem('workerAccessToken', response.data.accessToken);
-      localStorage.setItem('workerRefreshToken', response.data.refreshToken);
-      localStorage.setItem('workerData', JSON.stringify(response.data.worker));
+      authStorage.setAuthSession('worker', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.worker
+      });
       notifyFlutterLogin(response.data);
       registerFCMToken('worker', true).catch(console.error);
     }
@@ -405,15 +405,11 @@ export const adminAuthService = {
   login: async (email, password, rememberMe = false) => {
     const response = await api.post('/admin/auth/login', { email, password });
     if (response.data.accessToken) {
-      // Clear any session storage to prevent conflicts
-      sessionStorage.removeItem('adminAccessToken');
-      sessionStorage.removeItem('adminRefreshToken');
-      sessionStorage.removeItem('adminData');
-
-      // Always use localStorage for consistency
-      localStorage.setItem('adminAccessToken', response.data.accessToken);
-      localStorage.setItem('adminRefreshToken', response.data.refreshToken);
-      localStorage.setItem('adminData', JSON.stringify(response.data.admin));
+      authStorage.setAuthSession('admin', {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        user: response.data.admin
+      });
     }
     return response.data;
   },
@@ -425,9 +421,7 @@ export const adminAuthService = {
     } catch (error) {
       console.error('Logout error:', error);
     }
-    localStorage.removeItem('adminAccessToken');
-    localStorage.removeItem('adminRefreshToken');
-    localStorage.removeItem('adminData');
+    authStorage.clearAuthSession('admin');
   }
 };
 

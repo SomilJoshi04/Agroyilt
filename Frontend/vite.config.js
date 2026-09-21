@@ -7,6 +7,22 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'dynamic-logo-dev-middleware',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url === '/logo.png') {
+            res.writeHead(302, { Location: 'http://localhost:5000/api/public/logo' });
+            return res.end();
+          }
+          if (req.url === '/favicon.ico') {
+            res.writeHead(302, { Location: 'http://localhost:5000/api/public/favicon' });
+            return res.end();
+          }
+          next();
+        });
+      }
+    }
   ],
   server: {
     port: 5173,

@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../../middleware/authMiddleware');
+const { isUser } = require('../../middleware/roleMiddleware');
 const { sendPushNotification } = require('../../services/firebaseAdmin');
 const User = require('../../models/User');
 const Vendor = require('../../models/Vendor');
@@ -18,46 +19,43 @@ const MAX_TOKENS = 10; // Maximum tokens per platform
  * @desc    Save FCM token for user
  * @access  Private
  */
-router.post('/save', authenticate, async (req, res) => {
+router.post('/save', authenticate, isUser, async (req, res) => {
   try {
-    const { token, platform = 'web', deviceId = null, browser = null, appVersion = null } = req.body;
+    const { token, platform = 'web' } = req.body;
     const userId = req.user._id;
 
     if (!token) {
       return res.status(400).json({ success: false, error: 'Token is required' });
     }
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
+    const validPlatform = ['web', 'android', 'ios', 'mobile'].includes(platform) ? platform : 'web';
 
-    if (!Array.isArray(user.fcmTokens)) user.fcmTokens = [];
-    // Filter out old token if it exists anywhere
-    user.fcmTokens = user.fcmTokens || [];
-    user.fcmTokens = user.fcmTokens.filter(t => t.token !== token);
-
-    // Filter out old device if same deviceId exists (to replace token on same device)
-    if (deviceId) {
-      user.fcmTokens = user.fcmTokens.filter(t => t.deviceId !== deviceId);
-    }
-
-    // Add new token object to front
-    user.fcmTokens.unshift({
-      token,
-      platform,
-      deviceId,
-      browser,
-      appVersion,
-      updatedAt: new Date()
+    await User.findByIdAndUpdate(userId, {
+      $pull: { fcmTokens: { token: token } }
     });
 
-    // Enforce max tokens
-    if (user.fcmTokens.length > MAX_TOKENS) {
-      user.fcmTokens = user.fcmTokens.slice(0, MAX_TOKENS);
-    }
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $push: {
+          fcmTokens: {
+            $each: [{
+              token,
+              platform: validPlatform,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }],
+            $position: 0,
+            $slice: MAX_TOKENS
+          }
+        }
+      },
+      { new: true }
+    );
 
-    await user.save();
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
 
     res.json({
       success: true,
@@ -66,7 +64,7 @@ router.post('/save', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Error saving FCM token:', error);
-    res.status(500).json({ success: false, error: 'Failed to save FCM token' });
+    res.status(500).json({ success: false, error: error.message || 'Failed to save FCM token' });
   }
 });
 
@@ -75,7 +73,7 @@ router.post('/save', authenticate, async (req, res) => {
  * @desc    Remove FCM token for user
  * @access  Private
  */
-router.delete('/remove', authenticate, async (req, res) => {
+router.delete('/remove', authenticate, isUser, async (req, res) => {
   try {
     const { token } = req.body;
     const userId = req.user._id;
@@ -106,7 +104,7 @@ router.delete('/remove', authenticate, async (req, res) => {
  * @desc    Remove ALL FCM tokens for a specific platform (called during logout)
  * @access  Private
  */
-router.delete('/remove-all', authenticate, async (req, res) => {
+router.delete('/remove-all', authenticate, isUser, async (req, res) => {
   try {
     const userId = req.user._id;
     const { platform = 'web' } = req.body;

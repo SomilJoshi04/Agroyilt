@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
     FiPlus,
@@ -21,6 +21,7 @@ import { publicCatalogService } from '../../../../services/catalogService';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { toastManager } from '../../../../utils/toastManager';
 import { motion, AnimatePresence } from 'framer-motion';
+import authStorage from '../../../../utils/authStorage';
 
 const MyStore = () => {
     const navigate = useNavigate();
@@ -107,7 +108,7 @@ const MyStore = () => {
 
         try {
             setUploading(true);
-            const token = sessionStorage.getItem('vendorAccessToken') || localStorage.getItem('vendorAccessToken');
+            const token = authStorage.getAccessToken('vendor');
             const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
             const uploadedUrls = [];

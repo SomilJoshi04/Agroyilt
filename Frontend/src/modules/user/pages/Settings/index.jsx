@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiBell, FiMail, FiPhone, FiMessageCircle, FiShield, FiChevronRight, FiLogOut, FiTrash2 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -6,6 +6,7 @@ import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 import { userAuthService } from '../../../../services/authService';
 import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
+import authStorage from '../../../../utils/authStorage';
 import BottomNav from '../../components/layout/BottomNav';
 
 const Settings = () => {
@@ -310,7 +311,7 @@ const Settings = () => {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${authStorage.getAccessToken('user')}`
                   }
                 });
 

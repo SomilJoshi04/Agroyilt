@@ -1,15 +1,16 @@
-﻿import React from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toastManager } from '../../../../utils/toastManager';
 
 import { FiCopy, FiArrowLeft, FiGift, FiBell } from 'react-icons/fi';
 import { FaWhatsapp, FaFacebookMessenger } from 'react-icons/fa';
 import { themeColors } from '../../../../theme';
+import authStorage from '../../../../utils/authStorage';
 
 const Rewards = () => {
   const navigate = useNavigate();
   const getReferralLink = () => {
-    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+    const userData = authStorage.getUserData('user') || {};
     const userCode = userData._id || userData.id || 'NEW_USER';
     return `${window.location.origin}/user/signup?ref=${userCode}`;
   };

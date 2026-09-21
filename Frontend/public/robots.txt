@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 
 # Sitemaps
-Sitemap: https://grooagri.com/sitemap.xml
+Sitemap: https://agroyilt.com/sitemap.xml

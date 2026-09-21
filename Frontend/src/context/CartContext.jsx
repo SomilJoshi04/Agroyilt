@@ -1,5 +1,6 @@
-﻿import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { cartService } from '../services/cartService';
+import authStorage from '../utils/authStorage';
 
 /**
  * Cart Context
@@ -15,7 +16,7 @@ export const CartProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Fetch cart from server (only on initial load)
+  // Fetch cart items from API
   const fetchCart = useCallback(async () => {
     try {
       // Prevention: Do not fetch user cart if we are in vendor/admin/worker apps
@@ -24,7 +25,7 @@ export const CartProvider = ({ children }) => {
         return;
       }
 
-      const token = localStorage.getItem('accessToken');
+      const token = authStorage.getAccessToken('user');
       if (!token) {
         setCartItems([]);
         setCartCount(0);

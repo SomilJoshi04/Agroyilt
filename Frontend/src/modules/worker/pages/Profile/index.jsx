@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiChevronRight, FiTag, FiLogOut } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -7,6 +7,7 @@ import { workerAuthService } from '../../../../services/authService';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import LogoLoader from '../../../../components/common/LogoLoader';
+import authStorage from '../../../../utils/authStorage';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -59,12 +60,12 @@ const Profile = () => {
             isPhoneVerified: workerData.isPhoneVerified || false,
             isEmailVerified: workerData.isEmailVerified || false
           });
-          localStorage.setItem('workerData', JSON.stringify(workerData));
+          authStorage.updateUserData('worker', workerData);
         } else {
           setError(response.message || 'Failed to fetch profile');
           toastManager.error(response.message || 'Failed to fetch profile');
-          // Fallback to local storage if API fails
-          const localWorkerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+          // Fallback to tab session if API fails
+          const localWorkerData = authStorage.getUserData('worker') || {};
           if (localWorkerData && Object.keys(localWorkerData).length > 0) {
             setProfile({
               name: localWorkerData.name || 'Worker Name',
@@ -85,8 +86,8 @@ const Profile = () => {
         console.error('Error fetching worker profile:', err);
         setError(err.response?.data?.message || 'Failed to fetch profile');
         toastManager.error(err.response?.data?.message || 'Failed to fetch profile');
-        // Fallback to local storage if API fails
-        const localWorkerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+        // Fallback to tab session if API fails
+        const localWorkerData = authStorage.getUserData('worker') || {};
         if (localWorkerData && Object.keys(localWorkerData).length > 0) {
           setProfile({
             name: localWorkerData.name || 'Worker Name',

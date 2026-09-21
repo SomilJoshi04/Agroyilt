@@ -6,6 +6,7 @@ import { vendorTheme as themeColors } from '../../../../theme';
 import { vendorAuthService } from '../../../../services/authService';
 import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
 import api from '../../../../services/api';
+import authStorage from '../../../../utils/authStorage';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 
@@ -26,7 +27,7 @@ const Settings = () => {
     console.log('[Test Notification] Stored FCM token (web):', localStorage.getItem('fcm_token_vendor_web') ? 'Present (Hidden for security)' : 'Missing');
     console.log('[Test Notification] Stored FCM token (mobile):', localStorage.getItem('fcm_token_vendor_mobile') ? 'Present (Hidden for security)' : 'Missing');
     console.log('[Test Notification] Notification.permission:', typeof Notification !== 'undefined' ? Notification.permission : 'Not supported');
-    console.log('[Test Notification] Vendor Access Token:', localStorage.getItem('vendorAccessToken') ? 'Present (Hidden for security)' : 'Missing');
+    console.log('[Test Notification] Vendor Access Token:', authStorage.getAccessToken('vendor') ? 'Present (Hidden for security)' : 'Missing');
 
     setSendingTest(true);
     try {

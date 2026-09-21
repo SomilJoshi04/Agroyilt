@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiMapPin, FiClock, FiDollarSign, FiUser, FiPhone, FiNavigation, FiArrowRight, FiEdit, FiCheckCircle, FiCreditCard, FiX, FiCheck, FiTool, FiXCircle, FiAward, FiPackage, FiAlertCircle, FiDownload, FiAlertTriangle, FiLoader, FiKey } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,6 +34,7 @@ import DisputeModal from '../../../../components/common/DisputeModal'; // NEW
 import disputeService from '../../../../services/disputeService'; // NEW
 import LogoLoader from '../../../../components/common/LogoLoader'; // NEW
 import flutterBridge from '../../../../utils/flutterBridge';
+import authStorage from '../../../../utils/authStorage';
 import { configService } from '../../../../services/configService'; // For commission %
 
 
@@ -495,7 +496,7 @@ export default function BookingDetails() {
   const handleDownloadInvoice = async () => {
     try {
       setActionLoading(true);
-      const token = sessionStorage.getItem('vendorAccessToken') || localStorage.getItem('vendorAccessToken');
+      const token = authStorage.getAccessToken('vendor');
       const url = `${import.meta.env.VITE_API_BASE_URL}/vendors/bookings/${id}/bill/download?token=${token}`;
       const fileName = `Invoice_${booking.bookingNumber}.pdf`;
       

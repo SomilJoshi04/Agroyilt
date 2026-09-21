@@ -1,9 +1,10 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiLock } from 'react-icons/fi';
 import { toastManager } from '../../../utils/toastManager';
 // authService exports workerAuthService, let's import it
 import { workerAuthService } from '../../../services/authService';
+import authStorage from '../../../utils/authStorage';
 import LogoLoader from '../../../components/common/LogoLoader';
 import { themeColors } from '../../../theme';
 
@@ -101,16 +102,13 @@ const WorkerMpinSetup = () => {
 
       if (response.success) {
         toastManager.success('MPIN set successfully!');
-        const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
-        workerData.isMpinSet = true;
-        localStorage.setItem('workerData', JSON.stringify(workerData));
+        const workerData = authStorage.getUserData('worker') || {};
+        authStorage.updateUserData('worker', { isMpinSet: true });
         
         const approval = location.state?.approvalStatus || workerData.approvalStatus || 'pending';
         if (isFirstTime && approval !== 'approved') {
           toastManager.info('Your Worker account is registered and pending admin approval. You can login with your MPIN once approved.', { duration: 6000 });
-          localStorage.removeItem('workerAccessToken');
-          localStorage.removeItem('workerRefreshToken');
-          localStorage.removeItem('workerData');
+          authStorage.clearAuthSession('worker');
           navigate('/app/login', { replace: true });
         } else {
           navigate('/worker', { replace: true });
@@ -178,12 +176,10 @@ const WorkerMpinSetup = () => {
               <button
                 type="button"
                 onClick={() => {
-                  const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+                  const workerData = authStorage.getUserData('worker') || {};
                   if (workerData.approvalStatus !== 'approved') {
                     toastManager.info('Your registration is complete and pending admin approval.');
-                    localStorage.removeItem('workerAccessToken');
-                    localStorage.removeItem('workerRefreshToken');
-                    localStorage.removeItem('workerData');
+                    authStorage.clearAuthSession('worker');
                     navigate('/worker/login', { replace: true });
                   } else {
                     navigate('/worker', { replace: true });

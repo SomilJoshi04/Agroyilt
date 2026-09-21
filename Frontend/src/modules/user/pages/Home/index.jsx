@@ -13,6 +13,7 @@ import { registerFCMToken } from '../../../../services/pushNotificationService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { userAuthService } from '../../../../services/authService';
+import authStorage from '../../../../utils/authStorage';
 // Lazy load heavy components for better initial load performance
 import PromoCarousel from './components/PromoCarousel';
 // Lazy load OTHER heavy components
@@ -140,7 +141,7 @@ const Home = () => {
         localStorage.setItem('currentCity', city);
 
         // Sync location with profile for Weather Notifications
-        const accessToken = localStorage.getItem('accessToken');
+        const accessToken = authStorage.getAccessToken('user');
         if (accessToken && locationObj.lat && locationObj.lng) {
           userAuthService.updateProfile({
             addresses: [{
@@ -208,7 +209,7 @@ const Home = () => {
                     localStorage.setItem('currentCity', city);
 
                     // Sync location with profile for Weather Notifications
-                    const accessToken = localStorage.getItem('accessToken');
+                    const accessToken = authStorage.getAccessToken('user');
                     if (accessToken) {
                       userAuthService.updateProfile({
                         addresses: [{

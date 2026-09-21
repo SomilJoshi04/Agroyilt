@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiClock, FiMapPin, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
@@ -8,6 +8,7 @@ import LogoLoader from '../../../../components/common/LogoLoader';
 import { vendorDashboardService } from '../../services/dashboardService';
 import { acceptBooking, rejectBooking, getBookings } from '../../services/bookingService';
 import { useSocket } from '../../../../context/SocketContext';
+import authStorage from '../../../../utils/authStorage';
 
 // Timer Component — calculates remaining time from booking's actual createdAt
 const CountdownTimer = ({ totalSeconds = 300, startTime, onExpire }) => {
@@ -73,7 +74,7 @@ const BookingAlerts = () => {
 
         if (response.success && response.data) {
           let bookings = [];
-          const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
+          const vendorData = authStorage.getUserData('vendor') || {};
           const currentVendorId = String(vendorData._id || vendorData.id || '');
 
           const ignoredIds = (() => {

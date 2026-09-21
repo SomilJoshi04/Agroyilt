@@ -1,10 +1,11 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FiMenu, FiBell, FiLogOut } from 'react-icons/fi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Button from '../Button';
 import NotificationWindow from './NotificationWindow';
 import { adminAuthService } from '../../../../services/authService';
+import authStorage from '../../../../utils/authStorage';
 
 const AdminHeader = ({ onMenuClick }) => {
   const location = useLocation();
@@ -13,13 +14,9 @@ const AdminHeader = ({ onMenuClick }) => {
   const [adminData, setAdminData] = useState(null);
 
   useEffect(() => {
-    const data = localStorage.getItem('adminData');
+    const data = authStorage.getUserData('admin');
     if (data) {
-      try {
-        setAdminData(JSON.parse(data));
-      } catch (e) {
-        console.error("Failed to parse admin data", e);
-      }
+      setAdminData(data);
     }
   }, []);
 
@@ -30,10 +27,8 @@ const AdminHeader = ({ onMenuClick }) => {
       navigate('/admin/login');
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if API call fails, clear local storage and redirect
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('adminData');
+      // Even if API call fails, clear session and redirect
+      authStorage.clearAuthSession('admin');
       toast.success('Logged out successfully');
       navigate('/admin/login');
     }

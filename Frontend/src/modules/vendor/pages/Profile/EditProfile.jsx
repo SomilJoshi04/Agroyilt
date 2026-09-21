@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiUser, FiBriefcase, FiPhone, FiMail, FiMapPin, FiChevronDown, FiCamera, FiUpload } from 'react-icons/fi';
 import { vendorTheme as themeColors } from '../../../../theme';
@@ -10,6 +10,7 @@ import AddressSelectionModal from '../../../user/pages/Checkout/components/Addre
 import { toastManager } from '../../../../utils/toastManager';
 import { z } from "zod";
 import flutterBridge from '../../../../utils/flutterBridge';
+import authStorage from '../../../../utils/authStorage';
 
 // Zod schema
 const vendorProfileSchema = z.object({
@@ -129,14 +130,11 @@ const EditProfile = () => {
             aadharDocument: v.aadharDocument || (v.aadhar && v.aadhar.document) || '',
           });
 
-          // Update local storage
-          localStorage.setItem('vendorProfile', JSON.stringify(v));
-          localStorage.setItem('vendorData', JSON.stringify(v));
+          // Update tab-isolated vendor session
+          authStorage.updateUserData('vendor', v);
         } else {
-          // Fallback to local storage if API fails
-          const vendorProfile = JSON.parse(localStorage.getItem('vendorProfile') || '{}');
-          const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
-          const storedData = { ...vendorProfile, ...vendorData };
+          // Fallback to tab-isolated session storage if API fails
+          const storedData = authStorage.getUserData('vendor') || {};
 
           if (Object.keys(storedData).length > 0) {
             // ... existing fallback logic ...
@@ -344,9 +342,8 @@ const EditProfile = () => {
         if (response.success) {
           const updatedProfile = { ...response.vendor, skills: formData.skills }; // Keep local skills 
 
-          // Update Local Storage
-          localStorage.setItem('vendorProfile', JSON.stringify(updatedProfile));
-          localStorage.setItem('vendorData', JSON.stringify(updatedProfile));
+          // Update session
+          authStorage.updateUserData('vendor', updatedProfile);
 
           // Dispatch events
           window.dispatchEvent(new Event('vendorProfileUpdated'));

@@ -1,10 +1,11 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase } from 'react-icons/fi';
 import { vendorAuthService } from '../../../../services/authService';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
+import authStorage from '../../../../utils/authStorage';
 
 const ProfileDetails = () => {
   const navigate = useNavigate();
@@ -47,12 +48,9 @@ const ProfileDetails = () => {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        // Optimistic load from local storage
-        const localVendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
-        const vendorProfile = JSON.parse(localStorage.getItem('vendorProfile') || '{}');
-
-        // Merge sources, preferring vendorData (which might be fresher from other pages)
-        const storedData = { ...vendorProfile, ...localVendorData };
+        // Optimistic load from tab-isolated session storage
+        const localVendorData = authStorage.getUserData('vendor') || {};
+        const storedData = localVendorData;
 
         if (Object.keys(storedData).length > 0) {
           // Format address if object
@@ -104,9 +102,8 @@ const ProfileDetails = () => {
 
           setProfile(prev => ({ ...prev, ...newProfile }));
 
-          // Update local storage
-          localStorage.setItem('vendorData', JSON.stringify(apiData));
-          localStorage.setItem('vendorProfile', JSON.stringify({ ...storedData, ...apiData }));
+          // Update session
+          authStorage.updateUserData('vendor', apiData);
         }
 
       } catch (error) {

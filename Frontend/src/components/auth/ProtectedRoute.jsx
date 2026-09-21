@@ -1,97 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { toastManager } from '../../utils/toastManager';
+import authStorage, { normalizeRole } from '../../utils/authStorage';
 
 /**
  * Protected Route Component
- * Checks if user is authenticated before allowing access
+ * Strictly checks tab-isolated session storage for the specified role
  */
 const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
   const location = useLocation();
+  const canonicalRole = normalizeRole(userType);
 
   const checkAuthSync = () => {
-    let tokenKey = 'accessToken';
-    let refreshTokenKey = 'refreshToken';
-    let dataKey = 'userData';
-
-    // Determine keys based on userType
-    switch (userType) {
-      case 'vendor':
-        tokenKey = 'vendorAccessToken';
-        refreshTokenKey = 'vendorRefreshToken';
-        dataKey = 'vendorData';
-        break;
-      case 'worker':
-        tokenKey = 'workerAccessToken';
-        refreshTokenKey = 'workerRefreshToken';
-        dataKey = 'workerData';
-        break;
-      case 'admin':
-        tokenKey = 'adminAccessToken';
-        refreshTokenKey = 'adminRefreshToken';
-        dataKey = 'adminData';
-        break;
-      case 'user':
-      default:
-        tokenKey = 'accessToken';
-        refreshTokenKey = 'refreshToken';
-        dataKey = 'userData';
-        break;
-    }
-
-    const token = sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey);
-    let userData = sessionStorage.getItem(dataKey) || localStorage.getItem(dataKey);
-
-    // If token exists, verify it's not expired (basic check)
-    if (token) {
-      try {
-        // Decode JWT token to check expiry (basic check without verification)
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1]));
-          const currentTime = Date.now() / 1000;
-
-          if (payload.exp && payload.exp > currentTime) {
-            // If userData is not yet stored, create fallback so routes don't bounce
-            if (!userData) {
-              const fallback = { id: payload.userId || payload.id, role: payload.role || userType };
-              localStorage.setItem(dataKey, JSON.stringify(fallback));
-            }
-            return true;
-          } else {
-            // Token expired
-            console.log('Token expired, clearing auth data for:', userType);
-            localStorage.removeItem(tokenKey);
-            localStorage.removeItem(refreshTokenKey);
-            localStorage.removeItem(dataKey);
-            sessionStorage.removeItem(tokenKey);
-            sessionStorage.removeItem(refreshTokenKey);
-            sessionStorage.removeItem(dataKey);
-            return false;
-          }
-        }
-      } catch (error) {
-        console.error('Token validation error:', error);
-      }
-    }
-    return false;
+    return authStorage.isAuthenticated(canonicalRole);
   };
 
   // Synchronously initialize state so we don't flash a loading screen
-  const [isAuthenticated, setIsAuthenticated] = useState(checkAuthSync);
+  const [isAuth, setIsAuth] = useState(checkAuthSync);
 
   // Still verify on route change to catch session expiry dynamically
   useEffect(() => {
     const isAuthNow = checkAuthSync();
-    if (isAuthenticated !== isAuthNow) {
-      setIsAuthenticated(isAuthNow);
+    if (isAuth !== isAuthNow) {
+      setIsAuth(isAuthNow);
       if (!isAuthNow) {
         toastManager.error('Session expired. Please login again.');
       }
     }
   }, [location.pathname, userType]);
 
-  if (isAuthenticated === false) {
+  if (!isAuth) {
     // Determine redirect path
     const defaultRedirects = {
       user: '/user/login',
@@ -100,13 +38,12 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
       admin: '/admin/login'
     };
 
-    const redirectPath = redirectTo || defaultRedirects[userType] || '/user/login';
+    const redirectPath = redirectTo || defaultRedirects[canonicalRole] || '/user/login';
 
-    return <Navigate to={redirectPath} state={{ from: location }} replace />;
+    return <Navigate to={redirectPath} state={{ from: location, role: canonicalRole }} replace />;
   }
 
   return children;
 };
 
 export default ProtectedRoute;
-

@@ -116,6 +116,12 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Dynamic Root Logo & Favicon Compatibility Endpoints
+const { getPublicLogo, getPublicFavicon } = require('./controllers/adminControllers/settingsController');
+app.get('/logo.png', getPublicLogo);
+app.get('/favicon.ico', getPublicFavicon);
+
+
 // Quick Redis Test Route
 app.get('/api/test/redis', async (req, res) => {
   try {

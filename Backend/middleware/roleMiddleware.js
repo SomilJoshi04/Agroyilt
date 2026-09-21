@@ -4,7 +4,8 @@ const { USER_ROLES } = require('../utils/constants');
  * Role-based authorization middleware
  */
 const isUser = (req, res, next) => {
-  if (req.userRole !== USER_ROLES.USER) {
+  const role = (req.userRole || '').toUpperCase();
+  if (role !== USER_ROLES.USER) {
     return res.status(403).json({
       success: false,
       message: 'Access denied. User role required.'
@@ -14,7 +15,8 @@ const isUser = (req, res, next) => {
 };
 
 const isVendor = (req, res, next) => {
-  if (req.userRole !== USER_ROLES.VENDOR) {
+  const role = (req.userRole || '').toUpperCase();
+  if (role !== USER_ROLES.VENDOR) {
     return res.status(403).json({
       success: false,
       message: 'Access denied. Vendor role required.'
@@ -24,7 +26,8 @@ const isVendor = (req, res, next) => {
 };
 
 const isWorker = (req, res, next) => {
-  if (req.userRole !== USER_ROLES.WORKER) {
+  const role = (req.userRole || '').toUpperCase();
+  if (role !== USER_ROLES.WORKER) {
     return res.status(403).json({
       success: false,
       message: 'Access denied. Worker role required.'
@@ -34,7 +37,8 @@ const isWorker = (req, res, next) => {
 };
 
 const isAdmin = (req, res, next) => {
-  if (req.userRole !== USER_ROLES.ADMIN && req.userRole !== 'super_admin' && req.userRole !== 'admin' && req.userRole !== 'ADMIN') {
+  const role = (req.userRole || '').toUpperCase();
+  if (role !== USER_ROLES.ADMIN && role !== 'SUPER_ADMIN') {
     return res.status(403).json({
       success: false,
       message: 'Access denied. Admin role required.'

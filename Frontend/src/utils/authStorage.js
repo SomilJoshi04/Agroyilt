@@ -1,0 +1,344 @@
+/**
+ * Centralized Tab-Isolated Authentication Storage Utility
+ * AgroYilt Production Session Isolation Architecture
+ * 
+ * Provides strict tab isolation using sessionStorage to allow concurrent,
+ * independent sessions across tabs (e.g. /user in Tab 1, /worker in Tab 2,
+ * /vendor in Tab 3, /admin in Tab 4) without cross-role session leakage.
+ */
+
+// Canonical session keys per role in sessionStorage
+export const AUTH_KEYS = {
+  user: 'agroyilt_auth_user',
+  worker: 'agroyilt_auth_worker',
+  vendor: 'agroyilt_auth_vendor',
+  admin: 'agroyilt_auth_admin'
+};
+
+// Legacy/Compatibility key maps
+const COMPAT_KEYS = {
+  user: {
+    access: 'accessToken',
+    refresh: 'refreshToken',
+    data: 'userData'
+  },
+  worker: {
+    access: 'workerAccessToken',
+    refresh: 'workerRefreshToken',
+    data: 'workerData'
+  },
+  vendor: {
+    access: 'vendorAccessToken',
+    refresh: 'vendorRefreshToken',
+    data: 'vendorData'
+  },
+  admin: {
+    access: 'adminAccessToken',
+    refresh: 'adminRefreshToken',
+    data: 'adminData'
+  }
+};
+
+/**
+ * Normalizes input role string to lowercase canonical role
+ * @param {string} role 
+ * @returns {'user' | 'worker' | 'vendor' | 'admin'}
+ */
+export const normalizeRole = (role) => {
+  if (!role) return 'user';
+  const lower = String(role).toLowerCase();
+  if (lower === 'farmer') return 'user';
+  if (lower.includes('worker')) return 'worker';
+  if (lower.includes('vendor')) return 'vendor';
+  if (lower.includes('admin')) return 'admin';
+  return 'user';
+};
+
+/**
+ * Detects current portal role from window.location.pathname
+ * @returns {'user' | 'worker' | 'vendor' | 'admin'}
+ */
+export const getCurrentPortalRole = () => {
+  if (typeof window === 'undefined') return 'user';
+  const path = window.location.pathname;
+  if (path.startsWith('/admin')) return 'admin';
+  if (path.startsWith('/vendor')) return 'vendor';
+  if (path.startsWith('/worker')) return 'worker';
+  if (path.startsWith('/user')) return 'user';
+
+  // When on common routes (e.g. /app, /, modals): detect active session in this tab
+  try {
+    if (sessionStorage.getItem(AUTH_KEYS.worker) || sessionStorage.getItem(COMPAT_KEYS.worker.access)) return 'worker';
+    if (sessionStorage.getItem(AUTH_KEYS.vendor) || sessionStorage.getItem(COMPAT_KEYS.vendor.access)) return 'vendor';
+    if (sessionStorage.getItem(AUTH_KEYS.admin) || sessionStorage.getItem(COMPAT_KEYS.admin.access)) return 'admin';
+    if (sessionStorage.getItem(AUTH_KEYS.user) || sessionStorage.getItem(COMPAT_KEYS.user.access)) return 'user';
+  } catch (e) {}
+
+  return 'user';
+};
+
+/**
+ * Decode JWT payload safely without throwing
+ * @param {string} token 
+ * @returns {object|null}
+ */
+export const decodeToken = (token) => {
+  if (!token || typeof token !== 'string') return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+};
+
+/**
+ * Checks if a JWT token is structurally valid and unexpired
+ * @param {string} token 
+ * @returns {boolean}
+ */
+export const isTokenValid = (token) => {
+  if (!token) return false;
+  const decoded = decodeToken(token);
+  if (!decoded) return false;
+  if (decoded.exp) {
+    const currentTime = Date.now() / 1000;
+    return decoded.exp > currentTime;
+  }
+  return true;
+};
+
+/**
+ * Get structured authentication session for a role strictly from the current tab's sessionStorage.
+ * Guaranteed tab isolation: Opening a new tab never inherits another tab's authentication.
+ * @param {'user' | 'worker' | 'vendor' | 'admin'} role 
+ * @returns {object|null}
+ */
+export const getAuthSession = (role) => {
+  if (typeof window === 'undefined') return null;
+  const canonicalRole = normalizeRole(role);
+  const sessionKey = AUTH_KEYS[canonicalRole];
+  const compat = COMPAT_KEYS[canonicalRole];
+
+  try {
+    // 1. Check current tab's structured session in sessionStorage
+    let raw = sessionStorage.getItem(sessionKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.accessToken) {
+        return parsed;
+      }
+    }
+
+    // 2. Check tab-isolated individual keys in sessionStorage
+    const access = sessionStorage.getItem(compat.access);
+    if (access) {
+      const refresh = sessionStorage.getItem(compat.refresh);
+      let userData = null;
+      try {
+        userData = JSON.parse(sessionStorage.getItem(compat.data) || '{}');
+      } catch {
+        userData = {};
+      }
+      const reconstructed = {
+        accessToken: access,
+        refreshToken: refresh || null,
+        user: userData || {},
+        role: canonicalRole
+      };
+      sessionStorage.setItem(sessionKey, JSON.stringify(reconstructed));
+      return reconstructed;
+    }
+  } catch (err) {
+    console.error(`[authStorage] Error reading session for ${canonicalRole}:`, err);
+  }
+
+  return null;
+};
+
+/**
+ * Set structured authentication session for a role strictly in the current tab's sessionStorage.
+ * @param {'user' | 'worker' | 'vendor' | 'admin'} role 
+ * @param {object} sessionData - { accessToken, refreshToken, user, vendor, worker, admin, role }
+ */
+export const setAuthSession = (role, sessionData) => {
+  if (typeof window === 'undefined' || !sessionData) return;
+  const canonicalRole = normalizeRole(role || sessionData.role);
+  const sessionKey = AUTH_KEYS[canonicalRole];
+  const compat = COMPAT_KEYS[canonicalRole];
+
+  const accessToken = sessionData.accessToken;
+  const refreshToken = sessionData.refreshToken || null;
+  const profile = sessionData.user || sessionData.vendor || sessionData.worker || sessionData.admin || {};
+
+  const structuredSession = {
+    accessToken,
+    refreshToken,
+    user: profile,
+    role: canonicalRole,
+    updatedAt: Date.now()
+  };
+
+  try {
+    const sessionStr = JSON.stringify(structuredSession);
+    const profileStr = JSON.stringify(profile);
+
+    // Write strictly to current tab's sessionStorage (tab-isolated)
+    sessionStorage.setItem(sessionKey, sessionStr);
+    if (accessToken) sessionStorage.setItem(compat.access, accessToken);
+    if (refreshToken) sessionStorage.setItem(compat.refresh, refreshToken);
+    if (profile) sessionStorage.setItem(compat.data, profileStr);
+
+    // Clean up any old cross-tab conflicting keys in localStorage to prevent leakage
+    localStorage.removeItem(sessionKey);
+    localStorage.removeItem(compat.access);
+    localStorage.removeItem(compat.refresh);
+    localStorage.removeItem(compat.data);
+  } catch (err) {
+    console.error(`[authStorage] Error saving session for ${canonicalRole}:`, err);
+  }
+};
+
+/**
+ * Clear authentication session for a specific role in current tab's sessionStorage
+ * @param {'user' | 'worker' | 'vendor' | 'admin'} role 
+ */
+export const clearAuthSession = (role) => {
+  if (typeof window === 'undefined') return;
+  const canonicalRole = normalizeRole(role);
+  const sessionKey = AUTH_KEYS[canonicalRole];
+  const compat = COMPAT_KEYS[canonicalRole];
+
+  try {
+    // Remove from current tab's sessionStorage
+    sessionStorage.removeItem(sessionKey);
+    sessionStorage.removeItem(compat.access);
+    sessionStorage.removeItem(compat.refresh);
+    sessionStorage.removeItem(compat.data);
+
+    // Ensure legacy localStorage keys are also removed if present
+    localStorage.removeItem(sessionKey);
+    localStorage.removeItem(compat.access);
+    localStorage.removeItem(compat.refresh);
+    localStorage.removeItem(compat.data);
+  } catch (err) {
+    console.error(`[authStorage] Error clearing session for ${canonicalRole}:`, err);
+  }
+};
+
+
+/**
+ * Get access token for a role (or current portal role if not specified)
+ * @param {'user' | 'worker' | 'vendor' | 'admin'} [role] 
+ * @returns {string|null}
+ */
+export const getAccessToken = (role) => {
+  const targetRole = role ? normalizeRole(role) : getCurrentPortalRole();
+  const session = getAuthSession(targetRole);
+  return session?.accessToken || null;
+};
+
+/**
+ * Get refresh token for a role
+ * @param {'user' | 'worker' | 'vendor' | 'admin'} [role] 
+ * @returns {string|null}
+ */
+export const getRefreshToken = (role) => {
+  const targetRole = role ? normalizeRole(role) : getCurrentPortalRole();
+  const session = getAuthSession(targetRole);
+  return session?.refreshToken || null;
+};
+
+/**
+ * Get user profile object for a role
+ * @param {'user' | 'worker' | 'vendor' | 'admin'} [role] 
+ * @returns {object|null}
+ */
+export const getUserData = (role) => {
+  const targetRole = role ? normalizeRole(role) : getCurrentPortalRole();
+  const session = getAuthSession(targetRole);
+  return session?.user || null;
+};
+
+/**
+ * Update user profile in session without overwriting tokens
+ * @param {'user' | 'worker' | 'vendor' | 'admin'} role 
+ * @param {object} updatedProfile 
+ */
+export const updateUserData = (role, updatedProfile) => {
+  if (!updatedProfile) return;
+  const canonicalRole = normalizeRole(role);
+  const current = getAuthSession(canonicalRole) || { role: canonicalRole };
+  const mergedUser = {
+    ...(current.user || {}),
+    ...updatedProfile
+  };
+
+  setAuthSession(canonicalRole, {
+    ...current,
+    user: mergedUser
+  });
+};
+
+/**
+ * Checks if a role is authenticated in the current tab with a valid token
+ * @param {'user' | 'worker' | 'vendor' | 'admin'} role 
+ * @returns {boolean}
+ */
+export const isAuthenticated = (role) => {
+  const canonicalRole = normalizeRole(role);
+  const session = getAuthSession(canonicalRole);
+  if (!session || !session.accessToken) return false;
+
+  const valid = isTokenValid(session.accessToken);
+  if (!valid) {
+    // Session token is expired - clear this role's session
+    clearAuthSession(canonicalRole);
+    return false;
+  }
+  return true;
+};
+
+/**
+ * Checks if ANY role is currently authenticated in this specific browser tab.
+ * Returns the authenticated role name, or null.
+ * @returns {'user' | 'worker' | 'vendor' | 'admin' | null}
+ */
+export const isAnyAuthenticated = () => {
+  const currentRole = getCurrentPortalRole();
+  if (isAuthenticated(currentRole)) return currentRole;
+
+  const allRoles = ['user', 'worker', 'vendor', 'admin'];
+  for (const r of allRoles) {
+    if (r !== currentRole && isAuthenticated(r)) {
+      return r;
+    }
+  }
+  return null;
+};
+
+export default {
+  AUTH_KEYS,
+  normalizeRole,
+  getCurrentPortalRole,
+  decodeToken,
+  isTokenValid,
+  getAuthSession,
+  setAuthSession,
+  clearAuthSession,
+  getAccessToken,
+  getRefreshToken,
+  getUserData,
+  updateUserData,
+  isAuthenticated,
+  isAnyAuthenticated
+};

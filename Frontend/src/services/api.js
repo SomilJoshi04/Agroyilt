@@ -1,5 +1,6 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import { apiCache } from '../utils/apiCache';
+import authStorage, { normalizeRole, getCurrentPortalRole } from '../utils/authStorage';
 
 // API Base URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -13,36 +14,37 @@ const api = axios.create({
   withCredentials: true // For cookies
 });
 
-// Helper to get token keys based on role/path
-const getTokenKeys = (url) => {
-  // 1. Prioritize current page context for role-based tokens
-  if (window.location.pathname.startsWith('/admin')) {
-    return { access: 'adminAccessToken', refresh: 'adminRefreshToken', role: 'admin' };
+/**
+ * Determine the canonical role for an API request based on endpoint and current portal
+ * @param {string} url 
+ * @returns {'user' | 'worker' | 'vendor' | 'admin'}
+ */
+export const getRoleForRequest = (url, config = null) => {
+  // 1. Explicit role override in config
+  if (config?.role) {
+    return normalizeRole(config.role);
   }
-  if (window.location.pathname.startsWith('/vendor')) {
-    return { access: 'vendorAccessToken', refresh: 'vendorRefreshToken', role: 'vendor' };
-  }
-  if (window.location.pathname.startsWith('/worker')) {
-    return { access: 'workerAccessToken', refresh: 'workerRefreshToken', role: 'worker' };
+  if (config?.headers?.['X-Auth-Role']) {
+    return normalizeRole(config.headers['X-Auth-Role']);
   }
 
-  // 2. Explicitly detect auth routes regardless of current page (for cross-role login/actions)
-  if (url?.includes('/admin/auth')) return { access: 'adminAccessToken', refresh: 'adminRefreshToken', role: 'admin' };
-  if (url?.includes('/vendors/auth')) return { access: 'vendorAccessToken', refresh: 'vendorRefreshToken', role: 'vendor' };
-  if (url?.includes('/workers/auth')) return { access: 'workerAccessToken', refresh: 'workerRefreshToken', role: 'worker' };
+  // 2. Explicitly detect endpoint prefix
+  if (url) {
+    if (url.includes('/admin/') || url.startsWith('/admin')) return 'admin';
+    if (url.includes('/vendors/') || url.startsWith('/vendors') || url.includes('/vendor/')) return 'vendor';
+    if (url.includes('/workers/') || url.startsWith('/workers') || url.includes('/worker/')) return 'worker';
+    if (url.includes('/users/') || url.startsWith('/users') || url.includes('/user/')) return 'user';
+  }
 
-  // 3. Fallback to user token (most common case for user app)
-  return { access: 'accessToken', refresh: 'refreshToken', role: 'user' };
+  // 3. Otherwise prioritize current portal/session role in this browser tab
+  return getCurrentPortalRole();
 };
 
-// Request interceptor - Add auth token
+// Request interceptor - Add tab-isolated auth token
 api.interceptors.request.use(
   (config) => {
-    const { access } = getTokenKeys(config.url);
-    const token = sessionStorage.getItem(access) || localStorage.getItem(access);
-
-    // For debugging
-    // console.log(`Request to ${config.url}, using token key: ${access}, token exists: ${!!token}`);
+    const role = getRoleForRequest(config.url, config);
+    const token = authStorage.getAccessToken(role);
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -69,7 +71,7 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Response interceptor - Handle token refresh
+// Response interceptor - Handle role-scoped token refresh
 api.interceptors.response.use(
   (response) => {
     return response;
@@ -78,7 +80,9 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // If error is 401 and we haven't tried to refresh yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      const role = getRoleForRequest(originalRequest.url);
+
       if (isRefreshing) {
         // If already refreshing, queue this request
         return new Promise((resolve, reject) => {
@@ -96,18 +100,18 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const { access, refresh, role } = getTokenKeys(originalRequest.url);
-      const refreshToken = sessionStorage.getItem(refresh) || localStorage.getItem(refresh);
+      const refreshToken = authStorage.getRefreshToken(role);
 
       if (!refreshToken) {
-        // No refresh token, logout
+        // No refresh token in tab session, logout this role only
+        isRefreshing = false;
         handleLogout(role);
         return Promise.reject(error);
       }
 
       try {
-        // Determine correct refresh endpoint based on current path
-        let refreshEndpoint = '/users/auth/refresh-token'; // Default to user
+        // Determine correct refresh endpoint based on role
+        let refreshEndpoint = '/users/auth/refresh-token';
         if (role === 'vendor') refreshEndpoint = '/vendors/auth/refresh-token';
         else if (role === 'worker') refreshEndpoint = '/workers/auth/refresh-token';
         else if (role === 'admin') refreshEndpoint = '/admin/auth/refresh-token';
@@ -117,17 +121,16 @@ api.interceptors.response.use(
           refreshToken
         });
 
-        const { accessToken } = response.data;
+        const { accessToken, refreshToken: newRefreshToken } = response.data;
 
-        // Save new access token - Try session first, then local (update where it was found)
-        if (sessionStorage.getItem(access)) {
-          sessionStorage.setItem(access, accessToken);
-        } else {
-          localStorage.setItem(access, accessToken);
-        }
+        // Save new access token into current tab's role session
+        const currentSession = authStorage.getAuthSession(role) || { role };
+        authStorage.setAuthSession(role, {
+          ...currentSession,
+          accessToken,
+          refreshToken: newRefreshToken || refreshToken
+        });
 
-        // Update authorization header
-        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
 
         // Process queued requests
@@ -137,8 +140,7 @@ api.interceptors.response.use(
         // Retry original request
         return api(originalRequest);
       } catch (refreshError) {
-        console.error('RefreshToken failed:', refreshError);
-        // Refresh failed, logout
+        console.error(`[API] RefreshToken failed for ${role}:`, refreshError);
         processQueue(refreshError, null);
         isRefreshing = false;
         handleLogout(role);
@@ -148,67 +150,32 @@ api.interceptors.response.use(
 
     // Handle 403 Forbidden - Role mismatch or Invalid Token
     if (error.response?.status === 403) {
-      console.error('Access Denied (403):', error.response.data.message);
-      // Removed automatic logout to prevent login loops during debugging
+      console.error('Access Denied (403):', error.response.data?.message);
     }
 
     return Promise.reject(error);
   }
 );
 
-// Handle logout
+// Handle role-specific tab logout
 export const handleLogout = (role = null) => {
-  if (!role) {
-    // Determine role from path if not provided
-    const path = window.location.pathname;
-    if (path.startsWith('/admin')) role = 'admin';
-    else if (path.startsWith('/vendor')) role = 'vendor';
-    else if (path.startsWith('/worker')) role = 'worker';
-    else role = 'user';
-  }
+  const targetRole = role ? normalizeRole(role) : getCurrentPortalRole();
 
-  // Clear role-specific tokens selectively
-  const clearTokens = (prefix) => {
-    // If we have a session token, we assume this is a session-based login
-    // and we only clear the session storage to protect other tabs using localStorage
-    if (sessionStorage.getItem(`${prefix}AccessToken`)) {
-      sessionStorage.removeItem(`${prefix}AccessToken`);
-      sessionStorage.removeItem(`${prefix}RefreshToken`);
-      sessionStorage.removeItem(`${prefix}Data`);
-    } else {
-      // If no session token found (or we explicitly want to clear local),
-      // we assume it's a localStorage based login
-      localStorage.removeItem(`${prefix}AccessToken`);
-      localStorage.removeItem(`${prefix}RefreshToken`);
-      localStorage.removeItem(`${prefix}Data`);
+  // Clear this specific role session from the tab
+  authStorage.clearAuthSession(targetRole);
 
-      // Also clear session just in case of ghost data, but ONLY if we are falling back to clearing local
-      sessionStorage.removeItem(`${prefix}AccessToken`);
-      sessionStorage.removeItem(`${prefix}RefreshToken`);
-      sessionStorage.removeItem(`${prefix}Data`);
-    }
-  };
-
-  if (role === 'vendor') {
-    clearTokens('vendor');
+  // Navigate to portal login without affecting other tabs
+  if (targetRole === 'vendor') {
     window.location.href = '/vendor/login';
-  } else if (role === 'worker') {
-    clearTokens('worker');
+  } else if (targetRole === 'worker') {
     window.location.href = '/worker/login';
-  } else if (role === 'admin') {
-    clearTokens('admin');
+  } else if (targetRole === 'admin') {
     window.location.href = '/admin/login';
   } else {
-    // User
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('userData');
-    sessionStorage.removeItem('accessToken');
-    sessionStorage.removeItem('refreshToken');
-    sessionStorage.removeItem('userData');
     window.location.href = '/user/login';
   }
 };
 
 export { apiCache };
 export default api;
+

@@ -1,19 +1,20 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowRight } from 'react-icons/fi';
 import { useBrand } from '../../../context/BrandContext';
+import authStorage from '../../../utils/authStorage';
 
 const AppEntry = () => {
   const navigate = useNavigate();
   const { appLogo, appName } = useBrand();
 
-  // If already logged in as any role, redirect to their dashboard
+  // If already logged in as any role in THIS tab, redirect to their dashboard
   useEffect(() => {
-    if (localStorage.getItem('accessToken')) {
+    if (authStorage.isAuthenticated('user')) {
       navigate('/user', { replace: true });
-    } else if (localStorage.getItem('vendorAccessToken')) {
+    } else if (authStorage.isAuthenticated('vendor')) {
       navigate('/vendor', { replace: true });
-    } else if (localStorage.getItem('workerAccessToken')) {
+    } else if (authStorage.isAuthenticated('worker')) {
       navigate('/worker', { replace: true });
     }
   }, [navigate]);

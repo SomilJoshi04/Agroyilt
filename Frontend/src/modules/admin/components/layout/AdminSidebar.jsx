@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -24,6 +24,7 @@ import {
 } from "react-icons/fi";
 import adminMenu from "../../config/adminMenu.json";
 import dashboardService from "../../services/dashboardService";
+import authStorage from "../../../../utils/authStorage";
 
 // Icon mapping for menu items
 const iconMap = {
@@ -150,8 +151,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   // Load admin user from storage
   useEffect(() => {
     try {
-      const storedData = sessionStorage.getItem('adminData') || localStorage.getItem('adminData');
-      const stored = JSON.parse(storedData || '{}');
+      const stored = authStorage.getUserData('admin') || {};
       if (stored.name || stored.email) {
         setAdminUser({
           name: stored.name || 'Admin',

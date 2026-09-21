@@ -8,6 +8,7 @@
  */
 
 import { messaging, getToken, onMessage } from '../firebase';
+import authStorage from '../utils/authStorage';
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
@@ -163,26 +164,6 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
   }
 }
 
-// Helper to generate a stable device ID
-function getOrCreateDeviceId() {
-  let deviceId = localStorage.getItem('fcm_device_id');
-  if (!deviceId) {
-    deviceId = 'web-' + Math.random().toString(36).substring(2, 15) + '-' + Date.now();
-    localStorage.setItem('fcm_device_id', deviceId);
-  }
-  return deviceId;
-}
-
-// Helper to get browser name
-function getBrowserName() {
-  const agent = window.navigator.userAgent.toLowerCase();
-  if (agent.indexOf('edge') > -1 || agent.indexOf('edg') > -1) return 'Edge';
-  if (agent.indexOf('opr') > -1 || agent.indexOf('opera') > -1) return 'Opera';
-  if (agent.indexOf('chrome') > -1 && agent.indexOf('edge') === -1 && agent.indexOf('opr') === -1) return 'Chrome';
-  if (agent.indexOf('safari') > -1 && agent.indexOf('chrome') === -1) return 'Safari';
-  if (agent.indexOf('firefox') > -1) return 'Firefox';
-  return 'Unknown Web';
-}
 
 /**
  * Helper to save FCM token to the backend
@@ -193,27 +174,21 @@ function getBrowserName() {
 async function saveTokenToBackend(token, userType, platform) {
   try {
     let endpoint;
-    let authTokenKey;
     switch (userType) {
       case 'vendor':
         endpoint = '/vendors/fcm-tokens/save';
-        authTokenKey = 'vendorAccessToken';
         break;
       case 'worker':
         endpoint = '/workers/fcm-tokens/save';
-        authTokenKey = 'workerAccessToken';
         break;
       case 'user':
-        endpoint = '/users/fcm-tokens/save';
-        authTokenKey = 'accessToken';
-        break;
       default:
         endpoint = '/users/fcm-tokens/save';
-        authTokenKey = 'accessToken';
+        break;
     }
 
-    // Get auth token
-    const authToken = localStorage.getItem(authTokenKey);
+    // Get tab-isolated auth token for the target role
+    const authToken = authStorage.getAccessToken(userType);
     if (!authToken) {
       return null;
     }
@@ -259,31 +234,25 @@ async function removeFCMToken(userType = 'user') {
     const tokenToRemove = localStorage.getItem(storageKey);
 
     if (!tokenToRemove) {
-      // console.log('[FCM] No token found in localStorage to remove');
       return;
     }
 
-    // console.log(`[FCM] Removing ${platform} token for ${userType}...`);
-
     // Determine API endpoint based on user type
     let endpoint;
-    let authTokenKey;
     switch (userType) {
       case 'vendor':
         endpoint = '/vendors/fcm-tokens/remove';
-        authTokenKey = 'vendorAccessToken';
         break;
       case 'worker':
         endpoint = '/workers/fcm-tokens/remove';
-        authTokenKey = 'workerAccessToken';
         break;
       default:
         endpoint = '/users/fcm-tokens/remove';
-        authTokenKey = 'accessToken';
+        break;
     }
 
-    const authToken = localStorage.getItem(authTokenKey);
-    // If we have an auth token, try to remove from backend
+    const authToken = authStorage.getAccessToken(userType);
+    // If we have an auth token in the tab session, remove from backend
     if (authToken) {
       const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -301,14 +270,10 @@ async function removeFCMToken(userType = 'user') {
       });
     }
 
-    // Always remove from local storage
+    // Remove local FCM token cache
     localStorage.removeItem(storageKey);
   } catch (error) {
-    console.error('[FCM] Error removing FCM token:', error);
-    // Ensure local cleanup happens even on error
-    const platform = getPlatformType();
-    const storageKey = `fcm_token_${userType}_${platform}`;
-    localStorage.removeItem(storageKey);
+    // Silent fail
   }
 }
 

@@ -1,9 +1,10 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiLock, FiCheckCircle, FiArrowRight } from 'react-icons/fi';
 import { toastManager } from '../../../utils/toastManager';
 import { userAuthService } from '../../../services/authService';
 import LogoLoader from '../../../components/common/LogoLoader';
+import authStorage from '../../../utils/authStorage';
 
 const MpinSetup = () => {
   const navigate = useNavigate();
@@ -100,17 +101,14 @@ const MpinSetup = () => {
 
       if (response.success) {
         toastManager.success('MPIN set successfully!');
-        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        userData.isMpinSet = true;
-        localStorage.setItem('userData', JSON.stringify(userData));
+        const userData = authStorage.getUserData('user') || {};
+        authStorage.updateUserData('user', { isMpinSet: true });
         
         const approvalStatus = location.state?.approvalStatus || userData.approvalStatus;
 
         if (isFirstTime && approvalStatus !== 'approved') {
           toastManager.info('Your Farmer account is registered and pending admin approval. You can login with your MPIN once approved.', { duration: 6000 });
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('userData');
+          authStorage.clearAuthSession('user');
           navigate('/app/login', { replace: true });
         } else {
           navigate('/user', { replace: true });

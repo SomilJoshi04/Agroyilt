@@ -1,10 +1,11 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { FiX, FiMapPin, FiClock, FiDollarSign, FiArrowRight, FiBell, FiAlertCircle, FiMinimize2, FiUsers } from 'react-icons/fi';
 import { FaRupeeSign } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { vendorTheme as themeColors } from '../../../../theme';
 import { playAlertRing, stopAlertRing } from '../../../../utils/notificationSound';
+import authStorage from '../../../../utils/authStorage';
 
 const BookingAlertCard = ({ booking, onAccept, onReject, onAssign, initialTimeLeft = 60, servicePayoutPct = 70 }) => {
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
@@ -271,7 +272,7 @@ const BookingAlertModal = ({ isOpen, booking, bookings, onAccept, onReject, onAs
     let isMounted = true;
     const fetchPayoutSettings = async () => {
       try {
-        const token = localStorage.getItem('vendorAccessToken');
+        const token = authStorage.getAccessToken('vendor');
         if (!token) return;
         const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/vendors/settings`, {
           headers: { Authorization: `Bearer ${token}` }
