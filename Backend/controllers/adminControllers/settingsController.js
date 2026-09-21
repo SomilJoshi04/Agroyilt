@@ -57,7 +57,16 @@ exports.updateSettings = async (req, res, next) => {
       workerCommissionPercentage,
       workerPlatformChargePercentage,
       maxIndependentWorkerRequest,
-      workerSearchRadiusKm
+      workerSearchRadiusKm,
+      // Worker Late Arrival Penalty & Extension Settings
+      workerPenaltyEnabled,
+      workerPenaltyType,
+      workerPenaltyAmount,
+      workerPenaltyPerMinute,
+      workerPenaltyFreeMinutes,
+      workerPenaltyMaxAmount,
+      workerPenaltyPercentage,
+      extensionExpiryMinutes
     } = req.body;
 
     let settings = await Settings.findOne({ type: 'global' });
@@ -156,6 +165,16 @@ exports.updateSettings = async (req, res, next) => {
         }
         settings.workerSearchRadiusKm = val;
       }
+
+      // Worker Late Arrival Penalty & Extension Settings
+      if (workerPenaltyEnabled !== undefined) settings.workerPenaltyEnabled = Boolean(workerPenaltyEnabled);
+      if (workerPenaltyType !== undefined) settings.workerPenaltyType = workerPenaltyType;
+      if (workerPenaltyAmount !== undefined) settings.workerPenaltyAmount = Math.max(0, Number(workerPenaltyAmount) || 0);
+      if (workerPenaltyPerMinute !== undefined) settings.workerPenaltyPerMinute = Math.max(0, Number(workerPenaltyPerMinute) || 0);
+      if (workerPenaltyFreeMinutes !== undefined) settings.workerPenaltyFreeMinutes = Math.max(0, Number(workerPenaltyFreeMinutes) || 0);
+      if (workerPenaltyMaxAmount !== undefined) settings.workerPenaltyMaxAmount = Math.max(0, Number(workerPenaltyMaxAmount) || 0);
+      if (workerPenaltyPercentage !== undefined) settings.workerPenaltyPercentage = Math.min(100, Math.max(0, Number(workerPenaltyPercentage) || 0));
+      if (extensionExpiryMinutes !== undefined) settings.extensionExpiryMinutes = Math.max(1, Number(extensionExpiryMinutes) || 30);
 
       await settings.save();
     }

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -31,23 +31,28 @@ const WorkerRequestForm = () => {
   const today = new Date().toISOString().split('T')[0];
 
   const [formData, setFormData] = useState({
-    workCategory: '',
-    workTitle: '',
+    bookingType:     'HOURLY', // 'HOURLY' | 'DAILY'
+    workCategory:    '',
+    workTitle:       '',
     workDescription: '',
-    requiredSkills: [],   // array
-    requiredWorkers:        '1',
-    scheduledDate: '',
-    startTime: '',
-    endTime: '',
-    rateUnit:               'daily',
-    minRate: '',
-    maxRate: '',
+    requiredSkills:  [],   // array
+    requiredWorkers: '1',
+    // HOURLY fields
+    scheduledDate:   '',
+    startTime:       '',
+    endTime:         '',
+    // DAILY fields
+    startDate:       '',
+    numberOfDays:    '1',
+    // Rates
+    minRate:         '',
+    maxRate:         '',
     // Location fields
-    addressLine1: '',
-    city: '',
-    state: '',
-    lat: '',
-    lng: '',
+    addressLine1:    '',
+    city:            '',
+    state:           '',
+    lat:             '',
+    lng:             '',
     additionalInstructions: ''
   });
 
@@ -92,23 +97,34 @@ const WorkerRequestForm = () => {
       e.workDescription = 'Description must be at least 10 characters.';
     const qty = parseInt(formData.requiredWorkers, 10);
     if (!formData.requiredWorkers || isNaN(qty) || qty < 1 || !Number.isInteger(qty))
-      e.requiredWorkers = 'Enter a valid positive number (e.g. 1, 3, 5).';
-    if (!formData.scheduledDate)
-      e.scheduledDate = 'Please select a date.';
-    if (!formData.startTime)
-      e.startTime = 'Start time is required.';
-    if (!formData.endTime)
-      e.endTime = 'End time is required.';
-    if (formData.startTime && formData.endTime) {
-      const [sh, sm] = formData.startTime.split(':').map(Number);
-      const [eh, em] = formData.endTime.split(':').map(Number);
-      if (eh * 60 + em <= sh * 60 + sm)
-        e.endTime = 'End time must be after start time.';
+      e.requiredWorkers = 'Enter a valid positive number of workers.';
+
+    if (formData.bookingType === 'DAILY') {
+      if (!formData.startDate)
+        e.startDate = 'Please select a start date.';
+      const days = parseInt(formData.numberOfDays, 10);
+      if (!formData.numberOfDays || isNaN(days) || days < 1)
+        e.numberOfDays = 'Number of days must be at least 1.';
+    } else {
+      // HOURLY
+      if (!formData.scheduledDate)
+        e.scheduledDate = 'Please select a date.';
+      if (!formData.startTime)
+        e.startTime = 'Start time is required.';
+      if (!formData.endTime)
+        e.endTime = 'End time is required.';
+      if (formData.startTime && formData.endTime) {
+        const [sh, sm] = formData.startTime.split(':').map(Number);
+        const [eh, em] = formData.endTime.split(':').map(Number);
+        if (eh * 60 + em <= sh * 60 + sm)
+          e.endTime = 'End time must be after start time.';
+      }
     }
+
     if (!formData.city.trim() && !formData.addressLine1.trim())
       e.city = 'Please enter at least a city name.';
     if (!formData.minRate || isNaN(Number(formData.minRate)) || Number(formData.minRate) <= 0)
-      e.minRate = 'Enter a valid offered rate (> 0).';
+      e.minRate = `Enter a valid minimum ${formData.bookingType === 'DAILY' ? 'daily' : 'hourly'} rate (> 0).`;
     if (formData.maxRate && !isNaN(Number(formData.maxRate)) && Number(formData.minRate) > Number(formData.maxRate))
       e.maxRate = 'Max rate cannot be less than min rate.';
     return e;
@@ -125,18 +141,18 @@ const WorkerRequestForm = () => {
 
     try {
       setLoading(true);
+      const isDaily = formData.bookingType === 'DAILY';
+      const minR = Number(formData.minRate);
+      const maxR = formData.maxRate ? Number(formData.maxRate) : minR;
+
       const payload = {
+        bookingType:     formData.bookingType,
         workCategory:    formData.workCategory,
         workTitle:       formData.workTitle.trim(),
         workDescription: formData.workDescription.trim(),
         requiredSkills:  formData.requiredSkills,
         requiredWorkers: parseInt(formData.requiredWorkers, 10),
-        scheduledDate:   formData.scheduledDate,
-        startTime:       formData.startTime,
-        endTime:         formData.endTime,
-        rateUnit:        formData.rateUnit,
-        minRate:         Number(formData.minRate),
-        maxRate:         formData.maxRate ? Number(formData.maxRate) : Number(formData.minRate),
+        rateUnit:        isDaily ? 'daily' : 'hourly',
         location: {
           addressLine1: formData.addressLine1,
           city:         formData.city,
@@ -146,6 +162,19 @@ const WorkerRequestForm = () => {
         },
         additionalInstructions: formData.additionalInstructions
       };
+
+      if (isDaily) {
+        payload.startDate    = formData.startDate;
+        payload.numberOfDays = parseInt(formData.numberOfDays, 10);
+        payload.minDailyRate = minR;
+        payload.maxDailyRate = maxR;
+      } else {
+        payload.scheduledDate = formData.scheduledDate;
+        payload.startTime     = formData.startTime;
+        payload.endTime       = formData.endTime;
+        payload.minRate       = minR;
+        payload.maxRate       = maxR;
+      }
 
       await workerBookingService.createFarmerRequest(payload);
       toast.success('Request submitted! Finding workers near you...');
@@ -193,6 +222,52 @@ const WorkerRequestForm = () => {
             <p className="text-xs text-blue-700 leading-relaxed">
               Fill in your requirements below. Based on the number of workers needed, the system will automatically match independent workers or a team — you don't choose workers manually.
             </p>
+          </div>
+
+          {/* ── Booking Mode Selection ────────────────────────────────────────── */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+            <h3 className="font-black text-slate-800 mb-3 flex items-center gap-2">
+              <FiTag size={16} className="text-emerald-600" /> Booking Mode *
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                id="booking-mode-hourly"
+                onClick={() => setFormData(prev => ({ ...prev, bookingType: 'HOURLY', rateUnit: 'hourly' }))}
+                className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                  formData.bookingType === 'HOURLY'
+                    ? 'border-emerald-600 bg-emerald-50/50 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-black text-sm text-slate-800">Hourly Booking</span>
+                  {formData.bookingType === 'HOURLY' && <FiCheckCircle className="text-emerald-600" size={16} />}
+                </div>
+                <p className="text-[11px] text-slate-500 leading-tight">
+                  For short shifts by the hour. Timer starts with Reach OTP.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                id="booking-mode-daily"
+                onClick={() => setFormData(prev => ({ ...prev, bookingType: 'DAILY', rateUnit: 'daily' }))}
+                className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                  formData.bookingType === 'DAILY'
+                    ? 'border-emerald-600 bg-emerald-50/50 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-black text-sm text-slate-800">Daily Booking</span>
+                  {formData.bookingType === 'DAILY' && <FiCheckCircle className="text-emerald-600" size={16} />}
+                </div>
+                <p className="text-[11px] text-slate-500 leading-tight">
+                  Multi-day farm work. Fresh Reach OTP every working day.
+                </p>
+              </button>
+            </div>
           </div>
 
           {/* ── Work Details ─────────────────────────────────────────────────── */}
@@ -345,55 +420,99 @@ const WorkerRequestForm = () => {
           {/* ── Schedule ──────────────────────────────────────────────────────── */}
           <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
             <h3 className="font-black text-slate-800 mb-4 flex items-center gap-2">
-              <FiCalendar size={16} className="text-emerald-600" /> Schedule
+              <FiCalendar size={16} className="text-emerald-600" /> Schedule ({formData.bookingType === 'DAILY' ? 'Daily Farm Work' : 'Hourly Shift'})
             </h3>
             <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-500 mb-1 block">Date *</label>
-                <div className="relative">
-                  <FiCalendar className="absolute left-4 top-3.5 text-slate-400" size={16} />
-                  <input
-                    type="date"
-                    name="scheduledDate"
-                    min={today}
-                    value={formData.scheduledDate}
-                    onChange={handleChange}
-                    className={`w-full bg-slate-50 border rounded-2xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.scheduledDate ? 'border-red-300' : 'border-slate-200'}`}
-                  />
-                </div>
-                <FieldError name="scheduledDate" />
-              </div>
+              {formData.bookingType === 'DAILY' ? (
+                /* DAILY SCHEDULE */
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 mb-1 block">Start Date *</label>
+                    <div className="relative">
+                      <FiCalendar className="absolute left-4 top-3.5 text-slate-400" size={16} />
+                      <input
+                        type="date"
+                        name="startDate"
+                        id="daily-start-date"
+                        min={today}
+                        value={formData.startDate}
+                        onChange={handleChange}
+                        className={`w-full bg-slate-50 border rounded-2xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.startDate ? 'border-red-300' : 'border-slate-200'}`}
+                      />
+                    </div>
+                    <FieldError name="startDate" />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1 block">Start Time *</label>
-                  <div className="relative">
-                    <FiClock className="absolute left-4 top-3.5 text-slate-400" size={14} />
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 mb-1 block">Number of Days *</label>
                     <input
-                      type="time"
-                      name="startTime"
-                      value={formData.startTime}
+                      type="number"
+                      name="numberOfDays"
+                      id="daily-number-of-days"
+                      min="1"
+                      max="60"
+                      value={formData.numberOfDays}
                       onChange={handleChange}
-                      className={`w-full bg-slate-50 border rounded-2xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.startTime ? 'border-red-300' : 'border-slate-200'}`}
+                      placeholder="e.g. 3"
+                      className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-black focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.numberOfDays ? 'border-red-300' : 'border-slate-200'}`}
                     />
+                    <FieldError name="numberOfDays" />
                   </div>
-                  <FieldError name="startTime" />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1 block">End Time *</label>
-                  <div className="relative">
-                    <FiClock className="absolute left-4 top-3.5 text-slate-400" size={14} />
-                    <input
-                      type="time"
-                      name="endTime"
-                      value={formData.endTime}
-                      onChange={handleChange}
-                      className={`w-full bg-slate-50 border rounded-2xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.endTime ? 'border-red-300' : 'border-slate-200'}`}
-                    />
+              ) : (
+                /* HOURLY SCHEDULE */
+                <>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 mb-1 block">Date *</label>
+                    <div className="relative">
+                      <FiCalendar className="absolute left-4 top-3.5 text-slate-400" size={16} />
+                      <input
+                        type="date"
+                        name="scheduledDate"
+                        id="hourly-scheduled-date"
+                        min={today}
+                        value={formData.scheduledDate}
+                        onChange={handleChange}
+                        className={`w-full bg-slate-50 border rounded-2xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.scheduledDate ? 'border-red-300' : 'border-slate-200'}`}
+                      />
+                    </div>
+                    <FieldError name="scheduledDate" />
                   </div>
-                  <FieldError name="endTime" />
-                </div>
-              </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 mb-1 block">Start Time *</label>
+                      <div className="relative">
+                        <FiClock className="absolute left-4 top-3.5 text-slate-400" size={14} />
+                        <input
+                          type="time"
+                          name="startTime"
+                          id="hourly-start-time"
+                          value={formData.startTime}
+                          onChange={handleChange}
+                          className={`w-full bg-slate-50 border rounded-2xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.startTime ? 'border-red-300' : 'border-slate-200'}`}
+                        />
+                      </div>
+                      <FieldError name="startTime" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 mb-1 block">End Time *</label>
+                      <div className="relative">
+                        <FiClock className="absolute left-4 top-3.5 text-slate-400" size={14} />
+                        <input
+                          type="time"
+                          name="endTime"
+                          id="hourly-end-time"
+                          value={formData.endTime}
+                          onChange={handleChange}
+                          className={`w-full bg-slate-50 border rounded-2xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.endTime ? 'border-red-300' : 'border-slate-200'}`}
+                        />
+                      </div>
+                      <FieldError name="endTime" />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -490,42 +609,36 @@ const WorkerRequestForm = () => {
 
           {/* ── Budget ────────────────────────────────────────────────────────── */}
           <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-            <h3 className="font-black text-slate-800 mb-4 flex items-center gap-2">
-              <FiDollarSign size={16} className="text-emerald-600" /> Budget / Rate per Worker
-            </h3>
-            <div className="space-y-4">
-              {/* Rate Unit Toggle */}
-              <div className="grid grid-cols-2 gap-3">
-                {['daily', 'hourly'].map(unit => (
-                  <button
-                    key={unit}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, rateUnit: unit }))}
-                    className={`py-3 rounded-2xl text-sm font-bold border transition-all capitalize ${
-                      formData.rateUnit === unit
-                        ? 'bg-slate-800 text-white border-slate-800'
-                        : 'bg-white text-slate-600 border-slate-200'
-                    }`}
-                  >
-                    {unit === 'daily' ? 'Daily Rate' : 'Hourly Rate'}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-black text-slate-800 flex items-center gap-2">
+                <FiDollarSign size={16} className="text-emerald-600" /> Budget / Rate per Worker
+              </h3>
+              <span className="text-xs px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold">
+                {formData.bookingType === 'DAILY' ? '₹ / Day' : '₹ / Hour'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              {formData.bookingType === 'DAILY' 
+                ? 'Specify expected daily wage per worker for each working day' 
+                : 'Specify expected hourly wage per worker'}
+            </p>
 
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1 block">
-                    Min Rate (₹) *
+                    Min {formData.bookingType === 'DAILY' ? 'Daily' : 'Hourly'} Rate (₹) *
                   </label>
                   <div className="relative">
                     <span className="absolute left-4 top-3 text-slate-400 text-sm font-bold">₹</span>
                     <input
                       type="number"
                       name="minRate"
+                      id="budget-min-rate"
                       value={formData.minRate}
                       onChange={handleChange}
                       min="1"
-                      placeholder="400"
+                      placeholder={formData.bookingType === 'DAILY' ? '500' : '150'}
                       className={`w-full bg-slate-50 border rounded-2xl pl-8 pr-4 py-3 text-sm font-black focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.minRate ? 'border-red-300' : 'border-slate-200'}`}
                     />
                   </div>
@@ -533,17 +646,18 @@ const WorkerRequestForm = () => {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1 block">
-                    Max Rate (₹)
+                    Max {formData.bookingType === 'DAILY' ? 'Daily' : 'Hourly'} Rate (₹)
                   </label>
                   <div className="relative">
                     <span className="absolute left-4 top-3 text-slate-400 text-sm font-bold">₹</span>
                     <input
                       type="number"
                       name="maxRate"
+                      id="budget-max-rate"
                       value={formData.maxRate}
                       onChange={handleChange}
                       min="1"
-                      placeholder="500 (optional)"
+                      placeholder={formData.bookingType === 'DAILY' ? '600 (optional)' : '200 (optional)'}
                       className={`w-full bg-slate-50 border rounded-2xl pl-8 pr-4 py-3 text-sm font-black focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.maxRate ? 'border-red-300' : 'border-slate-200'}`}
                     />
                   </div>
@@ -551,7 +665,7 @@ const WorkerRequestForm = () => {
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 ml-1">
-                Workers will see your offered rate range. Final agreed rate is set on backend.
+                Workers within radius will receive requests in this range. If maximum rate is left empty, the minimum rate will be used for the payment reserve.
               </p>
             </div>
           </div>

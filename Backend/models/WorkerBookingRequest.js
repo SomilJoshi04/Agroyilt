@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 const mongoose = require('mongoose');
 
 /**
@@ -36,10 +36,36 @@ const workerBookingRequestSchema = new mongoose.Schema({
   additionalInstructions: { type: String, default: '' },
 
   // Schedule
-  scheduledDate: { type: Date, required: true, index: true },
-  startTime:     { type: String, required: true }, // HH:mm
-  endTime:       { type: String, required: true },
-  rateUnit:      { type: String, enum: ['hourly', 'daily'], default: 'daily' },
+  scheduledDate:   { type: Date, required: true, index: true },
+  startTime:       { type: String, required: true }, // HH:mm
+  endTime:         { type: String, required: true },
+  durationMinutes: { type: Number, default: 60 },
+  rateUnit:        { type: String, enum: ['hourly', 'daily'], default: 'daily' },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // BOOKING TYPE — authoritative, set by backend only.
+  //   HOURLY: uses scheduledDate + startTime + endTime
+  //   DAILY:  uses startDate + numberOfDays + endDate
+  // Existing documents with bookingType=null are treated as legacy HOURLY.
+  // ════════════════════════════════════════════════════════════════════════
+  bookingType: {
+    type: String,
+    enum: ['HOURLY', 'DAILY'],
+    default: 'HOURLY',
+    index: true
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // DAILY-ONLY SCHEDULE FIELDS
+  // (HOURLY uses existing scheduledDate + startTime + endTime above)
+  // ════════════════════════════════════════════════════════════════════════
+  startDate:    { type: Date, default: null },  // DAILY start date
+  endDate:      { type: Date, default: null },  // DAILY end date (startDate + numberOfDays - 1)
+  numberOfDays: { type: Number, default: null, min: 1 },
+
+  // DAILY budget (per day)
+  minDailyRate: { type: Number, default: null },
+  maxDailyRate: { type: Number, default: null },
 
   // Location
   location: {
@@ -229,6 +255,9 @@ const workerBookingRequestSchema = new mongoose.Schema({
     default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
   },
 
+  // Extension references (IndWorkerExtension docs linked to this booking)
+  extensionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'IndWorkerExtension' }],
+
   rejectionReason: { type: String, default: null }
 }, { timestamps: true });
 
@@ -238,6 +267,8 @@ workerBookingRequestSchema.index({ workerId: 1, status: 1 });
 workerBookingRequestSchema.index({ 'dispatchedTo.workerId': 1 });
 workerBookingRequestSchema.index({ workerId: 1, scheduledDate: 1, status: 1 });
 workerBookingRequestSchema.index({ bookingMode: 1, status: 1 });
+workerBookingRequestSchema.index({ bookingType: 1, status: 1 });
+workerBookingRequestSchema.index({ startDate: 1, endDate: 1, status: 1 });  // DAILY conflict detection
 workerBookingRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL
 // Prevent duplicate active broadcast from same farmer for same date+time
 workerBookingRequestSchema.index(

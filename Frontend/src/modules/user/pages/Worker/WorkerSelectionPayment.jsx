@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { FiArrowLeft, FiShield, FiLock, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
@@ -162,11 +162,35 @@ const WorkerSelectionPayment = () => {
 
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-slate-600">Max Rate per Worker</span>
-              <span className="text-sm font-black text-slate-800">₹{financials.maximumBudget}</span>
+              <span className="text-sm font-black text-slate-800">
+                ₹{financials.maximumBudget}
+                <span className="text-xs text-slate-400 font-normal ml-1">
+                  {financials.bookingType === 'DAILY' ? '/day' : '/hr'}
+                </span>
+              </span>
             </div>
 
+            {financials.durationMinutes ? (
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-slate-600">Booking Duration</span>
+                <span className="text-sm font-black text-slate-800">{financials.durationMinutes / 60} hour(s)</span>
+              </div>
+            ) : financials.numberOfDays ? (
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-slate-600">Working Days</span>
+                <span className="text-sm font-black text-slate-800">{financials.numberOfDays} day(s)</span>
+              </div>
+            ) : null}
+
             <div className="flex justify-between items-center pt-2">
-              <span className="text-sm font-medium text-slate-600">Max Worker Payout</span>
+              <div>
+                <span className="text-sm font-medium text-slate-600 block">Worker Payment Reserve</span>
+                <span className="text-[11px] text-slate-400 font-mono">
+                  {financials.bookingType === 'DAILY'
+                    ? `₹${financials.maximumBudget} × ${financials.selectedWorkerCount} × ${financials.numberOfDays || 1} day(s)`
+                    : `₹${financials.maximumBudget} × ${financials.selectedWorkerCount} × ${(financials.durationMinutes || 60) / 60} hr(s)`}
+                </span>
+              </div>
               <span className="text-sm font-black text-slate-800">₹{financials.maximumWorkerAmount}</span>
             </div>
 

@@ -11,8 +11,10 @@
 const WorkerBookingRequest  = require('../../models/WorkerBookingRequest');
 const IndWorkerAssignment   = require('../../models/IndWorkerAssignment');
 const Worker                = require('../../models/Worker');
+const User                  = require('../../models/User');
 const Team                  = require('../../models/Team');
 const Booking               = require('../../models/Booking');
+const WorkerGroupRequest    = require('../../models/WorkerGroupRequest');
 const Notification          = require('../../models/Notification');
 const Settings              = require('../../models/Settings');
 const Wallet                = require('../../models/Wallet');
@@ -21,6 +23,7 @@ const mongoose              = require('mongoose');
 const crypto                = require('crypto');
 const { getIO }             = require('../../sockets');
 const { calculateDistance } = require('../../services/locationService');
+const { sendNotificationToUser, sendNotificationToWorker } = require('../../services/firebaseAdmin');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -40,10 +43,165 @@ const REQUEST_TTL_MS = 24 * 60 * 60 * 1000;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Parse "HH:mm" into minutes from midnight */
+/** Parse "HH:mm" into minutes from midnight (0 to 1439) */
 const toMins = (t) => {
   const [h, m] = (t || '00:00').split(':').map(Number);
-  return h * 60 + m;
+  return (h || 0) * 60 + (m || 0);
+};
+
+/**
+ * Robust parser for various time formats to minutes from midnight (0 to 1439).
+ * Supports "HH:mm", "H:mm", "HH:mm:ss", "hh:mm AM/PM", "h:mm am/pm".
+ */
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const str = timeStr.trim();
+
+  // 12-hour format with AM/PM (e.g., "02:30 PM", "2:30pm", "11:00 AM")
+  const ampmMatch = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)$/i);
+  if (ampmMatch) {
+    let hours = parseInt(ampmMatch[1], 10);
+    const minutes = parseInt(ampmMatch[2], 10);
+    const isPm = ampmMatch[3].toLowerCase() === 'pm';
+    if (isPm && hours < 12) hours += 12;
+    if (!isPm && hours === 12) hours = 0;
+    if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
+      return hours * 60 + minutes;
+    }
+  }
+
+  // 24-hour format (e.g., "14:30", "09:00", "9:00", "14:30:00")
+  const match24 = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (match24) {
+    const hours = parseInt(match24[1], 10);
+    const minutes = parseInt(match24[2], 10);
+    if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
+      return hours * 60 + minutes;
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Check if two time intervals [s1, e1] and [s2, e2] overlap.
+ * Standard overlap rule: s1 < e2 && e1 > s2
+ */
+const doTimesOverlap = (start1, end1, start2, end2) => {
+  if (start1 === null || end1 === null || start2 === null || end2 === null) return false;
+  return (start1 < end2) && (end1 > start2);
+};
+
+/**
+ * Extract distinct YYYY-MM-DD strings for a given date across UTC, IST (Asia/Kolkata), and local.
+ * This guarantees timezone shifts between UTC database storage and IST Indian calendar days do not cause false misses.
+ */
+const getCalendarDateStrings = (dateInput) => {
+  if (!dateInput) return [];
+  const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
+  if (isNaN(d.getTime())) return [];
+
+  const set = new Set();
+  try {
+    set.add(d.toISOString().slice(0, 10)); // UTC YYYY-MM-DD
+  } catch (e) {}
+
+  try {
+    const istStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
+    set.add(istStr);
+  } catch (e) {}
+
+  try {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    set.add(`${y}-${m}-${day}`);
+  } catch (e) {}
+
+  return Array.from(set);
+};
+
+/**
+ * Check if two dates represent the exact same calendar day.
+ */
+const isSameCalendarDate = (date1, date2) => {
+  if (!date1 || !date2) return false;
+
+  if (typeof date1 === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date1.trim())) {
+    const set2 = getCalendarDateStrings(date2);
+    if (set2.includes(date1.trim())) return true;
+  }
+  if (typeof date2 === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date2.trim())) {
+    const set1 = getCalendarDateStrings(date1);
+    if (set1.includes(date2.trim())) return true;
+  }
+
+  const set1 = getCalendarDateStrings(date1);
+  const set2 = getCalendarDateStrings(date2);
+
+  for (const s of set1) {
+    if (set2.includes(s)) return true;
+  }
+  return false;
+};
+
+/**
+ * Safely extract start and end minutes from any booking/request doc.
+ */
+const extractDocTimeRange = (doc) => {
+  let startStr = null;
+  let endStr = null;
+
+  if (doc.timeSlot) {
+    if (typeof doc.timeSlot.start === 'string' && doc.timeSlot.start.trim()) {
+      startStr = doc.timeSlot.start.trim();
+    }
+    if (typeof doc.timeSlot.end === 'string' && doc.timeSlot.end.trim()) {
+      endStr = doc.timeSlot.end.trim();
+    }
+    if (!startStr && typeof doc.timeSlot.time === 'string' && doc.timeSlot.time.trim()) {
+      startStr = doc.timeSlot.time.trim();
+    }
+  }
+
+  if (!startStr && typeof doc.startTime === 'string' && doc.startTime.trim()) {
+    startStr = doc.startTime.trim();
+  }
+  if (!endStr && typeof doc.endTime === 'string' && doc.endTime.trim()) {
+    endStr = doc.endTime.trim();
+  }
+
+  if (!startStr && typeof doc.scheduledTime === 'string' && doc.scheduledTime.trim()) {
+    const raw = doc.scheduledTime.trim();
+    if (raw.includes('-')) {
+      const parts = raw.split('-').map(p => p.trim());
+      startStr = parts[0];
+      endStr = parts[1];
+    } else {
+      startStr = raw;
+    }
+  }
+
+  let startMins = parseTimeToMinutes(startStr);
+  let endMins = parseTimeToMinutes(endStr);
+
+  // If start is known but end is missing, compute end using duration or default 60 mins
+  if (startMins !== null && endMins === null) {
+    if (doc.durationMinutes && !isNaN(Number(doc.durationMinutes)) && Number(doc.durationMinutes) > 0) {
+      endMins = startMins + Number(doc.durationMinutes);
+    } else if (doc.estimatedDuration && !isNaN(Number(doc.estimatedDuration)) && Number(doc.estimatedDuration) > 0) {
+      endMins = startMins + Math.round(Number(doc.estimatedDuration) * 60);
+    } else {
+      endMins = startMins + 60; // default 1 hour slot
+    }
+  }
+
+  return {
+    startMins,
+    endMins,
+    startStr: startStr || 'N/A',
+    endStr: endStr || 'N/A'
+  };
 };
 
 /** Safe socket emit helper with room check */
@@ -59,7 +217,7 @@ const emitSafe = (room, event, data) => {
   }
 };
 
-/** Create a Notification doc + emit socket event */
+/** Create a Notification doc + emit socket event + FCM fallback */
 const notify = async ({
   recipientType, recipientId,
   type, title, message,
@@ -88,6 +246,23 @@ const notify = async ({
       ...(data || {}),
       requestId: relatedId,
       _id: relatedId,
+      // Hoist critical fields to top level so frontend doesn't need to dig into .data
+      workTitle:       data?.workTitle        || payload.title  || '',
+      workCategory:    data?.workCategory     || '',
+      workDescription: data?.workDescription  || '',
+      farmerName:      data?.farmerName       || 'Farmer',
+      farmerId:        data?.farmerId,
+      requiredSkills:  data?.requiredSkills   || [],
+      requiredWorkers: data?.requiredWorkers  || 1,
+      scheduledDate:   data?.scheduledDate,
+      startTime:       data?.startTime,
+      endTime:         data?.endTime,
+      location:        data?.location         || {},
+      minRate:         data?.minRate          || 0,
+      maxRate:         data?.maxRate          || 0,
+      farmerOfferedRate: data?.farmerOfferedRate || data?.minRate || 0,
+      rateUnit:        data?.rateUnit         || 'daily',
+      isFarmerBroadcast: data?.isFarmerBroadcast !== undefined ? data.isFarmerBroadcast : true,
       data: data || {}
     };
 
@@ -115,45 +290,200 @@ const notify = async ({
       // 4. Booking update event for refreshing lists
       emitSafe(room, 'worker_booking_update', { requestId: relatedId, type, data });
     });
+
+    // 5. FCM Push Notification Fallback (non-blocking)
+    try {
+      if (recipientType === 'worker') {
+        sendNotificationToWorker(recipientId, {
+          title: title || '🌾 Work Alert',
+          body: message || 'You have a new work request',
+          data: {
+            type: type || 'worker_booking_request',
+            requestId: String(relatedId || ''),
+            workTitle: String(broadcastPayload.workTitle || ''),
+            farmerName: String(broadcastPayload.farmerName || '')
+          }
+        }).catch(fcmErr => {
+          if (process.env.NODE_ENV !== 'test') {
+            console.warn('[FCM Worker Notify Non-fatal]:', fcmErr?.message);
+          }
+        });
+      } else if (recipientType === 'user') {
+        sendNotificationToUser(recipientId, {
+          title: title || 'AgroYilt Update',
+          body: message || '',
+          data: {
+            type: type || 'notification',
+            requestId: String(relatedId || '')
+          }
+        }).catch(fcmErr => {
+          if (process.env.NODE_ENV !== 'test') {
+            console.warn('[FCM User Notify Non-fatal]:', fcmErr?.message);
+          }
+        });
+      }
+    } catch (fcmSyncErr) {
+      console.warn('[FCM Trigger Error Non-fatal]:', fcmSyncErr?.message);
+    }
   } catch (e) {
     console.error('[notify error]:', e);
   }
 };
 
-/** Check if a worker has a conflicting confirmed booking or accepted request */
+/**
+ * Check if a specific worker has an active conflicting booking on scheduledDate with overlapping time.
+ *
+ * Rules:
+ * A. SAME WORKER: Only bookings/requests assigned to workerId
+ * B. SAME DATE: Exactly matching calendar date (accounting for UTC/local/IST)
+ * C. TIME OVERLAP: existingStart < requestedEnd && existingEnd > requestedStart
+ * D. STATUS CHECK: Terminal statuses (cancelled, rejected, completed, work_done, settled, expired) do NOT block
+ *
+ * @param {string|ObjectId} workerId - Candidate worker ID
+ * @param {Date|string} scheduledDate - Target work date
+ * @param {string} startTime - Requested start time "HH:mm"
+ * @param {string} endTime - Requested end time "HH:mm"
+ * @param {string|ObjectId} [excludeRequestId=null] - Request ID to exclude from conflict check
+ * @returns {Promise<boolean>} - true if conflict exists, false if available
+ */
 const hasTimeConflict = async (workerId, scheduledDate, startTime, endTime, excludeRequestId = null) => {
   try {
-    const dateStart = new Date(scheduledDate);
-    dateStart.setHours(0, 0, 0, 0);
-    const dateEnd = new Date(dateStart);
-    dateEnd.setHours(23, 59, 59, 999);
-
-    // Check existing confirmed/in-progress Bookings
-    const bookingConflict = await Booking.findOne({
-      workerId,
-      scheduledDate: { $gte: dateStart, $lte: dateEnd },
-      status: { $in: ['confirmed', 'in_progress', 'assigned', 'on_the_way', 'arrived'] }
-    });
-    if (bookingConflict) return true;
-
-    // Check accepted broadcast requests this worker is part of
-    const reqQuery = {
-      'dispatchedTo': {
-        $elemMatch: { workerId, status: 'accepted' }
-      },
-      scheduledDate: { $gte: dateStart, $lte: dateEnd },
-      status: { $in: ['awaiting_farmer_confirmation', 'confirmed', 'in_progress'] }
-    };
-    
-    if (excludeRequestId) {
-      reqQuery._id = { $ne: excludeRequestId };
+    if (!workerId || !scheduledDate || !startTime || !endTime) {
+      console.warn(`[hasTimeConflict] Incomplete parameters: workerId=${workerId}, date=${scheduledDate}, start=${startTime}, end=${endTime}`);
+      return false;
     }
-    
-    const reqConflict = await WorkerBookingRequest.findOne(reqQuery);
-    return !!reqConflict;
-  } catch (e) {
-    console.warn('[hasTimeConflict error]:', e.message);
+
+    const reqStartMins = parseTimeToMinutes(startTime);
+    const reqEndMins = parseTimeToMinutes(endTime);
+
+    if (reqStartMins === null || reqEndMins === null) {
+      console.warn(`[hasTimeConflict] Invalid time format for requested slot: start=${startTime}, end=${endTime}`);
+      return false;
+    }
+
+    const targetDate = (scheduledDate instanceof Date) ? scheduledDate : new Date(scheduledDate);
+    if (isNaN(targetDate.getTime())) {
+      console.warn(`[hasTimeConflict] Invalid scheduledDate: ${scheduledDate}`);
+      return false;
+    }
+
+    // 48h search window in MongoDB to ensure timezone shifts (UTC vs IST) are captured
+    const windowStart = new Date(targetDate);
+    windowStart.setDate(windowStart.getDate() - 1);
+    windowStart.setHours(0, 0, 0, 0);
+
+    const windowEnd = new Date(targetDate);
+    windowEnd.setDate(windowEnd.getDate() + 1);
+    windowEnd.setHours(23, 59, 59, 999);
+
+    const workerObjId = (typeof workerId === 'string' && mongoose.Types.ObjectId.isValid(workerId))
+      ? new mongoose.Types.ObjectId(workerId)
+      : workerId;
+
+    const excludeObjId = (excludeRequestId && typeof excludeRequestId === 'string' && mongoose.Types.ObjectId.isValid(excludeRequestId))
+      ? new mongoose.Types.ObjectId(excludeRequestId)
+      : excludeRequestId;
+
+    const reqDateDisplay = getCalendarDateStrings(targetDate)[0] || String(scheduledDate);
+
+    // ── 1. Check Active Bookings ─────────────────────────────────────────────
+    // Exclude terminal / inactive statuses: cancelled, rejected, completed, work_done, settled, expired
+    const activeBookingStatuses = [
+      'confirmed', 'CONFIRMED',
+      'in_progress', 'IN_PROGRESS',
+      'assigned', 'ASSIGNED',
+      'accepted', 'ACCEPTED',
+      'journey_started', 'JOURNEY_STARTED',
+      'visited', 'VISITED',
+      'on_the_way', 'ON_THE_WAY',
+      'arrived', 'ARRIVED',
+      'pending', 'PENDING'
+    ];
+
+    const bookings = await Booking.find({
+      workerId: workerObjId,
+      scheduledDate: { $gte: windowStart, $lte: windowEnd },
+      status: { $in: activeBookingStatuses }
+    }).select('_id bookingNumber scheduledDate scheduledTime timeSlot status workerRequestId durationMinutes estimatedDuration').lean();
+
+    for (const b of bookings) {
+      if (excludeObjId && b.workerRequestId && b.workerRequestId.toString() === excludeObjId.toString()) {
+        continue;
+      }
+
+      if (!isSameCalendarDate(targetDate, b.scheduledDate)) {
+        continue;
+      }
+
+      const { startMins, endMins, startStr, endStr } = extractDocTimeRange(b);
+      if (doTimesOverlap(startMins, endMins, reqStartMins, reqEndMins)) {
+        const existDateDisplay = getCalendarDateStrings(b.scheduledDate)[0] || String(b.scheduledDate);
+        console.log(`[CONFLICT CHECK] Worker: ${workerId} | Requested: ${reqDateDisplay} ${startTime}-${endTime} | Existing Booking (${b.bookingNumber || b._id}): ${existDateDisplay} ${startStr}-${endStr} (Status: ${b.status}) | Conflict: true`);
+        return true;
+      }
+    }
+
+    // ── 2. Check Active WorkerBookingRequests ────────────────────────────────
+    const activeReqStatuses = [
+      'accepted', 'awaiting_farmer_confirmation', 'confirmed', 'in_progress', 'partially_completed'
+    ];
+
+    const reqQuery = {
+      scheduledDate: { $gte: windowStart, $lte: windowEnd },
+      status: { $in: activeReqStatuses },
+      $or: [
+        { workerId: workerObjId },
+        { selectedWorkerIds: workerObjId },
+        { finalWorkers: workerObjId },
+        { 'dispatchedTo': { $elemMatch: { workerId: workerObjId, status: 'accepted' } } }
+      ]
+    };
+
+    if (excludeObjId) {
+      reqQuery._id = { $ne: excludeObjId };
+    }
+
+    const activeRequests = await WorkerBookingRequest.find(reqQuery)
+      .select('_id scheduledDate startTime endTime status workTitle')
+      .lean();
+
+    for (const r of activeRequests) {
+      if (!isSameCalendarDate(targetDate, r.scheduledDate)) {
+        continue;
+      }
+
+      const { startMins, endMins, startStr, endStr } = extractDocTimeRange(r);
+      if (doTimesOverlap(startMins, endMins, reqStartMins, reqEndMins)) {
+        const existDateDisplay = getCalendarDateStrings(r.scheduledDate)[0] || String(r.scheduledDate);
+        console.log(`[CONFLICT CHECK] Worker: ${workerId} | Requested: ${reqDateDisplay} ${startTime}-${endTime} | Existing Request (${r._id}): ${existDateDisplay} ${startStr}-${endStr} (Status: ${r.status}) | Conflict: true`);
+        return true;
+      }
+    }
+
+    // ── 3. Check Active WorkerGroupRequests ──────────────────────────────────
+    const groupRequests = await WorkerGroupRequest.find({
+      selectedWorkers: workerObjId,
+      scheduledDate: { $gte: windowStart, $lte: windowEnd },
+      status: { $in: ['confirmed', 'selection_pending', 'collecting_members'] }
+    }).select('_id scheduledDate startTime endTime status workTitle').lean();
+
+    for (const g of groupRequests) {
+      if (!isSameCalendarDate(targetDate, g.scheduledDate)) {
+        continue;
+      }
+
+      const { startMins, endMins, startStr, endStr } = extractDocTimeRange(g);
+      if (doTimesOverlap(startMins, endMins, reqStartMins, reqEndMins)) {
+        const existDateDisplay = getCalendarDateStrings(g.scheduledDate)[0] || String(g.scheduledDate);
+        console.log(`[CONFLICT CHECK] Worker: ${workerId} | Requested: ${reqDateDisplay} ${startTime}-${endTime} | Existing GroupRequest (${g._id}): ${existDateDisplay} ${startStr}-${endStr} (Status: ${g.status}) | Conflict: true`);
+        return true;
+      }
+    }
+
     return false;
+  } catch (err) {
+    console.error(`[hasTimeConflict ERROR] Failed to evaluate conflict for worker ${workerId}:`, err);
+    throw err;
   }
 };
 
@@ -165,9 +495,99 @@ const loadAdminSettings = async () => {
   }
   return {
     maxIndependentWorkerRequest: settings.maxIndependentWorkerRequest ?? 5,
-    workerSearchRadiusKm:        settings.workerSearchRadiusKm        ?? 15
+    workerSearchRadiusKm:        settings.workerSearchRadiusKm        ?? 50  // 50km default for rural India
   };
 };
+
+// ─── DAILY Conflict Engine ─────────────────────────────────────────────────────
+/**
+ * Check if a worker has an active DAILY booking that overlaps with the requested date range.
+ *
+ * DAILY conflict rule: existingStartDate <= requestedEndDate AND existingEndDate >= requestedStartDate
+ * This is DATE-range overlap, NOT time overlap.
+ *
+ * @param {string|ObjectId} workerId
+ * @param {Date} requestedStartDate  - DAILY start date
+ * @param {Date} requestedEndDate    - DAILY end date (= startDate + numberOfDays - 1)
+ * @param {string|ObjectId} [excludeRequestId=null]
+ * @returns {Promise<boolean>}
+ */
+const hasDailyConflict = async (workerId, requestedStartDate, requestedEndDate, excludeRequestId = null) => {
+  try {
+    if (!workerId || !requestedStartDate || !requestedEndDate) {
+      console.warn(`[hasDailyConflict] Incomplete parameters`);
+      return false;
+    }
+
+    const rStart = new Date(requestedStartDate);
+    const rEnd   = new Date(requestedEndDate);
+    if (isNaN(rStart.getTime()) || isNaN(rEnd.getTime())) {
+      console.warn(`[hasDailyConflict] Invalid date range`);
+      return false;
+    }
+
+    const workerObjId = (typeof workerId === 'string' && mongoose.Types.ObjectId.isValid(workerId))
+      ? new mongoose.Types.ObjectId(workerId)
+      : workerId;
+
+    const excludeObjId = (excludeRequestId && typeof excludeRequestId === 'string' && mongoose.Types.ObjectId.isValid(excludeRequestId))
+      ? new mongoose.Types.ObjectId(excludeRequestId)
+      : excludeRequestId;
+
+    // Active DAILY statuses that block new bookings
+    const activeStatuses = ['accepted', 'awaiting_farmer_confirmation', 'confirmed', 'matching', 'pending'];
+
+    // Check WorkerBookingRequest (DAILY) for date-range overlap
+    const reqQuery = {
+      bookingType:  'DAILY',
+      status:       { $in: activeStatuses },
+      startDate:    { $lte: rEnd },    // existingStart <= requestedEnd
+      endDate:      { $gte: rStart },  // existingEnd   >= requestedStart
+      $or: [
+        { selectedWorkerIds: workerObjId },
+        { finalWorkers:      workerObjId },
+        { 'dispatchedTo':    { $elemMatch: { workerId: workerObjId, status: 'accepted' } } }
+      ]
+    };
+    if (excludeObjId) reqQuery._id = { $ne: excludeObjId };
+
+    const conflictingRequest = await WorkerBookingRequest.findOne(reqQuery).select('_id startDate endDate status').lean();
+    if (conflictingRequest) {
+      console.log(`[DAILY CONFLICT] Worker ${workerId} has conflicting DAILY booking (requestId: ${conflictingRequest._id}) ` +
+        `dates ${conflictingRequest.startDate?.toISOString?.()?.slice(0,10)} - ${conflictingRequest.endDate?.toISOString?.()?.slice(0,10)}`);
+      return true;
+    }
+
+    // Check IndWorkerAssignment (DAILY confirmed) for date-range overlap
+    const parentRequests = await WorkerBookingRequest.find({
+      bookingType: 'DAILY',
+      status:      { $in: ['confirmed', 'completed'] },
+      startDate:   { $lte: rEnd },
+      endDate:     { $gte: rStart }
+    }).select('_id').lean();
+
+    if (parentRequests.length > 0) {
+      const parentIds = parentRequests.map(r => r._id);
+      const conflictingAssignment = await IndWorkerAssignment.findOne({
+        workerId:         workerObjId,
+        bookingType:      'DAILY',
+        assignmentStatus: { $ne: 'CANCELLED' },
+        parentRequestId:  { $in: parentIds }
+      }).select('_id').lean();
+
+      if (conflictingAssignment && (!excludeObjId || !parentIds.some(id => id.toString() === excludeObjId?.toString()))) {
+        console.log(`[DAILY CONFLICT] Worker ${workerId} has overlapping DAILY assignment ${conflictingAssignment._id}`);
+        return true;
+      }
+    }
+
+    return false;
+  } catch (err) {
+    console.error(`[hasDailyConflict ERROR] Worker ${workerId}:`, err);
+    throw err;
+  }
+};
+
 
 /** Normalize skills: lowercase, trim, deduplicate */
 const normalizeSkills = (skills) => {
@@ -238,90 +658,183 @@ const validateRequestPayload = (body) => {
   return errors;
 };
 
+// ─── DAILY Request Payload Validator ──────────────────────────────────────────
+/**
+ * Validate DAILY booking payload.
+ * DAILY: uses startDate + numberOfDays + endDate (backend computes endDate).
+ * Does NOT require startTime/endTime (DAILY has no hourly timer).
+ */
+const validateDailyRequestPayload = (body) => {
+  const {
+    workTitle, workDescription, requiredWorkers,
+    startDate, numberOfDays, location,
+    minDailyRate, maxDailyRate
+  } = body;
+
+  const errors = [];
+
+  if (!workTitle || workTitle.trim().length < 3)
+    errors.push('Work title must be at least 3 characters.');
+  if (!workDescription || workDescription.trim().length < 10)
+    errors.push('Work description must be at least 10 characters.');
+
+  const workerQty = parseInt(requiredWorkers, 10);
+  if (!requiredWorkers || isNaN(workerQty) || workerQty < 1)
+    errors.push('Required workers must be a positive integer.');
+
+  // startDate validation
+  if (!startDate)
+    errors.push('Start date is required for DAILY booking.');
+  else {
+    const d = new Date(startDate);
+    if (isNaN(d.getTime()))   errors.push('Invalid start date.');
+    else if (d < new Date(new Date().setHours(0, 0, 0, 0)))
+      errors.push('Start date cannot be in the past.');
+  }
+
+  // numberOfDays validation
+  const numDays = parseInt(numberOfDays, 10);
+  if (!numberOfDays || isNaN(numDays) || numDays < 1)
+    errors.push('Number of days must be at least 1.');
+  if (numDays > 365)
+    errors.push('Number of days cannot exceed 365.');
+
+  if (!location || (!location.city && !location.addressLine1))
+    errors.push('Work location (city or address) is required.');
+
+  // Rate validation for DAILY
+  const minD = Number(minDailyRate);
+  const maxD = Number(maxDailyRate);
+  if (!minDailyRate && !maxDailyRate)
+    errors.push('Daily rate budget is required (minDailyRate or maxDailyRate).');
+  else {
+    if (isNaN(minD) || !isFinite(minD) || minD <= 0)
+      errors.push('Minimum daily rate must be a positive finite number.');
+    if (maxDailyRate !== undefined && maxDailyRate !== null && maxDailyRate !== '') {
+      if (isNaN(maxD) || !isFinite(maxD) || maxD <= 0)
+        errors.push('Maximum daily rate must be a positive finite number.');
+      if (minD > maxD)
+        errors.push('Minimum daily rate cannot exceed maximum daily rate.');
+    }
+  }
+
+  return errors;
+};
+
 // â”€â”€â”€ Controller: createFarmerRequest â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * POST /api/user/farmer-worker-request
  * Farmer submits a job requirement. Backend auto-routes to Independent or Team Leader flow.
+ * Supports HOURLY (scheduledDate + startTime + endTime) and DAILY (startDate + numberOfDays).
  */
 exports.createFarmerRequest = async (req, res) => {
   try {
     const farmerId = req.user._id; // always from auth token
 
+    // Detect booking type: DAILY if body contains startDate + numberOfDays, else HOURLY
+    // Frontend hint is accepted but backend validates the type's required fields.
+    const rawBookingType = (req.body.bookingType || '').toUpperCase();
+    const isDaily = rawBookingType === 'DAILY' || (req.body.startDate && req.body.numberOfDays && !req.body.scheduledDate);
+    const bookingType = isDaily ? 'DAILY' : 'HOURLY';
+
     const {
       workCategory, workTitle, workDescription,
       requiredSkills, additionalInstructions,
       requiredWorkers,
+      // HOURLY fields
       scheduledDate, startTime, endTime, rateUnit,
-      location,
-      minRate, maxRate
+      minRate, maxRate,
+      // DAILY fields
+      startDate, numberOfDays,
+      minDailyRate, maxDailyRate,
+      // common
+      location
     } = req.body;
 
-    // â”€â”€ Validate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const errors = validateRequestPayload(req.body);
+    // ── Validate per bookingType ─────────────────────────────────────────────
+    const errors = isDaily
+      ? validateDailyRequestPayload(req.body)
+      : validateRequestPayload(req.body);
     if (errors.length) {
       return res.status(400).json({ success: false, message: errors[0], errors });
     }
 
-    const workerQty   = parseInt(requiredWorkers, 10);
+    const workerQty    = parseInt(requiredWorkers, 10);
     const normalSkills = normalizeSkills(requiredSkills);
-    const scheduledDateObj = new Date(scheduledDate);
 
-    // â”€â”€ Load Admin settings (never trust frontend routing hints) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Load Admin settings ────────────────────────────────────────────────
     const adminSettings = await loadAdminSettings();
     const { maxIndependentWorkerRequest, workerSearchRadiusKm } = adminSettings;
 
-    // â”€â”€ Duplicate request guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const dateStart = new Date(scheduledDateObj);
-    dateStart.setHours(0, 0, 0, 0);
-    const dateEnd = new Date(dateStart);
-    dateEnd.setHours(23, 59, 59, 999);
-
-    const existingActive = await WorkerBookingRequest.findOne({
-      farmerId,
-      requestType: 'independent_broadcast',
-      scheduledDate: { $gte: dateStart, $lte: dateEnd },
-      startTime,
-      status: { $in: ['pending', 'matching', 'awaiting_farmer_confirmation'] }
-    });
-    if (existingActive) {
-      return res.status(409).json({
-        success: false,
-        message: 'You already have an active worker request for this date and time. Please cancel it first or wait for responses.'
-      });
-    }
-
-    // â”€â”€ Decide routing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // CRITICAL: Backend decides, never frontend
+    // ── Routing decision (backend only) ────────────────────────────────────
     const requestType = workerQty <= maxIndependentWorkerRequest
       ? 'independent_broadcast'
       : 'team_leader';
 
-    // â”€â”€ Create the request record first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const newRequest = await WorkerBookingRequest.create({
+    // ── HOURLY duplicate guard ────────────────────────────────────────────
+    if (!isDaily) {
+      const scheduledDateObj = new Date(scheduledDate);
+      const dateStart = new Date(scheduledDateObj); dateStart.setHours(0, 0, 0, 0);
+      const dateEnd   = new Date(dateStart);         dateEnd.setHours(23, 59, 59, 999);
+
+      const existingActive = await WorkerBookingRequest.findOne({
+        farmerId,
+        bookingType:   'HOURLY',
+        requestType:   'independent_broadcast',
+        scheduledDate: { $gte: dateStart, $lte: dateEnd },
+        startTime,
+        status: { $in: ['pending', 'matching', 'awaiting_farmer_confirmation'] }
+      });
+      if (existingActive) {
+        return res.status(409).json({
+          success: false,
+          message: 'You already have an active HOURLY worker request for this date and time.'
+        });
+      }
+    }
+
+    // ── DAILY duplicate guard ─────────────────────────────────────────────
+    if (isDaily) {
+      const sDate = new Date(startDate);
+      const numD  = parseInt(numberOfDays, 10);
+      const eDate = new Date(sDate);
+      eDate.setDate(eDate.getDate() + numD - 1);
+      eDate.setHours(23, 59, 59, 999);
+
+      const existingDaily = await WorkerBookingRequest.findOne({
+        farmerId,
+        bookingType: 'DAILY',
+        startDate:   { $lte: eDate },
+        endDate:     { $gte: sDate },
+        status: { $in: ['pending', 'matching', 'awaiting_farmer_confirmation'] }
+      });
+      if (existingDaily) {
+        return res.status(409).json({
+          success: false,
+          message: 'You already have an active DAILY worker request overlapping these dates.'
+        });
+      }
+    }
+
+    // ── Build request document ─────────────────────────────────────────────
+    let requestDoc = {
       farmerId,
+      bookingType,
       workCategory:    workCategory?.trim() || '',
       workTitle:       workTitle.trim(),
       workDescription: workDescription.trim(),
       requiredSkills:  normalSkills,
       additionalInstructions: additionalInstructions?.trim() || '',
       requiredWorkers: workerQty,
-      scheduledDate:   scheduledDateObj,
-      startTime,
-      endTime,
-      rateUnit:        rateUnit || 'daily',
       location: {
         addressLine1: location?.addressLine1 || '',
         city:         location?.city         || '',
         state:        location?.state        || '',
         pincode:      location?.pincode      || '',
-        lat:          (location?.lat !== undefined && !isNaN(Number(location.lat))) ? Number(location.lat) : undefined,
-        lng:          (location?.lng !== undefined && !isNaN(Number(location.lng))) ? Number(location.lng) : undefined
+        lat:  (location?.lat !== undefined && !isNaN(Number(location.lat))) ? Number(location.lat) : undefined,
+        lng:  (location?.lng !== undefined && !isNaN(Number(location.lng))) ? Number(location.lng) : undefined
       },
-      minRate: Number(minRate),
-      maxRate: maxRate ? Number(maxRate) : Number(minRate),
-      // For legacy compatibility, set farmerOfferedRate to minRate
-      farmerOfferedRate: Number(minRate),
       requestType,
       bookingMode: workerQty <= maxIndependentWorkerRequest ? 'INDEPENDENT_WORKERS' : 'TEAM_LEADER',
       independentWorkerLimitSnapshot: maxIndependentWorkerRequest,
@@ -331,43 +844,100 @@ exports.createFarmerRequest = async (req, res) => {
       },
       status: 'matching',
       expiresAt: new Date(Date.now() + REQUEST_TTL_MS)
-    });
+    };
 
-    // â”€â”€ Independent Worker Flow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (requestType === 'independent_broadcast') {
-      await dispatchToIndependentWorkers({
-        request: newRequest,
-        requiredSkills: normalSkills,
-        scheduledDate: scheduledDateObj,
-        startTime,
-        endTime,
-        workerLocation: location,
-        radiusKm: workerSearchRadiusKm
+    if (isDaily) {
+      const sDate  = new Date(startDate);
+      const numD   = parseInt(numberOfDays, 10);
+      const eDate  = new Date(sDate);
+      eDate.setDate(eDate.getDate() + numD - 1);
+      eDate.setHours(23, 59, 59, 999);
+      const effMinDailyRate = Number(minDailyRate) || 0;
+      const effMaxDailyRate = maxDailyRate ? Number(maxDailyRate) : effMinDailyRate;
+      Object.assign(requestDoc, {
+        rateUnit:     'daily',
+        startDate:    sDate,
+        endDate:      eDate,
+        numberOfDays: numD,
+        minDailyRate: effMinDailyRate,
+        maxDailyRate: effMaxDailyRate,
+        minRate:      effMinDailyRate,
+        maxRate:      effMaxDailyRate
       });
     } else {
-      // â”€â”€ Team Leader Flow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      const scheduledDateObj = new Date(scheduledDate);
+      const effMinRate = Number(minRate) || 0;
+      const effMaxRate = maxRate ? Number(maxRate) : effMinRate;
+
+      let calcDurationMinutes = 60;
+      if (startTime && endTime) {
+        const [sH, sM] = startTime.split(':').map(Number);
+        const [eH, eM] = endTime.split(':').map(Number);
+        if (!isNaN(sH) && !isNaN(eH)) {
+          let diffMinutes = (eH * 60 + (eM || 0)) - (sH * 60 + (sM || 0));
+          if (diffMinutes < 0) diffMinutes += 24 * 60;
+          if (diffMinutes > 0) calcDurationMinutes = diffMinutes;
+        }
+      }
+
+      Object.assign(requestDoc, {
+        rateUnit:          'hourly',
+        durationMinutes:   calcDurationMinutes,
+        scheduledDate:     scheduledDateObj,
+        startTime,
+        endTime,
+        minRate:           effMinRate,
+        maxRate:           effMaxRate,
+        farmerOfferedRate: effMinRate
+      });
+    }
+
+    const newRequest = await WorkerBookingRequest.create(requestDoc);
+
+    if (requestType === 'independent_broadcast') {
+      if (isDaily) {
+        await dispatchToIndependentWorkersForDaily({
+          request: newRequest,
+          requiredSkills: normalSkills,
+          startDate: new Date(newRequest.startDate),
+          endDate:   new Date(newRequest.endDate),
+          workerLocation: location,
+          radiusKm: workerSearchRadiusKm
+        });
+      } else {
+        await dispatchToIndependentWorkers({
+          request: newRequest,
+          requiredSkills: normalSkills,
+          scheduledDate: new Date(newRequest.scheduledDate),
+          startTime: newRequest.startTime,
+          endTime:   newRequest.endTime,
+          workerLocation: location,
+          radiusKm: workerSearchRadiusKm
+        });
+      }
+    } else {
       await dispatchToTeamLeaders({
         request: newRequest,
         requiredSkills: normalSkills,
         requiredWorkers: workerQty,
-        scheduledDate: scheduledDateObj,
-        startTime,
-        endTime,
+        scheduledDate: newRequest.scheduledDate ? new Date(newRequest.scheduledDate) : null,
+        startTime: newRequest.startTime,
+        endTime:   newRequest.endTime,
         workerLocation: location,
         radiusKm: workerSearchRadiusKm
       });
     }
 
-    // Reload to get updated counts after dispatch
     const savedRequest = await WorkerBookingRequest.findById(newRequest._id);
 
     return res.status(201).json({
       success: true,
       message: requestType === 'independent_broadcast'
-        ? `Request created. Matching workers within ${workerSearchRadiusKm} km...`
+        ? `${bookingType} request created. Matching workers within ${workerSearchRadiusKm} km...`
         : `Request created. Searching for Team Leaders within ${workerSearchRadiusKm} km...`,
       data: savedRequest,
-      routing: requestType
+      routing: requestType,
+      bookingType
     });
 
   } catch (err) {
@@ -467,27 +1037,47 @@ async function dispatchToIndependentWorkers({
         return withinRadius;
       });
 
-      if (radiusFiltered.length > 0) {
+      if (radiusFiltered.length >= (request.requiredWorkers || 1)) {
         eligible = radiusFiltered;
+      } else if (radiusFiltered.length > 0) {
+        // Radius returned fewer workers than requested by farmer.
+        // Supplement with closest remaining candidate workers so farmer's multi-worker request can be fulfilled.
+        const remaining = candidates.filter(c => !radiusFiltered.some(r => r._id.toString() === c._id.toString()));
+        remaining.sort((a, b) => {
+          const distA = (a.location?.lat && a.location?.lng)
+            ? calculateDistance({ lat: Number(farmLat), lng: Number(farmLng) }, { lat: Number(a.location.lat), lng: Number(a.location.lng) })
+            : 9999;
+          const distB = (b.location?.lat && b.location?.lng)
+            ? calculateDistance({ lat: Number(farmLat), lng: Number(farmLng) }, { lat: Number(b.location.lat), lng: Number(b.location.lng) })
+            : 9999;
+          return distA - distB;
+        });
+        eligible = [...radiusFiltered, ...remaining];
       } else {
         console.log(`[DISPATCH] 0 workers strictly within ${radiusKm}km radius. Falling back to all candidate workers.`);
         eligible = candidates;
       }
     }
 
-    // Conflict check — exclude workers with conflicting bookings
-    const available = [];
+    // ── Pre-Dispatch Conflict Check (Per-Worker Independent Evaluation) ─────
+    const finalWorkers = [];
+    const reqDateDisplay = getCalendarDateStrings(scheduledDate)[0] || String(scheduledDate);
+
     for (const w of eligible) {
-      let conflict = false;
       try {
-        conflict = await hasTimeConflict(w._id, scheduledDate, startTime, endTime, request._id);
-      } catch (confErr) {
-        console.warn('[DISPATCH] Conflict check warning for worker:', w._id, confErr.message);
+        const conflict = await hasTimeConflict(w._id, scheduledDate, startTime, endTime, request._id);
+        if (conflict) {
+          console.log(`[DISPATCH] Worker: ${w._id} (${w.name || 'N/A'}) | Requested: ${reqDateDisplay} ${startTime}-${endTime} | Conflict: true | Action: SKIPPED`);
+        } else {
+          console.log(`[DISPATCH] Worker: ${w._id} (${w.name || 'N/A'}) | Requested: ${reqDateDisplay} ${startTime}-${endTime} | Conflict: false | Action: DISPATCHED`);
+          finalWorkers.push(w);
+        }
+      } catch (checkErr) {
+        console.error(`[DISPATCH ERROR] Could not evaluate availability for worker ${w._id} (${w.name || 'N/A'}): ${checkErr.message} | Action: SKIPPED (Safety)`);
       }
-      if (!conflict) available.push(w);
     }
 
-    const finalWorkers = available.length > 0 ? available : eligible;
+    console.log(`[DISPATCH] Eligible candidates: ${eligible.length} | Available (no conflict): ${finalWorkers.length}`);
 
     const dispatchedTo = finalWorkers.map(w => ({
       workerId: w._id,
@@ -505,9 +1095,13 @@ async function dispatchToIndependentWorkers({
     // Populate farmer details if available
     let farmerName = 'Farmer';
     try {
-      const farmerDoc = await User.findById(request.farmerId).select('name phone').lean();
-      if (farmerDoc?.name) farmerName = farmerDoc.name;
-    } catch (e) {}
+      if (request.farmerId) {
+        const farmerDoc = await User.findById(request.farmerId).select('name phone').lean();
+        if (farmerDoc?.name) farmerName = farmerDoc.name;
+      }
+    } catch (e) {
+      console.warn('[DISPATCH] Could not fetch farmer name:', e.message);
+    }
 
     // Notify each worker via socket + notification
     for (const w of finalWorkers) {
@@ -545,6 +1139,153 @@ async function dispatchToIndependentWorkers({
   } catch (err) {
     console.error('[dispatchToIndependentWorkers]', err);
     // Don't throw — keep request alive, just no dispatches
+    await WorkerBookingRequest.findByIdAndUpdate(request._id, { status: 'pending' });
+  }
+}
+
+// --- Dispatch to Independent Workers (DAILY) ---------------------------------
+
+async function dispatchToIndependentWorkersForDaily({
+  request, requiredSkills, startDate, endDate, workerLocation, radiusKm
+}) {
+  try {
+    const baseQuery = {
+      $or: [
+        { approvalStatus: { $in: ['approved', 'APPROVED', 'pending', 'PENDING'] } },
+        { approvalStatus: { $exists: false } }
+      ],
+      isActive: { $ne: false }
+    };
+
+    let candidates = [];
+    if (requiredSkills && requiredSkills.length > 0) {
+      const regexConditions = requiredSkills.map(s => new RegExp(`^${s}$`, 'i'));
+      const words = requiredSkills
+        .flatMap(s => (typeof s === 'string' ? s.split(/[\s,]+/) : []))
+        .filter(w => w && w.length > 2);
+      words.forEach(w => regexConditions.push(new RegExp(w, 'i')));
+
+      candidates = await Worker.find({
+        ...baseQuery,
+        $or: [
+          { skills: { $in: regexConditions } },
+          { primaryService: { $in: regexConditions } },
+          { serviceCategory: { $in: regexConditions } },
+          { serviceCategories: { $in: regexConditions } }
+        ]
+      }).select('_id name skills primaryService serviceCategory serviceCategories location address status fcmTokens approvalStatus isActive').lean();
+    }
+
+    if (!candidates || candidates.length === 0) {
+      candidates = await Worker.find(baseQuery)
+        .select('_id name skills primaryService serviceCategory serviceCategories location address status fcmTokens approvalStatus isActive')
+        .lean();
+    }
+
+    const farmLat = workerLocation?.lat;
+    const farmLng = workerLocation?.lng;
+    let eligible = candidates;
+
+    if (farmLat !== undefined && farmLng !== undefined &&
+        !isNaN(Number(farmLat)) && !isNaN(Number(farmLng))) {
+      const radiusFiltered = candidates.filter(w => {
+        if (!w.location?.lat || !w.location?.lng || isNaN(Number(w.location.lat)) || isNaN(Number(w.location.lng))) {
+          if (w.address && request.location?.city) {
+            const reqCity = request.location.city.trim().toLowerCase();
+            const wCity = (w.address.city || '').trim().toLowerCase();
+            return wCity === reqCity || wCity.includes(reqCity);
+          }
+          return true;
+        }
+        const dist = calculateDistance(
+          { lat: Number(farmLat), lng: Number(farmLng) },
+          { lat: Number(w.location.lat), lng: Number(w.location.lng) }
+        );
+        return dist <= radiusKm;
+      });
+      if (radiusFiltered.length >= (request.requiredWorkers || 1)) {
+        eligible = radiusFiltered;
+      } else if (radiusFiltered.length > 0) {
+        const remaining = candidates.filter(c => !radiusFiltered.some(r => r._id.toString() === c._id.toString()));
+        remaining.sort((a, b) => {
+          const distA = (a.location?.lat && a.location?.lng)
+            ? calculateDistance({ lat: Number(farmLat), lng: Number(farmLng) }, { lat: Number(a.location.lat), lng: Number(a.location.lng) })
+            : 9999;
+          const distB = (b.location?.lat && b.location?.lng)
+            ? calculateDistance({ lat: Number(farmLat), lng: Number(farmLng) }, { lat: Number(b.location.lat), lng: Number(b.location.lng) })
+            : 9999;
+          return distA - distB;
+        });
+        eligible = [...radiusFiltered, ...remaining];
+      } else {
+        console.log(`[DAILY DISPATCH] 0 workers strictly within ${radiusKm}km radius. Falling back to all candidate workers.`);
+        eligible = candidates;
+      }
+    }
+
+    // Pre-dispatch DAILY conflict check
+    const finalWorkers = [];
+    for (const w of eligible) {
+      try {
+        const conflict = await hasDailyConflict(w._id, startDate, endDate, request._id);
+        if (!conflict) finalWorkers.push(w);
+        else console.log(`[DAILY DISPATCH] Worker ${w._id} has date conflict. Skipped.`);
+      } catch (checkErr) {
+        console.error(`[DAILY DISPATCH] Conflict check error for worker ${w._id}: ${checkErr.message}. Skipped.`);
+      }
+    }
+
+    console.log(`[DAILY DISPATCH] Eligible: ${eligible.length} | Available: ${finalWorkers.length}`);
+
+    const dispatchedTo = finalWorkers.map(w => ({ workerId: w._id, status: 'pending' }));
+    await WorkerBookingRequest.findByIdAndUpdate(request._id, {
+      eligibleWorkersCount:   finalWorkers.length,
+      dispatchedWorkersCount: finalWorkers.length,
+      dispatchedTo,
+      status: 'pending'
+    });
+
+    let farmerName = 'Farmer';
+    try {
+      if (request.farmerId) {
+        const farmerDoc = await User.findById(request.farmerId).select('name').lean();
+        if (farmerDoc?.name) farmerName = farmerDoc.name;
+      }
+    } catch (e) { /* non-fatal */ }
+
+    for (const w of finalWorkers) {
+      await notify({
+        recipientType: 'worker',
+        recipientId:   w._id,
+        type:          'worker_booking_request',
+        title:         '📅 New Daily Work Request',
+        message:       `Farmer needs ${request.requiredWorkers} worker(s) for ${request.numberOfDays} day(s): ${request.workTitle}`,
+        relatedId:     request._id,
+        relatedType:   'WorkerBookingRequest',
+        data: {
+          requestId:       request._id,
+          _id:             request._id,
+          bookingType:     'DAILY',
+          farmerId:        request.farmerId,
+          farmerName,
+          workTitle:       request.workTitle,
+          workCategory:    request.workCategory,
+          workDescription: request.workDescription,
+          requiredSkills:  request.requiredSkills,
+          requiredWorkers: request.requiredWorkers,
+          startDate:       request.startDate,
+          endDate:         request.endDate,
+          numberOfDays:    request.numberOfDays,
+          location:        request.location,
+          minRate:         request.minDailyRate,
+          maxRate:         request.maxDailyRate,
+          rateUnit:        'daily',
+          isFarmerBroadcast: true
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[dispatchToIndependentWorkersForDaily]', err);
     await WorkerBookingRequest.findByIdAndUpdate(request._id, { status: 'pending' });
   }
 }
@@ -739,8 +1480,18 @@ exports.getFarmerRequestById = async (req, res) => {
       }).populate('workerId', 'name phone profilePicture skills rating averageRating primaryService experience');
     }
 
+    const IndWorkerExtension = require('../../models/IndWorkerExtension');
+    let confirmedExtensions = [];
+    try {
+      confirmedExtensions = await IndWorkerExtension.find({
+        parentRequestId: request._id,
+        status: 'CONFIRMED'
+      }).populate('workerExtensions.workerId', 'name phone profilePicture');
+    } catch (extErr) {}
+
     const requestData = request.toObject ? request.toObject() : { ...request };
-    requestData.paymentSummary = buildFarmerPaymentSummary(request, assignments);
+    requestData.paymentSummary = buildFarmerPaymentSummary(request, assignments, null, confirmedExtensions);
+    requestData.confirmedExtensions = confirmedExtensions;
 
     return res.json({ success: true, data: requestData });
   } catch (err) {
@@ -1210,10 +1961,22 @@ exports.cancelFarmerRequest = async (req, res) => {
         );
       }
 
-      // 2. Free assigned workers
-      if (request.finalWorkers?.length > 0) {
+      // 2. Free assigned workers — Gather all worker IDs across finalWorkers, selectedWorkerIds, and assignments
+      const allAssignedWorkerIds = new Set();
+      if (Array.isArray(request.finalWorkers)) {
+        request.finalWorkers.forEach(id => id && allAssignedWorkerIds.add(id.toString()));
+      }
+      if (Array.isArray(request.selectedWorkerIds)) {
+        request.selectedWorkerIds.forEach(id => id && allAssignedWorkerIds.add(id.toString()));
+      }
+      assignments.forEach(a => {
+        if (a.workerId) allAssignedWorkerIds.add(a.workerId.toString());
+      });
+      const workerIdList = Array.from(allAssignedWorkerIds);
+
+      if (workerIdList.length > 0) {
         await Worker.updateMany(
-          { _id: { $in: request.finalWorkers } },
+          { _id: { $in: workerIdList } },
           { status: 'AVAILABLE' }
         );
       }
@@ -1299,21 +2062,43 @@ exports.cancelFarmerRequest = async (req, res) => {
         data: { requestId: request._id, refundAmount }
       });
 
-      // Notify Workers
-      if (request.finalWorkers?.length > 0) {
-        for (const wId of request.finalWorkers) {
-          await notify({
-            recipientType: 'worker',
-            recipientId: wId,
-            type: 'worker_booking_cancelled',
-            title: 'Booking Cancelled',
-            message: `Booking for ${request.workTitle} has been cancelled by the farmer.`,
-            relatedId: request._id,
-            relatedType: 'WorkerBookingRequest',
-            data: { requestId: request._id }
-          });
-        }
+      // Notify and emit cancellation to all assigned workers
+      for (const wId of workerIdList) {
+        await notify({
+          recipientType: 'worker',
+          recipientId: wId,
+          type: 'worker_booking_cancelled',
+          title: '❌ Booking Cancelled',
+          message: `Booking for ${request.workTitle || 'Worker Service'} has been cancelled by the farmer.`,
+          relatedId: request._id,
+          relatedType: 'WorkerBookingRequest',
+          data: {
+            requestId: request._id,
+            bookingNumber: request.bookingNumber || `WRK-${request._id.toString().slice(-6).toUpperCase()}`,
+            workTitle: request.workTitle
+          }
+        });
+
+        const cancelPayload = {
+          requestId: request._id,
+          bookingId: request._id,
+          workTitle: request.workTitle,
+          message: `Booking for "${request.workTitle || 'Worker Service'}" has been cancelled by the farmer.`
+        };
+
+        emitSafe(`worker_${wId}`, 'worker_booking_cancelled', cancelPayload);
+        emitSafe(`worker:${wId}`, 'worker_booking_cancelled', cancelPayload);
+        emitSafe(`worker_${wId}`, 'job_cancelled', cancelPayload);
+        emitSafe(`worker:${wId}`, 'job_cancelled', cancelPayload);
+        emitSafe(`worker_${wId}`, 'booking_cancelled', cancelPayload);
+        emitSafe(`worker:${wId}`, 'booking_cancelled', cancelPayload);
+        emitSafe(`worker_${wId}`, 'worker_booking_update', { requestId: request._id, type: 'worker_booking_cancelled' });
+        emitSafe(`worker:${wId}`, 'worker_booking_update', { requestId: request._id, type: 'worker_booking_cancelled' });
       }
+
+      // Broadcast to request and live tracking rooms
+      emitSafe(`booking_req:${request._id}`, 'worker_booking_cancelled', { requestId: request._id });
+      emitSafe(`farmer_worker_request_${request._id}`, 'worker_booking_cancelled', { requestId: request._id });
 
       return res.json({
         success: true,
@@ -1326,20 +2111,57 @@ exports.cancelFarmerRequest = async (req, res) => {
     // ── If Request was Pending / Matching (Unpaid) ──
     await WorkerBookingRequest.findByIdAndUpdate(request._id, { status: 'cancelled' });
 
-    // Notify dispatched workers
-    const pendingWorkers = request.dispatchedTo ? request.dispatchedTo.filter(d => d.status === 'pending') : [];
-    for (const entry of pendingWorkers) {
-      await notify({
-        recipientType: 'worker',
-        recipientId: entry.workerId,
-        type: 'worker_request_cancelled',
-        title: '❌ Request Cancelled',
-        message: `A work request for ${request.workTitle} has been cancelled by the farmer.`,
-        relatedId: request._id,
-        relatedType: 'WorkerBookingRequest',
-        data: { requestId: request._id }
+    // Collect ALL workers who were dispatched to, or accepted, or submitted offers
+    const targetWorkerIds = new Set();
+    if (Array.isArray(request.dispatchedTo)) {
+      request.dispatchedTo.forEach(d => {
+        if (d.workerId) targetWorkerIds.add(d.workerId.toString());
       });
     }
+    if (Array.isArray(request.workerOffers)) {
+      request.workerOffers.forEach(o => {
+        if (o.workerId) targetWorkerIds.add(o.workerId.toString());
+      });
+    }
+    if (Array.isArray(request.selectedWorkerIds)) {
+      request.selectedWorkerIds.forEach(id => {
+        if (id) targetWorkerIds.add(id.toString());
+      });
+    }
+
+    // Notify all targeted workers and emit real-time cancellation events
+    for (const wId of targetWorkerIds) {
+      await notify({
+        recipientType: 'worker',
+        recipientId: wId,
+        type: 'worker_request_cancelled',
+        title: '❌ Request Cancelled',
+        message: `Work request for ${request.workTitle || 'Farm Work'} has been cancelled by the farmer.`,
+        relatedId: request._id,
+        relatedType: 'WorkerBookingRequest',
+        data: {
+          requestId: request._id,
+          workTitle: request.workTitle
+        }
+      });
+
+      const cancelPayload = {
+        requestId: request._id,
+        workTitle: request.workTitle,
+        message: `Work request for "${request.workTitle || 'Farm Work'}" has been cancelled by the farmer.`
+      };
+
+      emitSafe(`worker_${wId}`, 'worker_request_cancelled', cancelPayload);
+      emitSafe(`worker:${wId}`, 'worker_request_cancelled', cancelPayload);
+      emitSafe(`worker_${wId}`, 'worker_booking_cancelled', cancelPayload);
+      emitSafe(`worker:${wId}`, 'worker_booking_cancelled', cancelPayload);
+      emitSafe(`worker_${wId}`, 'worker_booking_update', { requestId: request._id, type: 'worker_request_cancelled' });
+      emitSafe(`worker:${wId}`, 'worker_booking_update', { requestId: request._id, type: 'worker_request_cancelled' });
+    }
+
+    // Broadcast to room
+    emitSafe(`booking_req:${request._id}`, 'worker_request_cancelled', { requestId: request._id });
+    emitSafe(`farmer_worker_request_${request._id}`, 'worker_request_cancelled', { requestId: request._id });
 
     return res.json({ success: true, message: 'Request cancelled successfully.' });
   } catch (err) {
@@ -1390,21 +2212,60 @@ exports.farmerSelectWorkers = async (req, res) => {
     }
 
     const settings = await getWorkerFinancialSettings();
-    const maxWorkerAmount = request.maxRate * selectedWorkerIds.length;
-    const platformCharge = Math.round(((maxWorkerAmount * settings.workerPlatformChargePercentage) / 100) * 100) / 100;
-    const totalPayable = Math.round((maxWorkerAmount + platformCharge) * 100) / 100;
+    const isDaily = request.bookingType === 'DAILY';
+
+    // Formula per specification:
+    // HOURLY: (maxRate || minRate) * workers * (durationMinutes / 60) + platformFees
+    // DAILY:  (maxDailyRate || minDailyRate || maxRate || minRate) * workers * numberOfDays + platformFees
+    // If maxRate is not given by farmer, fallback to minRate.
+    let baseRate = 0;
+    let maxWorkerAmount = 0;
+
+    const toP = (inr) => Math.round(Number(inr) * 100);
+    const toINR = (p) => p / 100;
+
+    if (isDaily) {
+      baseRate = Number(request.maxDailyRate || request.minDailyRate || request.maxRate || request.minRate || 0);
+      const days = Number(request.numberOfDays) || 1;
+      const totalWorkerPaise = toP(baseRate) * selectedWorkerIds.length * days;
+      maxWorkerAmount = toINR(totalWorkerPaise);
+    } else {
+      baseRate = Number(request.maxRate || request.minRate || 0);
+      let durationHours = 1;
+      if (request.durationMinutes && Number(request.durationMinutes) > 0) {
+        durationHours = Number(request.durationMinutes) / 60;
+      } else if (request.startTime && request.endTime) {
+        const [sH, sM] = request.startTime.split(':').map(Number);
+        const [eH, eM] = request.endTime.split(':').map(Number);
+        if (!isNaN(sH) && !isNaN(eH)) {
+          let diffMinutes = (eH * 60 + (eM || 0)) - (sH * 60 + (sM || 0));
+          if (diffMinutes < 0) diffMinutes += 24 * 60;
+          if (diffMinutes > 0) durationHours = diffMinutes / 60;
+        }
+      }
+      const totalWorkerPaise = Math.round(toP(baseRate) * selectedWorkerIds.length * durationHours);
+      maxWorkerAmount = toINR(totalWorkerPaise);
+    }
+
+    const platformRate = Number(settings.workerPlatformChargePercentage) || 0;
+    const platformPaise = Math.round((toP(maxWorkerAmount) * platformRate) / 100);
+    const platformCharge = toINR(platformPaise);
+    const totalPayable = toINR(toP(maxWorkerAmount) + platformPaise);
 
     request.selectedWorkerIds = selectedWorkerIds;
     request.paymentStatus = 'pending';
     request.financialSnapshot = {
-      maximumBudget: request.maxRate,
+      maximumBudget: baseRate,
       selectedWorkerCount: selectedWorkerIds.length,
       maximumWorkerAmount: maxWorkerAmount,
-      platformChargeRate: settings.workerPlatformChargePercentage,
+      platformChargeRate: platformRate,
       platformChargeAmount: platformCharge,
       totalPayable: totalPayable,
       commissionRate: settings.workerCommissionPercentage,
       currency: 'INR',
+      bookingType: request.bookingType || 'HOURLY',
+      numberOfDays: isDaily ? (Number(request.numberOfDays) || 1) : null,
+      durationMinutes: !isDaily ? (Number(request.durationMinutes) || 60) : null,
       createdAt: new Date()
     };
     
@@ -1509,28 +2370,51 @@ exports.verifyWorkerBookingPayment = async (req, res) => {
     const assignmentDocs = [];
     const bookingDocs = [];
     const otpExpiryDate = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const isDaily = request.bookingType === 'DAILY';
 
     for (const [idx, wId] of request.selectedWorkerIds.entries()) {
       const offer = request.workerOffers.find(o => o.workerId.toString() === wId.toString());
-      const offeredRate = offer ? offer.offeredRate : (request.minRate || 0);
+      const offeredRate = offer 
+        ? offer.offeredRate 
+        : (isDaily ? (request.minDailyRate || request.minRate || 0) : (request.minRate || 0));
       
-      const commissionRate = request.financialSnapshot?.commissionRate || 10;
-      const commissionAmount = Math.round(((offeredRate * commissionRate) / 100) * 100) / 100;
-      const netEarning = Math.round((offeredRate - commissionAmount) * 100) / 100;
+      // ── Paise-based financial calculation (integer math, no floating-point) ──
+      const toP   = (inr) => Math.round(Number(inr) * 100);
+      const toINR = (p)   => p / 100;
+
+      const commissionRate  = request.financialSnapshot?.commissionRate || 10;
+      let grossPaise = 0;
+      let rateUnit = isDaily ? 'daily' : (request.rateUnit || 'hourly');
+      let bookedDays = null;
+
+      if (isDaily) {
+        bookedDays = Number(request.numberOfDays) || 1;
+        grossPaise = toP(offeredRate) * bookedDays;
+      } else {
+        const durationHours = (Number(request.durationMinutes) || 60) / 60;
+        grossPaise = Math.round(toP(offeredRate) * durationHours);
+      }
+
+      const commissionPaise = Math.floor((grossPaise * commissionRate) / 100); // floor protects worker
+      const netPaise        = grossPaise - commissionPaise;
+
+      const commissionAmount = toINR(commissionPaise);
+      const netEarning       = toINR(netPaise);
 
       // 4-digit visit OTP for this worker assignment
       const rawVisitOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const visitOtpHash = crypto.createHash('sha256').update(rawVisitOtp).digest('hex');
 
       // Create dedicated IndWorkerAssignment document
-      assignmentDocs.push({
+      const assignmentDoc = {
         parentRequestId: request._id,
+        bookingType: request.bookingType || 'HOURLY',
         farmerId,
         workerId: wId,
         teamLeaderId: request.teamLeaderId || null,
         workerType: request.bookingMode === 'TEAM_LEADER' ? 'TEAM_MEMBER' : 'INDEPENDENT',
         agreedRate: offeredRate,
-        rateUnit: request.rateUnit || 'daily',
+        rateUnit,
         creationIdempotencyKey: `assign_${request._id}_${wId}_${Date.now()}`,
         assignmentStatus: 'CONFIRMED',
         journeyStatus: 'NOT_STARTED',
@@ -1542,11 +2426,30 @@ exports.verifyWorkerBookingPayment = async (req, res) => {
         visitOtpCode: rawVisitOtp,
         visitOtpHash,
         visitOtpExpiresAt: otpExpiryDate,
-        grossAmount: offeredRate,
+        grossAmount: toINR(grossPaise),
         commissionRate,
         commissionAmount,
         netEarning
-      });
+      };
+
+      if (isDaily) {
+        assignmentDoc.bookedDays = bookedDays;
+        assignmentDoc.workedDays = 0;
+        assignmentDoc.currentDayIndex = 1;
+        assignmentDoc.isDecreased = false;
+        assignmentDoc.dailyLogs = [{
+          dayNumber: 1,
+          date: request.startDate ? new Date(request.startDate) : new Date(),
+          journeyStatus: 'NOT_STARTED',
+          visitOtpCode: rawVisitOtp,
+          visitOtpHash,
+          visitOtpStatus: 'PENDING',
+          visitOtpExpiresAt: otpExpiryDate,
+          workStatus: 'NOT_STARTED'
+        }];
+      }
+
+      assignmentDocs.push(assignmentDoc);
 
       // Also create legacy Booking doc for backward compatibility
       bookingDocs.push({
@@ -1555,24 +2458,24 @@ exports.verifyWorkerBookingPayment = async (req, res) => {
         workerId: wId,
         providerType: 'WORKER',
         workerRequestId: request._id,
-        scheduledDate: request.scheduledDate,
-        scheduledTime: request.startTime,
-        timeSlot: { start: request.startTime, end: request.endTime },
+        scheduledDate: isDaily ? (request.startDate || request.scheduledDate) : request.scheduledDate,
+        scheduledTime: isDaily ? '09:00' : request.startTime,
+        timeSlot: isDaily ? { start: '09:00', end: '17:00' } : { start: request.startTime, end: request.endTime },
         serviceName: request.workTitle,
         serviceCategory: request.workCategory || 'Worker',
         basePrice: null,
-        minRate: request.minRate,
-        maxRate: request.maxRate,
+        minRate: isDaily ? request.minDailyRate : request.minRate,
+        maxRate: isDaily ? request.maxDailyRate : request.maxRate,
         agreedRate: offeredRate,
-        rateUnit: request.rateUnit || 'daily',
+        rateUnit,
         workerOfferedRate: offeredRate,
-        workerGrossEarning: offeredRate,
+        workerGrossEarning: toINR(grossPaise),
         commissionRate: commissionRate,
         commissionAmount: commissionAmount,
         workerNetEarning: netEarning,
-        finalAmount: offeredRate, 
-        totalAmount: offeredRate,
-        farmerPaidAmount: request.financialSnapshot?.totalPayable || offeredRate,
+        finalAmount: toINR(grossPaise), 
+        totalAmount: toINR(grossPaise),
+        farmerPaidAmount: request.financialSnapshot?.totalPayable || toINR(grossPaise),
         platformFeeAmount: request.financialSnapshot?.platformChargeAmount || 0,
         platformFeeRate: request.financialSnapshot?.platformChargeRate || 0,
         visitOtp: rawVisitOtp,
@@ -1683,27 +2586,66 @@ exports.getWorkerBookingTrackingData = async (req, res) => {
       assignmentStatus: { $ne: 'CANCELLED' }
     }).populate('workerId', 'name phone profilePicture skills rating averageRating primaryService experience');
 
-    // Ensure each active assignment has a completionOtpCode ready for farmer verification
+    // Ensure each active assignment has completion and visit OTPs ready
     for (let assign of assignments) {
-      if (!assign.completionOtpCode && assign.completionStatus !== 'OTP_VERIFIED') {
-        const rawCompletionOtp = Math.floor(1000 + Math.random() * 9000).toString();
-        const completionOtpHash = crypto.createHash('sha256').update(rawCompletionOtp).digest('hex');
-        assign.completionOtpCode = rawCompletionOtp;
-        assign.completionOtpHash = completionOtpHash;
-        assign.completionOtpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        await assign.save();
+      if (assign.bookingType === 'DAILY') {
+        const dayIdx = assign.currentDayIndex || 1;
+        let dayLog = assign.dailyLogs?.find(l => l.dayNumber === dayIdx);
+        if (!dayLog) {
+          const rawVisitOtp = Math.floor(1000 + Math.random() * 9000).toString();
+          const visitOtpHash = crypto.createHash('sha256').update(rawVisitOtp).digest('hex');
+          assign.dailyLogs.push({
+            dayNumber: dayIdx,
+            date: new Date(),
+            journeyStatus: 'NOT_STARTED',
+            visitOtpCode: rawVisitOtp,
+            visitOtpHash,
+            visitOtpStatus: 'PENDING',
+            visitOtpExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+            workStatus: 'NOT_STARTED'
+          });
+          await assign.save();
+          dayLog = assign.dailyLogs?.find(l => l.dayNumber === dayIdx);
+        }
+
+        // If today's completion OTP is not generated yet, pre-generate it
+        if (dayLog && !dayLog.completionOtpCode && dayLog.workStatus !== 'COMPLETED') {
+          const rawCompletionOtp = Math.floor(1000 + Math.random() * 9000).toString();
+          dayLog.completionOtpCode = rawCompletionOtp;
+          dayLog.completionOtpHash = crypto.createHash('sha256').update(rawCompletionOtp).digest('hex');
+          dayLog.completionOtpExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+          await assign.save();
+        }
+      } else {
+        // HOURLY completion OTP
+        if (!assign.completionOtpCode && assign.completionStatus !== 'OTP_VERIFIED') {
+          const rawCompletionOtp = Math.floor(1000 + Math.random() * 9000).toString();
+          const completionOtpHash = crypto.createHash('sha256').update(rawCompletionOtp).digest('hex');
+          assign.completionOtpCode = rawCompletionOtp;
+          assign.completionOtpHash = completionOtpHash;
+          assign.completionOtpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+          await assign.save();
+        }
       }
     }
 
+    // Fetch extensions for this booking
+    const extensions = await IndWorkerExtension.find({
+      parentRequestId: request._id
+    }).populate('workerExtensions.workerId', 'name phone profilePicture').sort({ createdAt: -1 });
+
     const { buildFarmerPaymentSummary } = require('../../services/workerFinancialService');
+    const confirmedExts = (extensions || []).filter(e => e.status === 'CONFIRMED');
     const requestData = request.toObject ? request.toObject() : { ...request };
-    requestData.paymentSummary = buildFarmerPaymentSummary(request, assignments);
+    requestData.paymentSummary = buildFarmerPaymentSummary(request, assignments, null, confirmedExts);
+    requestData.confirmedExtensions = confirmedExts;
 
     return res.json({
       success: true,
       data: {
         request: requestData,
-        assignments
+        assignments,
+        extensions
       }
     });
   } catch (err) {
@@ -1756,7 +2698,205 @@ exports.generateFarmerCompletionOtp = async (req, res) => {
   }
 };
 
+/**
+ * Farmer decreases an individual worker on a DAILY booking
+ * POST /api/user/farmer-worker-request/:id/decrease-worker
+ * Body: { assignmentId, reason }
+ */
+exports.decreaseWorker = async (req, res) => {
+  try {
+    const farmerId = req.user._id;
+    const { id } = req.params;
+    const { assignmentId, reason } = req.body;
 
+    if (!assignmentId) {
+      return res.status(400).json({ success: false, message: 'assignmentId is required' });
+    }
 
+    const request = await WorkerBookingRequest.findOne({ _id: id, farmerId });
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Worker booking request not found' });
+    }
 
+    if (request.bookingType !== 'DAILY') {
+      return res.status(400).json({ success: false, message: 'Worker decrease is only applicable for DAILY bookings' });
+    }
+
+    const assignment = await IndWorkerAssignment.findOne({
+      _id: assignmentId,
+      parentRequestId: request._id,
+      farmerId,
+      assignmentStatus: 'CONFIRMED'
+    });
+
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Active assignment not found' });
+    }
+
+    if (assignment.isDecreased) {
+      return res.status(400).json({ success: false, message: 'This worker has already been marked as decreased' });
+    }
+
+    // Set decrease flags - current day will be finished, but future days stopped
+    assignment.isDecreased = true;
+    assignment.decreasedAt = new Date();
+    assignment.decreaseReason = reason || 'Decreased by farmer';
+    await assignment.save();
+
+    // Socket update
+    emitSafe(`booking_req:${request._id}`, 'assignment_decreased', {
+      requestId: request._id,
+      assignmentId: assignment._id,
+      workerId: assignment.workerId,
+      isDecreased: true,
+      decreasedAt: assignment.decreasedAt,
+      serverTimestamp: new Date()
+    });
+
+    // Notify worker
+    await notify({
+      recipientType: 'worker',
+      recipientId: assignment.workerId,
+      type: 'worker_decreased',
+      title: 'Booking Update: Schedule Concluded',
+      message: 'The farmer has concluded this job after today. Your current day work will be settled upon today’s completion.',
+      relatedId: request._id,
+      relatedType: 'WorkerBookingRequest',
+      data: { assignmentId: assignment._id }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Worker marked for decrease. Settlement will occur upon current day completion.',
+      data: assignment
+    });
+  } catch (err) {
+    console.error('[decreaseWorker]', err);
+    return res.status(500).json({ success: false, message: 'Failed to decrease worker: ' + err.message });
+  }
+};
+
+/**
+ * Farmer retrieves or creates fresh Visit/Reach OTP for a worker for a specific day (DAILY booking)
+ * POST /api/user/farmer-worker-request/:id/assignment/:assignmentId/daily-visit-otp
+ */
+exports.getOrCreateDailyVisitOtp = async (req, res) => {
+  try {
+    const farmerId = req.user._id;
+    const { id, assignmentId } = req.params;
+    const { dayNumber } = req.body;
+
+    const assignment = await IndWorkerAssignment.findOne({
+      _id: assignmentId,
+      parentRequestId: id,
+      farmerId
+    });
+
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Assignment not found' });
+    }
+
+    const targetDay = dayNumber ? Number(dayNumber) : (assignment.currentDayIndex || 1);
+    let log = assignment.dailyLogs?.find(l => l.dayNumber === targetDay);
+
+    if (!log) {
+      const rawVisitOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      const visitOtpHash = crypto.createHash('sha256').update(rawVisitOtp).digest('hex');
+      const otpExpiryDate = new Date(Date.now() + 60 * 60 * 1000);
+
+      assignment.dailyLogs.push({
+        dayNumber: targetDay,
+        date: new Date(),
+        journeyStatus: 'NOT_STARTED',
+        visitOtpCode: rawVisitOtp,
+        visitOtpHash,
+        visitOtpStatus: 'PENDING',
+        visitOtpExpiresAt: otpExpiryDate,
+        workStatus: 'NOT_STARTED'
+      });
+      await assignment.save();
+      log = assignment.dailyLogs.find(l => l.dayNumber === targetDay);
+    } else if (!log.visitOtpCode && log.visitOtpStatus !== 'VERIFIED') {
+      const rawVisitOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      log.visitOtpCode = rawVisitOtp;
+      log.visitOtpHash = crypto.createHash('sha256').update(rawVisitOtp).digest('hex');
+      log.visitOtpStatus = 'PENDING';
+      log.visitOtpExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await assignment.save();
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        assignmentId: assignment._id,
+        dayNumber: targetDay,
+        visitOtp: log.visitOtpCode,
+        visitOtpStatus: log.visitOtpStatus,
+        expiresAt: log.visitOtpExpiresAt
+      }
+    });
+  } catch (err) {
+    console.error('[getOrCreateDailyVisitOtp]', err);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve daily visit OTP: ' + err.message });
+  }
+};
+
+/**
+ * Farmer generates Completion OTP for a worker for a specific day (DAILY booking)
+ * POST /api/user/farmer-worker-request/:id/assignment/:assignmentId/daily-completion-otp
+ */
+exports.generateDailyCompletionOtp = async (req, res) => {
+  try {
+    const farmerId = req.user._id;
+    const { id, assignmentId } = req.params;
+    const { dayNumber } = req.body;
+
+    const assignment = await IndWorkerAssignment.findOne({
+      _id: assignmentId,
+      parentRequestId: id,
+      farmerId
+    });
+
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Assignment not found' });
+    }
+
+    const targetDay = dayNumber ? Number(dayNumber) : (assignment.currentDayIndex || 1);
+    let log = assignment.dailyLogs?.find(l => l.dayNumber === targetDay);
+
+    if (!log) {
+      return res.status(400).json({ success: false, message: `Day ${targetDay} has not been started yet` });
+    }
+
+    const rawCompletionOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const completionOtpHash = crypto.createHash('sha256').update(rawCompletionOtp).digest('hex');
+
+    log.completionOtpCode = rawCompletionOtp;
+    log.completionOtpHash = completionOtpHash;
+    log.completionOtpExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    log.completionOtpAttempts = 0;
+    await assignment.save();
+
+    return res.json({
+      success: true,
+      message: `Day ${targetDay} Completion OTP generated.`,
+      data: {
+        assignmentId: assignment._id,
+        dayNumber: targetDay,
+        completionOtp: rawCompletionOtp,
+        expiresAt: log.completionOtpExpiresAt
+      }
+    });
+  } catch (err) {
+    console.error('[generateDailyCompletionOtp]', err);
+    return res.status(500).json({ success: false, message: 'Failed to generate completion OTP: ' + err.message });
+  }
+};
+
+exports.hasTimeConflict = hasTimeConflict;
+exports.parseTimeToMinutes = parseTimeToMinutes;
+exports.doTimesOverlap = doTimesOverlap;
+exports.isSameCalendarDate = isSameCalendarDate;
+exports.getCalendarDateStrings = getCalendarDateStrings;
+exports.extractDocTimeRange = extractDocTimeRange;
 

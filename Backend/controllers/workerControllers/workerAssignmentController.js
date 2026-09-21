@@ -170,6 +170,30 @@ exports.startJourney = async (req, res) => {
 
     assignment.journeyStatus = 'JOURNEY_STARTED';
     assignment.journeyStartedAt = new Date();
+
+    if (assignment.bookingType === 'DAILY') {
+      const dayIdx = assignment.currentDayIndex || 1;
+      let log = assignment.dailyLogs?.find(l => l.dayNumber === dayIdx);
+      if (!log) {
+        const rawVisitOtp = Math.floor(1000 + Math.random() * 9000).toString();
+        const visitOtpHash = crypto.createHash('sha256').update(rawVisitOtp).digest('hex');
+        assignment.dailyLogs.push({
+          dayNumber: dayIdx,
+          date: new Date(),
+          journeyStatus: 'JOURNEY_STARTED',
+          journeyStartedAt: new Date(),
+          visitOtpCode: rawVisitOtp,
+          visitOtpHash,
+          visitOtpStatus: 'PENDING',
+          visitOtpExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+          workStatus: 'NOT_STARTED'
+        });
+      } else {
+        log.journeyStatus = 'JOURNEY_STARTED';
+        log.journeyStartedAt = new Date();
+      }
+    }
+
     await assignment.save();
 
     // Socket update to parent request room
@@ -178,6 +202,7 @@ exports.startJourney = async (req, res) => {
       assignmentId: assignment._id,
       workerId: assignment.workerId,
       journeyStatus: 'JOURNEY_STARTED',
+      dayNumber: assignment.bookingType === 'DAILY' ? (assignment.currentDayIndex || 1) : null,
       serverTimestamp: new Date()
     });
 
@@ -225,6 +250,16 @@ exports.markArrived = async (req, res) => {
 
     assignment.journeyStatus = 'ARRIVED';
     assignment.arrivedAt = new Date();
+
+    if (assignment.bookingType === 'DAILY') {
+      const dayIdx = assignment.currentDayIndex || 1;
+      let log = assignment.dailyLogs?.find(l => l.dayNumber === dayIdx);
+      if (log) {
+        log.journeyStatus = 'ARRIVED';
+        log.arrivedAt = new Date();
+      }
+    }
+
     await assignment.save();
 
     // Socket update
@@ -233,6 +268,7 @@ exports.markArrived = async (req, res) => {
       assignmentId: assignment._id,
       workerId: assignment.workerId,
       journeyStatus: 'ARRIVED',
+      dayNumber: assignment.bookingType === 'DAILY' ? (assignment.currentDayIndex || 1) : null,
       serverTimestamp: new Date()
     });
 
@@ -283,6 +319,68 @@ exports.verifyVisitOtp = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Assignment not found.' });
     }
 
+    if (assignment.bookingType === 'DAILY') {
+      const dayIdx = assignment.currentDayIndex || 1;
+      let log = assignment.dailyLogs?.find(l => l.dayNumber === dayIdx);
+
+      if (!log) {
+        return res.status(400).json({ success: false, message: `Day ${dayIdx} attendance has not started yet.` });
+      }
+
+      if (log.visitOtpStatus === 'VERIFIED') {
+        return res.json({ success: true, message: `Day ${dayIdx} Visit OTP already verified.`, data: assignment });
+      }
+
+      if ((log.visitOtpAttempts || 0) >= 5) {
+        log.visitOtpStatus = 'EXPIRED';
+        await assignment.save();
+        return res.status(429).json({ success: false, message: 'Too many invalid attempts. Ask farmer to generate a new OTP.' });
+      }
+
+      const inputHash = crypto.createHash('sha256').update(otp.toString().trim()).digest('hex');
+      const directMatch = log.visitOtpCode && log.visitOtpCode === otp.toString().trim();
+      const hashMatch = log.visitOtpHash && log.visitOtpHash === inputHash;
+
+      if (!directMatch && !hashMatch) {
+        log.visitOtpAttempts = (log.visitOtpAttempts || 0) + 1;
+        await assignment.save();
+        return res.status(400).json({
+          success: false,
+          message: `Invalid OTP. Attempts left: ${5 - log.visitOtpAttempts}`
+        });
+      }
+
+      log.visitOtpStatus = 'VERIFIED';
+      log.visitOtpVerifiedAt = new Date();
+      log.workStatus = 'IN_PROGRESS';
+      log.workStartedAt = new Date();
+      log.journeyStatus = 'ARRIVED';
+
+      assignment.visitOtpStatus = 'VERIFIED';
+      assignment.visitOtpVerifiedAt = new Date();
+      assignment.workStatus = 'IN_PROGRESS';
+      assignment.workStartedAt = new Date();
+      assignment.journeyStatus = 'ARRIVED';
+      await assignment.save();
+
+      emitSafe(`booking_req:${assignment.parentRequestId}`, 'assignment_visit_otp_verified', {
+        requestId: assignment.parentRequestId,
+        assignmentId: assignment._id,
+        workerId: assignment.workerId,
+        dayNumber: dayIdx,
+        visitOtpStatus: 'VERIFIED',
+        workStatus: 'IN_PROGRESS',
+        serverTimestamp: new Date()
+      });
+
+      return res.json({
+        success: true,
+        message: `Day ${dayIdx} Visit OTP verified! Work is in progress.`,
+        data: assignment
+      });
+    }
+
+    // --- HOURLY VISIT OTP FLOW ---
     if (assignment.visitOtpStatus === 'VERIFIED') {
       return res.json({ success: true, message: 'Visit OTP already verified.', data: assignment });
     }
@@ -313,6 +411,62 @@ exports.verifyVisitOtp = async (req, res) => {
     assignment.workStatus = 'IN_PROGRESS';
     assignment.workStartedAt = new Date();
     assignment.journeyStatus = 'ARRIVED';
+
+    // ── HOURLY LATE PENALTY CHECK (Authoritative from Admin Settings) ──
+    try {
+      const { getWorkerFinancialSettings, applyWorkerPenalty } = require('../../services/workerFinancialService');
+      const settings = await getWorkerFinancialSettings();
+
+      if (settings.workerPenaltyEnabled) {
+        const parentRequest = await WorkerBookingRequest.findById(assignment.parentRequestId);
+        if (parentRequest && parentRequest.scheduledDate && parentRequest.startTime) {
+          const [sHour, sMin] = parentRequest.startTime.split(':').map(Number);
+          const schedDate = new Date(parentRequest.scheduledDate);
+          schedDate.setHours(sHour, sMin, 0, 0);
+
+          const diffMins = Math.floor((assignment.visitOtpVerifiedAt - schedDate) / (1000 * 60));
+          const freeMins = Number(settings.workerPenaltyFreeMinutes) || 0;
+
+          if (diffMins > freeMins) {
+            const lateMins = diffMins - freeMins;
+            let penaltyAmount = 0;
+
+            if (settings.workerPenaltyType === 'per_minute') {
+              const perMin = Number(settings.workerPenaltyPerMinute) || 5;
+              const maxPen = Number(settings.workerPenaltyMaxAmount) || 500;
+              penaltyAmount = Math.min(maxPen, lateMins * perMin);
+            } else if (settings.workerPenaltyType === 'percentage') {
+              const pct = Number(settings.workerPenaltyPercentage) || 5;
+              penaltyAmount = Math.round(((Number(assignment.grossAmount) || 0) * pct) / 100);
+            } else {
+              penaltyAmount = Number(settings.workerPenaltyAmount) || 50;
+            }
+
+            if (penaltyAmount > 0 && !assignment.latePenalty?.applied) {
+              assignment.latePenalty = {
+                applied: true,
+                amount: penaltyAmount,
+                minutesLate: diffMins,
+                ruleType: settings.workerPenaltyType,
+                appliedAt: new Date()
+              };
+              assignment.netEarning = Math.max(0, (Number(assignment.netEarning) || 0) - penaltyAmount);
+
+              await applyWorkerPenalty(
+                workerId,
+                assignment.legacyBookingId,
+                `late_pen_${assignment._id}`,
+                settings.workerPenaltyType,
+                `Late arrival by ${diffMins} minutes (grace: ${freeMins}m)`
+              );
+            }
+          }
+        }
+      }
+    } catch (penErr) {
+      console.warn('[Late penalty check error - non-fatal]:', penErr.message);
+    }
+
     await assignment.save();
 
     // Socket update
@@ -431,6 +585,193 @@ exports.verifyCompletionOtp = async (req, res) => {
       return res.json({ success: true, message: 'Completion already verified and settled.', data: assignment });
     }
 
+    const isDaily = assignment.bookingType === 'DAILY';
+
+    if (isDaily) {
+      const dayIdx = assignment.currentDayIndex || 1;
+      let log = assignment.dailyLogs?.find(l => l.dayNumber === dayIdx);
+
+      if (!log) {
+        return res.status(400).json({ success: false, message: `Day ${dayIdx} attendance record not found.` });
+      }
+
+      if (log.workStatus === 'COMPLETED') {
+        return res.json({ success: true, message: `Day ${dayIdx} already verified and completed.`, data: assignment });
+      }
+
+      if ((log.completionOtpAttempts || 0) >= 5) {
+        return res.status(429).json({ success: false, message: 'Too many invalid attempts. Ask farmer to generate a new Completion OTP.' });
+      }
+
+      const inputHash = crypto.createHash('sha256').update(otp.toString().trim()).digest('hex');
+      const directMatch = (log.completionOtpCode && log.completionOtpCode === otp.toString().trim()) ||
+                          (assignment.completionOtpCode && assignment.completionOtpCode === otp.toString().trim());
+      const hashMatch = (log.completionOtpHash && log.completionOtpHash === inputHash) ||
+                        (assignment.completionOtpHash && assignment.completionOtpHash === inputHash);
+
+      if (!directMatch && !hashMatch) {
+        log.completionOtpAttempts = (log.completionOtpAttempts || 0) + 1;
+        await assignment.save();
+        return res.status(400).json({
+          success: false,
+          message: `Invalid Completion OTP. Attempts left: ${5 - log.completionOtpAttempts}`
+        });
+      }
+
+      // Day verified!
+      log.workStatus = 'COMPLETED';
+      log.completedAt = new Date();
+      assignment.workedDays = (assignment.workedDays || 0) + 1;
+
+      const isDecreased = Boolean(assignment.isDecreased);
+      const totalBookedDays = Number(assignment.bookedDays) || 1;
+      const isTerminal = isDecreased || (assignment.workedDays >= totalBookedDays);
+
+      if (!isTerminal) {
+        // More days remaining -> advance to next day
+        assignment.currentDayIndex = assignment.workedDays + 1;
+        assignment.journeyStatus = 'NOT_STARTED';
+        assignment.visitOtpStatus = 'PENDING';
+        assignment.workStatus = 'NOT_STARTED';
+        assignment.completionStatus = 'PENDING';
+
+        // Pre-generate next day's fresh visit OTP
+        const nextVisitOtp = Math.floor(1000 + Math.random() * 9000).toString();
+        const nextVisitOtpHash = crypto.createHash('sha256').update(nextVisitOtp).digest('hex');
+        assignment.dailyLogs.push({
+          dayNumber: assignment.currentDayIndex,
+          date: new Date(),
+          journeyStatus: 'NOT_STARTED',
+          visitOtpCode: nextVisitOtp,
+          visitOtpHash: nextVisitOtpHash,
+          visitOtpStatus: 'PENDING',
+          visitOtpExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+          workStatus: 'NOT_STARTED'
+        });
+
+        await assignment.save();
+
+        emitSafe(`booking_req:${assignment.parentRequestId}`, 'assignment_day_completed', {
+          requestId: assignment.parentRequestId,
+          assignmentId: assignment._id,
+          workerId: assignment.workerId,
+          completedDay: assignment.workedDays,
+          nextDay: assignment.currentDayIndex,
+          totalDays: totalBookedDays,
+          serverTimestamp: new Date()
+        });
+
+        await notify({
+          recipientType: 'user',
+          recipientId: assignment.farmerId,
+          type: 'day_completed',
+          title: `Day ${assignment.workedDays} Work Completed!`,
+          message: `Worker completed Day ${assignment.workedDays} of ${totalBookedDays}. Day ${assignment.currentDayIndex} is scheduled next.`,
+          relatedId: assignment.parentRequestId,
+          relatedType: 'WorkerBookingRequest',
+          data: { assignmentId: assignment._id }
+        });
+
+        return res.json({
+          success: true,
+          message: `Day ${assignment.workedDays} completed successfully! Next working day is Day ${assignment.currentDayIndex}.`,
+          data: assignment
+        });
+      }
+
+      // WORKER HAS REACHED TERMINAL STATE (All days done OR decreased)
+      // Execute final settlement for this worker
+      const { calculateDailyWorkerSettlement, processDailyFarmerRefund } = require('../../services/workerFinancialService');
+      const settlement = calculateDailyWorkerSettlement(assignment);
+
+      assignment.completionStatus = 'OTP_VERIFIED';
+      assignment.completionOtpVerifiedAt = new Date();
+      assignment.workCompletedAt = new Date();
+      assignment.grossAmount = settlement.grossAmount;
+      assignment.commissionAmount = settlement.commissionAmount;
+      assignment.netEarning = settlement.netEarning;
+
+      const idempotencyKey = `settle_daily_assign_${assignment._id}_${Date.now()}`;
+      if (assignment.settlementStatus !== 'SETTLED') {
+        try {
+          assignment.settlementStatus = 'PROCESSING';
+          await assignment.save();
+
+          await Worker.findByIdAndUpdate(workerId, {
+            $inc: { 'wallet.balance': settlement.netEarning },
+            status: 'AVAILABLE'
+          });
+
+          let workerWallet = await Wallet.findOne({ workerId, userModel: 'Worker' });
+          if (!workerWallet) workerWallet = await Wallet.findOne({ userId: workerId });
+          if (workerWallet) {
+            workerWallet.balance = (workerWallet.balance || 0) + settlement.netEarning;
+            await workerWallet.save();
+          } else {
+            await Wallet.create({ userId: workerId, userModel: 'Worker', balance: settlement.netEarning });
+          }
+
+          await Transaction.create({
+            workerId,
+            type: 'earnings_credit',
+            amount: settlement.netEarning,
+            status: 'completed',
+            paymentMethod: 'wallet',
+            description: `DAILY Earnings for ${assignment.workedDays} days (Assignment ${assignment._id})`,
+            referenceId: idempotencyKey
+          });
+
+          assignment.settlementStatus = 'SETTLED';
+          assignment.settledAt = new Date();
+          assignment.settlementTransactionId = idempotencyKey;
+          await assignment.save();
+
+        } catch (settleErr) {
+          console.error('[DAILY SETTLEMENT ERROR]', settleErr);
+          assignment.settlementStatus = 'FAILED';
+          await assignment.save();
+        }
+      }
+
+      // Check if all assignments for parent booking are settled
+      try {
+        const allAssignments = await IndWorkerAssignment.find({
+          parentRequestId: assignment.parentRequestId,
+          assignmentStatus: { $ne: 'CANCELLED' }
+        });
+        const allSettled = allAssignments.length > 0 && allAssignments.every(a => a.settlementStatus === 'SETTLED');
+        if (allSettled) {
+          await WorkerBookingRequest.findByIdAndUpdate(assignment.parentRequestId, { status: 'completed' });
+          await processDailyFarmerRefund(assignment.parentRequestId);
+          emitSafe(`booking_req:${assignment.parentRequestId}`, 'booking_completed', {
+            requestId: assignment.parentRequestId,
+            status: 'completed',
+            serverTimestamp: new Date()
+          });
+        }
+      } catch (parentErr) {
+        console.warn('[Parent DAILY Settlement Check]', parentErr.message);
+      }
+
+      emitSafe(`booking_req:${assignment.parentRequestId}`, 'assignment_settled', {
+        requestId: assignment.parentRequestId,
+        assignmentId: assignment._id,
+        workerId: assignment.workerId,
+        completionStatus: 'OTP_VERIFIED',
+        settlementStatus: assignment.settlementStatus,
+        netEarning: assignment.netEarning,
+        workedDays: assignment.workedDays,
+        serverTimestamp: new Date()
+      });
+
+      return res.json({
+        success: true,
+        message: `DAILY assignment finished and settled! ₹${assignment.netEarning} credited to wallet for ${assignment.workedDays} days.`,
+        data: assignment
+      });
+    }
+
+    // --- HOURLY COMPLETION OTP FLOW ---
     const inputHash = crypto.createHash('sha256').update(otp.toString().trim()).digest('hex');
     const directMatch = assignment.completionOtpCode && assignment.completionOtpCode === otp.toString().trim();
     const hashMatch = assignment.completionOtpHash && assignment.completionOtpHash === inputHash;
@@ -446,8 +787,6 @@ exports.verifyCompletionOtp = async (req, res) => {
 
     // OTP Verified!
     assignment.completionStatus = 'OTP_VERIFIED';
-    assignment.journeyStatus = 'COMPLETED';
-    assignment.workStatus = 'COMPLETED';
     assignment.completionOtpVerifiedAt = new Date();
     assignment.workCompletedAt = new Date();
 
@@ -682,3 +1021,10 @@ exports.updateLocation = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Failed to update location.' });
   }
 };
+
+// Dedicated DAILY lifecycle handlers
+exports.startDailyDay = exports.startJourney;
+exports.markDailyArrived = exports.markArrived;
+exports.verifyDailyVisitOtp = exports.verifyVisitOtp;
+exports.verifyDailyCompletionOtp = exports.verifyCompletionOtp;
+

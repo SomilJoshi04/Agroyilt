@@ -1801,7 +1801,7 @@ const BookingDetails = () => {
                     {/* Total Paid (Upfront) */}
                     <div className="flex justify-between items-center bg-teal-50/60 p-3 rounded-2xl border border-teal-100">
                       <div>
-                        <span className="font-bold text-teal-900 text-sm block">Total Paid</span>
+                        <span className="font-bold text-teal-900 text-sm block">Total Initial Paid</span>
                         <span className="text-[10px] text-teal-700 font-medium">Reserve + Platform Fee</span>
                       </div>
                       <span className="text-xl font-black text-teal-700">
@@ -1809,20 +1809,81 @@ const BookingDetails = () => {
                       </span>
                     </div>
 
+                    {/* ── TIME EXTENSION BREAKDOWN (If extensions exist) ── */}
+                    {(() => {
+                      const extSum = booking.paymentSummary?.extensionsSummary;
+                      const hasExt = Boolean(extSum?.hasExtension || (booking.confirmedExtensions && booking.confirmedExtensions.length > 0));
+                      if (!hasExt) return null;
+
+                      const totalExtMins = extSum?.totalExtensionMinutes || 0;
+                      const totalExtDays = extSum?.totalAdditionalDays || 0;
+                      const durationLabel = totalExtDays > 0 ? `+${totalExtDays} Day(s)` : `+${totalExtMins} Mins`;
+                      const extGross = extSum?.totalExtensionGrossAmount || 0;
+                      const extFee = extSum?.totalExtensionPlatformFee || 0;
+                      const extTotalPaid = extSum?.totalExtensionPaidAmount || (extGross + extFee);
+
+                      return (
+                        <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-3.5 space-y-2.5 mt-2">
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-1.5">
+                              <FiClock className="w-4 h-4 text-amber-600" />
+                              <span className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+                                Time Extension Added
+                              </span>
+                            </div>
+                            <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                              {durationLabel}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 text-xs text-amber-950 pt-1 border-t border-amber-200/60">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Worker Extension Pay:</span>
+                              <span className="font-bold text-gray-900">₹{Number(extGross).toLocaleString('en-IN')}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Extension Platform Fee:</span>
+                              <span className="font-medium text-gray-900">+₹{Number(extFee).toLocaleString('en-IN')}</span>
+                            </div>
+                            <div className="flex justify-between items-center pt-1 border-t border-amber-200 font-bold">
+                              <span className="text-amber-900">Total Extension Paid:</span>
+                              <span className="text-sm font-black text-amber-800">₹{Number(extTotalPaid).toLocaleString('en-IN')}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* Post-Completion Breakdown: Actual Worker Amount & Refund */}
                     <div className="pt-2 space-y-2.5">
                       {/* Actual Worker Amount */}
-                      <div className="flex justify-between items-center text-gray-700">
-                        <span className="text-sm font-medium">Actual Worker Amount</span>
-                        <span className="font-bold text-gray-900">
-                          {booking.paymentSummary?.actualWorkerAmount !== null && booking.paymentSummary?.actualWorkerAmount !== undefined ? (
-                            `₹${Number(booking.paymentSummary.actualWorkerAmount).toLocaleString('en-IN')}`
-                          ) : (
-                            <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                              Pending / Work In Progress
-                            </span>
-                          )}
-                        </span>
+                      <div className="bg-gray-50 border border-gray-100 rounded-2xl p-3 space-y-2">
+                        <div className="flex justify-between items-center text-gray-700">
+                          <div>
+                            <span className="text-sm font-bold text-gray-900 block">Actual Worker Settlement</span>
+                            {booking.paymentSummary?.extensionsSummary?.hasExtension && (
+                              <span className="text-[11px] text-gray-500">
+                                Base (₹{Number(booking.paymentSummary.extensionsSummary.baseActualWorkerAmount).toLocaleString('en-IN')}) + Extension (₹{Number(booking.paymentSummary.extensionsSummary.extensionWorkerAmount).toLocaleString('en-IN')})
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-black text-gray-900 text-base">
+                            {booking.paymentSummary?.actualWorkerAmount !== null && booking.paymentSummary?.actualWorkerAmount !== undefined ? (
+                              `₹${Number(booking.paymentSummary.actualWorkerAmount).toLocaleString('en-IN')}`
+                            ) : (
+                              <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                Pending / Work In Progress
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        {booking.paymentSummary?.extensionsSummary?.hasExtension && (
+                          <div className="text-[11px] text-gray-500 pt-1 border-t border-gray-200/60 flex justify-between">
+                            <span>Base Shift Actual Pay:</span>
+                            <span className="font-semibold text-gray-700">₹{Number(booking.paymentSummary.extensionsSummary.baseActualWorkerAmount).toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Refund Amount & Status */}
@@ -1843,7 +1904,12 @@ const BookingDetails = () => {
                         </div>
 
                         <div className="flex justify-between items-center pt-1 border-t border-emerald-100">
-                          <span className="text-sm font-bold text-emerald-900">Refund Amount</span>
+                          <div>
+                            <span className="text-sm font-bold text-emerald-900 block">Refund Amount</span>
+                            <span className="text-[10px] text-emerald-700">
+                              Unused portion of initial worker reserve
+                            </span>
+                          </div>
                           <span className="text-base font-black text-emerald-700">
                             {booking.paymentSummary?.refundAmount !== null && booking.paymentSummary?.refundAmount !== undefined ? (
                               `₹${Number(booking.paymentSummary.refundAmount).toLocaleString('en-IN')}`
@@ -1861,13 +1927,23 @@ const BookingDetails = () => {
                       </div>
                     </div>
 
-                    {/* Payment Reference ID */}
-                    {(booking.paymentSummary?.paymentReference || booking.paymentId) && (
-                      <div className="flex justify-between items-center text-xs text-gray-500 pt-1">
-                        <span>Payment Reference</span>
-                        <span className="font-mono text-gray-700">{booking.paymentSummary?.paymentReference || booking.paymentId}</span>
-                      </div>
-                    )}
+                    {/* Payment Reference ID(s) */}
+                    <div className="space-y-1 pt-1 text-xs text-gray-500">
+                      {(booking.paymentSummary?.paymentReference || booking.paymentId) && (
+                        <div className="flex justify-between items-center">
+                          <span>Initial Payment Reference</span>
+                          <span className="font-mono text-gray-700">{booking.paymentSummary?.paymentReference || booking.paymentId}</span>
+                        </div>
+                      )}
+                      {booking.paymentSummary?.extensionsSummary?.items?.map((ext, idx) => (
+                        ext.paymentReference && (
+                          <div key={idx} className="flex justify-between items-center text-[11px]">
+                            <span>Extension Payment Ref</span>
+                            <span className="font-mono text-gray-700">{ext.paymentReference}</span>
+                          </div>
+                        )
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   // OLD SIMPLE BREAKDOWN (Fallback - Vendor/Service flow)

@@ -56,7 +56,15 @@ const AdminSettings = () => {
 
   const [systemSettings, setSystemSettings] = useState({
     maxIndependentWorkerRequest: 5,
-    workerSearchRadiusKm: 50
+    workerSearchRadiusKm: 25,
+    workerPenaltyEnabled: false,
+    workerPenaltyType: 'fixed',
+    workerPenaltyAmount: 50,
+    workerPenaltyPerMinute: 5,
+    workerPenaltyFreeMinutes: 10,
+    workerPenaltyMaxAmount: 500,
+    workerPenaltyPercentage: 5,
+    extensionExpiryMinutes: 30
   });
   const [systemLoading, setSystemLoading] = useState(false);
 
@@ -318,7 +326,15 @@ const AdminSettings = () => {
           // Load system settings
           setSystemSettings({
             maxIndependentWorkerRequest: res.settings.maxIndependentWorkerRequest ?? 5,
-            workerSearchRadiusKm: res.settings.workerSearchRadiusKm ?? 50
+            workerSearchRadiusKm: res.settings.workerSearchRadiusKm ?? 25,
+            workerPenaltyEnabled: res.settings.workerPenaltyEnabled ?? false,
+            workerPenaltyType: res.settings.workerPenaltyType || 'fixed',
+            workerPenaltyAmount: res.settings.workerPenaltyAmount ?? 50,
+            workerPenaltyPerMinute: res.settings.workerPenaltyPerMinute ?? 5,
+            workerPenaltyFreeMinutes: res.settings.workerPenaltyFreeMinutes ?? 10,
+            workerPenaltyMaxAmount: res.settings.workerPenaltyMaxAmount ?? 500,
+            workerPenaltyPercentage: res.settings.workerPenaltyPercentage ?? 5,
+            extensionExpiryMinutes: res.settings.extensionExpiryMinutes ?? 30
           });
           // Load support settings
           setSupportSettings({
@@ -514,19 +530,34 @@ const AdminSettings = () => {
 
   // Handle system settings change
   const handleSystemChange = (e) => {
-    const { name, value } = e.target;
-    setSystemSettings(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
+    const { name, value, type, checked } = e.target;
+    if (type === 'checkbox') {
+      setSystemSettings(prev => ({ ...prev, [name]: checked }));
+    } else if (name === 'workerPenaltyType') {
+      setSystemSettings(prev => ({ ...prev, [name]: value }));
+    } else {
+      setSystemSettings(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
+    }
   };
 
   const handleSystemSave = async (e) => {
     e.preventDefault();
     setSystemLoading(true);
     try {
-      const payload = Object.fromEntries(
-        Object.entries(systemSettings).map(([k, v]) => [k, v === '' ? 0 : Number(v)])
-      );
+      const payload = {
+        maxIndependentWorkerRequest: Number(systemSettings.maxIndependentWorkerRequest) || 5,
+        workerSearchRadiusKm: Number(systemSettings.workerSearchRadiusKm) || 25,
+        workerPenaltyEnabled: Boolean(systemSettings.workerPenaltyEnabled),
+        workerPenaltyType: systemSettings.workerPenaltyType || 'fixed',
+        workerPenaltyAmount: Number(systemSettings.workerPenaltyAmount) || 0,
+        workerPenaltyPerMinute: Number(systemSettings.workerPenaltyPerMinute) || 0,
+        workerPenaltyFreeMinutes: Number(systemSettings.workerPenaltyFreeMinutes) || 0,
+        workerPenaltyMaxAmount: Number(systemSettings.workerPenaltyMaxAmount) || 0,
+        workerPenaltyPercentage: Number(systemSettings.workerPenaltyPercentage) || 0,
+        extensionExpiryMinutes: Number(systemSettings.extensionExpiryMinutes) || 30
+      };
       await updateSettings(payload);
-      toastManager.success('System preferences updated');
+      toastManager.success('System preferences & worker rules updated');
     } catch (error) {
       toastManager.error('Failed to update system settings');
     } finally {
@@ -1206,23 +1237,152 @@ const AdminSettings = () => {
                   <h2 className="text-lg font-bold text-gray-800">System Preferences</h2>
                 </div>
 
-                <form onSubmit={handleSystemSave} className="space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Max Independent Workers / Request</label>
-                      <input type="number" name="maxIndependentWorkerRequest" value={systemSettings.maxIndependentWorkerRequest} onChange={handleSystemChange}
-                        min="1" max="100"
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">Requests above this go to Team Leaders.</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Worker Search Radius (km)</label>
-                      <input type="number" name="workerSearchRadiusKm" value={systemSettings.workerSearchRadiusKm} onChange={handleSystemChange}
-                        min="1" max="1000"
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">Radius for matching workers.</p>
+                <form onSubmit={handleSystemSave} className="space-y-6">
+                  {/* Worker Routing Rules */}
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Worker Dispatch & Routing</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Max Independent Workers / Req</label>
+                        <input type="number" name="maxIndependentWorkerRequest" value={systemSettings.maxIndependentWorkerRequest} onChange={handleSystemChange}
+                          min="1" max="100"
+                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-500 transition-all font-bold text-gray-800" />
+                        <p className="text-[10px] text-gray-400 mt-1">Requests above this go to Team Leaders.</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Search Radius (km)</label>
+                        <input type="number" name="workerSearchRadiusKm" value={systemSettings.workerSearchRadiusKm} onChange={handleSystemChange}
+                          min="1" max="1000"
+                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-500 transition-all font-bold text-gray-800" />
+                        <p className="text-[10px] text-gray-400 mt-1">Radius for matching nearby workers.</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Extension Expiry (Mins)</label>
+                        <input type="number" name="extensionExpiryMinutes" value={systemSettings.extensionExpiryMinutes} onChange={handleSystemChange}
+                          min="1" max="180"
+                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-500 transition-all font-bold text-gray-800" />
+                        <p className="text-[10px] text-gray-400 mt-1">Time workers have to accept extension requests.</p>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Worker Late-Arrival Penalty Rules (Hourly Only) */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wider">Worker Late-Arrival Penalty (Hourly)</h3>
+                        <p className="text-xs text-gray-500">Deducts a penalty from worker earnings if worker arrives after grace period.</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="workerPenaltyEnabled"
+                          checked={Boolean(systemSettings.workerPenaltyEnabled)}
+                          onChange={handleSystemChange}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                      </label>
+                    </div>
+
+                    {systemSettings.workerPenaltyEnabled && (
+                      <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-200/60 space-y-4 animate-fadeIn">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-amber-950 uppercase mb-1.5">Penalty Rule Type</label>
+                            <select
+                              name="workerPenaltyType"
+                              value={systemSettings.workerPenaltyType}
+                              onChange={handleSystemChange}
+                              className="w-full px-4 py-2.5 bg-white border border-amber-300 rounded-lg outline-none focus:border-amber-600 font-bold text-gray-800 text-sm"
+                            >
+                              <option value="fixed">Fixed Flat Penalty (₹)</option>
+                              <option value="per_minute">Per Minute Late (₹/min)</option>
+                              <option value="percentage">Percentage of Booking (%)</option>
+                            </select>
+                            <p className="text-[10px] text-amber-700 mt-1">Choose how late penalty is calculated.</p>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-amber-950 uppercase mb-1.5">Grace Period (Free Minutes)</label>
+                            <input
+                              type="number"
+                              name="workerPenaltyFreeMinutes"
+                              value={systemSettings.workerPenaltyFreeMinutes}
+                              onChange={handleSystemChange}
+                              min="0" max="60"
+                              className="w-full px-4 py-2.5 bg-white border border-amber-300 rounded-lg outline-none focus:border-amber-600 font-bold text-gray-800 text-sm"
+                            />
+                            <p className="text-[10px] text-amber-700 mt-1">No penalty applied if arrival is within these minutes.</p>
+                          </div>
+                        </div>
+
+                        {systemSettings.workerPenaltyType === 'fixed' && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                            <div>
+                              <label className="block text-xs font-semibold text-amber-950 uppercase mb-1.5">Flat Penalty Amount (₹)</label>
+                              <input
+                                type="number"
+                                name="workerPenaltyAmount"
+                                value={systemSettings.workerPenaltyAmount}
+                                onChange={handleSystemChange}
+                                min="0"
+                                className="w-full px-4 py-2.5 bg-white border border-amber-300 rounded-lg outline-none focus:border-amber-600 font-bold text-gray-800 text-sm"
+                              />
+                              <p className="text-[10px] text-amber-700 mt-1">Fixed rupee deduction on worker earnings.</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {systemSettings.workerPenaltyType === 'per_minute' && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                            <div>
+                              <label className="block text-xs font-semibold text-amber-950 uppercase mb-1.5">Rate Per Minute (₹/min)</label>
+                              <input
+                                type="number"
+                                name="workerPenaltyPerMinute"
+                                value={systemSettings.workerPenaltyPerMinute}
+                                onChange={handleSystemChange}
+                                min="0"
+                                className="w-full px-4 py-2.5 bg-white border border-amber-300 rounded-lg outline-none focus:border-amber-600 font-bold text-gray-800 text-sm"
+                              />
+                              <p className="text-[10px] text-amber-700 mt-1">Penalty accumulated for each minute late after grace period.</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-amber-950 uppercase mb-1.5">Maximum Penalty Cap (₹)</label>
+                              <input
+                                type="number"
+                                name="workerPenaltyMaxAmount"
+                                value={systemSettings.workerPenaltyMaxAmount}
+                                onChange={handleSystemChange}
+                                min="0"
+                                className="w-full px-4 py-2.5 bg-white border border-amber-300 rounded-lg outline-none focus:border-amber-600 font-bold text-gray-800 text-sm"
+                              />
+                              <p className="text-[10px] text-amber-700 mt-1">Maximum penalty ceiling that cannot be exceeded.</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {systemSettings.workerPenaltyType === 'percentage' && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                            <div>
+                              <label className="block text-xs font-semibold text-amber-950 uppercase mb-1.5">Penalty Percentage (%)</label>
+                              <input
+                                type="number"
+                                name="workerPenaltyPercentage"
+                                value={systemSettings.workerPenaltyPercentage}
+                                onChange={handleSystemChange}
+                                min="0" max="100"
+                                className="w-full px-4 py-2.5 bg-white border border-amber-300 rounded-lg outline-none focus:border-amber-600 font-bold text-gray-800 text-sm"
+                              />
+                              <p className="text-[10px] text-amber-700 mt-1">Deducted as a % of worker gross earnings.</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex justify-end pt-2">
                     <button type="submit" disabled={systemLoading}
                       className="px-6 py-2.5 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 flex items-center gap-2 disabled:opacity-60 shadow-md">

@@ -1,4 +1,4 @@
-﻿import React, { lazy, Suspense, useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import PageTransition from '../components/common/PageTransition';
@@ -7,6 +7,8 @@ import ErrorBoundary from '../components/common/ErrorBoundary';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
 import WorkerBookingRequestAlertModal from '../components/bookings/WorkerBookingRequestAlertModal';
+import workerService from '../../../services/workerService';
+import { stopAlertRing } from '../../../utils/notificationSound';
 
 // Lazy load wrapper with error handling
 const lazyLoad = (importFunc) => {
@@ -64,19 +66,104 @@ const LoadingFallback = () => (
 const WorkerRoutes = () => {
   const location = useLocation();
   const [incomingRequestData, setIncomingRequestData] = useState(null);
+  const isFetchingRef = useRef(false);
+
+  // Normalize request data from any source (socket or API) into the shape the modal expects
+  const normalizeRequestData = (raw) => {
+    if (!raw) return null;
+    return {
+      requestId:       raw.requestId || raw._id || raw.id,
+      _id:             raw.requestId || raw._id || raw.id,
+      workTitle:       raw.workTitle || raw.serviceName || raw.title || '',
+      workCategory:    raw.workCategory || raw.serviceCategory || '',
+      workDescription: raw.workDescription || raw.description || '',
+      farmerName:      raw.farmerName || 'Farmer',
+      farmerId:        raw.farmerId,
+      requiredSkills:  raw.requiredSkills || [],
+      requiredWorkers: raw.requiredWorkers || 1,
+      scheduledDate:   raw.scheduledDate,
+      startTime:       raw.startTime,
+      endTime:         raw.endTime,
+      location:        raw.location || {},
+      minRate:         raw.minRate || raw.farmerOfferedRate || 0,
+      maxRate:         raw.maxRate || raw.farmerOfferedRate || 0,
+      farmerOfferedRate: raw.farmerOfferedRate || raw.minRate || 0,
+      rateUnit:        raw.rateUnit || 'daily',
+      isFarmerBroadcast: raw.isFarmerBroadcast !== undefined ? raw.isFarmerBroadcast : true,
+    };
+  };
+
+  // Fetch the latest pending request from the API and show modal
+  const fetchAndShowPending = async () => {
+    if (isFetchingRef.current) return;
+    try {
+      isFetchingRef.current = true;
+      const res = await workerService.getPendingFarmerRequests();
+      const requests = res?.data || [];
+      if (Array.isArray(requests) && requests.length > 0) {
+        const normalized = normalizeRequestData(requests[0]);
+        if (normalized?.requestId && normalized?.workTitle) {
+          setIncomingRequestData(normalized);
+        }
+      }
+    } catch (err) {
+      console.warn('[WorkerRoutes] Failed to fetch pending farmer requests:', err);
+    } finally {
+      isFetchingRef.current = false;
+    }
+  };
 
   useEffect(() => {
     const handleIncomingBooking = (e) => {
       console.log('[WorkerRoutes] Incoming Booking Request Event:', e.detail);
-      const data = e.detail?.data || e.detail;
-      setIncomingRequestData(data);
+      const raw = e.detail?.data || e.detail;
+      const normalized = normalizeRequestData(raw);
+
+      // If socket payload has enough data, use it directly
+      if (normalized?.requestId && normalized?.workTitle) {
+        setIncomingRequestData(normalized);
+      } else {
+        // Socket payload was incomplete — fall back to API
+        console.warn('[WorkerRoutes] Socket payload incomplete, fetching from API...');
+        fetchAndShowPending();
+      }
+    };
+
+    // Also listen for workerJobsUpdated (fires after every socket event in SocketContext)
+    // This is the fallback: if the modal isn't already open, check if there are pending requests
+    const handleJobsUpdated = () => {
+      if (!incomingRequestData) {
+        fetchAndShowPending();
+      }
+    };
+
+    const handleCancellation = (e) => {
+      const detail = e.detail || {};
+      const cancelledId = detail.requestId || detail.bookingId || detail._id;
+      console.log('[WorkerRoutes] Cancellation event received:', detail);
+
+      setIncomingRequestData(current => {
+        if (!current) return null;
+        const currentId = current.requestId || current._id || current.id;
+        if (!cancelledId || String(currentId) === String(cancelledId)) {
+          stopAlertRing();
+          return null;
+        }
+        return current;
+      });
     };
 
     window.addEventListener('workerIncomingBooking', handleIncomingBooking);
+    window.addEventListener('workerJobsUpdated', handleJobsUpdated);
+    window.addEventListener('workerBookingCancelled', handleCancellation);
+    window.addEventListener('workerRequestCancelled', handleCancellation);
     return () => {
       window.removeEventListener('workerIncomingBooking', handleIncomingBooking);
+      window.removeEventListener('workerJobsUpdated', handleJobsUpdated);
+      window.removeEventListener('workerBookingCancelled', handleCancellation);
+      window.removeEventListener('workerRequestCancelled', handleCancellation);
     };
-  }, []);
+  }, [incomingRequestData]);
 
   // Check if current route should hide bottom nav
   const shouldHideBottomNav =

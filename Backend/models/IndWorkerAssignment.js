@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 /**
  * IndWorkerAssignment
@@ -70,6 +70,19 @@ const indWorkerAssignmentSchema = new mongoose.Schema(
       type: String,
       enum: ['hourly', 'daily'],
       default: 'daily'
+    },
+
+    // ════════════════════════════════════════════════════════════════════════
+    // BOOKING TYPE — mirrors the parent WorkerBookingRequest.bookingType.
+    //   HOURLY: uses scheduledDate + startTime + endTime + single OTP flow
+    //   DAILY:  uses startDate + numberOfDays + per-day dailyLogs
+    // Existing documents with bookingType=null are treated as legacy HOURLY.
+    // ════════════════════════════════════════════════════════════════════════
+    bookingType: {
+      type: String,
+      enum: ['HOURLY', 'DAILY'],
+      default: 'HOURLY',
+      index: true
     },
 
     // Idempotency key for assignment creation
@@ -285,7 +298,67 @@ const indWorkerAssignmentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Booking',
       default: null
-    }
+    },
+
+    // ════════════════════════════════════════════════════════════════════════
+    // DAILY-ONLY: PER-DAY ATTENDANCE LOGS
+    // One entry is created per working day when the worker starts that day.
+    // ════════════════════════════════════════════════════════════════════════
+    dailyLogs: [{
+      dayNumber: { type: Number, required: true },          // 1, 2, 3 ...
+      date:      { type: Date,   required: true },           // calendar date for this day
+
+      // Worker journey for this day
+      journeyStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'JOURNEY_STARTED', 'ARRIVED'],
+        default: 'NOT_STARTED'
+      },
+      journeyStartedAt: { type: Date, default: null },
+      arrivedAt:        { type: Date, default: null },
+
+      // Reach / Visit OTP for this day (fresh per day; previous day OTP cannot be reused)
+      visitOtpCode:       { type: String, default: null },
+      visitOtpHash:       { type: String, default: null, select: false },
+      visitOtpVerifiedAt: { type: Date,   default: null },
+      visitOtpAttempts:   { type: Number, default: 0 },
+      visitOtpStatus: {
+        type: String,
+        enum: ['PENDING', 'VERIFIED', 'EXPIRED'],
+        default: 'PENDING'
+      },
+      visitOtpExpiresAt: { type: Date, default: null },
+
+      // Work status for this day
+      workStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'],
+        default: 'NOT_STARTED'
+      },
+      workStartedAt: { type: Date, default: null },
+
+      // Completion OTP for this day (farmer gives to worker to confirm day done)
+      completionOtpCode:       { type: String, default: null },
+      completionOtpHash:       { type: String, default: null, select: false },
+      completionOtpVerifiedAt: { type: Date,   default: null },
+      completionOtpAttempts:   { type: Number, default: 0 },
+      completionOtpExpiresAt:  { type: Date,   default: null },
+
+      completedAt: { type: Date, default: null }
+    }],
+
+    // DAILY lifecycle counters
+    workedDays:      { type: Number, default: 0 },    // actual completed days
+    bookedDays:      { type: Number, default: null },  // original days booked
+    currentDayIndex: { type: Number, default: 1 },    // which day is currently active (1-based)
+
+    // DAILY decrease (farmer removes this worker before all days are done)
+    isDecreased:    { type: Boolean, default: false },
+    decreasedAt:    { type: Date,    default: null },
+    decreaseReason: { type: String,  default: null },
+
+    // Extension references
+    extensionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'IndWorkerExtension' }]
   },
   {
     timestamps: true
@@ -299,6 +372,8 @@ indWorkerAssignmentSchema.index({ farmerId: 1, assignmentStatus: 1 });
 indWorkerAssignmentSchema.index({ parentRequestId: 1, workerId: 1, assignmentStatus: 1 });
 indWorkerAssignmentSchema.index({ settlementStatus: 1, workCompletedAt: 1 });
 indWorkerAssignmentSchema.index({ lastLocationAt: 1, assignmentStatus: 1 });
+indWorkerAssignmentSchema.index({ bookingType: 1, assignmentStatus: 1 });  // DAILY queries
+indWorkerAssignmentSchema.index({ workerId: 1, bookingType: 1, assignmentStatus: 1 });  // DAILY conflict
 
 indWorkerAssignmentSchema.statics.OTP_TTL_MINUTES = OTP_TTL_MINUTES;
 indWorkerAssignmentSchema.statics.OTP_MAX_ATTEMPTS = 5;

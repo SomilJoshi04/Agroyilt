@@ -8,6 +8,7 @@ import { SkeletonCard } from '../../../../components/common/SkeletonLoaders';
 const CashCollectionModal = lazy(() => import('../../components/common/CashCollectionModal'));
 const VisitVerificationModal = lazy(() => import('../../components/common/VisitVerificationModal'));
 const WorkCompletionModal = lazy(() => import('../../components/common/WorkCompletionModal'));
+import ExtensionResponseCard from '../../components/ExtensionResponseCard';
 import workerService from '../../../../services/workerService';
 import api from '../../../../services/api';
 import { toastManager } from '../../../../utils/toastManager';
@@ -122,6 +123,7 @@ const JobDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const socket = useAppNotifications('worker');
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -219,10 +221,48 @@ const JobDetails = () => {
     const handleUpdate = () => {
       fetchJobDetails();
     };
+
+    const handleCancelledJob = (data) => {
+      fetchJobDetails();
+      toastManager.error('This booking has been cancelled by the farmer.', { duration: 6000 });
+    };
     
     window.addEventListener('workerJobsUpdated', handleUpdate);
-    return () => window.removeEventListener('workerJobsUpdated', handleUpdate);
-  }, [id]);
+    window.addEventListener('workerBookingCancelled', handleCancelledJob);
+    if (socket?.on) {
+      socket.on('worker_booking_cancelled', handleCancelledJob);
+      socket.on('job_cancelled', handleCancelledJob);
+      socket.on('booking_cancelled', handleCancelledJob);
+      socket.on('extension_requested', handleUpdate);
+      socket.on('extension_status_changed', handleUpdate);
+      socket.on('extension_confirmed', handleUpdate);
+      socket.on('worker_decreased', handleUpdate);
+      socket.on('daily_day_started', handleUpdate);
+      socket.on('daily_visit_otp_verified', handleUpdate);
+      socket.on('daily_completion_otp_verified', handleUpdate);
+    }
+
+    return () => {
+      window.removeEventListener('workerJobsUpdated', handleUpdate);
+      window.removeEventListener('workerBookingCancelled', handleCancelledJob);
+      if (socket?.off) {
+        socket.off('worker_booking_cancelled', handleCancelledJob);
+        socket.off('job_cancelled', handleCancelledJob);
+        socket.off('booking_cancelled', handleCancelledJob);
+        socket.off('extension_requested', handleUpdate);
+        socket.off('extension_status_changed', handleUpdate);
+        socket.off('extension_confirmed', handleUpdate);
+        socket.off('worker_decreased', handleUpdate);
+        socket.off('daily_day_started', handleUpdate);
+        socket.off('daily_visit_otp_verified', handleUpdate);
+        socket.off('daily_completion_otp_verified', handleUpdate);
+      }
+    };
+  }, [id, socket]);
+
+  const localWorker = JSON.parse(localStorage.getItem('workerData') || '{}');
+  const currentWorkerId = localWorker._id || localWorker.id || (typeof job?.workerId === 'string' ? job.workerId : job?.workerId?._id);
+  const isDaily = job?.bookingType === 'DAILY' || job?.rateUnit === 'daily';
 
   const statusLower = job?.status?.toLowerCase() || '';
 
@@ -243,9 +283,6 @@ const JobDetails = () => {
       };
     }
   }, [statusLower, loading, isLiveCompletion, navigate]);
-
-  // Socket for live location tracking
-  const socket = useAppNotifications('worker');
 
   // Optimized Live Location Tracking with distance filter and heading
   const isTrackingActive = job?.status === 'journey_started' || job?.status === 'visited' || job?.status === 'in_progress';
@@ -509,7 +546,20 @@ const JobDetails = () => {
       );
     }
 
-    if (statusLower === 'visited' || statusLower === 'in_progress') {
+    if (statusLower === 'visited' || statusLower === 'arrived') {
+      return (
+        <button
+          onClick={() => handleStatusUpdate('visit')}
+          disabled={actionLoading}
+          className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg ${isSticky ? '' : 'mb-4'}`}
+          style={{ background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)' }}
+        >
+          {actionLoading ? 'Loading...' : (isDaily ? <>ENTER TODAY'S REACH OTP <FiCheck className="w-5 h-5" /></> : <>ENTER VISIT OTP <FiCheck className="w-5 h-5" /></>)}
+        </button>
+      );
+    }
+
+    if (statusLower === 'in_progress') {
       return (
         <button
           onClick={() => handleStatusUpdate('complete')}
@@ -517,7 +567,7 @@ const JobDetails = () => {
           className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg ${isSticky ? '' : 'mb-4'}`}
           style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
         >
-          {actionLoading ? 'Loading...' : <>COMPLETE WORK <FiCheckCircle className="w-5 h-5" /></>}
+          {actionLoading ? 'Loading...' : (isDaily ? <>COMPLETE TODAY'S WORK <FiCheckCircle className="w-5 h-5" /></> : <>COMPLETE WORK <FiCheckCircle className="w-5 h-5" /></>)}
         </button>
       );
     }
@@ -629,8 +679,53 @@ const JobDetails = () => {
             View Job Timeline
           </button>
 
-          {['in_progress', 'journey_started', 'visited'].includes(statusLower) && (
-            <ActiveWorkStopwatch job={job} />
+          {/* Extension Response Card (if requested by farmer) */}
+          {job?.activeExtension && ['WORKER_EVALUATION', 'REQUESTED'].includes(job.activeExtension.status) && (
+            <div className="mb-4">
+              <ExtensionResponseCard
+                extension={job.activeExtension}
+                workerId={currentWorkerId}
+                onResponded={() => fetchJobDetails()}
+              />
+            </div>
+          )}
+
+          {/* Daily Schedule Card vs Hourly Stopwatch */}
+          {isDaily ? (
+            <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-white rounded-3xl p-5 mb-4 shadow-lg border border-amber-300/30">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white">
+                    <FiClock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-100 block">Daily Booking Schedule</span>
+                    <h3 className="font-black text-lg text-white">
+                      Day {job.currentDayIndex || 1} of {job.bookedDays || 1}
+                    </h3>
+                  </div>
+                </div>
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-xs font-black rounded-xl text-white">
+                  ₹{job.agreedRate || job.finalAmount}/day
+                </span>
+              </div>
+
+              {job.isDecreased && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/20 text-xs text-amber-100 mb-3">
+                  <p className="font-black text-white mb-0.5">⚠️ Schedule Concluded After Today</p>
+                  <p>The farmer has completed the job schedule. You will be settled for today and worked days once today's Completion OTP is verified.</p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-xs text-amber-100 pt-2 border-t border-white/10">
+                <span>Completed: <strong className="text-white">{job.workedDays || 0} days</strong></span>
+                <span>Status: <strong className="text-white uppercase font-black">{statusLower.replace('_', ' ')}</strong></span>
+              </div>
+            </div>
+          ) : (
+            ['in_progress', 'journey_started', 'visited'].includes(statusLower) && (
+              <ActiveWorkStopwatch job={job} />
+            )
           )}
 
           {renderActionButtons(false)}
@@ -834,28 +929,98 @@ const JobDetails = () => {
                   <p className="text-xs text-slate-500">Worker Payment Breakdown</p>
                 </div>
               </div>
-              <div className="space-y-2.5 mb-4 text-sm">
-                <div className="flex justify-between text-gray-600">
-                  <span className="font-medium">Agreed Rate (Gross)</span>
-                  <span className="font-bold text-gray-800">₹{(job.workerFinancials.workerOfferedRate || job.workerGrossEarning || job.finalAmount || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-amber-600">
-                  <span className="font-medium">Platform Fee ({job.workerFinancials.commissionRate || 10}%)</span>
-                  <span className="font-bold text-red-500">-₹{(job.workerFinancials.commissionAmount ?? Math.round(((job.workerFinancials.workerOfferedRate || job.finalAmount || 0) * (job.workerFinancials.commissionRate || 10)) / 100)).toFixed(2)}</span>
-                </div>
-                {Number(job.extraChargesTotal) > 0 && (
-                  <div className="flex justify-between text-gray-600">
-                    <span className="font-medium">Extra Charges (Added by you)</span>
-                    <span className="font-bold text-gray-800">+₹{(job.extraChargesTotal || 0).toFixed(2)}</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-between items-end pt-3 border-t border-gray-100">
-                <span className="text-gray-900 font-bold">Net Earnings (To Wallet)</span>
-                <span className="text-2xl font-black text-emerald-600">
-                  ₹{((job.workerFinancials.netEarnings ?? ((job.workerFinancials.workerOfferedRate || job.finalAmount || 0) - (job.workerFinancials.commissionAmount ?? 0))) + (job.extraChargesTotal || 0)).toFixed(2)}
-                </span>
-              </div>
+              {/* Extension Breakdown Variables */}
+              {(() => {
+                const extBreakdown = job.workerFinancials?.extensionBreakdown || job.paymentSummary?.extensionBreakdown;
+                const hasExt = Boolean(extBreakdown?.hasExtension);
+                const baseGross = Number(extBreakdown?.baseGrossAmount ?? (job.workerFinancials.workerOfferedRate || job.workerGrossEarning || job.finalAmount || 0));
+                const extGross = Number(extBreakdown?.extensionGrossAmount || 0);
+                const totalGross = Number(job.workerFinancials.workerOfferedRate || job.workerGrossEarning || job.finalAmount || 0);
+                const commRate = job.workerFinancials.commissionRate || 10;
+                const commAmount = Number(job.workerFinancials.commissionAmount ?? Math.round((totalGross * commRate) / 100));
+                const netEarning = Number(job.workerFinancials.netEarnings ?? (totalGross - commAmount));
+                const extMins = extBreakdown?.extensionMinutes || 0;
+                const extDays = extBreakdown?.additionalDays || 0;
+                const extDurationLabel = extDays > 0 ? `+${extDays} Day(s)` : `+${extMins} Mins`;
+
+                return (
+                  <>
+                    <div className="space-y-2.5 mb-4 text-sm">
+                      {hasExt ? (
+                        <>
+                          {/* Base Shift Earnings */}
+                          <div className="flex justify-between items-center text-gray-700">
+                            <div>
+                              <span className="font-semibold text-gray-800 block">Base Shift Earnings</span>
+                              <span className="text-[11px] text-gray-400">
+                                Scheduled {job.bookingType === 'DAILY' ? `${job.bookedDays || 1} day(s)` : 'shift'} @ ₹{(job.agreedRate || baseGross).toLocaleString('en-IN')}/{job.rateUnit || 'hr'}
+                              </span>
+                            </div>
+                            <span className="font-bold text-gray-900">₹{baseGross.toFixed(2)}</span>
+                          </div>
+
+                          {/* Time Extension Pay Card */}
+                          <div className="flex justify-between items-center bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                              <div>
+                                <span className="font-bold text-xs text-emerald-950 block">
+                                  Time Extension ({extDurationLabel})
+                                </span>
+                                <span className="text-[10px] text-emerald-700 font-medium">Extension work completed</span>
+                              </div>
+                            </div>
+                            <span className="font-black text-emerald-700 text-sm">
+                              +₹{extGross.toFixed(2)}
+                            </span>
+                          </div>
+
+                          {/* Total Gross */}
+                          <div className="flex justify-between items-center text-gray-700 pt-1 border-t border-gray-100">
+                            <div>
+                              <span className="font-semibold text-gray-800 text-xs uppercase tracking-wide">Total Gross Earnings</span>
+                              <span className="text-[10px] text-gray-400 block">Base + Extension</span>
+                            </div>
+                            <span className="font-bold text-gray-900 text-base">₹{totalGross.toFixed(2)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between text-gray-600">
+                          <span className="font-medium">Agreed Rate (Gross)</span>
+                          <span className="font-bold text-gray-800">₹{totalGross.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {/* Platform Fee */}
+                      <div className="flex justify-between text-amber-600">
+                        <span className="font-medium">Platform Fee ({commRate}%)</span>
+                        <span className="font-bold text-red-500">-₹{commAmount.toFixed(2)}</span>
+                      </div>
+
+                      {Number(job.extraChargesTotal) > 0 && (
+                        <div className="flex justify-between text-gray-600">
+                          <span className="font-medium">Extra Charges (Added by you)</span>
+                          <span className="font-bold text-gray-800">+₹{(job.extraChargesTotal || 0).toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-end pt-3 border-t border-gray-100">
+                      <div>
+                        <span className="text-gray-900 font-bold block">Net Earnings (To Wallet)</span>
+                        {hasExt && (
+                          <span className="text-[10px] text-emerald-600 font-medium">
+                            Includes ₹{Number(extBreakdown?.extensionNetAmount || 0).toFixed(2)} net from extension
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-2xl font-black text-emerald-600">
+                        ₹{(netEarning + (job.extraChargesTotal || 0)).toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           ) : (
             <React.Fragment>
@@ -880,20 +1045,50 @@ const JobDetails = () => {
               <div>
                 <h3 className="font-bold text-gray-800">Job Payment Breakdown</h3>
                 <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                  New Flow � Upfront Paid
+                  New Flow · Upfront Paid
                 </span>
               </div>
             </div>
 
             <div className="space-y-3 text-sm">
-              {/* Farmer's agreed rate = what farmer paid for this worker */}
-              <div className="flex justify-between items-center text-gray-700">
-                <span className="font-medium">Worker Agreed Rate</span>
-                <span className="font-bold text-gray-900">
-                  ₹{(job.workerGrossEarning || job.agreedRate || job.workerOfferedRate || 0).toLocaleString('en-IN')}
-                  <span className="text-xs text-gray-400 ml-1">/{job.rateUnit || 'day'}</span>
-                </span>
-              </div>
+              {job.paymentSummary?.extensionBreakdown?.hasExtension ? (
+                <>
+                  <div className="flex justify-between items-center text-gray-700">
+                    <div>
+                      <span className="font-semibold text-gray-800 block">Base Shift Earnings</span>
+                      <span className="text-[11px] text-gray-400">Scheduled {job.bookingType === 'DAILY' ? `${job.bookedDays || 1} day(s)` : 'work'}</span>
+                    </div>
+                    <span className="font-bold text-gray-900">
+                      ₹{(job.paymentSummary.extensionBreakdown.baseGrossAmount || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                    <span className="font-bold text-xs text-emerald-950">
+                      Time Extension ({job.paymentSummary.extensionBreakdown.additionalDays > 0 ? `+${job.paymentSummary.extensionBreakdown.additionalDays} Day(s)` : `+${job.paymentSummary.extensionBreakdown.extensionMinutes} mins`})
+                    </span>
+                    <span className="font-black text-emerald-700 text-sm">
+                      +₹{(job.paymentSummary.extensionBreakdown.extensionGrossAmount || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-gray-700 pt-1 border-t border-gray-100">
+                    <span className="font-semibold text-xs uppercase tracking-wide">Total Gross Rate</span>
+                    <span className="font-bold text-gray-900">
+                      ₹{(job.workerGrossEarning || job.agreedRate || job.workerOfferedRate || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                /* Farmer's agreed rate = what farmer paid for this worker */
+                <div className="flex justify-between items-center text-gray-700">
+                  <span className="font-medium">Worker Agreed Rate</span>
+                  <span className="font-bold text-gray-900">
+                    ₹{(job.workerGrossEarning || job.agreedRate || job.workerOfferedRate || 0).toLocaleString('en-IN')}
+                    <span className="text-xs text-gray-400 ml-1">/{job.rateUnit || 'day'}</span>
+                  </span>
+                </div>
+              )}
 
               {/* Admin Commission deduction */}
               <div className="flex justify-between items-center text-gray-600">
@@ -906,9 +1101,16 @@ const JobDetails = () => {
               {/* Divider */}
               <div className="border-t-2 border-dashed border-emerald-200 my-1" />
 
-              {/* Net Earning � what worker actually gets */}
+              {/* Net Earning — what worker actually gets */}
               <div className="flex justify-between items-end">
-                <span className="font-black text-emerald-800">Your Net Earning</span>
+                <div>
+                  <span className="font-black text-emerald-800 block">Your Net Earning</span>
+                  {job.paymentSummary?.extensionBreakdown?.hasExtension && (
+                    <span className="text-[10px] text-emerald-600 font-medium">
+                      Includes ₹{Number(job.paymentSummary.extensionBreakdown.extensionNetAmount || 0).toFixed(2)} from extension
+                    </span>
+                  )}
+                </div>
                 <span className="text-2xl font-black text-emerald-700">
                   ₹{(job.workerNetEarning || 0).toLocaleString('en-IN')}
                 </span>

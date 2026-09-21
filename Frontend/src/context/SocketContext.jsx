@@ -6,7 +6,7 @@ import { motion, useMotionValue, useTransform } from 'framer-motion'; // eslint-
 import { toast } from 'react-hot-toast';
 import { FiBell, FiClock, FiCheckCircle, FiAlertCircle, FiX, FiTruck, FiUsers } from 'react-icons/fi';
 import { toastManager } from '../utils/toastManager';
-import { playNotificationSound, isSoundEnabled, playAlertRing } from '../utils/notificationSound';
+import { playNotificationSound, isSoundEnabled, playAlertRing, playCancellationAlert, stopAlertRing } from '../utils/notificationSound';
 import { registerFCMToken } from '../services/pushNotificationService';
 
 const SwipeableNotification = ({ t, data, onClick }) => {
@@ -271,6 +271,30 @@ export const SocketProvider = ({ children }) => {
               relatedId: data.relatedId || (data.data && data.data.requestId)
             }
           }));
+        } else if (
+          data.type === 'worker_booking_cancelled' ||
+          data.type === 'worker_request_cancelled' ||
+          data.type === 'booking_cancelled' ||
+          data.type === 'job_cancelled'
+        ) {
+          try {
+            stopAlertRing();
+            playCancellationAlert();
+          } catch (e) {}
+
+          const cancelDetail = {
+            data: data.data || data,
+            requestId: data.relatedId || data.data?.requestId || data.data?.bookingId || data._id,
+            message: data.message || 'The farmer has cancelled this booking request.'
+          };
+
+          window.dispatchEvent(new CustomEvent('workerBookingCancelled', { detail: cancelDetail }));
+          window.dispatchEvent(new CustomEvent('workerRequestCancelled', { detail: cancelDetail }));
+          window.dispatchEvent(new Event('workerJobsUpdated'));
+
+          toastManager.error(data.message || 'The farmer has cancelled this booking request.', {
+            duration: 5000
+          });
         }
       }
       if (userType === 'vendor') {
@@ -342,10 +366,36 @@ export const SocketProvider = ({ children }) => {
         window.dispatchEvent(new Event('workerJobsUpdated'));
       };
 
+      const handleWorkerCancellation = (data) => {
+        try {
+          stopAlertRing();
+          playCancellationAlert();
+        } catch (e) {}
+
+        const cancelData = data?.data || data || {};
+        const cancelReqId = cancelData.requestId || cancelData.bookingId || data?.relatedId || cancelData._id;
+        const cancelMessage = cancelData.message || data?.message || 'The farmer has cancelled this booking request.';
+
+        window.dispatchEvent(new CustomEvent('workerBookingCancelled', {
+          detail: { ...cancelData, requestId: cancelReqId, message: cancelMessage }
+        }));
+        window.dispatchEvent(new CustomEvent('workerRequestCancelled', {
+          detail: { ...cancelData, requestId: cancelReqId, message: cancelMessage }
+        }));
+        window.dispatchEvent(new Event('workerJobsUpdated'));
+
+        toastManager.error(cancelMessage, { duration: 6000 });
+      };
+
       newSocket.on('worker_booking_request', handleWorkerIncoming);
       newSocket.on('new_booking_request', handleWorkerIncoming);
       newSocket.on('booking_request', handleWorkerIncoming);
       newSocket.on('group_booking_request', handleWorkerIncoming);
+
+      newSocket.on('worker_booking_cancelled', handleWorkerCancellation);
+      newSocket.on('worker_request_cancelled', handleWorkerCancellation);
+      newSocket.on('job_cancelled', handleWorkerCancellation);
+      newSocket.on('booking_cancelled', handleWorkerCancellation);
 
       newSocket.on('worker_booking_update', (data) => {
         window.dispatchEvent(new Event('workerJobsUpdated'));

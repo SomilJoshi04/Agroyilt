@@ -15,6 +15,9 @@ import api from '../../../../services/api';
 import { toastManager } from '../../../../utils/toastManager';
 import { useSocket } from '../../../../context/SocketContext';
 import LogoLoader from '../../../../components/common/LogoLoader';
+import DailyTrackingView from './components/DailyTrackingView';
+import DecreaseWorkerModal from './components/DecreaseWorkerModal';
+import ExtensionModal from './components/ExtensionModal';
 
 // Fix Leaflet default marker icon path broken by Vite/webpack bundling
 delete L.Icon.Default.prototype._getIconUrl;
@@ -103,8 +106,11 @@ const BookingTrack = () => {
   const [selectedWorkerId, setSelectedWorkerId] = useState(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
-  const [redirectCountdown, setRedirectCountdown] = useState(3);
   const [selectedProofModal, setSelectedProofModal] = useState(null);
+  const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false);
+  const [decreaseTargetWorker, setDecreaseTargetWorker] = useState(null);
+  const [payingExtensionId, setPayingExtensionId] = useState(null);
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
   // leafletLoaded state removed — L is now imported directly from npm
 
   const mapContainerRef = useRef(null);
@@ -403,6 +409,13 @@ const BookingTrack = () => {
     socket.on('booking_completed', handleBookingCompleted);
     socket.on('assignment_completion_otp_verified', handleAssignmentSettled);
     socket.on('assignment_settled', handleAssignmentSettled);
+    socket.on('extension_requested', () => fetchSnapshot(false));
+    socket.on('extension_status_changed', () => fetchSnapshot(false));
+    socket.on('extension_confirmed', () => fetchSnapshot(false));
+    socket.on('worker_decreased', () => fetchSnapshot(false));
+    socket.on('daily_day_started', () => fetchSnapshot(false));
+    socket.on('daily_visit_otp_verified', () => fetchSnapshot(false));
+    socket.on('daily_completion_otp_verified', () => fetchSnapshot(false));
 
     return () => {
       socket.off('connect', onConnect);
@@ -417,9 +430,74 @@ const BookingTrack = () => {
       socket.off('booking_completed', handleBookingCompleted);
       socket.off('assignment_completion_otp_verified', handleAssignmentSettled);
       socket.off('assignment_settled', handleAssignmentSettled);
+      socket.off('extension_requested');
+      socket.off('extension_status_changed');
+      socket.off('extension_confirmed');
+      socket.off('worker_decreased');
+      socket.off('daily_day_started');
+      socket.off('daily_visit_otp_verified');
+      socket.off('daily_completion_otp_verified');
       socket.emit('leave_tracking', id);
     };
   }, [socket, id, fetchSnapshot]);
+
+  const handleExtensionPayment = async (ext) => {
+    try {
+      setPayingExtensionId(ext._id);
+      const res = await api.post(`/users/farmer-worker-request/${trackingData?.requestId || id}/extension/${ext._id}/payment`);
+      if (!res.data?.success) {
+        toastManager.error(res.data?.message || 'Failed to initialize payment');
+        return;
+      }
+
+      const { razorpayOrderId, orderId, amount, key } = res.data.data;
+      const targetOrderId = razorpayOrderId || orderId;
+      const options = {
+        key: key || window.__RAZORPAY_KEY__ || 'rzp_test_placeholder',
+        amount: Math.round(Number(amount) * 100),
+        currency: 'INR',
+        name: 'AgroYilt',
+        description: `Extension - ${ext.bookingType === 'DAILY' ? `${ext.additionalDays} Day(s)` : `${ext.extensionMinutes} Mins`}`,
+        order_id: targetOrderId,
+        handler: async (response) => {
+          try {
+            const verifyRes = await api.post(
+              `/users/farmer-worker-request/${trackingData?.requestId || id}/extension/${ext._id}/payment/verify`,
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              }
+            );
+            if (verifyRes.data?.success) {
+              toastManager.success('Extension payment successful! Schedule updated.');
+              fetchSnapshot(false);
+            } else {
+              toastManager.error(verifyRes.data?.message || 'Payment verification failed');
+            }
+          } catch (vErr) {
+            toastManager.error(vErr.response?.data?.message || 'Verification failed');
+          }
+        },
+        prefill: {
+          name: trackingData?.farmerName || '',
+          contact: trackingData?.farmerPhone || ''
+        },
+        theme: { color: '#059669' }
+      };
+
+      if (window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } else {
+        toastManager.error('Razorpay SDK not ready. Please refresh.');
+      }
+    } catch (err) {
+      toastManager.error(err.response?.data?.message || 'Failed to process extension payment');
+    } finally {
+      setPayingExtensionId(null);
+    }
+  };
 
   // Derived array of workers from normalized map
   const workersList = useMemo(() => {
@@ -830,9 +908,31 @@ const BookingTrack = () => {
               </p>
               <h2 className="text-xl font-black text-slate-800">{trackingData?.workTitle || 'Farm Work'}</h2>
             </div>
-            <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-1.5 rounded-2xl border border-slate-100">
-              <FiUsers className="text-slate-500" size={16} />
-              <span className="text-sm font-black text-slate-700">{counters.total} Worker{counters.total !== 1 ? 's' : ''}</span>
+            <div className="flex items-center gap-2">
+              <span className={`px-2.5 py-1 rounded-xl text-xs font-black uppercase border ${
+                trackingData?.bookingType === 'DAILY'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              }`}>
+                {trackingData?.bookingType === 'DAILY' ? 'Daily Schedule' : 'Hourly Booking'}
+              </span>
+
+              {!isAllCompleted && (
+                <button
+                  type="button"
+                  id="farmer-extend-time-btn"
+                  onClick={() => setIsExtensionModalOpen(true)}
+                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 flex items-center gap-1 active:scale-95 transition-all shadow-xs"
+                >
+                  <FiClock size={13} />
+                  <span>{trackingData?.bookingType === 'DAILY' ? 'Extend Days' : 'Extend Time'}</span>
+                </button>
+              )}
+
+              <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-1.5 rounded-2xl border border-slate-100">
+                <FiUsers className="text-slate-500" size={16} />
+                <span className="text-sm font-black text-slate-700">{counters.total} Worker{counters.total !== 1 ? 's' : ''}</span>
+              </div>
             </div>
           </div>
 
@@ -875,6 +975,62 @@ const BookingTrack = () => {
             </div>
           </div>
         </div>
+
+        {/* ── Active Extension Banner ── */}
+        {(() => {
+          const activeExt = trackingData?.extensions?.find(e => ['WORKER_EVALUATION', 'PAYMENT_PENDING'].includes(e.status));
+          if (!activeExt) return null;
+          const isPendingPay = activeExt.status === 'PAYMENT_PENDING';
+          const payableAmt = activeExt.totalPayableAmount ?? activeExt.totalPayable ?? activeExt.totalServiceAmount ?? activeExt.farmerTotalAmount ?? 0;
+
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-black">
+                  <FiClock size={20} />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-amber-900 uppercase">
+                    {isPendingPay ? 'Extension Accepted — Payment Required' : 'Extension Request Sent'}
+                  </p>
+                  <p className="text-xs text-amber-700 font-medium">
+                    {activeExt.bookingType === 'DAILY'
+                      ? `${activeExt.additionalDays} extra day(s)`
+                      : `${activeExt.extensionMinutes} extra minutes`}
+                    {isPendingPay && ` • Payable: ₹${payableAmt}`}
+                  </p>
+                </div>
+              </div>
+
+              {isPendingPay ? (
+                <button
+                  type="button"
+                  id="pay-extension-now-btn"
+                  disabled={payingExtensionId === activeExt._id}
+                  onClick={() => handleExtensionPayment(activeExt)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+                >
+                  <FaRupeeSign size={11} />
+                  <span>{payingExtensionId === activeExt._id ? 'Processing...' : `Pay ₹${payableAmt}`}</span>
+                </button>
+              ) : (
+                <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-200/60 text-amber-800">
+                  Workers Evaluating
+                </span>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── Daily Schedule Tracking View (Multi-day attendance & decrease) ── */}
+        {trackingData?.bookingType === 'DAILY' && (
+          <DailyTrackingView
+            trackingData={trackingData}
+            workers={workersList}
+            onDecreaseClick={(worker) => setDecreaseTargetWorker(worker)}
+            onRequestExtensionClick={() => setIsExtensionModalOpen(true)}
+          />
+        )}
 
         {/* ── Interactive Live Map Section ── */}
         <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden relative ${isFullScreen ? 'fixed inset-0 z-50 rounded-none' : 'h-[360px] sm:h-[420px]'}`}>
@@ -1128,7 +1284,7 @@ const BookingTrack = () => {
       {/* ── Work Proof Photo Lightbox Modal ── */}
       {selectedProofModal && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setSelectedProofModal(null)}
         >
           <div 
@@ -1179,6 +1335,25 @@ const BookingTrack = () => {
           </div>
         </div>
       )}
+
+      {/* ── Decrease Worker Modal (DAILY only) ── */}
+      <DecreaseWorkerModal
+        isOpen={Boolean(decreaseTargetWorker)}
+        onClose={() => setDecreaseTargetWorker(null)}
+        worker={decreaseTargetWorker}
+        requestId={trackingData?.requestId || id}
+        onDecreased={() => fetchSnapshot(false)}
+      />
+
+      {/* ── Extension Request Modal (HOURLY & DAILY) ── */}
+      <ExtensionModal
+        isOpen={isExtensionModalOpen}
+        onClose={() => setIsExtensionModalOpen(false)}
+        requestId={trackingData?.requestId || id}
+        bookingType={trackingData?.bookingType || 'HOURLY'}
+        workers={workersList}
+        onExtensionCreated={() => fetchSnapshot(false)}
+      />
     </div>
   );
 };

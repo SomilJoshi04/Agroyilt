@@ -223,7 +223,35 @@ const settingsSchema = new mongoose.Schema({
     type: Number,
     default: 15,
     min: 1
-  }
+  },
+
+  // ==========================================
+  // WORKER EXTENSION SETTINGS
+  // ==========================================
+  // Minutes workers have to accept/reject an extension request.
+  // Workers who do not respond before expiry get status = EXPIRED (NOT REJECTED).
+  extensionExpiryMinutes: {
+    type: Number,
+    default: 30,
+    min: 1
+  },
+
+  // ==========================================
+  // WORKER PENALTY SETTINGS (HOURLY ONLY)
+  // ==========================================
+  workerPenaltyEnabled: { type: Boolean, default: false },
+  workerPenaltyType: {
+    type: String,
+    enum: ['fixed', 'per_minute', 'percentage'],
+    default: 'fixed'
+  },
+  workerPenaltyAmount:      { type: Number, default: 50,  min: 0 }, // flat ₹ penalty
+  workerPenaltyPerMinute:   { type: Number, default: 5,   min: 0 }, // ₹ per minute late
+  workerPenaltyFreeMinutes: { type: Number, default: 10,  min: 0 }, // grace period
+  workerPenaltyMaxAmount:   { type: Number, default: 500, min: 0 }, // cap
+  workerPenaltyPercentage:  { type: Number, default: 5,   min: 0, max: 100 }, // % of earning
+  maxWorkerDues:            { type: Number, default: 500, min: 0 }, // outstanding dues threshold
+  workerCashPaymentEnabled: { type: Boolean, default: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Settings', settingsSchema);

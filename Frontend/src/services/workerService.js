@@ -97,6 +97,32 @@ const workerService = {
     return response.data;
   },
 
+  // ── Daily Booking Multi-day Lifecycle ──
+  startDailyDay: async (assignmentId) => {
+    const response = await api.post(`/workers/assignments/daily/start-day`, { assignmentId });
+    return response.data;
+  },
+
+  markDailyArrived: async (assignmentId) => {
+    const response = await api.post(`/workers/assignments/daily/arrived`, { assignmentId });
+    return response.data;
+  },
+
+  verifyDailyVisitOtp: async (assignmentId, otp) => {
+    const response = await api.post(`/workers/assignments/daily/verify-visit-otp`, { assignmentId, otp });
+    return response.data;
+  },
+
+  verifyDailyCompletionOtp: async (assignmentId, otp) => {
+    const response = await api.post(`/workers/assignments/daily/verify-completion-otp`, { assignmentId, otp });
+    return response.data;
+  },
+
+  respondToExtension: async (extensionId, response) => {
+    const res = await api.post(`/workers/assignments/extension/${extensionId}/respond`, { response });
+    return res.data;
+  },
+
   initiateCashCollection: async (id, totalAmount, extraItems = []) => {
     const response = await api.post(`/bookings/cash/${id}/initiate`, {
       totalAmount,

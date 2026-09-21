@@ -7,6 +7,7 @@ const gb  = require('../../controllers/workerControllers/groupBookingController'
 const fwr = require('../../controllers/workerControllers/farmerWorkerRequestController');
 const wsc = require('../../controllers/workerControllers/workerSettlementController');
 const tc  = require('../../controllers/bookingControllers/trackingController');
+const ext = require('../../controllers/workerControllers/extensionController');
 
 // ── Public / User-auth routes ──────────────────────────────────────────────
 
@@ -24,6 +25,18 @@ router.post('/farmer-worker-request/:id/create-payment',     authenticate, fwr.c
 router.post('/farmer-worker-request/:id/verify-payment',     authenticate, fwr.verifyWorkerBookingPayment);
 router.post('/farmer-worker-request/:id/assignment/:assignmentId/completion-otp', authenticate, fwr.generateFarmerCompletionOtp);
 router.delete('/farmer-worker-request/:id',                  authenticate, fwr.cancelFarmerRequest);
+
+// ── DAILY BOOKING ROUTES ───────────────────────────────────────────────────
+router.post('/farmer-worker-request/:id/decrease-worker',                                  authenticate, fwr.decreaseWorker);
+router.post('/farmer-worker-request/:id/assignment/:assignmentId/daily-visit-otp',         authenticate, fwr.getOrCreateDailyVisitOtp);
+router.post('/farmer-worker-request/:id/assignment/:assignmentId/daily-completion-otp',    authenticate, fwr.generateDailyCompletionOtp);
+
+// ── EXTENSION ROUTES (FARMER) ───────────────────────────────────────────────
+router.post('/farmer-worker-request/:id/extension',                                        authenticate, ext.createExtension);
+router.post('/farmer-worker-request/:id/extension/:extensionId/create-payment',            authenticate, ext.createExtensionPayment);
+router.post('/farmer-worker-request/:id/extension/:extensionId/payment',                   authenticate, ext.createExtensionPayment);
+router.post('/farmer-worker-request/:id/extension/:extensionId/verify-payment',            authenticate, ext.verifyExtensionPayment);
+router.post('/farmer-worker-request/:id/extension/:extensionId/payment/verify',            authenticate, ext.verifyExtensionPayment);
 
 // Settlement
 router.post('/booking/:id/worker-settlement', authenticate, wsc.processWorkerSettlement);

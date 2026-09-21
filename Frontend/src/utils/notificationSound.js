@@ -1,4 +1,4 @@
-﻿// Notification Sound Utility
+// Notification Sound Utility
 // Plays notification sound and alert rings across User, Vendor, Worker, and Admin panels
 
 let audioContext = null;
@@ -126,6 +126,43 @@ export const playSingleBeep = () => {
   } catch (error) {
     console.error('Error playing beep:', error);
     return false;
+  }
+};
+
+// Play distinct two-tone alert chime for cancellations (descending tones)
+export const playCancellationAlert = () => {
+  try {
+    initAudio();
+    if (!audioContext) {
+      playNotificationSound();
+      return;
+    }
+
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => {});
+    }
+
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(587.33, now); // D5
+    osc.frequency.setValueAtTime(440.00, now + 0.18); // A4
+    osc.frequency.setValueAtTime(349.23, now + 0.36); // F4
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.4, now + 0.04);
+    gain.gain.setValueAtTime(0.35, now + 0.36);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.7);
+  } catch (e) {
+    playNotificationSound();
   }
 };
 

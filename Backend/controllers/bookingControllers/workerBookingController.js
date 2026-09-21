@@ -136,6 +136,98 @@ const getJobById = async (req, res) => {
       .populate('categoryId', 'title slug');
 
     if (!booking) {
+      const IndWorkerAssignment = require('../../models/IndWorkerAssignment');
+      const WorkerBookingRequest = require('../../models/WorkerBookingRequest');
+      const assignDoc = await IndWorkerAssignment.findOne({ _id: id, workerId });
+      if (assignDoc) {
+        const parent = await WorkerBookingRequest.findById(assignDoc.parentRequestId).populate('farmerId', 'name phone email');
+        const syntheticBooking = {
+          _id: assignDoc._id,
+          assignmentId: assignDoc._id,
+          parentRequestId: assignDoc.parentRequestId,
+          providerType: 'WORKER',
+          serviceName: parent?.workTitle || 'Farm Work',
+          workTitle: parent?.workTitle || 'Farm Work',
+          userId: parent?.farmerId ? {
+            _id: parent.farmerId._id,
+            name: parent.farmerId.name,
+            phone: parent.farmerId.phone,
+            email: parent.farmerId.email
+          } : null,
+          address: parent?.location ? {
+            address: parent.location.addressLine1,
+            city: parent.location.city,
+            state: parent.location.state,
+            pincode: parent.location.pincode,
+            lat: parent.location.lat,
+            lng: parent.location.lng
+          } : null,
+          scheduledDate: parent?.startDate || parent?.scheduledDate,
+          scheduledTime: parent?.startTime,
+          status: assignDoc.completionStatus === 'OTP_VERIFIED' || assignDoc.settlementStatus === 'SETTLED'
+            ? 'completed'
+            : (assignDoc.workStatus === 'IN_PROGRESS' || assignDoc.visitOtpStatus === 'VERIFIED'
+              ? 'in_progress'
+              : (assignDoc.journeyStatus === 'ARRIVED'
+                ? 'visited'
+                : (assignDoc.journeyStatus === 'JOURNEY_STARTED' ? 'journey_started' : 'confirmed'))),
+          bookingType: assignDoc.bookingType || parent?.bookingType || 'HOURLY',
+          bookedDays: assignDoc.bookedDays || parent?.numberOfDays || 1,
+          workedDays: assignDoc.workedDays || 0,
+          currentDayIndex: assignDoc.currentDayIndex || 1,
+          isDecreased: Boolean(assignDoc.isDecreased),
+          decreasedAt: assignDoc.decreasedAt,
+          decreaseReason: assignDoc.decreaseReason,
+          dailyLogs: assignDoc.dailyLogs || [],
+          agreedRate: assignDoc.agreedRate,
+          finalAmount: assignDoc.agreedRate,
+          rateUnit: (assignDoc.bookingType === 'DAILY' || parent?.bookingType === 'DAILY') ? 'daily' : 'hourly'
+        };
+
+        const IndWorkerExtension = require('../../models/IndWorkerExtension');
+        let confirmedExtensions = [];
+        try {
+          if (assignDoc.parentRequestId) {
+            confirmedExtensions = await IndWorkerExtension.find({
+              parentRequestId: assignDoc.parentRequestId,
+              status: 'CONFIRMED'
+            });
+          }
+        } catch (extErr) {}
+
+        const { buildWorkerPaymentSummary } = require('../../services/workerFinancialService');
+        syntheticBooking.paymentSummary = buildWorkerPaymentSummary(assignDoc, null, confirmedExtensions);
+        if (syntheticBooking.paymentSummary) {
+          syntheticBooking.workerFinancials = {
+            workerOfferedRate: syntheticBooking.paymentSummary.agreedRate || syntheticBooking.paymentSummary.grossAmount,
+            commissionRate: syntheticBooking.paymentSummary.commissionRate,
+            commissionAmount: syntheticBooking.paymentSummary.commissionAmount,
+            netEarnings: syntheticBooking.paymentSummary.netEarning,
+            extensionBreakdown: syntheticBooking.paymentSummary.extensionBreakdown
+          };
+          syntheticBooking.workerGrossEarning = syntheticBooking.paymentSummary.grossAmount;
+          syntheticBooking.commissionRate = syntheticBooking.paymentSummary.commissionRate;
+          syntheticBooking.commissionAmount = syntheticBooking.paymentSummary.commissionAmount;
+          syntheticBooking.workerNetEarning = syntheticBooking.paymentSummary.netEarning;
+        }
+
+        try {
+          const activeExt = await IndWorkerExtension.findOne({
+            parentRequestId: assignDoc.parentRequestId,
+            status: 'WORKER_EVALUATION',
+            expiresAt: { $gt: new Date() }
+          }).populate('workerExtensions.workerId', 'name phone profilePicture');
+          if (activeExt) {
+            syntheticBooking.activeExtension = activeExt;
+          }
+        } catch (e) {}
+
+        return res.status(200).json({
+          success: true,
+          data: syntheticBooking
+        });
+      }
+
       return res.status(404).json({
         success: false,
         message: 'Job not found'
@@ -150,6 +242,7 @@ const getJobById = async (req, res) => {
       jobData.providerType = 'WORKER';
       try {
         const IndWorkerAssignment = require('../../models/IndWorkerAssignment');
+        const IndWorkerExtension = require('../../models/IndWorkerExtension');
         const { buildWorkerPaymentSummary } = require('../../services/workerFinancialService');
 
         const assignment = await IndWorkerAssignment.findOne({
@@ -160,18 +253,55 @@ const getJobById = async (req, res) => {
           ]
         });
 
-        jobData.paymentSummary = buildWorkerPaymentSummary(assignment, booking);
+        const pReqId = assignment?.parentRequestId || booking.workerRequestId;
+        let confirmedExtensions = [];
+        if (pReqId) {
+          try {
+            confirmedExtensions = await IndWorkerExtension.find({
+              parentRequestId: pReqId,
+              status: 'CONFIRMED'
+            });
+          } catch (e) {}
+        }
+
+        jobData.paymentSummary = buildWorkerPaymentSummary(assignment, booking, confirmedExtensions);
         if (jobData.paymentSummary) {
           jobData.workerFinancials = {
             workerOfferedRate: jobData.paymentSummary.agreedRate || jobData.paymentSummary.grossAmount,
             commissionRate: jobData.paymentSummary.commissionRate,
             commissionAmount: jobData.paymentSummary.commissionAmount,
-            netEarnings: jobData.paymentSummary.netEarning
+            netEarnings: jobData.paymentSummary.netEarning,
+            extensionBreakdown: jobData.paymentSummary.extensionBreakdown
           };
           jobData.workerGrossEarning = jobData.paymentSummary.grossAmount;
           jobData.commissionRate = jobData.paymentSummary.commissionRate;
           jobData.commissionAmount = jobData.paymentSummary.commissionAmount;
           jobData.workerNetEarning = jobData.paymentSummary.netEarning;
+        }
+
+        if (assignment) {
+          jobData.assignmentId = assignment._id;
+          jobData.bookingType = assignment.bookingType || booking.bookingType || 'HOURLY';
+          jobData.bookedDays = assignment.bookedDays;
+          jobData.workedDays = assignment.workedDays;
+          jobData.currentDayIndex = assignment.currentDayIndex;
+          jobData.isDecreased = Boolean(assignment.isDecreased);
+          jobData.decreasedAt = assignment.decreasedAt;
+          jobData.decreaseReason = assignment.decreaseReason;
+          jobData.dailyLogs = assignment.dailyLogs || [];
+          jobData.rateUnit = jobData.bookingType === 'DAILY' ? 'daily' : 'hourly';
+
+          try {
+            const IndWorkerExtension = require('../../models/IndWorkerExtension');
+            const activeExt = await IndWorkerExtension.findOne({
+              parentRequestId: assignment.parentRequestId || booking.workerRequestId,
+              status: 'WORKER_EVALUATION',
+              expiresAt: { $gt: new Date() }
+            }).populate('workerExtensions.workerId', 'name phone profilePicture');
+            if (activeExt) {
+              jobData.activeExtension = activeExt;
+            }
+          } catch (e) {}
         }
 
         // STRICT ROLE ISOLATION: Worker must NEVER see Farmer total, Platform Fee, or other workers' financials

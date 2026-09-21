@@ -318,10 +318,30 @@ exports.getTrackingSnapshot = async (req, res) => {
         completionOtp = b.completionOtpCode || null;
       }
 
+      const isDailyBooking = (b.bookingType === 'DAILY') || (parentRequest?.bookingType === 'DAILY');
+      let currentDayLog = null;
+      if (isDailyBooking && b.dailyLogs) {
+        currentDayLog = b.dailyLogs.find(l => l.dayNumber === (b.currentDayIndex || 1));
+      }
+
+      // For DAILY, visitOtp and completionOtp come from current day's log
+      let finalVisitOtp = visitOtp;
+      let finalCompletionOtp = completionOtp;
+
+      if (isDailyBooking && isFarmer) {
+        if (currentDayLog && currentDayLog.visitOtpStatus !== 'VERIFIED') {
+          finalVisitOtp = currentDayLog.visitOtpCode || null;
+        }
+        if (currentDayLog && currentDayLog.workStatus === 'IN_PROGRESS') {
+          finalCompletionOtp = currentDayLog.completionOtpCode || null;
+        }
+      }
+
       return {
         assignmentId: b._id.toString(),
         bookingId: b.legacyBookingId ? b.legacyBookingId.toString() : b._id.toString(),
         bookingNumber: b.bookingNumber || `WRK-${b._id.toString().slice(-6).toUpperCase()}`,
+        bookingType: isDailyBooking ? 'DAILY' : 'HOURLY',
         workerId: w._id ? w._id.toString() : (b.workerId ? b.workerId.toString() : b._id.toString()),
         workerName: w.name || 'Assigned Worker',
         workerPhone: (isFarmer || isAdmin) ? (w.phone || '') : null,
@@ -330,7 +350,17 @@ exports.getTrackingSnapshot = async (req, res) => {
         rating: typeof w.rating === 'number' ? w.rating : (w.averageRating || 5.0),
         agreedRate: b.agreedRate || b.grossAmount || b.finalAmount || b.workerOfferedRate || 0,
         netEarning: b.netEarning || 0,
-        rateUnit: b.rateUnit || 'daily',
+        rateUnit: isDailyBooking ? 'daily' : (b.rateUnit || 'hourly'),
+        // DAILY fields
+        bookedDays: b.bookedDays || (isDailyBooking ? (parentRequest?.numberOfDays || 1) : null),
+        workedDays: b.workedDays || 0,
+        currentDayIndex: b.currentDayIndex || 1,
+        isDecreased: Boolean(b.isDecreased),
+        decreasedAt: b.decreasedAt || null,
+        decreaseReason: b.decreaseReason || null,
+        dailyLogs: b.dailyLogs || [],
+        currentDayLog,
+        // Statuses
         journeyStatus: canonical,
         workStatus: b.workStatus || null,
         visitOtpStatus: b.visitOtpStatus || (canonical === 'IN_PROGRESS' || canonical === 'COMPLETED' ? 'VERIFIED' : 'PENDING'),
@@ -343,8 +373,8 @@ exports.getTrackingSnapshot = async (req, res) => {
         arrivedAt: b.arrivedAt || b.visitedAt || null,
         otpVerifiedAt: b.visitOtpVerifiedAt || ((canonical === 'IN_PROGRESS' || canonical === 'COMPLETED') ? (b.startedAt || null) : null),
         completedAt: b.workCompletedAt || b.completedAt || null,
-        visitOtp,
-        completionOtp,
+        visitOtp: finalVisitOtp,
+        completionOtp: finalCompletionOtp,
         completionProof: b.completionProof || null
       };
     });
@@ -361,7 +391,21 @@ exports.getTrackingSnapshot = async (req, res) => {
       cancelled: workers.filter(w => w.journeyStatus === 'CANCELLED').length
     };
 
-    const paymentSummary = parentRequest ? buildFarmerPaymentSummary(parentRequest, bookings) : null;
+    // Fetch extensions if available
+    let extensions = [];
+    if (parentRequest) {
+      try {
+        const IndWorkerExtension = require('../../models/IndWorkerExtension');
+        extensions = await IndWorkerExtension.find({ parentRequestId: parentRequest._id })
+          .populate('workerExtensions.workerId', 'name phone profilePicture')
+          .sort({ createdAt: -1 });
+      } catch (extErr) {
+        // Non-fatal
+      }
+    }
+
+    const confirmedExts = extensions.filter(e => e.status === 'CONFIRMED');
+    const paymentSummary = parentRequest ? buildFarmerPaymentSummary(parentRequest, bookings, null, confirmedExts) : null;
     const isAllCompleted = summary.totalWorkers > 0 && summary.completed === summary.totalWorkers;
     const parentStatus = parentRequest?.status || (isAllCompleted ? 'completed' : (summary.journeyStarted > 0 || summary.inProgress > 0 ? 'in_progress' : 'confirmed'));
 
@@ -371,6 +415,9 @@ exports.getTrackingSnapshot = async (req, res) => {
         trackingId: id,
         requestId: parentRequest ? parentRequest._id.toString() : (bookings[0]?.workerRequestId?.toString() || id),
         bookingId: bookings[0]?._id?.toString() || id,
+        bookingType: parentRequest?.bookingType || (bookings[0]?.bookingType || 'HOURLY'),
+        startDate: parentRequest?.startDate || null,
+        numberOfDays: parentRequest?.numberOfDays || null,
         workTitle,
         workCategory,
         scheduledDate,
@@ -380,6 +427,7 @@ exports.getTrackingSnapshot = async (req, res) => {
         destination,
         summary,
         workers,
+        extensions,
         parentStatus,
         isParentCompleted: parentStatus === 'completed' || isAllCompleted,
         paymentSummary,
@@ -695,6 +743,12 @@ exports.workerVerifyVisitOtp = async (req, res) => {
       $or: [{ legacyBookingId: booking._id }, { parentRequestId: booking.workerRequestId, workerId }]
     }).select('+visitOtpHash');
 
+    if (indAssign && indAssign.bookingType === 'DAILY') {
+      const workerAssignmentController = require('../workerControllers/workerAssignmentController');
+      req.params.id = indAssign._id.toString();
+      return workerAssignmentController.verifyVisitOtp(req, res);
+    }
+
     const trimmedOtp = otp.toString().trim();
     const inputHash = crypto.createHash('sha256').update(trimmedOtp).digest('hex');
     const matchesBooking = booking.visitOtp && booking.visitOtp === trimmedOtp;
@@ -812,6 +866,12 @@ exports.workerCompleteJob = async (req, res) => {
     const assignment = await IndWorkerAssignment.findOne({
       $or: [{ legacyBookingId: booking._id }, { parentRequestId: booking.workerRequestId, workerId }]
     }).select('+completionOtpHash');
+
+    if (assignment && assignment.bookingType === 'DAILY') {
+      const workerAssignmentController = require('../workerControllers/workerAssignmentController');
+      req.params.id = assignment._id.toString();
+      return workerAssignmentController.verifyCompletionOtp(req, res);
+    }
 
     // Securely verify Completion OTP if assignment requires it
     if (assignment && assignment.completionOtpCode) {

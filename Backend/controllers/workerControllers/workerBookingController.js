@@ -333,13 +333,30 @@ exports.cancelRequest = async (req, res) => {
     request.status = 'cancelled';
     await request.save();
 
-    await notify({
-      recipientType: 'worker', recipientId: request.workerId,
-      type: 'worker_booking_rejected',
-      title: 'Request Cancelled',
-      message: 'The farmer has cancelled their work request.',
-      relatedId: request._id, relatedType: 'worker_booking_request'
-    });
+    if (request.workerId) {
+      await Worker.findByIdAndUpdate(request.workerId, { status: 'AVAILABLE' });
+
+      await notify({
+        recipientType: 'worker',
+        recipientId: request.workerId,
+        type: 'worker_request_cancelled',
+        title: '❌ Request Cancelled',
+        message: 'The farmer has cancelled their work request.',
+        relatedId: request._id,
+        relatedType: 'worker_booking_request',
+        data: { requestId: request._id }
+      });
+
+      const cancelPayload = {
+        requestId: request._id,
+        message: 'The farmer has cancelled their work request.'
+      };
+
+      emitSafe(`worker_${request.workerId}`, 'worker_request_cancelled', cancelPayload);
+      emitSafe(`worker:${request.workerId}`, 'worker_request_cancelled', cancelPayload);
+      emitSafe(`worker_${request.workerId}`, 'worker_booking_cancelled', cancelPayload);
+      emitSafe(`worker:${request.workerId}`, 'worker_booking_cancelled', cancelPayload);
+    }
 
     return res.json({ success: true, message: 'Request cancelled.' });
   } catch (err) {

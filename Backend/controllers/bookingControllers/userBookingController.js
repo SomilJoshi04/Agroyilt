@@ -1160,13 +1160,24 @@ const getBookingById = async (req, res) => {
         }
 
         let assignments = [];
+        let confirmedExtensions = [];
         if (parentRequest) {
           assignments = await IndWorkerAssignment.find({ parentRequestId: parentRequest._id });
+          try {
+            const IndWorkerExtension = require('../../models/IndWorkerExtension');
+            confirmedExtensions = await IndWorkerExtension.find({
+              parentRequestId: parentRequest._id,
+              status: 'CONFIRMED'
+            }).populate('workerExtensions.workerId', 'name phone profilePicture');
+          } catch (extErr) {
+            console.warn('[userBookingController getBookingById] Extension query warning:', extErr.message);
+          }
         } else {
           assignments = await IndWorkerAssignment.find({ legacyBookingId: booking._id });
         }
 
-        bookingData.paymentSummary = buildFarmerPaymentSummary(parentRequest, assignments, booking);
+        bookingData.paymentSummary = buildFarmerPaymentSummary(parentRequest, assignments, booking, confirmedExtensions);
+        bookingData.confirmedExtensions = confirmedExtensions;
         if (parentRequest) {
           bookingData.parentRequestId = parentRequest._id;
           bookingData.financialSnapshot = parentRequest.financialSnapshot;
@@ -1358,7 +1369,7 @@ const cancelBooking = async (req, res) => {
 
     // Manual FCM push removed (handled by createNotification)
 
-    // Send notification to vendor
+    // Send notification and socket event to vendor
     if (booking.vendorId) {
       await createNotification({
         vendorId: booking.vendorId,
@@ -1373,25 +1384,129 @@ const cancelBooking = async (req, res) => {
           link: `/vendor/bookings/${booking._id}`
         }
       });
-      // Manual FCM push removed
+
+      try {
+        const { getIO } = require('../../sockets');
+        const io = getIO();
+        if (io) {
+          io.to(`vendor_${booking.vendorId}`).emit('booking_cancelled', {
+            bookingId: booking._id.toString(),
+            message: `Booking ${booking.bookingNumber} has been cancelled by the customer.`
+          });
+        }
+      } catch (e) {}
     }
 
-    // Notify worker if assigned
-    if (booking.workerId) {
-      await createNotification({
-        workerId: booking.workerId,
-        type: 'booking_cancelled',
-        title: 'Booking Cancelled',
-        message: `Job ${booking.bookingNumber} has been cancelled by the customer.`,
-        relatedId: booking._id,
-        relatedType: 'booking',
-        pushData: {
-          type: 'job_cancelled',
-          bookingId: booking._id.toString(),
-          link: `/worker/job/${booking._id}`
+    // Handle Worker & Independent Worker Assignments Synchronization
+    try {
+      const IndWorkerAssignment = require('../../models/IndWorkerAssignment');
+      const WorkerBookingRequest = require('../../models/WorkerBookingRequest');
+      const { getIO } = require('../../sockets');
+      const io = getIO();
+
+      const affectedWorkerIds = new Set();
+      if (booking.workerId) affectedWorkerIds.add(booking.workerId.toString());
+
+      // Check if this booking belongs to an independent worker request
+      let parentRequest = null;
+      if (booking.workerRequestId) {
+        parentRequest = await WorkerBookingRequest.findById(booking.workerRequestId);
+      } else {
+        parentRequest = await WorkerBookingRequest.findOne({
+          $or: [
+            { finalBookingIds: booking._id },
+            { finalBookingId: booking._id }
+          ]
+        });
+      }
+
+      if (parentRequest) {
+        // Mark parent request as cancelled
+        parentRequest.status = 'cancelled';
+        await parentRequest.save();
+
+        // Cancel all sibling assignments
+        await IndWorkerAssignment.updateMany(
+          { parentRequestId: parentRequest._id },
+          { assignmentStatus: 'CANCELLED', workStatus: 'CANCELLED' }
+        );
+
+        // Cancel all sibling booking docs
+        if (parentRequest.finalBookingIds?.length > 0) {
+          await Booking.updateMany(
+            { _id: { $in: parentRequest.finalBookingIds } },
+            { status: BOOKING_STATUS.CANCELLED, cancellationReason: cancellationReason || 'Farmer cancelled booking' }
+          );
         }
-      });
-      // Manual FCM push removed
+
+        // Collect all workers from parent request & assignments
+        if (Array.isArray(parentRequest.finalWorkers)) {
+          parentRequest.finalWorkers.forEach(w => w && affectedWorkerIds.add(w.toString()));
+        }
+        if (Array.isArray(parentRequest.selectedWorkerIds)) {
+          parentRequest.selectedWorkerIds.forEach(w => w && affectedWorkerIds.add(w.toString()));
+        }
+        const allAssignments = await IndWorkerAssignment.find({ parentRequestId: parentRequest._id });
+        allAssignments.forEach(a => {
+          if (a.workerId) affectedWorkerIds.add(a.workerId.toString());
+        });
+      } else {
+        // Check if assignment exists directly for this booking
+        const singleAssign = await IndWorkerAssignment.findOneAndUpdate(
+          { legacyBookingId: booking._id },
+          { assignmentStatus: 'CANCELLED', workStatus: 'CANCELLED' }
+        );
+        if (singleAssign && singleAssign.workerId) {
+          affectedWorkerIds.add(singleAssign.workerId.toString());
+        }
+      }
+
+      // Free all affected workers back to AVAILABLE
+      if (affectedWorkerIds.size > 0) {
+        const Worker = require('../../models/Worker');
+        const workerList = Array.from(affectedWorkerIds);
+        await Worker.updateMany(
+          { _id: { $in: workerList } },
+          { status: 'AVAILABLE' }
+        );
+
+        // Notify every worker and emit real-time socket events
+        for (const wId of workerList) {
+          await createNotification({
+            workerId: wId,
+            type: 'booking_cancelled',
+            title: '❌ Booking Cancelled',
+            message: `Booking #${booking.bookingNumber} (${booking.serviceName || 'Service'}) has been cancelled by the customer.`,
+            relatedId: booking._id,
+            relatedType: 'booking',
+            pushData: {
+              type: 'job_cancelled',
+              bookingId: booking._id.toString(),
+              link: `/worker/jobs`
+            }
+          });
+
+          if (io) {
+            const payload = {
+              bookingId: booking._id.toString(),
+              requestId: parentRequest?._id?.toString() || booking._id.toString(),
+              bookingNumber: booking.bookingNumber,
+              serviceName: booking.serviceName,
+              message: `Booking #${booking.bookingNumber} has been cancelled by the customer.`
+            };
+            io.to(`worker_${wId}`).emit('worker_booking_cancelled', payload);
+            io.to(`worker:${wId}`).emit('worker_booking_cancelled', payload);
+            io.to(`worker_${wId}`).emit('job_cancelled', payload);
+            io.to(`worker:${wId}`).emit('job_cancelled', payload);
+            io.to(`worker_${wId}`).emit('booking_cancelled', payload);
+            io.to(`worker:${wId}`).emit('booking_cancelled', payload);
+            io.to(`worker_${wId}`).emit('worker_booking_update', { requestId: booking._id, type: 'booking_cancelled' });
+            io.to(`worker:${wId}`).emit('worker_booking_update', { requestId: booking._id, type: 'booking_cancelled' });
+          }
+        }
+      }
+    } catch (workerSyncErr) {
+      console.warn('[cancelBooking] Error syncing worker cancellation (non-fatal):', workerSyncErr.message);
     }
 
     res.status(200).json({

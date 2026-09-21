@@ -173,8 +173,20 @@ const FarmerRequestDetail = () => {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-black text-emerald-600">₹{request.maxRate}</p>
-              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Per Worker / Day</p>
+              {(() => {
+                const isDailyReq = request.bookingType === 'DAILY' || request.rateUnit === 'daily';
+                const effRate = isDailyReq
+                  ? (request.maxDailyRate || request.minDailyRate || request.maxRate || request.minRate || 0)
+                  : (request.maxRate || request.minRate || request.farmerOfferedRate || 0);
+                return (
+                  <>
+                    <p className="text-2xl font-black text-emerald-600">₹{effRate}</p>
+                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      {isDailyReq ? 'Per Worker / Day' : 'Per Worker / Hour'}
+                    </p>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -184,8 +196,14 @@ const FarmerRequestDetail = () => {
                 <FiCalendar size={14} />
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Date</p>
-                <p className="text-sm font-bold text-slate-700">{new Date(request.scheduledDate).toLocaleDateString()}</p>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                  {request.bookingType === 'DAILY' ? 'Daily Schedule' : 'Date'}
+                </p>
+                <p className="text-sm font-bold text-slate-700">
+                  {request.bookingType === 'DAILY'
+                    ? `${request.numberOfDays || 1} Day(s) (Starts ${request.startDate ? new Date(request.startDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : 'Soon'})`
+                    : (request.scheduledDate ? new Date(request.scheduledDate).toLocaleDateString('en-IN') : 'Scheduled')}
+                </p>
               </div>
             </div>
             
@@ -194,8 +212,14 @@ const FarmerRequestDetail = () => {
                 <FiClock size={14} />
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Time</p>
-                <p className="text-sm font-bold text-slate-700">{request.startTime} - {request.endTime}</p>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                  {request.bookingType === 'DAILY' ? 'Working Hours' : 'Time Slot'}
+                </p>
+                <p className="text-sm font-bold text-slate-700">
+                  {request.bookingType === 'DAILY'
+                    ? 'Full Day (Daily Rate)'
+                    : `${request.startTime || '00:00'} - ${request.endTime || '00:00'}`}
+                </p>
               </div>
             </div>
 
@@ -407,14 +431,49 @@ const FarmerRequestDetail = () => {
 
             {(() => {
               const isPaid = request.paymentStatus === 'success';
+              const isDaily = request.bookingType === 'DAILY' || request.rateUnit === 'daily';
               const effectiveWorkerCount = isPaid
                 ? (request.paymentSummary?.selectedWorkerCount || request.selectedWorkerIds?.length || 1)
                 : (selectedWorkerIds.length > 0 ? selectedWorkerIds.length : (request.selectedWorkerIds?.length || request.requiredWorkers || 1));
 
-              const ratePerWorker = Number(request.paymentSummary?.maxRatePerWorker || request.maxRate || request.minRate || 0);
+              // Maximum / Effective rate per worker (use maxRate, fallback to minRate)
+              const ratePerWorker = Number(
+                request.paymentSummary?.maxRatePerWorker ||
+                (isDaily
+                  ? (request.maxDailyRate || request.minDailyRate || request.maxRate || request.minRate)
+                  : (request.maxRate || request.minRate || request.farmerOfferedRate)) ||
+                0
+              );
+
+              // Duration in hours (for hourly booking)
+              let durationHours = 1;
+              if (!isDaily) {
+                if (request.paymentSummary?.durationHours && Number(request.paymentSummary.durationHours) > 0) {
+                  durationHours = Number(request.paymentSummary.durationHours);
+                } else if (request.durationMinutes && Number(request.durationMinutes) > 0) {
+                  durationHours = Number(request.durationMinutes) / 60;
+                } else if (request.startTime && request.endTime) {
+                  const [sH, sM] = request.startTime.split(':').map(Number);
+                  const [eH, eM] = request.endTime.split(':').map(Number);
+                  if (!isNaN(sH) && !isNaN(eH)) {
+                    let diffMinutes = (eH * 60 + (eM || 0)) - (sH * 60 + (sM || 0));
+                    if (diffMinutes < 0) diffMinutes += 24 * 60;
+                    if (diffMinutes > 0) durationHours = diffMinutes / 60;
+                  }
+                }
+              }
+              const numberOfDays = isDaily
+                ? Number(request.paymentSummary?.numberOfDays || request.numberOfDays || 1)
+                : 1;
+
+              // Worker reserve: rate * workers * (durationHours or numberOfDays)
+              const calculatedReserve = isDaily
+                ? Math.round(ratePerWorker * effectiveWorkerCount * numberOfDays)
+                : Math.round(ratePerWorker * effectiveWorkerCount * durationHours);
+
               const reserveAmount = isPaid
-                ? Number(request.paymentSummary?.workerReserveAmount || (ratePerWorker * effectiveWorkerCount))
-                : (ratePerWorker * effectiveWorkerCount);
+                ? Number(request.paymentSummary?.workerReserveAmount || calculatedReserve)
+                : calculatedReserve;
 
               const platformRate = Number(request.financialSnapshot?.platformChargeRate || request.paymentSummary?.platformChargeRate || 10);
               const platformFee = isPaid
@@ -424,6 +483,11 @@ const FarmerRequestDetail = () => {
               const totalAmount = isPaid
                 ? Number(request.paymentSummary?.totalPaidAmount || request.financialSnapshot?.totalPayable || (reserveAmount + platformFee))
                 : (reserveAmount + platformFee);
+
+              const rateUnitDisplay = isDaily ? '/day' : '/hourly';
+              const calculationFormulaText = isDaily
+                ? `₹${ratePerWorker.toLocaleString('en-IN')} × ${effectiveWorkerCount} worker${effectiveWorkerCount !== 1 ? 's' : ''} × ${numberOfDays} day${numberOfDays !== 1 ? 's' : ''}`
+                : `₹${ratePerWorker.toLocaleString('en-IN')} × ${effectiveWorkerCount} worker${effectiveWorkerCount !== 1 ? 's' : ''} × ${durationHours} hr${durationHours !== 1 ? 's' : ''}`;
 
               return (
                 <div className="space-y-3 text-sm">
@@ -438,15 +502,34 @@ const FarmerRequestDetail = () => {
                     <span className="font-medium">Maximum Rate / Worker</span>
                     <span className="font-bold text-slate-900">
                       ₹{ratePerWorker.toLocaleString('en-IN')}
-                      <span className="text-xs text-slate-400 font-normal ml-1">/{request.rateUnit || 'day'}</span>
+                      <span className="text-xs text-slate-400 font-normal ml-1">{rateUnitDisplay}</span>
                     </span>
                   </div>
+
+                  {!isDaily && (
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span className="font-medium">Booking Duration</span>
+                      <span className="font-bold text-slate-900">
+                        {durationHours} hour{durationHours !== 1 ? 's' : ''}
+                        <span className="text-xs text-slate-400 font-normal ml-1">({request.startTime} - {request.endTime})</span>
+                      </span>
+                    </div>
+                  )}
+
+                  {isDaily && (
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span className="font-medium">Working Days</span>
+                      <span className="font-bold text-slate-900">
+                        {numberOfDays} day{numberOfDays !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex justify-between items-center text-slate-600">
                     <div>
                       <span className="font-medium">Worker Payment Reserve</span>
-                      <span className="block text-[11px] text-slate-400">
-                        ₹{ratePerWorker.toLocaleString('en-IN')} × {effectiveWorkerCount}
+                      <span className="block text-[11px] text-slate-400 font-mono">
+                        {calculationFormulaText}
                       </span>
                     </div>
                     <span className="font-bold text-slate-900">
@@ -476,19 +559,80 @@ const FarmerRequestDetail = () => {
               );
             })()}
 
+              {/* ── TIME EXTENSION BREAKDOWN (If extensions exist) ── */}
+              {(() => {
+                const extSum = request.paymentSummary?.extensionsSummary;
+                const hasExt = Boolean(extSum?.hasExtension || (request.confirmedExtensions && request.confirmedExtensions.length > 0));
+                if (!hasExt) return null;
+
+                const totalExtMins = extSum?.totalExtensionMinutes || 0;
+                const totalExtDays = extSum?.totalAdditionalDays || 0;
+                const durationLabel = totalExtDays > 0 ? `+${totalExtDays} Day(s)` : `+${totalExtMins} Mins`;
+                const extGross = extSum?.totalExtensionGrossAmount || 0;
+                const extFee = extSum?.totalExtensionPlatformFee || 0;
+                const extTotalPaid = extSum?.totalExtensionPaidAmount || (extGross + extFee);
+
+                return (
+                  <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-3.5 space-y-2.5 mt-2">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-1.5">
+                        <FiClock className="w-4 h-4 text-amber-600" />
+                        <span className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+                          Time Extension Added
+                        </span>
+                      </div>
+                      <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                        {durationLabel}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-amber-950 pt-1 border-t border-amber-200/60">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Worker Extension Pay:</span>
+                        <span className="font-bold text-slate-800">₹{Number(extGross).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Extension Platform Fee:</span>
+                        <span className="font-medium text-slate-800">+₹{Number(extFee).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 border-t border-amber-200 font-bold">
+                        <span className="text-amber-900">Total Extension Paid:</span>
+                        <span className="text-sm font-black text-amber-800">₹{Number(extTotalPaid).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Settlement & Refund Section */}
               <div className="pt-2 space-y-2">
-                <div className="flex justify-between items-center text-slate-600">
-                  <span className="font-medium">Actual Worker Amount</span>
-                  <span className="font-bold text-slate-900">
-                    {request.paymentSummary?.actualWorkerAmount !== null && request.paymentSummary?.actualWorkerAmount !== undefined ? (
-                      `₹${Number(request.paymentSummary.actualWorkerAmount).toLocaleString('en-IN')}`
-                    ) : (
-                      <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        Pending / In Progress
-                      </span>
-                    )}
-                  </span>
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 space-y-2">
+                  <div className="flex justify-between items-center text-slate-600">
+                    <div>
+                      <span className="font-bold text-sm text-slate-900 block">Actual Worker Settlement</span>
+                      {request.paymentSummary?.extensionsSummary?.hasExtension && (
+                        <span className="text-[11px] text-slate-500">
+                          Base (₹{Number(request.paymentSummary.extensionsSummary.baseActualWorkerAmount).toLocaleString('en-IN')}) + Extension (₹{Number(request.paymentSummary.extensionsSummary.extensionWorkerAmount).toLocaleString('en-IN')})
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-black text-slate-900 text-base">
+                      {request.paymentSummary?.actualWorkerAmount !== null && request.paymentSummary?.actualWorkerAmount !== undefined ? (
+                        `₹${Number(request.paymentSummary.actualWorkerAmount).toLocaleString('en-IN')}`
+                      ) : (
+                        <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                          Pending / In Progress
+                        </span>
+                      )}
+                    </span>
+                  </div>
+
+                  {request.paymentSummary?.extensionsSummary?.hasExtension && (
+                    <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200/60 flex justify-between">
+                      <span>Base Shift Actual Pay:</span>
+                      <span className="font-semibold text-slate-700">₹{Number(request.paymentSummary.extensionsSummary.baseActualWorkerAmount).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3.5 space-y-2">
@@ -506,7 +650,12 @@ const FarmerRequestDetail = () => {
                   </div>
 
                   <div className="flex justify-between items-center pt-1 border-t border-emerald-100">
-                    <span className="text-sm font-bold text-emerald-900">Refund Amount</span>
+                    <div>
+                      <span className="text-sm font-bold text-emerald-900 block">Refund Amount</span>
+                      <span className="text-[10px] text-emerald-700">
+                        Unused portion of initial worker reserve
+                      </span>
+                    </div>
                     <span className="text-base font-black text-emerald-700">
                       {request.paymentSummary?.refundAmount !== null && request.paymentSummary?.refundAmount !== undefined ? (
                         `₹${Number(request.paymentSummary.refundAmount).toLocaleString('en-IN')}`
@@ -524,12 +673,23 @@ const FarmerRequestDetail = () => {
                 </div>
               </div>
 
-              {request.razorpayPaymentId && (
-                <div className="flex justify-between items-center text-xs text-slate-400 pt-1">
-                  <span>Payment Ref</span>
-                  <span className="font-mono text-slate-600">{request.razorpayPaymentId}</span>
-                </div>
-              )}
+              {/* Payment Reference ID(s) */}
+              <div className="space-y-1 pt-1 text-xs text-slate-400">
+                {request.razorpayPaymentId && (
+                  <div className="flex justify-between items-center">
+                    <span>Initial Payment Ref</span>
+                    <span className="font-mono text-slate-600">{request.razorpayPaymentId}</span>
+                  </div>
+                )}
+                {request.paymentSummary?.extensionsSummary?.items?.map((ext, idx) => (
+                  ext.paymentReference && (
+                    <div key={idx} className="flex justify-between items-center text-[11px]">
+                      <span>Ext #{idx + 1} Payment Ref</span>
+                      <span className="font-mono text-slate-600">{ext.paymentReference}</span>
+                    </div>
+                  )
+                ))}
+              </div>
             </div>
         )}
 

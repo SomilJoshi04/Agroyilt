@@ -15,7 +15,9 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
   useEffect(() => {
     if (isOpen && requestData) {
       const validId = requestData.requestId || requestData._id || requestData.id;
-      if (!validId || (!requestData.workTitle && !requestData.serviceName)) {
+      const hasWorkInfo = requestData.workTitle || requestData.workCategory ||
+                          requestData.serviceName || requestData.title;
+      if (!validId || !hasWorkInfo) {
         onClose();
         return;
       }
@@ -47,12 +49,31 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
     return () => stopAlertRing();
   }, [isOpen, requestData]);
 
+  const targetRequestId = requestData?.requestId || requestData?._id || requestData?.id;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleCancelEvent = (e) => {
+      const detail = e.detail || {};
+      const cId = detail.requestId || detail.bookingId || detail._id;
+      if (!cId || String(cId) === String(targetRequestId)) {
+        stopAlertRing();
+        onClose && onClose();
+      }
+    };
+
+    window.addEventListener('workerBookingCancelled', handleCancelEvent);
+    window.addEventListener('workerRequestCancelled', handleCancelEvent);
+    return () => {
+      window.removeEventListener('workerBookingCancelled', handleCancelEvent);
+      window.removeEventListener('workerRequestCancelled', handleCancelEvent);
+    };
+  }, [isOpen, targetRequestId, onClose]);
+
   const handleTimeout = () => {
     stopAlertRing();
     onClose();
   };
-
-  const targetRequestId = requestData?.requestId || requestData?._id || requestData?.id;
 
   const handleAccept = async () => {
     if (!targetRequestId) {
@@ -190,11 +211,15 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
                     <FiDollarSign className="w-4 h-4" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Offered Rate</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      {requestData.bookingType === 'DAILY' ? 'Daily Rate' : 'Hourly Rate'}
+                    </p>
                     <p className="text-sm font-black text-gray-800">
                       ₹{requestData.minRate || requestData.farmerOfferedRate || 0}
                       {requestData.maxRate && requestData.maxRate > requestData.minRate ? ` - ₹${requestData.maxRate}` : ''}
-                      {requestData.rateUnit ? <span className="text-[10px] text-gray-500 font-bold uppercase ml-1">/ {requestData.rateUnit}</span> : ''}
+                      <span className="text-[10px] text-gray-500 font-bold uppercase ml-1">
+                        / {requestData.bookingType === 'DAILY' ? 'day' : 'hr'}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -204,9 +229,13 @@ const WorkerBookingRequestAlertModal = ({ isOpen, requestData, onClose, onReques
                     <FiCalendar className="w-4 h-4" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date & Time</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      {requestData.bookingType === 'DAILY' ? 'Daily Schedule' : 'Date & Time'}
+                    </p>
                     <p className="text-sm font-bold text-gray-800">
-                      {requestData.scheduledDate ? new Date(requestData.scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Today'} ? {requestData.startTime || 'Flexible'}{requestData.endTime ? ` - ${requestData.endTime}` : ''}
+                      {requestData.bookingType === 'DAILY'
+                        ? `${requestData.numberOfDays || 1} Day(s) • Starts ${requestData.startDate ? new Date(requestData.startDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : (requestData.scheduledDate ? new Date(requestData.scheduledDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : 'Soon')}`
+                        : `${requestData.scheduledDate ? new Date(requestData.scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Today'} • ${requestData.startTime || 'Flexible'}${requestData.endTime ? ` - ${requestData.endTime}` : ''}`}
                     </p>
                   </div>
                 </div>
