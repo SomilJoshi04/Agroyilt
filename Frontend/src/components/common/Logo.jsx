@@ -4,18 +4,17 @@ import { useBrand } from '../../context/BrandContext';
 /**
  * Centralized Logo Component
  * Dynamic App Logo & Name from BrandContext
- * Usage: <Logo className="h-8 w-auto" />
+ * Usage: <Logo className="h-14 w-14" />
  */
-const Logo = forwardRef(({ className = "h-8 w-auto", imgClassName = "", ...props }, ref) => {
+const Logo = forwardRef(({ className = "h-14 w-14", imgClassName = "", ...props }, ref) => {
   const { appLogo, appName } = useBrand();
   const fallback = "/AgroyiltLogo.png";
   const logoSrc = appLogo || fallback;
-  const isDefaultBadge = !appLogo || appLogo === fallback;
 
   return (
     <div
       ref={ref}
-      className={`${className} aspect-square rounded-full overflow-hidden flex items-center justify-center bg-transparent shrink-0`}
+      className={`${className} aspect-square rounded-full overflow-hidden flex items-center justify-center bg-white shadow-sm border border-gray-100/80 shrink-0 relative`}
       {...props}
     >
       <img
@@ -23,9 +22,7 @@ const Logo = forwardRef(({ className = "h-8 w-auto", imgClassName = "", ...props
         alt={appName || "AgroYilt"}
         className={
           imgClassName ||
-          (isDefaultBadge
-            ? "w-[115%] h-[115%] max-w-none object-cover"
-            : "w-full h-full object-contain p-0.5")
+          "w-[125%] h-[125%] max-w-none object-cover object-center select-none"
         }
         onError={(e) => {
           if (e.target.src !== fallback) {
@@ -40,3 +37,4 @@ const Logo = forwardRef(({ className = "h-8 w-auto", imgClassName = "", ...props
 Logo.displayName = 'Logo';
 
 export default Logo;
+

@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiBell, FiSearch } from 'react-icons/fi';
 import { gsap } from 'gsap';
@@ -129,7 +129,7 @@ const Header = ({
             >
               <Logo
                 ref={logoRef}
-                className="h-12 w-auto"
+                className="h-14 w-14 sm:h-16 sm:w-16 shadow-md border-2 border-white/80 transition-transform"
               />
             </div>
           )}

@@ -36,7 +36,8 @@ const getProfile = async (req, res) => {
         rating: worker.rating || 0,
         totalJobs: worker.totalJobs || 0,
         completedJobs: worker.completedJobs || 0,
-        status: worker.status,
+        status: (worker.status === 'ONLINE') ? 'ONLINE' : 'OFFLINE',
+        isOnline: Boolean(worker.isOnline),
         profilePhoto: worker.profilePhoto || null,
         workerType: worker.workerType || 'WORKER',
         teamId: worker.teamId || null,
@@ -108,7 +109,17 @@ const updateProfile = async (req, res) => {
         fullAddress: address.fullAddress || worker.address?.fullAddress || ''
       };
     }
-    if (status) worker.status = status;
+    // Strict status validation if status is provided in profile payload
+    if (status !== undefined) {
+      if (status !== 'ONLINE' && status !== 'OFFLINE') {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid status value. Worker availability status must be either 'ONLINE' or 'OFFLINE'."
+        });
+      }
+      worker.status = status;
+    }
+
     // Update profile photo - upload to Cloudinary if it's a base64 string
     if (profilePhoto !== undefined) {
       if (profilePhoto && profilePhoto.startsWith('data:')) {
@@ -131,6 +142,24 @@ const updateProfile = async (req, res) => {
 
     await worker.save();
 
+    // Broadcast real-time availability update via Socket.IO if status was updated
+    if (status !== undefined) {
+      try {
+        const { getIO } = require('../../sockets');
+        const io = getIO();
+        if (io) {
+          const minimalPayload = {
+            workerId: worker._id.toString(),
+            status: worker.status
+          };
+          io.to(`worker_${worker._id.toString()}`).emit('worker_status_updated', minimalPayload);
+          io.to(`worker:${worker._id.toString()}`).emit('worker_status_updated', minimalPayload);
+        }
+      } catch (socketErr) {
+        // Non-blocking socket broadcast
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
@@ -151,7 +180,8 @@ const updateProfile = async (req, res) => {
         totalJobs: worker.totalJobs,
         completedJobs: worker.completedJobs,
         status: worker.status,
-        profilePhoto: worker.profilePhoto, // Include in response
+        isOnline: Boolean(worker.isOnline),
+        profilePhoto: worker.profilePhoto,
         settings: worker.settings,
         isPhoneVerified: worker.isPhoneVerified,
         isEmailVerified: worker.isEmailVerified
@@ -167,11 +197,68 @@ const updateProfile = async (req, res) => {
 };
 
 /**
+ * Update worker availability status (ONLINE / OFFLINE)
+ * Dedicated endpoint. Authenticated worker only. Strictly validates value.
+ */
+const updateAvailability = async (req, res) => {
+  try {
+    const workerId = req.user.id || req.user._id;
+    const { status } = req.body;
+
+    if (!status || (status !== 'ONLINE' && status !== 'OFFLINE')) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status value. Worker availability status must be either 'ONLINE' or 'OFFLINE'."
+      });
+    }
+
+    const worker = await Worker.findById(workerId);
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message: 'Worker not found'
+      });
+    }
+
+    worker.status = status;
+    await worker.save();
+
+    // Broadcast minimal status change event over Socket.IO
+    try {
+      const { getIO } = require('../../sockets');
+      const io = getIO();
+      if (io) {
+        const minimalPayload = {
+          workerId: worker._id.toString(),
+          status: worker.status
+        };
+        io.to(`worker_${worker._id.toString()}`).emit('worker_status_updated', minimalPayload);
+        io.to(`worker:${worker._id.toString()}`).emit('worker_status_updated', minimalPayload);
+      }
+    } catch (socketErr) {
+      // Non-blocking socket broadcast
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Availability updated to ${worker.status}`,
+      status: worker.status
+    });
+  } catch (error) {
+    console.error('Update worker availability error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update availability. Please try again.'
+    });
+  }
+};
+
+/**
  * Update worker real-time location
  */
 const updateLocation = async (req, res) => {
   try {
-    const workerId = req.user.id;
+    const workerId = req.user.id || req.user._id;
     const { lat, lng } = req.body;
 
     if (lat === undefined || lng === undefined) {
@@ -193,6 +280,7 @@ const updateLocation = async (req, res) => {
 module.exports = {
   getProfile,
   updateProfile,
+  updateAvailability,
   updateLocation
 };
 

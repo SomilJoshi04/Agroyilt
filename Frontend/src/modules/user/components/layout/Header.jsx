@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { HiLocationMarker, HiMenuAlt2 } from 'react-icons/hi';
 import { gsap } from 'gsap';
 import LocationSelector from '../common/LocationSelector';
@@ -66,7 +66,7 @@ const Header = ({ location, onLocationClick }) => {
               >
                 <Logo
                   ref={logoRef}
-                  className="h-9 w-auto"
+                  className="h-12 w-12 sm:h-14 sm:w-14 shadow-sm border border-gray-100"
                 />
               </div>
             </div>

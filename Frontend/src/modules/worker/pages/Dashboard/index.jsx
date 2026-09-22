@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiCheckCircle, FiClock, FiTrendingUp, FiChevronRight, FiUser, FiBell, FiMapPin, FiArrowRight } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
@@ -12,6 +12,8 @@ import { useSocket } from '../../../../context/SocketContext';
 import WorkerJobAlertModal from '../../components/bookings/WorkerJobAlertModal';
 // WorkerBookingRequestAlertModal is handled globally in WorkerRoutes
 import LogoLoader from '../../../../components/common/LogoLoader';
+import authStorage from '../../../../utils/authStorage';
+import { toastManager } from '../../../../utils/toastManager';
 
 
 const Dashboard = () => {
@@ -59,6 +61,7 @@ const Dashboard = () => {
     status: 'OFFLINE',
   });
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const statusSeqRef = useRef(0);
   const [recentJobs, setRecentJobs] = useState([]);
 
   // Set background gradient
@@ -101,6 +104,7 @@ const Dashboard = () => {
 
       if (profileRes.success) {
         const profile = profileRes.worker;
+        const normalizedStatus = (profile.status === 'ONLINE') ? 'ONLINE' : 'OFFLINE';
         setWorkerProfile({
           name: profile.name || 'Worker Name',
           phone: profile.phone || '',
@@ -110,8 +114,9 @@ const Dashboard = () => {
           address: profile.address,
           workerType: profile.workerType || 'WORKER',
           teamId: profile.teamId || null,
-          status: (profile.status === 'ONLINE' || profile.status === 'AVAILABLE' || profile.status === 'active') ? 'ONLINE' : (profile.status || 'OFFLINE'),
+          status: normalizedStatus,
         });
+        authStorage.updateUserData('worker', { status: normalizedStatus });
       }
 
       if (statsRes.success) {
@@ -179,23 +184,44 @@ const Dashboard = () => {
   };
 
   const handleToggleStatus = async (e) => {
-    e.stopPropagation(); // Prevent clicking the profile card
+    e?.stopPropagation?.(); // Prevent clicking the profile card
     if (isTogglingStatus) return;
-    
+
+    const isCurrentlyOnline = workerProfile.status === 'ONLINE';
+    const newStatus = isCurrentlyOnline ? 'OFFLINE' : 'ONLINE';
+    const prevStatus = workerProfile.status;
+    const currentSeq = ++statusSeqRef.current;
+
     try {
       setIsTogglingStatus(true);
-      const isCurrentlyOnline = workerProfile.status === 'ONLINE' || workerProfile.status === 'AVAILABLE' || workerProfile.status === 'active';
-      const newStatus = isCurrentlyOnline ? 'OFFLINE' : 'ONLINE';
-      
-      const res = await workerService.updateProfile({ status: newStatus });
-      
+      // 1. Optimistic UI update
+      setWorkerProfile(prev => ({ ...prev, status: newStatus }));
+      authStorage.updateUserData('worker', { status: newStatus });
+
+      // 2. Immediate backend API call
+      const res = await workerService.updateAvailability(newStatus);
+      if (currentSeq !== statusSeqRef.current) return;
+
       if (res.success) {
-        setWorkerProfile(prev => ({ ...prev, status: newStatus }));
+        // 3. Confirm auth storage & emit synchronization event
+        authStorage.updateUserData('worker', { status: newStatus });
+        window.dispatchEvent(new CustomEvent('workerStatusUpdated', { detail: { status: newStatus } }));
+        toastManager.success(`You are now ${newStatus === 'ONLINE' ? 'Online' : 'Offline'}`);
+      } else {
+        throw new Error(res.message || 'Failed to update status');
       }
     } catch (err) {
+      if (currentSeq !== statusSeqRef.current) return;
       console.error('Failed to toggle status:', err);
+      // Rollback
+      setWorkerProfile(prev => ({ ...prev, status: prevStatus }));
+      authStorage.updateUserData('worker', { status: prevStatus });
+      window.dispatchEvent(new CustomEvent('workerStatusUpdated', { detail: { status: prevStatus } }));
+      toastManager.error(err.response?.data?.message || err.message || 'Failed to update status');
     } finally {
-      setIsTogglingStatus(false);
+      if (currentSeq === statusSeqRef.current) {
+        setIsTogglingStatus(false);
+      }
     }
   };
 
@@ -206,28 +232,45 @@ const Dashboard = () => {
     // Ask for notification permission and register FCM
     registerFCMToken('worker', true).catch(err => console.error('FCM registration failed:', err));
 
-    // Listen for updates
-    const handleUpdate = () => {
+    // Listen for cross-component status & profile updates
+    const handleStatusSync = (e) => {
+      const s = e?.detail?.status;
+      if (s === 'ONLINE' || s === 'OFFLINE') {
+        setWorkerProfile(prev => {
+          if (prev.status !== s) {
+            return { ...prev, status: s };
+          }
+          return prev;
+        });
+      }
+    };
+
+    const handleProfileUpdate = () => {
       fetchDashboardData();
     };
-    
-    
 
-    window.addEventListener('workerJobsUpdated', handleUpdate);
-
+    window.addEventListener('workerStatusUpdated', handleStatusSync);
+    window.addEventListener('workerProfileUpdated', handleProfileUpdate);
+    window.addEventListener('workerJobsUpdated', handleProfileUpdate);
 
     return () => {
-      window.removeEventListener('workerJobsUpdated', handleUpdate);
-
+      window.removeEventListener('workerStatusUpdated', handleStatusSync);
+      window.removeEventListener('workerProfileUpdated', handleProfileUpdate);
+      window.removeEventListener('workerJobsUpdated', handleProfileUpdate);
     };
-
   }, []);
 
-
-
-  // Socket Listener for New Jobs
+  // Socket Listener for Real-Time Status & New Jobs
   useEffect(() => {
     if (!socket) return;
+
+    // Listen for real-time availability updates
+    const handleSocketStatusUpdate = (data) => {
+      if (data?.status === 'ONLINE' || data?.status === 'OFFLINE') {
+        setWorkerProfile(prev => ({ ...prev, status: data.status }));
+        authStorage.updateUserData('worker', { status: data.status });
+      }
+    };
 
     const handleNotification = (notif) => {
       // Listen for new job assignments
@@ -236,8 +279,13 @@ const Dashboard = () => {
       }
     };
 
+    socket.on('worker_status_updated', handleSocketStatusUpdate);
     socket.on('notification', handleNotification);
-    return () => socket.off('notification', handleNotification);
+
+    return () => {
+      socket.off('worker_status_updated', handleSocketStatusUpdate);
+      socket.off('notification', handleNotification);
+    };
   }, [socket]);
 
   if (loading) {
@@ -317,11 +365,11 @@ const Dashboard = () => {
                 {/* Status Toggle in Dashboard */}
                 <div 
                   onClick={handleToggleStatus}
-                  className="inline-flex items-center gap-1.5 mt-1 bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md px-3 py-1 rounded-full cursor-pointer border border-white/30"
+                  className="inline-flex items-center gap-1.5 mt-1 bg-white/20 hover:bg-white/30 transition-all backdrop-blur-md px-3 py-1 rounded-full cursor-pointer border border-white/30 active:scale-95"
                 >
-                  <div className={`w-2 h-2 rounded-full ${(workerProfile.status === 'ONLINE' || workerProfile.status === 'AVAILABLE' || workerProfile.status === 'active') ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]' : 'bg-red-400'}`}></div>
+                  <div className={`w-2 h-2 rounded-full ${workerProfile.status === 'ONLINE' ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]' : 'bg-red-400'}`}></div>
                   <span className="text-xs font-bold text-white tracking-wide">
-                    {isTogglingStatus ? 'UPDATING...' : ((workerProfile.status === 'ONLINE' || workerProfile.status === 'AVAILABLE' || workerProfile.status === 'active') ? 'ONLINE' : 'OFFLINE')}
+                    {isTogglingStatus ? 'UPDATING...' : (workerProfile.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE')}
                   </span>
                 </div>
               </div>

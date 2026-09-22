@@ -1520,7 +1520,9 @@ const AdminSettings = () => {
                       {/* Logo Preview */}
                       <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
                         <span className="text-xs text-gray-500 font-medium">Logo Preview:</span>
-                        <img src={brandingSettings.appLogo || "/AgroyiltLogo.png"} alt="Preview" className="h-10 w-10 object-contain rounded-full border bg-white shadow-sm" onError={(e) => { e.target.src = "/AgroyiltLogo.png"; }} />
+                        <div className="h-12 w-12 aspect-square rounded-full overflow-hidden flex items-center justify-center bg-white border border-gray-200 shadow-sm shrink-0">
+                          <img src={brandingSettings.appLogo || "/AgroyiltLogo.png"} alt="Preview" className="w-[125%] h-[125%] max-w-none object-cover object-center" onError={(e) => { e.target.src = "/AgroyiltLogo.png"; }} />
+                        </div>
                       </div>
                     </div>
 

@@ -1,20 +1,25 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiChevronRight, FiTag, FiLogOut } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
 import { workerTheme as themeColors, vendorTheme } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
+import workerService from '../../../../services/workerService';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import authStorage from '../../../../utils/authStorage';
+import { useSocket } from '../../../../context/SocketContext';
 
 const Profile = () => {
   const navigate = useNavigate();
+  const socket = useSocket();
   // Initialize with empty/default values - will be loaded from localStorage
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const statusSeqRef = useRef(0);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -57,6 +62,7 @@ const Profile = () => {
             serviceCategories: workerData.serviceCategories || (workerData.serviceCategory ? [workerData.serviceCategory] : []),
             skills: workerData.skills || [],
             photo: workerData.profilePhoto || null,
+            status: (workerData.status === 'ONLINE') ? 'ONLINE' : 'OFFLINE',
             isPhoneVerified: workerData.isPhoneVerified || false,
             isEmailVerified: workerData.isEmailVerified || false
           });
@@ -109,7 +115,96 @@ const Profile = () => {
     };
 
     fetchProfile();
+
+    // Listen for cross-component status & profile updates
+    const handleStatusSync = (e) => {
+      const s = e?.detail?.status;
+      if (s === 'ONLINE' || s === 'OFFLINE') {
+        setProfile(prev => {
+          if (prev && prev.status !== s) {
+            return { ...prev, status: s };
+          }
+          return prev;
+        });
+      }
+    };
+
+    const handleProfileUpdate = () => {
+      fetchProfile();
+    };
+
+    window.addEventListener('workerStatusUpdated', handleStatusSync);
+    window.addEventListener('workerProfileUpdated', handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener('workerStatusUpdated', handleStatusSync);
+      window.removeEventListener('workerProfileUpdated', handleProfileUpdate);
+    };
   }, []);
+
+  // Socket listener for real-time status updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSocketStatusUpdate = (data) => {
+      if (data?.status === 'ONLINE' || data?.status === 'OFFLINE') {
+        setProfile(prev => {
+          if (prev) {
+            return { ...prev, status: data.status };
+          }
+          return prev;
+        });
+        authStorage.updateUserData('worker', { status: data.status });
+      }
+    };
+
+    socket.on('worker_status_updated', handleSocketStatusUpdate);
+    return () => {
+      socket.off('worker_status_updated', handleSocketStatusUpdate);
+    };
+  }, [socket]);
+
+  // Instant availability toggle with optimistic UI, race protection & rollback
+  const handleToggleStatus = async (e) => {
+    e?.stopPropagation?.();
+    if (isTogglingStatus || !profile) return;
+
+    const isCurrentlyOnline = profile.status === 'ONLINE';
+    const newStatus = isCurrentlyOnline ? 'OFFLINE' : 'ONLINE';
+    const prevStatus = profile.status;
+    const currentSeq = ++statusSeqRef.current;
+
+    try {
+      setIsTogglingStatus(true);
+      // 1. Optimistic UI update
+      setProfile(prev => ({ ...prev, status: newStatus }));
+      authStorage.updateUserData('worker', { status: newStatus });
+
+      // 2. Call backend
+      const res = await workerService.updateAvailability(newStatus);
+      if (currentSeq !== statusSeqRef.current) return;
+
+      if (res.success) {
+        authStorage.updateUserData('worker', { status: newStatus });
+        window.dispatchEvent(new CustomEvent('workerStatusUpdated', { detail: { status: newStatus } }));
+        toastManager.success(`You are now ${newStatus === 'ONLINE' ? 'Online' : 'Offline'}`);
+      } else {
+        throw new Error(res.message || 'Failed to update status');
+      }
+    } catch (err) {
+      if (currentSeq !== statusSeqRef.current) return;
+      console.error('Failed to toggle status:', err);
+      // Rollback
+      setProfile(prev => ({ ...prev, status: prevStatus }));
+      authStorage.updateUserData('worker', { status: prevStatus });
+      window.dispatchEvent(new CustomEvent('workerStatusUpdated', { detail: { status: prevStatus } }));
+      toastManager.error(err.response?.data?.message || err.message || 'Failed to update status');
+    } finally {
+      if (currentSeq === statusSeqRef.current) {
+        setIsTogglingStatus(false);
+      }
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -213,10 +308,21 @@ const Profile = () => {
                     <FiStar className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300" />
                     <span className="text-white text-sm font-bold">{profile.rating}</span>
                   </div>
-                  <span className="text-white/60 text-xs">?</span>
+                  <span className="text-white/60 text-xs">•</span>
                   <p className="text-sm text-white opacity-90 font-medium">{profile.completedJobs} Completed</p>
-                  <span className="text-white/60 text-xs">?</span>
+                  <span className="text-white/60 text-xs">•</span>
                   <p className="text-sm text-white opacity-90 font-medium">{profile.totalJobs} Total</p>
+                </div>
+
+                {/* Availability Toggle in Profile Header */}
+                <div 
+                  onClick={handleToggleStatus}
+                  className="inline-flex items-center gap-1.5 mt-2 bg-white/20 hover:bg-white/30 transition-all backdrop-blur-md px-3 py-1 rounded-full cursor-pointer border border-white/30 active:scale-95"
+                >
+                  <div className={`w-2 h-2 rounded-full ${profile.status === 'ONLINE' ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]' : 'bg-red-400'}`}></div>
+                  <span className="text-xs font-bold text-white tracking-wide">
+                    {isTogglingStatus ? 'UPDATING...' : (profile.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE')}
+                  </span>
                 </div>
               </div>
             </div>

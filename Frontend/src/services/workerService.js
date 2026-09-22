@@ -12,6 +12,11 @@ const workerService = {
     return response.data;
   },
 
+  updateAvailability: async (status) => {
+    const response = await api.put('/workers/profile/availability', { status });
+    return response.data;
+  },
+
   updateLocation: async (lat, lng) => {
     // Assuming backend accepts { location: { lat, lng } } or similar
     // We send partial update if supported, or implementation depends on backend

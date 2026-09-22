@@ -1,4 +1,4 @@
-﻿import React, { memo, useState, useEffect } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiBell, FiSearch } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -97,7 +97,7 @@ const Header = memo(({
               whileTap={{ scale: 0.95 }}
               transition={{ duration: 0.2 }}
             >
-              <Logo className="h-12 w-auto" />
+              <Logo className="h-14 w-14 sm:h-16 sm:w-16 shadow-md border-2 border-white/80" />
             </motion.div>
           )}
           {showBack && <h1 className="text-lg font-bold text-gray-800">{title || 'Vendor'}</h1>}

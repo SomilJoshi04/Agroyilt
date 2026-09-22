@@ -352,12 +352,12 @@ const initializeSocket = (server) => {
     });
 
     socket.on('disconnect', () => {
-      console.log(`[Socket] Client disconnected (Role: ${socket.userRole || 'UNKNOWN'})`);
-      // Update online status
+      console.log(`[Socket] Client disconnected (Role: ${socket.userRole || 'UNKNOWN'}, SocketId: ${socket.id})`);
+      // Update online connectivity status
       if (socket.userRole === 'VENDOR') {
-        updateVendorOnlineStatus(socket.userId, false, null);
+        updateVendorOnlineStatus(socket.userId, false, socket.id);
       } else if (socket.userRole === 'WORKER') {
-        updateWorkerOnlineStatus(socket.userId, false, null);
+        updateWorkerOnlineStatus(socket.userId, false, socket.id);
       }
     });
   });
@@ -393,24 +393,52 @@ const updateVendorOnlineStatus = async (vendorId, isOnline, socketId) => {
   }
 };
 
-// Helper function to update worker online status
+// Helper function to update worker online socket connectivity
+// IMPORTANT: Does NOT modify worker.status (worker.status is intentional business availability)
 const updateWorkerOnlineStatus = async (workerId, isOnline, socketId) => {
   try {
     const Worker = require('../models/Worker');
 
-    const updateData = {
-      status: isOnline ? 'ONLINE' : 'OFFLINE',
-      // currentSocketId: socketId // Add to model if needed
-    };
+    if (isOnline) {
+      // Socket connected: mark isOnline = true and record active socket ID
+      await Worker.findByIdAndUpdate(workerId, {
+        isOnline: true,
+        currentSocketId: socketId
+      });
+      console.log(`[Socket] Worker ${workerId} connected (socketId: ${socketId})`);
+    } else {
+      // Socket disconnecting:
+      // Multi-socket handling: check if the worker still has other active sockets in room
+      const wId = workerId.toString();
+      let hasOtherSockets = false;
+      if (io) {
+        const room = io.sockets.adapter.rooms.get(`worker_${wId}`);
+        if (room && room.size > 0) {
+          hasOtherSockets = true;
+        }
+      }
 
-    if (!isOnline) {
-      updateData.lastSeenAt = new Date(); // Add to model if needed
+      if (hasOtherSockets) {
+        console.log(`[Socket] Worker ${wId} socket ${socketId} disconnected, but remaining sockets are active in room.`);
+        return;
+      }
+
+      // Check if the disconnecting socket is the current/active socket in DB
+      const currentWorker = await Worker.findById(workerId).select('currentSocketId');
+      if (currentWorker && currentWorker.currentSocketId && socketId && currentWorker.currentSocketId !== socketId) {
+        console.log(`[Socket] Worker ${wId} disconnecting socket (${socketId}) does not match current active socket (${currentWorker.currentSocketId}). Keeping isOnline: true.`);
+        return;
+      }
+
+      // Safe to mark as disconnected (NEVER touch worker.status!)
+      await Worker.findByIdAndUpdate(workerId, {
+        isOnline: false,
+        currentSocketId: null,
+        lastSeenAt: new Date()
+      });
+
+      console.log(`[Socket] Worker ${wId} all sockets disconnected (isOnline: false)`);
     }
-
-    // Update MongoDB
-    await Worker.findByIdAndUpdate(workerId, updateData);
-
-    console.log(`[Socket] Worker ${workerId} is now ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
   } catch (error) {
     console.error('[Socket] Error updating worker online status:', error);
   }

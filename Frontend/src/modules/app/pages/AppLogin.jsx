@@ -358,13 +358,14 @@ const AppLogin = () => {
         </button>
 
         <div style={{
-          width: '36px', height: '36px', borderRadius: '10px',
+          width: '42px', height: '42px', borderRadius: '50%',
           overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flexShrink: 0,
+          background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
           <img
             src={appLogo || '/AgroyiltLogo.png'}
             alt={appName || 'AgroYilt'}
-            style={{ width: '115%', height: '115%', objectFit: 'cover' }}
+            style={{ width: '125%', height: '125%', objectFit: 'cover' }}
             onError={e => { e.target.src = '/AgroyiltLogo.png'; }}
           />
         </div>

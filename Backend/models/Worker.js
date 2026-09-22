@@ -207,6 +207,21 @@ const workerSchema = new mongoose.Schema({
     default: 0
   },
 
+  // Real-time Socket Connectivity (strictly separate from business availability 'status')
+  isOnline: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  lastSeenAt: {
+    type: Date,
+    default: null
+  },
+  currentSocketId: {
+    type: String,
+    default: null
+  },
+
   // FCM Push Notification Tokens
   fcmTokens: [{
     token: { type: String, required: true },
@@ -220,6 +235,7 @@ const workerSchema = new mongoose.Schema({
 
 // Indexes for faster queries
 workerSchema.index({ status: 1 });
+workerSchema.index({ isOnline: 1 });
 workerSchema.index({ approvalStatus: 1 });
 
 // Hash password before saving

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiSave, FiUser, FiPhone, FiMail,
@@ -70,6 +70,10 @@ const EditProfile = () => {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [errors, setErrors] = useState({});
 
+  // Immediate status toggle states & race protection
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const statusSeqRef = useRef(0);
+
   const handleNativeCamera = async () => {
     const file = await flutterBridge.openCamera();
     if (file) {
@@ -112,7 +116,7 @@ const EditProfile = () => {
             dailyRate: w.dailyRate || '',
             landRate: w.landRate || '',
             profilePhoto: w.profilePhoto || null,
-            status: w.status || 'OFFLINE'
+            status: (w.status === 'ONLINE') ? 'ONLINE' : 'OFFLINE'
           });
         }
 
@@ -147,6 +151,68 @@ const EditProfile = () => {
     };
     initData();
   }, []);
+
+  // Listen for real-time status updates from Dashboard or Socket
+  useEffect(() => {
+    const handleStatusSync = (e) => {
+      const s = e?.detail?.status;
+      if (s === 'ONLINE' || s === 'OFFLINE') {
+        setFormData(prev => {
+          if (prev.status !== s) {
+            return { ...prev, status: s };
+          }
+          return prev;
+        });
+      }
+    };
+
+    window.addEventListener('workerStatusUpdated', handleStatusSync);
+    return () => {
+      window.removeEventListener('workerStatusUpdated', handleStatusSync);
+    };
+  }, []);
+
+  // Instant availability toggle with optimistic UI, race protection & rollback
+  const handleStatusToggle = async (newStatus) => {
+    if (formData.status === newStatus || isUpdatingStatus) return;
+
+    const prevStatus = formData.status;
+    const currentSeq = ++statusSeqRef.current;
+
+    // 1. Optimistic UI update
+    setFormData(prev => ({ ...prev, status: newStatus }));
+    authStorage.updateUserData('worker', { status: newStatus });
+    setIsUpdatingStatus(true);
+
+    try {
+      // 2. Immediate backend API call
+      const res = await workerService.updateAvailability(newStatus);
+
+      // Discard response if a newer toggle request was made in the meantime
+      if (currentSeq !== statusSeqRef.current) return;
+
+      if (res.success) {
+        // 3. Confirm auth storage & emit synchronization event
+        authStorage.updateUserData('worker', { status: newStatus });
+        window.dispatchEvent(new CustomEvent('workerStatusUpdated', { detail: { status: newStatus } }));
+        toastManager.success(`You are now ${newStatus === 'ONLINE' ? 'Online' : 'Offline'}`);
+      } else {
+        throw new Error(res.message || 'Failed to update availability');
+      }
+    } catch (err) {
+      if (currentSeq !== statusSeqRef.current) return;
+      console.error('Availability update failed:', err);
+      // Rollback to previous state on error
+      setFormData(prev => ({ ...prev, status: prevStatus }));
+      authStorage.updateUserData('worker', { status: prevStatus });
+      window.dispatchEvent(new CustomEvent('workerStatusUpdated', { detail: { status: prevStatus } }));
+      toastManager.error(err.response?.data?.message || err.message || 'Failed to update availability');
+    } finally {
+      if (currentSeq === statusSeqRef.current) {
+        setIsUpdatingStatus(false);
+      }
+    }
+  };
 
   const uploadFile = async (file) => {
     const formData = new FormData();
@@ -288,7 +354,7 @@ const EditProfile = () => {
         dailyRate: Number(formData.dailyRate) || 0,
         landRate: Number(formData.landRate) || 0,
         address: formData.address,
-        status: formData.status
+        status: formData.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE'
       };
 
       if (photoFile) {
@@ -311,6 +377,10 @@ const EditProfile = () => {
         ...payload,
         profilePhoto: payload.profilePhoto
       });
+
+      // Synchronize availability and profile
+      window.dispatchEvent(new CustomEvent('workerStatusUpdated', { detail: { status: payload.status } }));
+      window.dispatchEvent(new Event('workerProfileUpdated'));
 
       navigate('/worker/profile');
     } catch (error) {
@@ -404,22 +474,28 @@ const EditProfile = () => {
 
           <div className="flex gap-3">
             <button
-              onClick={() => handleInputChange('status', 'ONLINE')}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 ${formData.status === 'ONLINE'
-                ? 'bg-green-50 border-green-500 text-green-700'
-                : 'bg-white border-gray-200 text-gray-500'
-                }`}
+              type="button"
+              disabled={isUpdatingStatus}
+              onClick={() => handleStatusToggle('ONLINE')}
+              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 flex items-center justify-center gap-2 ${formData.status === 'ONLINE'
+                ? 'bg-green-50 border-green-500 text-green-700 shadow-sm'
+                : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                } ${isUpdatingStatus ? 'opacity-70 cursor-wait' : 'cursor-pointer active:scale-98'}`}
             >
-              Online
+              <span className={`w-2.5 h-2.5 rounded-full ${formData.status === 'ONLINE' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-300'}`} />
+              {isUpdatingStatus && formData.status === 'ONLINE' ? 'Updating...' : 'Online'}
             </button>
             <button
-              onClick={() => handleInputChange('status', 'OFFLINE')}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 ${formData.status === 'OFFLINE'
-                ? 'bg-red-50 border-red-500 text-red-700'
-                : 'bg-white border-gray-200 text-gray-500'
-                }`}
+              type="button"
+              disabled={isUpdatingStatus}
+              onClick={() => handleStatusToggle('OFFLINE')}
+              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 flex items-center justify-center gap-2 ${formData.status === 'OFFLINE'
+                ? 'bg-red-50 border-red-500 text-red-700 shadow-sm'
+                : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                } ${isUpdatingStatus ? 'opacity-70 cursor-wait' : 'cursor-pointer active:scale-98'}`}
             >
-              Offline
+              <span className={`w-2.5 h-2.5 rounded-full ${formData.status === 'OFFLINE' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : 'bg-gray-300'}`} />
+              {isUpdatingStatus && formData.status === 'OFFLINE' ? 'Updating...' : 'Offline'}
             </button>
           </div>
           <p className="text-xs text-gray-400 text-center">

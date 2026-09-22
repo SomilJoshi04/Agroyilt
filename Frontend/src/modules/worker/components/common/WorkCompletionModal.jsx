@@ -3,6 +3,7 @@ import { FiX, FiTrash, FiCamera, FiImage, FiDollarSign, FiCheckCircle, FiKey } f
 import { motion, AnimatePresence } from 'framer-motion';
 import flutterBridge from '../../../../utils/flutterBridge';
 import { toastManager } from '../../../../utils/toastManager';
+import { compressImage, fileToBase64 } from '../../../../utils/imageCompression';
 
 const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
   const [workPhotos, setWorkPhotos] = useState([]);
@@ -37,39 +38,47 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
       setIsUploading(true);
       const file = await flutterBridge.openCamera();
       if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setWorkPhotos(prev => [...prev, reader.result]);
-          setIsUploading(false);
-          flutterBridge.hapticFeedback('success');
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setIsUploading(false);
+        try {
+          const compressed = await compressImage(file, { maxWidth: 1024, maxHeight: 1024, quality: 0.7 });
+          const base64 = await fileToBase64(compressed);
+          setWorkPhotos(prev => [...prev, base64]);
+        } catch (compErr) {
+          const base64 = await fileToBase64(file);
+          setWorkPhotos(prev => [...prev, base64]);
+        }
+        flutterBridge.hapticFeedback('success');
       }
     } catch (error) {
       console.error('Native camera failed:', error);
+    } finally {
       setIsUploading(false);
     }
   };
 
-  const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files);
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
     setIsUploading(true);
-    const uploadPromises = files.map(file => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(file);
+    try {
+      const uploadPromises = files.map(async (file) => {
+        try {
+          const compressed = await compressImage(file, { maxWidth: 1024, maxHeight: 1024, quality: 0.7 });
+          return await fileToBase64(compressed);
+        } catch (compErr) {
+          return await fileToBase64(file);
+        }
       });
-    });
 
-    Promise.all(uploadPromises).then(urls => {
+      const urls = await Promise.all(uploadPromises);
       setWorkPhotos(prev => [...prev, ...urls]);
+    } catch (err) {
+      console.error('Photo upload failed:', err);
+      toastManager.error('Failed to process photos. Please try again.');
+    } finally {
       setIsUploading(false);
-    });
+      if (e.target) e.target.value = '';
+    }
   };
 
   const handleRemovePhoto = (index) => {
