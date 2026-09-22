@@ -104,7 +104,8 @@ const Dashboard = () => {
 
       if (profileRes.success) {
         const profile = profileRes.worker;
-        const normalizedStatus = (profile.status === 'ONLINE') ? 'ONLINE' : 'OFFLINE';
+        const rawStatus = String(profile?.status || '').toUpperCase();
+        const normalizedStatus = (rawStatus === 'ONLINE' || rawStatus === 'AVAILABLE' || rawStatus === 'ACTIVE') ? 'ONLINE' : 'OFFLINE';
         setWorkerProfile({
           name: profile.name || 'Worker Name',
           phone: profile.phone || '',
@@ -266,9 +267,11 @@ const Dashboard = () => {
 
     // Listen for real-time availability updates
     const handleSocketStatusUpdate = (data) => {
-      if (data?.status === 'ONLINE' || data?.status === 'OFFLINE') {
-        setWorkerProfile(prev => ({ ...prev, status: data.status }));
-        authStorage.updateUserData('worker', { status: data.status });
+      const rawStatus = String(data?.status || '').toUpperCase();
+      if (rawStatus) {
+        const norm = (rawStatus === 'ONLINE' || rawStatus === 'AVAILABLE' || rawStatus === 'ACTIVE') ? 'ONLINE' : 'OFFLINE';
+        setWorkerProfile(prev => ({ ...prev, status: norm }));
+        authStorage.updateUserData('worker', { status: norm });
       }
     };
 
@@ -280,10 +283,12 @@ const Dashboard = () => {
     };
 
     socket.on('worker_status_updated', handleSocketStatusUpdate);
+    socket.on('worker_availability_changed', handleSocketStatusUpdate);
     socket.on('notification', handleNotification);
 
     return () => {
       socket.off('worker_status_updated', handleSocketStatusUpdate);
+      socket.off('worker_availability_changed', handleSocketStatusUpdate);
       socket.off('notification', handleNotification);
     };
   }, [socket]);

@@ -157,14 +157,22 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
 
                 <div className="grid grid-cols-3 gap-3">
                   {workPhotos.map((photo, index) => (
-                    <div key={index} className="aspect-square rounded-2xl bg-gray-100 border border-gray-100 relative overflow-hidden group">
+                    <div key={index} className="aspect-square rounded-2xl bg-gray-100 border border-gray-200 relative overflow-hidden shadow-sm group">
                       <img src={photo} className="w-full h-full object-cover" alt="work" />
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* Subtle gradient overlay for contrast */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/30 pointer-events-none" />
+                      {/* Always-visible remove button for mobile & desktop */}
                       <button
-                        onClick={() => handleRemovePhoto(index)}
-                        className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-transform opacity-0 group-hover:opacity-100"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemovePhoto(index);
+                        }}
+                        className="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white active:scale-90 transition-all z-20 cursor-pointer"
+                        aria-label="Remove photo"
+                        title="Remove photo"
                       >
-                        <FiTrash className="w-3 h-3" />
+                        <FiTrash className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}

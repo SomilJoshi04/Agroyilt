@@ -699,7 +699,7 @@ exports.verifyCompletionOtp = async (req, res) => {
 
           await Worker.findByIdAndUpdate(workerId, {
             $inc: { 'wallet.balance': settlement.netEarning },
-            status: 'AVAILABLE'
+            status: 'ONLINE'
           });
 
           let workerWallet = await Wallet.findOne({ workerId, userModel: 'Worker' });
@@ -805,7 +805,7 @@ exports.verifyCompletionOtp = async (req, res) => {
         // 1. Credit Worker in Worker Model
         await Worker.findByIdAndUpdate(workerId, {
           $inc: { 'wallet.balance': netEarning },
-          status: 'AVAILABLE'
+          status: 'ONLINE'
         });
 
         // 2. Also ensure Wallet doc exists & credit
@@ -851,7 +851,7 @@ exports.verifyCompletionOtp = async (req, res) => {
         await assignment.save();
       }
     } else {
-      await Worker.findByIdAndUpdate(workerId, { status: 'AVAILABLE' });
+      await Worker.findByIdAndUpdate(workerId, { status: 'ONLINE' });
     }
 
     // 1. Notify Farmer that this individual worker completed work

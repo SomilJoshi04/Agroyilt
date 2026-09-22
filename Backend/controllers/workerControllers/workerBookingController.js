@@ -334,7 +334,7 @@ exports.cancelRequest = async (req, res) => {
     await request.save();
 
     if (request.workerId) {
-      await Worker.findByIdAndUpdate(request.workerId, { status: 'AVAILABLE' });
+      await Worker.findByIdAndUpdate(request.workerId, { status: 'ONLINE' });
 
       await notify({
         recipientType: 'worker',

@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiAlertTriangle, FiX, FiCamera, FiUpload, FiLoader, FiCheckCircle } from 'react-icons/fi';
 import { toastManager } from '../../utils/toastManager';
@@ -128,13 +128,18 @@ const DisputeModal = ({ isOpen, onClose, onSubmit, bookingId }) => {
                                     <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Photos (Optional)</label>
                                     <div className="flex gap-2">
                                         {attachments.map((url, i) => (
-                                            <div key={i} className="relative w-16 h-16 rounded-xl border border-gray-100 overflow-hidden group">
+                                            <div key={i} className="relative w-16 h-16 rounded-xl border border-gray-100 overflow-hidden group shadow-sm">
                                                 <img src={url} alt="att" className="w-full h-full object-cover" />
                                                 <button
-                                                    onClick={() => handleRemovePhoto(i)}
-                                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleRemovePhoto(i);
+                                                    }}
+                                                    className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md border border-white active:scale-90 transition-all z-10"
+                                                    aria-label="Remove photo"
                                                 >
-                                                    <FiX />
+                                                    <FiX className="w-3 h-3" />
                                                 </button>
                                             </div>
                                         ))}

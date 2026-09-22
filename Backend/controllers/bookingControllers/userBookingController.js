@@ -1467,7 +1467,7 @@ const cancelBooking = async (req, res) => {
         const workerList = Array.from(affectedWorkerIds);
         await Worker.updateMany(
           { _id: { $in: workerList } },
-          { status: 'AVAILABLE' }
+          { status: 'ONLINE' }
         );
 
         // Notify every worker and emit real-time socket events

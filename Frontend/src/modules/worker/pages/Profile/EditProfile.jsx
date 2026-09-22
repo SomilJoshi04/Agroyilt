@@ -116,7 +116,7 @@ const EditProfile = () => {
             dailyRate: w.dailyRate || '',
             landRate: w.landRate || '',
             profilePhoto: w.profilePhoto || null,
-            status: (w.status === 'ONLINE') ? 'ONLINE' : 'OFFLINE'
+            status: ((String(w.status || '').toUpperCase() === 'ONLINE') || (String(w.status || '').toUpperCase() === 'AVAILABLE') || (String(w.status || '').toUpperCase() === 'ACTIVE')) ? 'ONLINE' : 'OFFLINE'
           });
         }
 
@@ -155,8 +155,9 @@ const EditProfile = () => {
   // Listen for real-time status updates from Dashboard or Socket
   useEffect(() => {
     const handleStatusSync = (e) => {
-      const s = e?.detail?.status;
-      if (s === 'ONLINE' || s === 'OFFLINE') {
+      const rawS = String(e?.detail?.status || '').toUpperCase();
+      if (rawS) {
+        const s = (rawS === 'ONLINE' || rawS === 'AVAILABLE' || rawS === 'ACTIVE') ? 'ONLINE' : 'OFFLINE';
         setFormData(prev => {
           if (prev.status !== s) {
             return { ...prev, status: s };

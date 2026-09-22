@@ -1977,7 +1977,7 @@ exports.cancelFarmerRequest = async (req, res) => {
       if (workerIdList.length > 0) {
         await Worker.updateMany(
           { _id: { $in: workerIdList } },
-          { status: 'AVAILABLE' }
+          { status: 'ONLINE' }
         );
       }
 

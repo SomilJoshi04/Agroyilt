@@ -62,7 +62,7 @@ const Profile = () => {
             serviceCategories: workerData.serviceCategories || (workerData.serviceCategory ? [workerData.serviceCategory] : []),
             skills: workerData.skills || [],
             photo: workerData.profilePhoto || null,
-            status: (workerData.status === 'ONLINE') ? 'ONLINE' : 'OFFLINE',
+            status: ((String(workerData.status || '').toUpperCase() === 'ONLINE') || (String(workerData.status || '').toUpperCase() === 'AVAILABLE') || (String(workerData.status || '').toUpperCase() === 'ACTIVE')) ? 'ONLINE' : 'OFFLINE',
             isPhoneVerified: workerData.isPhoneVerified || false,
             isEmailVerified: workerData.isEmailVerified || false
           });
@@ -147,20 +147,24 @@ const Profile = () => {
     if (!socket) return;
 
     const handleSocketStatusUpdate = (data) => {
-      if (data?.status === 'ONLINE' || data?.status === 'OFFLINE') {
+      const rawStatus = String(data?.status || '').toUpperCase();
+      if (rawStatus) {
+        const norm = (rawStatus === 'ONLINE' || rawStatus === 'AVAILABLE' || rawStatus === 'ACTIVE') ? 'ONLINE' : 'OFFLINE';
         setProfile(prev => {
           if (prev) {
-            return { ...prev, status: data.status };
+            return { ...prev, status: norm };
           }
           return prev;
         });
-        authStorage.updateUserData('worker', { status: data.status });
+        authStorage.updateUserData('worker', { status: norm });
       }
     };
 
     socket.on('worker_status_updated', handleSocketStatusUpdate);
+    socket.on('worker_availability_changed', handleSocketStatusUpdate);
     return () => {
       socket.off('worker_status_updated', handleSocketStatusUpdate);
+      socket.off('worker_availability_changed', handleSocketStatusUpdate);
     };
   }, [socket]);
 
