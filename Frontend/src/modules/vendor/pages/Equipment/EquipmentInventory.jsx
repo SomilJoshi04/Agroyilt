@@ -1,8 +1,8 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FiPlus, FiTruck, FiSettings, FiTrash2, FiEdit2, 
-  FiClock, FiAlertCircle, FiCheckCircle, FiChevronLeft 
+  FiClock, FiAlertCircle, FiCheckCircle, FiChevronLeft, FiTool 
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toastManager } from '../../../../utils/toastManager';
@@ -169,7 +169,11 @@ const EquipmentInventory = () => {
                         ? 'bg-orange-50 text-orange-600 border-orange-100'
                         : 'bg-blue-50 text-blue-600 border-blue-100'
                     }`}>
-                      {item.listingType === 'rental' ? '🔧 Tool Rental' : '🚜 Machine Service'}
+                      {item.listingType === 'rental' ? (
+                        <span className="flex items-center gap-1"><FiTool className="w-2.5 h-2.5" /> Tool Rental</span>
+                      ) : (
+                        <span className="flex items-center gap-1"><FiTruck className="w-2.5 h-2.5" /> Machine Service</span>
+                      )}
                     </span>
                     {/* Implements (new schema) */}
                     {item.implements?.map(impl => (

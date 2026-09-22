@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiUser, FiCheck, FiArrowRight, FiUserPlus, FiCamera } from 'react-icons/fi';
+import { FiUser, FiCheck, FiArrowRight, FiUserPlus, FiCamera, FiAlertTriangle } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -214,7 +214,7 @@ const AssignWorker = () => {
           ) && (
             <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
-                <span className="text-lg">⚠️</span>
+                <FiAlertTriangle className="w-4 h-4 text-rose-600" />
               </div>
               <div>
                 <p className="text-xs font-black text-rose-700 uppercase tracking-tight">Machine is in Maintenance</p>

@@ -68,7 +68,13 @@ const FarmerRequestDetail = () => {
 
   const toggleWorkerSelection = (workerId) => {
     setSelectedWorkerIds(prev => {
-      if (prev.includes(workerId)) return prev.filter(id => id !== workerId);
+      if (prev.includes(workerId)) {
+        if (prev.length <= 1) {
+          toast.error('At least 1 worker must be selected.');
+          return prev;
+        }
+        return prev.filter(id => id !== workerId);
+      }
       if (prev.length >= request.requiredWorkers) {
          toast.error(`You can only select up to ${request.requiredWorkers} workers.`);
          return prev;
@@ -107,6 +113,25 @@ const FarmerRequestDetail = () => {
     }
   };
 
+  const isTeamLeaderMode = Boolean(
+    request && (request.bookingMode === 'TEAM_LEADER' || request.requestType === 'team_leader')
+  );
+
+  useEffect(() => {
+    if (request && isTeamLeaderMode && Array.isArray(request.workerOffers) && request.workerOffers.length > 0) {
+      const allIds = request.workerOffers.map(o => o.workerId?._id || o.workerId).filter(Boolean);
+      if (allIds.length > 0) {
+        setSelectedWorkerIds(prev => {
+          if (prev.length > 0) {
+            const validPrev = prev.filter(id => allIds.includes(id));
+            return validPrev.length > 0 ? validPrev : allIds;
+          }
+          return allIds;
+        });
+      }
+    }
+  }, [request, isTeamLeaderMode]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -134,7 +159,7 @@ const FarmerRequestDetail = () => {
   const statusConf = STATUS_CONFIG[request.status] || { color: 'bg-slate-100', label: request.status };
   const canCancel = ['pending', 'matching', 'awaiting_farmer_confirmation'].includes(request.status);
 
-  // Safely get available offers (Privacy DTO means some info is missing until payment)
+  // Safely get available offers
   const offers = request.workerOffers || [];
 
   return (
@@ -147,45 +172,61 @@ const FarmerRequestDetail = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate('/user/my-worker-requests')}
-              className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center active:scale-95 transition-transform"
+              className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"
             >
-              <FiArrowLeft size={20} />
+              <FiArrowLeft size={18} />
             </button>
-            <h1 className="font-black text-lg text-slate-800">Request Details</h1>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">Request Details</h1>
+              <p className="text-xs text-slate-500">ID: {request._id?.substring(0, 8)}...</p>
+            </div>
           </div>
-          <span className={`text-[10px] uppercase tracking-wider font-black px-2.5 py-1 rounded-full border ${statusConf.color}`}>
-            {statusConf.label}
-          </span>
+
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusConf.color}`}>
+              {statusConf.label}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto p-4 space-y-4 mt-2">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         
         {/* Basic Info */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-10 opacity-50" />
-          
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex justify-between items-start gap-4">
             <div>
-              <h2 className="text-xl font-black text-slate-800 mb-1">{request.workTitle}</h2>
-              <p className="text-sm font-bold text-slate-500 bg-slate-50 inline-block px-2 py-0.5 rounded-lg border border-slate-100">
-                {request.requestType === 'independent_broadcast' ? 'Independent Workers' : 'Team Leader'}
-              </p>
+              <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full mb-2 inline-block">
+                {request.bookingType === 'DAILY' ? 'Daily Contract' : (request.workCategory || 'General Service')}
+              </span>
+              <h2 className="text-xl font-extrabold text-slate-900">{request.workTitle}</h2>
+              <p className="text-slate-500 text-xs mt-1 leading-relaxed">{request.workDescription}</p>
             </div>
-            <div className="text-right">
+            
+            <div className="text-right shrink-0">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Budget</p>
               {(() => {
-                const isDailyReq = request.bookingType === 'DAILY' || request.rateUnit === 'daily';
-                const effRate = isDailyReq
-                  ? (request.maxDailyRate || request.minDailyRate || request.maxRate || request.minRate || 0)
-                  : (request.maxRate || request.minRate || request.farmerOfferedRate || 0);
-                return (
-                  <>
-                    <p className="text-2xl font-black text-emerald-600">₹{effRate}</p>
-                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                      {isDailyReq ? 'Per Worker / Day' : 'Per Worker / Hour'}
-                    </p>
-                  </>
-                );
+                const isDaily = request.bookingType === 'DAILY' || request.rateUnit === 'daily';
+                const unitSuffix = isDaily ? '/day' : '/hr';
+                const minRate = isDaily ? (request.minDailyRate || request.minRate) : (request.minRate || request.farmerOfferedRate);
+                const maxRate = isDaily ? (request.maxDailyRate || request.maxRate) : request.maxRate;
+
+                if (minRate && maxRate && minRate !== maxRate) {
+                  return (
+                    <div>
+                      <p className="text-base font-black text-emerald-600">₹{minRate} - ₹{maxRate}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">per worker {unitSuffix}</p>
+                    </div>
+                  );
+                } else if (maxRate || minRate) {
+                  return (
+                    <div>
+                      <p className="text-base font-black text-emerald-600">₹{maxRate || minRate}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">per worker {unitSuffix}</p>
+                    </div>
+                  );
+                }
+                return <p className="text-sm font-bold text-slate-600">Flexible</p>;
               })()}
             </div>
           </div>
@@ -239,97 +280,218 @@ const FarmerRequestDetail = () => {
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Location</p>
-                <p className="text-sm font-bold text-slate-700 truncate">{request.location?.city}</p>
+                <p className="text-sm font-bold text-slate-700 truncate">{request.location?.city || 'Location'}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Worker Selection (Pre-payment) */}
+        {/* Worker / Team Selection (Pre-payment) */}
         {['awaiting_farmer_confirmation', 'matching', 'pending'].includes(request.status) && request.paymentStatus !== 'success' && (
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
-            <h3 className="font-black text-slate-700 text-sm uppercase tracking-wide mb-1">Select Workers to Book</h3>
-            <p className="text-xs text-slate-500 mb-4 font-medium">
-               Select up to {request.requiredWorkers} workers. Their exact rates and contact details will be revealed after you lock in the payment for the maximum budget. Any unused amount (if they bid lower) is instantly refunded to your wallet!
-            </p>
+            {isTeamLeaderMode ? (
+              /* ── TEAM LEADER GROUP PROPOSAL ── */
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wide">
+                    {offers.length > 0 ? `Team Proposal (${selectedWorkerIds.length}/${offers.length} Selected)` : 'Team Leader Matching'}
+                  </h3>
+                  {offers.length > 0 && (
+                    <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                      {selectedWorkerIds.length === offers.length ? 'Full Team Ready' : `${selectedWorkerIds.length} Selected`}
+                    </span>
+                  )}
+                </div>
 
-            {offers.length === 0 ? (
-               <div className="py-8 text-center bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
-                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
-                   <FiClock className="text-slate-400" size={20} />
-                 </div>
-                 <p className="text-sm font-bold text-slate-600 mb-1">Waiting for Workers...</p>
-                 <p className="text-xs text-slate-500 px-6">Workers in your area are reviewing your request.</p>
-               </div>
-            ) : (
-               <div className="space-y-3">
-                 {offers.map((offer, idx) => {
-                   const worker = offer.workerId;
-                   const isSelected = selectedWorkerIds.includes(worker._id);
-                   const isSelectable = offer.status === 'pending' || offer.status === 'selected';
+                <p className="text-xs text-slate-500 mb-4 font-medium">
+                  {offers.length > 0 
+                    ? `The Team Leader assembled ${offers.length} workers. You can tap on any worker to include or exclude them according to your need and budget:`
+                    : `Searching for nearby Team Leaders who can provide a full team of ${request.requiredWorkers} workers...`}
+                </p>
 
-                   return (
-                     <div 
-                       key={worker._id || idx} 
-                       onClick={() => isSelectable && toggleWorkerSelection(worker._id)}
-                       className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all ${
-                         !isSelectable ? 'opacity-50 border-slate-100 bg-slate-50' :
-                         isSelected ? 'border-emerald-500 bg-emerald-50/30 shadow-sm' : 'border-slate-100 bg-white cursor-pointer hover:border-emerald-200'
-                       }`}
-                     >
-                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${isSelected ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                         {isSelected ? <FiCheck /> : (worker?.name ? worker.name.charAt(0).toUpperCase() : '?')}
-                       </div>
-                       
-                       <div className="flex-1 min-w-0">
-                         <p className="text-sm font-bold text-slate-800 truncate">
-                           {worker?.name || 'Worker'}
-                         </p>
-                         <div className="flex items-center gap-2 mt-1">
-                            {worker?.rating > 0 && (
-                              <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">
-                                <FiStar size={10} className="fill-amber-500" /> {worker.rating.toFixed(1)}
-                              </span>
-                            )}
-                           <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md uppercase tracking-wide">
-                             Privacy Hidden
-                           </span>
-                         </div>
-                       </div>
-                       
-                       <div className="text-right">
-                         {isSelectable ? (
-                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${isSelected ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>
-                               {isSelected && <FiCheck size={12} />}
+                {offers.length === 0 ? (
+                  <div className="py-8 text-center bg-blue-50/50 rounded-2xl border border-blue-100 border-dashed">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm text-blue-600">
+                      <FiUsers size={20} />
+                    </div>
+                    <p className="text-sm font-bold text-slate-700 mb-1">Waiting for Team Leader...</p>
+                    <p className="text-xs text-slate-500 px-6">Nearby Team Leaders with active teams are reviewing your request.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {offers.map((offer, idx) => {
+                      const worker = offer.workerId || {};
+                      const skills = Array.isArray(worker.skills) ? worker.skills : [];
+                      const isLeader = idx === 0;
+                      const isSelected = selectedWorkerIds.includes(worker._id);
+
+                      return (
+                        <div 
+                          key={worker._id || idx} 
+                          onClick={() => toggleWorkerSelection(worker._id)}
+                          className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
+                            isSelected 
+                              ? 'border-emerald-500 bg-emerald-50/20 shadow-sm' 
+                              : 'border-slate-200 bg-slate-50/60 opacity-60 hover:opacity-100 hover:border-slate-300'
+                          }`}
+                        >
+                          {/* Checkbox indicator */}
+                          <div className="pt-1 shrink-0">
+                            <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                              isSelected ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 bg-white'
+                            }`}>
+                              {isSelected && <FiCheck size={12} className="stroke-[3]" />}
                             </div>
-                         ) : (
-                            <span className="text-xs font-bold text-slate-400 capitalize">{offer.status}</span>
-                         )}
-                       </div>
-                     </div>
-                   );
-                 })}
+                          </div>
 
-                 {/* Proceed Button */}
-                 {selectedWorkerIds.length > 0 && (
-                   <div className="mt-5 pt-5 border-t border-slate-100">
-                     <button
-                       onClick={handleProceedToPayment}
-                       disabled={processing}
-                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm shadow-[0_4px_12px_rgba(5₹50₹05,0.25)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                     >
-                       {processing ? (
-                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                       ) : (
-                         <>
-                           Proceed to Payment ({selectedWorkerIds.length})
-                           <FiArrowLeft className="rotate-180" />
-                         </>
-                       )}
-                     </button>
-                   </div>
-                 )}
-               </div>
+                          <div className="relative shrink-0">
+                            {worker.profilePhoto ? (
+                              <img src={worker.profilePhoto} alt={worker.name} className="w-11 h-11 rounded-xl object-cover border border-slate-200" />
+                            ) : (
+                              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black text-sm">
+                                {worker.name ? worker.name.charAt(0).toUpperCase() : 'W'}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-800 text-sm truncate">{worker.name}</span>
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${isLeader ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                {isLeader ? 'Team Leader' : 'Team Member'}
+                              </span>
+                              {worker.rating > 0 && (
+                                <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                                  <FiStar size={9} className="fill-amber-500" /> {worker.rating.toFixed(1)}
+                                </span>
+                              )}
+                            </div>
+
+                            {skills.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {skills.slice(0, 3).map((sk, sIdx) => (
+                                  <span key={sIdx} className="bg-white text-slate-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-slate-200">
+                                    {sk}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="text-xs font-black text-emerald-600">₹{offer.offeredRate || (request.maxRate || request.farmerOfferedRate || 0)}</span>
+                            <span className="text-[10px] text-slate-400 block">/{request.rateUnit || 'hr'}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className="mt-5 pt-5 border-t border-slate-100">
+                      <button
+                        onClick={handleProceedToPayment}
+                        disabled={processing || selectedWorkerIds.length === 0}
+                        className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-2xl font-black text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                      >
+                        {processing ? (
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            Confirm Team & Proceed to Payment ({selectedWorkerIds.length} Worker{selectedWorkerIds.length !== 1 ? 's' : ''})
+                            <FiArrowLeft className="rotate-180" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ── INDEPENDENT WORKERS BROADCAST ── */
+              <div>
+                <h3 className="font-black text-slate-700 text-sm uppercase tracking-wide mb-1">Select Workers to Book</h3>
+                <p className="text-xs text-slate-500 mb-4 font-medium">
+                  Select up to {request.requiredWorkers} workers. Their exact rates and contact details will be revealed after you lock in the payment for the maximum budget. Any unused amount (if they bid lower) is instantly refunded to your wallet!
+                </p>
+
+                {offers.length === 0 ? (
+                  <div className="py-8 text-center bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
+                      <FiClock className="text-slate-400" size={20} />
+                    </div>
+                    <p className="text-sm font-bold text-slate-600 mb-1">Waiting for Workers...</p>
+                    <p className="text-xs text-slate-500 px-6">Workers in your area are reviewing your request.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {offers.map((offer, idx) => {
+                      const worker = offer.workerId || {};
+                      const isSelected = selectedWorkerIds.includes(worker._id);
+                      const isSelectable = offer.status === 'pending' || offer.status === 'selected';
+
+                      return (
+                        <div 
+                          key={worker._id || idx} 
+                          onClick={() => isSelectable && toggleWorkerSelection(worker._id)}
+                          className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all ${
+                            !isSelectable ? 'opacity-50 border-slate-100 bg-slate-50' :
+                            isSelected ? 'border-emerald-500 bg-emerald-50/30 shadow-sm' : 'border-slate-100 bg-white cursor-pointer hover:border-emerald-200'
+                          }`}
+                        >
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${isSelected ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                            {isSelected ? <FiCheck /> : (worker?.name ? worker.name.charAt(0).toUpperCase() : '?')}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-800 truncate">
+                              {worker?.name || 'Worker'}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {worker?.rating > 0 && (
+                                <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">
+                                  <FiStar size={10} className="fill-amber-500" /> {worker.rating.toFixed(1)}
+                                </span>
+                              )}
+                              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md uppercase tracking-wide">
+                                Privacy Hidden
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            {isSelectable ? (
+                              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${isSelected ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>
+                                {isSelected && <FiCheck size={12} />}
+                              </div>
+                            ) : (
+                              <span className="text-xs font-bold text-slate-400 capitalize">{offer.status}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Proceed Button */}
+                    {selectedWorkerIds.length > 0 && (
+                      <div className="mt-5 pt-5 border-t border-slate-100">
+                        <button
+                          onClick={handleProceedToPayment}
+                          disabled={processing}
+                          className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        >
+                          {processing ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <>
+                              Proceed to Payment ({selectedWorkerIds.length})
+                              <FiArrowLeft className="rotate-180" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}

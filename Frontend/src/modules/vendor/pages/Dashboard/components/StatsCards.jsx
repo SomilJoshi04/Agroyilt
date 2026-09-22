@@ -39,8 +39,8 @@ const StatsCards = memo(({ stats }) => {
   ];
 
   return (
-    <div className="px-4 pt-4">
-      <div className="grid grid-cols-2 gap-3 mb-4">
+    <div className="px-4 pt-1">
+      <div className="grid grid-cols-2 gap-2.5 mb-2">
         {cards.map((card, index) => {
           const IconComponent = card.icon;
 
@@ -48,41 +48,39 @@ const StatsCards = memo(({ stats }) => {
             <div
               key={index}
               onClick={card.onClick}
-              className="rounded-xl p-4 relative overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="rounded-xl p-3 relative overflow-hidden cursor-pointer active:scale-95 transition-all shadow-sm hover:shadow-md"
               style={{
                 background: card.gradient,
-                border: '2px solid rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
               }}
             >
               {/* Decorative Pattern */}
               <div
-                className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-20"
+                className="absolute top-0 right-0 w-16 h-16 rounded-full opacity-20 pointer-events-none"
                 style={{
-                  background: 'radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%)',
-                  transform: 'translate(20px, -20px)',
+                  background: 'radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, transparent 70%)',
+                  transform: 'translate(15px, -15px)',
                 }}
               />
-              <div className="relative z-10">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <p className="text-xs text-white font-semibold mb-1 opacity-90 uppercase tracking-wide">
-                      {card.title}
-                    </p>
-                    <p className="text-2xl font-bold text-white leading-tight">
-                      {card.value}
-                    </p>
-                  </div>
-                  <div
-                    className="p-3 rounded-xl flex-shrink-0"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.25)',
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                    }}
-                  >
-                    <IconComponent className="w-6 h-6" style={{ color: '#FFFFFF' }} />
-                  </div>
+              <div className="relative z-10 flex items-start justify-between gap-1.5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-white/80 font-bold uppercase tracking-wider mb-0.5 truncate">
+                    {card.title}
+                  </p>
+                  <p className="text-lg font-black text-white leading-tight mt-0.5 tracking-tight">
+                    {card.value}
+                  </p>
+                </div>
+                <div
+                  className="p-1.5 rounded-lg flex-shrink-0"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(8px)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                  }}
+                >
+                  <IconComponent className="w-4 h-4 text-white" />
                 </div>
               </div>
             </div>

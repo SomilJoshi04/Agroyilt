@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiUsers, FiBell, FiArrowRight, FiUser, FiClock, FiMapPin, FiCheckCircle, FiTrendingUp, FiChevronRight, FiAlertTriangle, FiCalendar, FiBarChart2, FiActivity, FiShoppingBag } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
@@ -195,7 +195,7 @@ const Dashboard = memo(() => {
     return (
       <div className="min-h-screen pb-20 flex items-center justify-center" style={{ background: themeColors.backgroundGradient }}>
         <div className="text-center px-6">
-          <div className="text-red-400 text-6xl mb-4">⚠️</div>
+          <FiAlertTriangle className="text-amber-400 w-12 h-12 mb-3 mx-auto" />
           <h2 className="text-white text-xl font-semibold mb-2">Failed to Load Dashboard</h2>
           <p className="text-gray-300 mb-6">{error}</p>
           <button
@@ -215,31 +215,31 @@ const Dashboard = memo(() => {
 
       <main className="pt-0">
         {/* Profile Card Section */}
-        <div className="px-4 pt-4 pb-2">
+        <div className="px-4 pt-3 pb-1">
           <div
-            className="rounded-2xl p-4 cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
+            className="rounded-xl p-3 cursor-pointer active:scale-[0.99] transition-all duration-200 relative overflow-hidden shadow-sm"
             onClick={() => navigate('/vendor/profile')}
             style={{
               background: themeColors.button,
-              border: `2px solid ${themeColors.button}`,
+              border: `1px solid rgba(255, 255, 255, 0.25)`,
             }}
           >
             {/* Decorative Pattern */}
             <div
-              className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-10"
+              className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-10 pointer-events-none"
               style={{
-                background: `radial-gradient(circle, ${themeColors.button} 0%, transparent 70%)`,
-                transform: 'translate(20px, -20px)',
+                background: `radial-gradient(circle, #FFFFFF 0%, transparent 70%)`,
+                transform: 'translate(15px, -15px)',
               }}
             />
 
-            <div className="relative z-10 flex items-center gap-3">
+            <div className="relative z-10 flex items-center gap-2.5">
               {/* Profile Photo */}
               <div
-                className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
+                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
                 style={{
                   background: `linear-gradient(135deg, ${themeColors.button} 0%, ${themeColors.button}dd 100%)`,
-                  border: `2.5px solid #FFFFFF`,
+                  border: `2px solid #FFFFFF`,
                 }}
               >
                 {vendorProfile.photo ? (
@@ -249,34 +249,32 @@ const Dashboard = memo(() => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <FiUser className="w-7 h-7" style={{ color: '#FFFFFF' }} />
+                  <FiUser className="w-5 h-5 text-white" />
                 )}
               </div>
 
               {/* Profile Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-lg font-bold uppercase tracking-wider mb-0.5" style={{
-                  color: '#FFFFFF',
-                  textShadow: `1px 1px 0px rgba(0, 0, 0, 0.2)`,
-                  letterSpacing: '0.12em',
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-white/80 mb-0.5" style={{
+                  letterSpacing: '0.1em',
                 }}>
                   WELCOME !
                 </p>
-                <h2 className="text-base font-bold text-white truncate mb-0.5">{vendorProfile.name}</h2>
-                <p className="text-xs text-white truncate font-medium opacity-90">{vendorProfile.businessName}</p>
+                <h2 className="text-sm font-bold text-white truncate leading-tight">{vendorProfile.name}</h2>
+                <p className="text-[11px] text-white/90 truncate font-medium mt-0.5">{vendorProfile.businessName}</p>
               </div>
 
               {/* Arrow Icon */}
               <div
-                className="p-2.5 rounded-lg flex-shrink-0"
+                className="p-1.5 rounded-lg flex-shrink-0"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.35)',
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                  border: '1px solid rgba(255, 255, 255, 0.4)',
+                  background: 'rgba(255, 255, 255, 0.25)',
+                  backdropFilter: 'blur(8px)',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
                 }}
               >
-                <FiChevronRight className="w-6 h-6" style={{ color: '#FFFFFF', fontWeight: 'bold' }} />
+                <FiChevronRight className="w-4 h-4 text-white" />
               </div>
             </div>
           </div>
@@ -333,22 +331,22 @@ const Dashboard = memo(() => {
         )}
 
         {/* Quick Actions Grid */}
-        <div className="px-4 py-4 grid grid-cols-2 gap-3">
+        <div className="px-4 py-2.5 grid grid-cols-2 gap-2.5">
           {quickActions.map((action, index) => (
             <div
               key={index}
               onClick={() => navigate(action.path)}
-              className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 active:scale-95 transition-all cursor-pointer flex items-center gap-3"
+              className="bg-white/95 backdrop-blur-sm p-2.5 rounded-xl shadow-xs border border-gray-100 active:scale-95 transition-all cursor-pointer flex items-center gap-2.5"
             >
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-xs flex-shrink-0"
                 style={{ backgroundColor: action.color }}
               >
-                <action.icon className="w-5 h-5" />
+                <action.icon className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-gray-800 truncate">{action.title}</p>
-                <p className="text-[10px] text-gray-500 font-medium truncate">{action.subtitle}</p>
+                <p className="text-xs font-bold text-gray-800 truncate">{action.title}</p>
+                <p className="text-[10px] text-gray-500 font-medium truncate mt-0.5">{action.subtitle}</p>
               </div>
             </div>
           ))}
@@ -358,102 +356,56 @@ const Dashboard = memo(() => {
         <StatsCards stats={stats} />
 
         {/* Content Section (below gradient) */}
-        <div className="px-4 py-4 space-y-4">
+        <div className="px-4 py-2 space-y-3">
           {/* Pending Booking Alerts - Removed as per user request, shown in Recent Bookings instead */}
 
           {/* Performance Metrics */}
           <div>
-            <h2 className="text-lg font-bold text-gray-800 mb-4">Performance</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <h2 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1.5">
+              <FiTrendingUp className="w-4 h-4 text-emerald-600" /> Performance
+            </h2>
+            <div className="grid grid-cols-2 gap-2.5">
               {/* Completed Jobs Card */}
               <div
-                className="rounded-2xl shadow-lg relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #FFFFFF 0%, #F0FDF4 100%)',
-                  boxShadow: '0 8px 24px rgba(16, 185, 129, 0.15), 0 4px 12px rgba(16, 185, 129, 0.1), 0 0 0 2px rgba(16, 185, 129, 0.2)',
-                  border: '2px solid rgba(16, 185, 129, 0.3)',
-                }}
+                className="rounded-xl shadow-xs relative overflow-hidden bg-white border border-emerald-500/20 p-2.5"
               >
-                {/* Left border accent */}
                 <div
-                  className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl"
-                  style={{
-                    background: 'linear-gradient(180deg, #10B981 0%, #059669 100%)',
-                  }}
-                />
-                {/* Top Border with Heading */}
-                <div
-                  className="w-full py-3 px-4 rounded-t-2xl"
+                  className="w-full py-1.5 px-2 rounded-lg text-white font-bold text-[11px] text-center flex items-center justify-center gap-1.5 mb-1.5"
                   style={{
                     background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                    boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)',
                   }}
                 >
-                  <p className="text-base font-bold text-white text-center">Orders Done</p>
+                  <FiCheckCircle className="w-3.5 h-3.5" />
+                  <span>Orders Done</span>
                 </div>
-                {/* Icon at top left - just below heading */}
-                <div
-                  className="absolute top-14 left-4 p-3 rounded-xl z-10"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.2) 100%)',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2)',
-                    border: '2px solid rgba(16, 185, 129, 0.4)',
-                  }}
-                >
-                  <FiCheckCircle className="w-7 h-7" style={{ color: '#10B981' }} />
-                </div>
-                {/* Content */}
-                <div className="p-5 pt-16">
-                  <p className="text-4xl font-bold mb-2 text-center" style={{ color: '#10B981' }}>
+                <div className="text-center py-1">
+                  <p className="text-2xl font-black mb-0.5" style={{ color: '#10B981' }}>
                     {stats.completedJobs}
                   </p>
-                  <p className="text-sm text-gray-600 font-semibold text-center">Total Bookings</p>
+                  <p className="text-[10px] text-gray-500 font-semibold">Total Bookings</p>
                 </div>
               </div>
 
               {/* Rating Card */}
               <div
-                className="rounded-2xl shadow-lg relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #FFFFFF 0%, #FFFBEB 100%)',
-                  boxShadow: '0 8px 24px rgba(245, 158, 11, 0.15), 0 4px 12px rgba(245, 158, 11, 0.1), 0 0 0 2px rgba(245, 158, 11, 0.2)',
-                  border: '2px solid rgba(245, 158, 11, 0.3)',
-                }}
+                className="rounded-xl shadow-xs relative overflow-hidden bg-white border border-amber-500/20 p-2.5"
               >
-                {/* Left border accent */}
                 <div
-                  className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl"
-                  style={{
-                    background: 'linear-gradient(180deg, #F59E0B 0%, #D97706 100%)',
-                  }}
-                />
-                {/* Top Border with Heading */}
-                <div
-                  className="w-full py-3 px-4 rounded-t-2xl"
+                  className="w-full py-1.5 px-2 rounded-lg text-white font-bold text-[11px] text-center flex items-center justify-center gap-1.5 mb-1.5"
                   style={{
                     background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
+                    boxShadow: '0 2px 6px rgba(245, 158, 11, 0.25)',
                   }}
                 >
-                  <p className="text-base font-bold text-white text-center">Rating</p>
+                  <FiTrendingUp className="w-3.5 h-3.5" />
+                  <span>Rating</span>
                 </div>
-                {/* Icon at top left - just below heading */}
-                <div
-                  className="absolute top-14 left-4 p-3 rounded-xl z-10"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.2) 100%)',
-                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2)',
-                    border: '2px solid rgba(245, 158, 11, 0.4)',
-                  }}
-                >
-                  <FiTrendingUp className="w-7 h-7" style={{ color: '#F59E0B' }} />
-                </div>
-                {/* Content */}
-                <div className="p-5 pt-16">
-                  <p className="text-4xl font-bold mb-2 text-center" style={{ color: '#F59E0B' }}>
+                <div className="text-center py-1">
+                  <p className="text-2xl font-black mb-0.5" style={{ color: '#F59E0B' }}>
                     {stats.rating > 0 ? stats.rating.toFixed(1) : 'N/A'}
                   </p>
-                  <p className="text-sm text-gray-600 font-semibold text-center">Average rating</p>
+                  <p className="text-[10px] text-gray-500 font-semibold">Average Rating</p>
                 </div>
               </div>
             </div>
@@ -461,16 +413,16 @@ const Dashboard = memo(() => {
 
           {/* Recent Jobs - List View */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-800">Recent Bookings</h2>
+            <div className="flex items-center justify-between mb-2.5">
+              <h2 className="text-sm font-bold text-gray-800">Recent Bookings</h2>
               {recentJobs.length > 0 && (
                 <button
                   onClick={() => navigate('/vendor/jobs')}
-                  className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 active:scale-95"
+                  className="px-2.5 py-1 rounded-md font-semibold text-xs transition-all duration-300 active:scale-95"
                   style={{
                     background: `linear-gradient(135deg, ${themeColors.button} 0%, ${themeColors.button}dd 100%)`,
                     color: '#FFFFFF',
-                    boxShadow: `0 4px 12px ${hexToRgba(themeColors.button, 0.3)}, 0 2px 6px ${hexToRgba(themeColors.button, 0.2)}`,
+                    boxShadow: `0 2px 6px ${hexToRgba(themeColors.button, 0.25)}`,
                   }}
                 >
                   View All
@@ -478,7 +430,7 @@ const Dashboard = memo(() => {
               )}
             </div>
             {recentJobs.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {recentJobs.map((job, index) => {
                   const isDarkBlue = index % 2 === 0;
                   const accentColor = isDarkBlue ? '#001947' : '#406788';
@@ -487,71 +439,66 @@ const Dashboard = memo(() => {
                     <div
                       key={job.id}
                       onClick={() => navigate(`/vendor/booking/${job.id}`)}
-                      className="bg-white rounded-xl shadow-lg cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
-                      style={{
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.08)',
-                        border: '1px solid rgba(0, 0, 0, 0.1)',
-                      }}
+                      className="bg-white rounded-xl shadow-xs cursor-pointer active:scale-[0.99] transition-all duration-200 relative overflow-hidden border border-gray-100"
                     >
                       <div
-                        className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl"
+                        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
                         style={{
                           background: `linear-gradient(180deg, ${accentColor} 0%, ${accentColor}dd 100%)`,
                         }}
                       />
-                      <div className="px-3 py-2.5">
-                        <div className="flex items-center gap-3">
+                      <div className="px-2.5 py-2">
+                        <div className="flex items-center gap-2.5">
                           <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
+                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
                             style={{
-                              border: `2.5px solid ${accentColor}40`,
-                              boxShadow: `0 2px 8px ${hexToRgba(accentColor, 0.25)}, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
+                              border: `1.5px solid ${accentColor}40`,
+                              boxShadow: `0 2px 6px ${hexToRgba(accentColor, 0.15)}`,
                               background: `linear-gradient(135deg, ${accentColor}20 0%, ${accentColor}10 100%)`,
                             }}
                           >
-                            <FiUser className="w-5 h-5" style={{ color: accentColor }} />
+                            <FiUser className="w-4 h-4" style={{ color: accentColor }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <p className="text-sm font-bold text-gray-800 truncate">{job.customerName}</p>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <p className="text-xs font-bold text-gray-800 truncate">{job.customerName}</p>
                               <span
-                                className="text-xs font-bold px-2 py-0.5 rounded-lg flex-shrink-0"
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0"
                                 style={{
                                   background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}dd 100%)`,
                                   color: '#FFFFFF',
-                                  boxShadow: `0 2px 5px ${hexToRgba(accentColor, 0.3)}`,
                                 }}
                               >
                                 {job.serviceType || 'Equipment'}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <div
-                                className="flex items-center gap-1 px-2 py-0.5 rounded"
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded"
                                 style={{
-                                  background: 'rgba(0, 166, 166, 0.1)',
-                                  border: '1px solid rgba(0, 166, 166, 0.2)',
+                                  background: 'rgba(0, 166, 166, 0.08)',
+                                  border: '1px solid rgba(0, 166, 166, 0.15)',
                                 }}
                               >
-                                <FiMapPin className="w-3 h-3" style={{ color: themeColors.button }} />
-                                <span className="text-xs font-semibold text-gray-700 truncate max-w-[100px]">{job.location}</span>
+                                <FiMapPin className="w-2.5 h-2.5" style={{ color: themeColors.button }} />
+                                <span className="text-[10px] font-semibold text-gray-700 truncate max-w-[90px]">{job.location}</span>
                               </div>
                               <div
-                                className="flex items-center gap-1 px-2 py-0.5 rounded"
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded"
                                 style={{
-                                  background: 'rgba(245, 158, 11, 0.1)',
-                                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                                  background: 'rgba(245, 158, 11, 0.08)',
+                                  border: '1px solid rgba(245, 158, 11, 0.15)',
                                 }}
                               >
-                                <FiClock className="w-3 h-3" style={{ color: '#F59E0B' }} />
-                                <span className="text-xs font-semibold text-gray-700">{job.time}</span>
+                                <FiClock className="w-2.5 h-2.5" style={{ color: '#F59E0B' }} />
+                                <span className="text-[10px] font-semibold text-gray-700">{job.time}</span>
                               </div>
                               <span
-                                className="text-xs font-bold px-2 py-0.5 rounded-full"
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                                 style={{
                                   background: `${accentColor}15`,
                                   color: accentColor,
-                                  border: `1px solid ${accentColor}30`,
+                                  border: `1px solid ${accentColor}25`,
                                 }}
                               >
                                 {getStatusLabel(job.status)}
@@ -563,13 +510,13 @@ const Dashboard = memo(() => {
                               e.stopPropagation();
                               navigate(`/vendor/booking/${job.id}`);
                             }}
-                            className="p-2 rounded-lg flex-shrink-0"
+                            className="p-1.5 rounded-lg flex-shrink-0 active:scale-90 transition-transform"
                             style={{
                               background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}dd 100%)`,
-                              boxShadow: `0 3px 10px ${hexToRgba(accentColor, 0.3)}`,
+                              boxShadow: `0 2px 6px ${hexToRgba(accentColor, 0.25)}`,
                             }}
                           >
-                            <FiArrowRight className="w-4 h-4" style={{ color: '#FFFFFF' }} />
+                            <FiArrowRight className="w-3.5 h-3.5" style={{ color: '#FFFFFF' }} />
                           </button>
                         </div>
                       </div>
@@ -579,15 +526,11 @@ const Dashboard = memo(() => {
               </div>
             ) : (
               <div
-                className="bg-white rounded-xl p-6 shadow-md text-center"
-                style={{
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(0, 0, 0, 0.08)',
-                }}
+                className="bg-white rounded-xl p-5 shadow-xs text-center border border-gray-100"
               >
-                <FiBriefcase className="w-12 h-12 mx-auto mb-3" style={{ color: '#D1D5DB' }} />
-                <p className="text-sm text-gray-600 mb-1">No field activities</p>
-                <p className="text-xs text-gray-500">Upcoming bookings will show here</p>
+                <FiBriefcase className="w-9 h-9 mx-auto mb-2 text-gray-300" />
+                <p className="text-xs text-gray-600 font-semibold mb-0.5">No field activities</p>
+                <p className="text-[11px] text-gray-400">Upcoming bookings will show here</p>
               </div>
             )}
           </div>

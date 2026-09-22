@@ -1457,7 +1457,7 @@ exports.getFarmerRequestById = async (req, res) => {
       requestType: { $in: ['independent_broadcast', 'team_leader'] }
     })
       .populate('dispatchedTo.workerId', 'name profilePhoto skills rating location status phone')
-      .populate('workerOffers.workerId', 'name profilePhoto rating location status phone')
+      .populate('workerOffers.workerId', 'name profilePhoto skills experience rating location status phone serviceCategory')
       .populate('finalWorkers',          'name profilePhoto skills rating phone')
       .populate({
         path: 'assignmentIds',
@@ -1602,12 +1602,63 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
             });
         }
 
-        updateObj['$push'] = {
-            workerOffers: {
+        const isTeamLeaderReq = request.requestType === 'team_leader' || request.bookingMode === 'TEAM_LEADER';
+        const acceptingWorker = await Worker.findById(workerId);
+
+        let offersToAdd = [];
+
+        if (isTeamLeaderReq && acceptingWorker && acceptingWorker.workerType === 'TEAM_LEADER' && acceptingWorker.teamId) {
+            // Include Leader
+            offersToAdd.push({
                 workerId: workerId,
                 offeredRate: offeredRate,
                 status: 'pending'
+            });
+
+            // If leader selected specific memberIds from frontend
+            if (Array.isArray(req.body.memberIds) && req.body.memberIds.length > 0) {
+                const selectedMembers = await Worker.find({
+                    _id: { $in: req.body.memberIds },
+                    teamId: acceptingWorker.teamId,
+                    isActive: { $ne: false }
+                });
+
+                for (const tm of selectedMembers) {
+                    offersToAdd.push({
+                        workerId: tm._id,
+                        offeredRate: offeredRate,
+                        status: 'pending'
+                    });
+                }
+            } else {
+                // Fallback: Find required team members from leader's team
+                const neededMembersCount = Math.max(0, (request.requiredWorkers || 1) - 1);
+                if (neededMembersCount > 0) {
+                    const teamMembers = await Worker.find({
+                        teamId: acceptingWorker.teamId,
+                        _id: { $ne: workerId },
+                        isActive: { $ne: false }
+                    }).limit(neededMembersCount);
+
+                    for (const tm of teamMembers) {
+                        offersToAdd.push({
+                            workerId: tm._id,
+                            offeredRate: offeredRate,
+                            status: 'pending'
+                        });
+                    }
+                }
             }
+        } else {
+            offersToAdd.push({
+                workerId: workerId,
+                offeredRate: offeredRate,
+                status: 'pending'
+            });
+        }
+
+        updateObj['$push'] = {
+            workerOffers: { $each: offersToAdd }
         };
     }
 

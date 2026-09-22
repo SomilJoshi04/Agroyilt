@@ -1,4 +1,4 @@
-﻿import api from './api';
+import api from './api';
 
 export const workerRequestService = {
   // ── Worker (Single Requests) ───────────────────────────────────────────
@@ -23,8 +23,9 @@ export const workerRequestService = {
     return response.data;
   },
 
-  dispatchToMembers: async (id) => {
-    const response = await api.post(`/workers/group-request/${id}/dispatch-members`);
+  dispatchToMembers: async (id, memberIds = null) => {
+    const payload = memberIds && Array.isArray(memberIds) && memberIds.length > 0 ? { memberIds } : {};
+    const response = await api.post(`/workers/group-request/${id}/dispatch-members`, payload);
     return response.data;
   },
 
@@ -38,7 +39,12 @@ export const workerRequestService = {
     return response.data;
   },
 
-  // ── Team Member (Group Request Responses) ──────────────────────────────
+  // ── Team Member (Group Request Responses & Invites) ──────────────────────
+  getMemberGroupInvites: async () => {
+    const response = await api.get('/workers/group-requests/member-invites');
+    return response.data;
+  },
+
   memberRespondToRequest: async (id, action) => {
     const response = await api.patch(`/workers/group-request/${id}/member-respond`, { action });
     return response.data;

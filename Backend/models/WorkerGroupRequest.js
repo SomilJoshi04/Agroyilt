@@ -1,3 +1,4 @@
+'use strict';
 const mongoose = require('mongoose');
 
 /**
@@ -5,6 +6,13 @@ const mongoose = require('mongoose');
  * Tracks a farmer's group-worker hire request through a Team Leader,
  * including member dispatch, individual acceptance, leader selection,
  * and rate negotiation.
+ *
+ * LIFECYCLE (v2 — unified with IndWorkerAssignment architecture):
+ *   pending → leader_accepted → collecting_members → selection_pending
+ *       → awaiting_payment  (NEW — leader selected, farmer must pay)
+ *       → payment_pending   (NEW — Razorpay order created)
+ *       → confirmed         (NEW — payment verified, IndWorkerAssignment docs created)
+ *       → completed / cancelled / rejected / expired
  */
 const workerGroupRequestSchema = new mongoose.Schema({
   farmerId: {
@@ -39,6 +47,27 @@ const workerGroupRequestSchema = new mongoose.Schema({
   endTime:       { type: String, required: true },
   rateUnit:      { type: String, enum: ['hourly', 'daily'], default: 'daily' },
 
+  // ════════════════════════════════════════════════════════════════════════
+  // BOOKING TYPE — mirrors WorkerBookingRequest.bookingType
+  //   HOURLY: uses scheduledDate + startTime + endTime + durationMinutes
+  //   DAILY:  uses startDate + numberOfDays
+  // ════════════════════════════════════════════════════════════════════════
+  bookingType: {
+    type: String,
+    enum: ['HOURLY', 'DAILY'],
+    default: 'HOURLY'
+  },
+
+  // DAILY-only schedule fields
+  startDate:    { type: Date,   default: null },
+  endDate:      { type: Date,   default: null },
+  numberOfDays: { type: Number, default: null, min: 1 },
+  durationMinutes: { type: Number, default: 60 }, // HOURLY only
+
+  // DAILY rate fields
+  minDailyRate: { type: Number, default: null },
+  maxDailyRate: { type: Number, default: null },
+
   // Location
   location: {
     addressLine1: String,
@@ -52,10 +81,10 @@ const workerGroupRequestSchema = new mongoose.Schema({
   // Worker Count
   requiredWorkers: { type: Number, required: true, min: 1 },
 
-  // Rate Negotiation (per worker)
-  leaderRate:              { type: Number, required: true }, // Snapshot of leader's daily rate
+  // Rate Negotiation (per worker, per unit)
+  leaderRate:                 { type: Number, required: true }, // Snapshot of leader's rate
   farmerOfferedRatePerWorker: { type: Number, required: true },
-  agreedRatePerWorker:     { type: Number, default: null },  // Set only after agreement
+  agreedRatePerWorker:        { type: Number, default: null },  // Set only after agreement
 
   negotiation: [{
     by:        { type: String, enum: ['farmer', 'leader'], required: true },
@@ -68,14 +97,17 @@ const workerGroupRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      'pending',          // Waiting for leader to respond
-      'leader_accepted',  // Leader accepted, not yet dispatched to members
-      'collecting_members', // Member requests sent out
-      'selection_pending', // All members responded, leader yet to select
-      'confirmed',        // Leader selected workers, booking created
-      'rejected',         // Leader rejected
-      'cancelled',        // Farmer cancelled
-      'expired'           // Timed out
+      'pending',             // Waiting for leader to respond
+      'leader_accepted',     // Leader accepted, not yet dispatched to members
+      'collecting_members',  // Member requests sent out
+      'selection_pending',   // All members responded, leader yet to select
+      'awaiting_payment',    // Leader selected workers; farmer must pay  ← NEW
+      'payment_pending',     // Razorpay order created; awaiting farmer payment  ← NEW
+      'confirmed',           // Payment verified; IndWorkerAssignment docs created  ← NEW
+      'completed',           // All assignments settled  ← NEW
+      'rejected',            // Leader rejected
+      'cancelled',           // Farmer or admin cancelled
+      'expired'              // Timed out
     ],
     default: 'pending',
     index: true
@@ -94,7 +126,71 @@ const workerGroupRequestSchema = new mongoose.Schema({
     ref: 'Worker'
   }],
 
-  // Reference to Booking records created on confirmation
+  // ════════════════════════════════════════════════════════════════════════
+  // UNIFIED ARCHITECTURE LINKS  ← NEW
+  // Created after payment verification. One WorkerBookingRequest (parent)
+  // with N IndWorkerAssignment docs (one per selected worker).
+  // ════════════════════════════════════════════════════════════════════════
+
+  /** The parent WorkerBookingRequest created for this group booking */
+  workerBookingRequestId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'WorkerBookingRequest',
+    default: null,
+    index: true
+  },
+
+  /** Mirror of WorkerBookingRequest.assignmentIds for quick access */
+  assignmentIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'IndWorkerAssignment'
+  }],
+
+  // ════════════════════════════════════════════════════════════════════════
+  // FINANCIAL SNAPSHOT  ← NEW
+  // Locked at the moment the leader calls select-workers. Immutable after that.
+  // ════════════════════════════════════════════════════════════════════════
+  financialSnapshot: {
+    agreedRatePerWorker:  { type: Number, default: null },
+    selectedWorkerCount:  { type: Number, default: null },
+    maximumWorkerAmount:  { type: Number, default: null }, // agreedRate × workers × duration
+    platformChargeRate:   { type: Number, default: null },
+    platformChargeAmount: { type: Number, default: null },
+    totalPayable:         { type: Number, default: null },
+    commissionRate:       { type: Number, default: null },
+    currency:             { type: String, default: 'INR' },
+    bookingType:          { type: String, default: null },
+    numberOfDays:         { type: Number, default: null },
+    durationMinutes:      { type: Number, default: null },
+    createdAt:            { type: Date,   default: null }
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // PAYMENT TRACKING  ← NEW
+  // ════════════════════════════════════════════════════════════════════════
+  paymentStatus: {
+    type: String,
+    enum: ['not_started', 'pending', 'success', 'failed', 'cash_pending'],
+    default: 'not_started'
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['online', 'wallet', 'cash', null],
+    default: null
+  },
+  razorpayOrderId:   { type: String, default: null },
+  razorpayPaymentId: { type: String, default: null },
+
+  // Refund tracking
+  refundAmount:     { type: Number,  default: null },
+  refundCredited:   { type: Boolean, default: false },
+  refundCreditedAt: { type: Date,    default: null },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // LEGACY — kept for backward compat
+  // ════════════════════════════════════════════════════════════════════════
+
+  // @deprecated — use assignmentIds instead
   finalBookingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
@@ -114,5 +210,6 @@ workerGroupRequestSchema.index({ farmerId: 1, status: 1 });
 workerGroupRequestSchema.index({ teamLeaderId: 1, status: 1 });
 workerGroupRequestSchema.index({ teamId: 1, scheduledDate: 1 });
 workerGroupRequestSchema.index({ 'memberRequests.workerId': 1 });
+workerGroupRequestSchema.index({ workerBookingRequestId: 1 });
 
 module.exports = mongoose.model('WorkerGroupRequest', workerGroupRequestSchema);

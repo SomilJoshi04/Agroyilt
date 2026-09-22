@@ -35,7 +35,8 @@ exports.getMyTeam = async (req, res) => {
       }
       
       const team = worker.teamId;
-      const members = await Worker.find({ teamId: team._id, _id: { $ne: req.userId } }).select('name phone status workerType');
+      const members = await Worker.find({ teamId: team._id, _id: { $ne: req.userId } })
+        .select('name phone status workerType skills rating profilePhoto dailyRate hourlyRate experience experienceYears serviceCategory serviceCategories');
       return res.status(200).json({ success: true, team, members });
     } else {
       // WORKER
@@ -44,7 +45,8 @@ exports.getMyTeam = async (req, res) => {
       }
       
       const team = worker.teamId;
-      const leader = await Worker.findById(team.leaderId).select('name phone');
+      const leader = await Worker.findById(team.leaderId)
+        .select('name phone status workerType skills rating profilePhoto dailyRate hourlyRate experience experienceYears serviceCategory serviceCategories');
       return res.status(200).json({ success: true, team, leader });
     }
   } catch (error) {
@@ -76,8 +78,6 @@ exports.searchEligibleWorkers = async (req, res) => {
     // Only get eligible workers: 
     // 1. Regular workers without a team
     // 2. Team leaders (who can be merged)
-    // For simplicity right now, we get everyone except the current user and we can show them.
-    // Ideally, we'd add { $or: [ { workerType: 'WORKER', teamId: null }, { workerType: 'TEAM_LEADER' } ] }
     filter = {
       ...filter,
       $or: [
@@ -108,7 +108,7 @@ exports.searchEligibleWorkers = async (req, res) => {
     }
 
     const workers = await Worker.find(filter)
-      .select('name phone workerType teamId status')
+      .select('name phone workerType teamId status skills rating profilePhoto dailyRate hourlyRate experience experienceYears serviceCategory serviceCategories')
       .sort({ createdAt: -1 })
       .limit(20);
 

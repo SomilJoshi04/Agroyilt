@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiCheck, FiClock, FiUser, FiMapPin, FiTool, FiDollarSign, FiCheckCircle, FiX, FiNavigation } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
@@ -99,7 +99,6 @@ const JobTimeline = () => {
 
   const handleRequestPayment = () => {
     toastManager.success('Payment request sent to Vendor', {
-      icon: '🔔',
       style: { borderRadius: '10px', background: '#333', color: '#fff' },
     });
   };

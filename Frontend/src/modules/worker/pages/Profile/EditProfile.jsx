@@ -313,6 +313,7 @@ const EditProfile = () => {
 
     setFormData(prev => ({
       ...prev,
+      location: (location.lat && location.lng) ? { lat: Number(location.lat), lng: Number(location.lng) } : prev.location,
       address: {
         ...prev.address,
         addressLine1: houseNumber || prev.address.addressLine1,
@@ -355,7 +356,8 @@ const EditProfile = () => {
         dailyRate: Number(formData.dailyRate) || 0,
         landRate: Number(formData.landRate) || 0,
         address: formData.address,
-        status: formData.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE'
+        status: formData.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE',
+        ...(formData.location ? { location: formData.location } : {})
       };
 
       if (photoFile) {

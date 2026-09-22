@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
-import { FiMapPin, FiPhone, FiClock, FiUser, FiCheck, FiX, FiArrowRight, FiNavigation, FiTool, FiCheckCircle, FiDollarSign, FiCamera, FiPlus, FiTrash, FiXCircle, FiAward, FiFileText } from 'react-icons/fi';
+import { FiMapPin, FiPhone, FiClock, FiUser, FiCheck, FiX, FiArrowRight, FiNavigation, FiTool, FiCheckCircle, FiDollarSign, FiCamera, FiPlus, FiTrash, FiXCircle, FiAward, FiFileText, FiAlertTriangle } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import { SkeletonCard } from '../../../../components/common/SkeletonLoaders';
@@ -578,7 +578,10 @@ const JobDetails = () => {
       if (job.paymentStatus === 'success') {
         return (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-            <p className="text-green-800 font-bold mb-1">✅ Payment Already Received</p>
+            <p className="text-green-800 font-bold mb-1 flex items-center justify-center gap-1.5">
+              <FiCheckCircle className="w-4 h-4 text-green-600" />
+              <span>Payment Already Received</span>
+            </p>
             <p className="text-green-600 text-sm">Farmer paid upfront at booking time. Your earnings will be credited to your wallet.</p>
           </div>
         );
@@ -713,7 +716,10 @@ const JobDetails = () => {
 
               {job.isDecreased && (
                 <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/20 text-xs text-amber-100 mb-3">
-                  <p className="font-black text-white mb-0.5">⚠️ Schedule Concluded After Today</p>
+                  <p className="font-black text-white mb-0.5 flex items-center gap-1.5">
+                    <FiAlertTriangle className="w-4 h-4 text-amber-300" />
+                    <span>Schedule Concluded After Today</span>
+                  </p>
                   <p>The farmer has completed the job schedule. You will be settled for today and worked days once today's Completion OTP is verified.</p>
                 </div>
               )}

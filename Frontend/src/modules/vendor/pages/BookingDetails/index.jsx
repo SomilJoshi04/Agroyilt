@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiMapPin, FiClock, FiDollarSign, FiUser, FiPhone, FiNavigation, FiArrowRight, FiEdit, FiCheckCircle, FiCreditCard, FiX, FiCheck, FiTool, FiXCircle, FiAward, FiPackage, FiAlertCircle, FiDownload, FiAlertTriangle, FiLoader, FiKey } from 'react-icons/fi';
+import { FiMapPin, FiClock, FiDollarSign, FiUser, FiPhone, FiNavigation, FiArrowRight, FiEdit, FiCheckCircle, FiCreditCard, FiX, FiCheck, FiTool, FiXCircle, FiAward, FiPackage, FiAlertCircle, FiDownload, FiAlertTriangle, FiLoader, FiKey, FiCalendar, FiCompass } from 'react-icons/fi';
+import { FaSeedling } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -1044,8 +1045,9 @@ export default function BookingDetails() {
                     {booking.rental_type === 'daily' ? 'Daily Rental' : booking.rental_type === 'land_based' ? 'Land Based' : booking.rental_type === 'monthly' ? 'Monthly Rental' : booking.rental_type}
                   </span>
                   {booking.rental_type === 'daily' && booking.estimatedDuration && (
-                    <p className="text-sm font-semibold text-gray-700">
-                      📅 {booking.estimatedDuration} Day{booking.estimatedDuration > 1 ? 's' : ''}
+                    <p className="text-sm font-semibold text-gray-700 flex items-center flex-wrap gap-1">
+                      <FiCalendar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                      <span>{booking.estimatedDuration} Day{booking.estimatedDuration > 1 ? 's' : ''}</span>
                       {booking.endDate ? (
                         <span className="text-gray-500 font-normal"> · Ends {new Date(booking.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       ) : booking.scheduledDate && booking.estimatedDuration > 1 ? (() => {
@@ -1056,23 +1058,33 @@ export default function BookingDetails() {
                     </p>
                   )}
                   {booking.rental_type === 'monthly' && (
-                    <p className="text-sm font-semibold text-gray-700">
-                      📅 1 Month
+                    <p className="text-sm font-semibold text-gray-700 flex items-center flex-wrap gap-1">
+                      <FiCalendar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                      <span>1 Month</span>
                       {booking.endDate && (
                         <span className="text-gray-500 font-normal"> · Ends {new Date(booking.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       )}
                     </p>
                   )}
                   {booking.rental_type === 'land_based' && booking.landSize && (
-                    <p className="text-sm font-semibold text-gray-700">🗺️ Area: {booking.landSize}</p>
+                    <p className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                      <FiCompass className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                      <span>Area: {booking.landSize}</span>
+                    </p>
                   )}
                   {booking.cropType && (
-                    <p className="text-xs text-gray-500">🌾 Crop: {booking.cropType}</p>
+                    <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                      <FaSeedling className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                      <span>Crop: {booking.cropType}</span>
+                    </p>
                   )}
                 </div>
               )}
               {booking.rental_type === 'hourly' && booking.estimatedDuration && (
-                <p className="text-sm font-semibold text-gray-700 mt-1">⏱ {booking.estimatedDuration} Hour{booking.estimatedDuration > 1 ? 's' : ''}</p>
+                <p className="text-sm font-semibold text-gray-700 mt-1 flex items-center gap-1.5">
+                  <FiClock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                  <span>{booking.estimatedDuration} Hour{booking.estimatedDuration > 1 ? 's' : ''}</span>
+                </p>
               )}
             </div>
           </div>
@@ -1084,12 +1096,13 @@ export default function BookingDetails() {
             <p className="text-gray-400 text-xs font-medium uppercase tracking-widest mb-1">TOTAL INVOICE AMOUNT</p>
             <h2 className="text-4xl font-black">₹{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h2>
             <div className="mt-2.5">
-              <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                 booking.paymentStatus === 'SUCCESS' || booking.paymentStatus === 'paid' || booking.paymentStatus === 'success' || booking.paymentStatus === 'PAID'
                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                   : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
               }`}>
-                💰 Payment: {booking.paymentStatus === 'SUCCESS' || booking.paymentStatus === 'paid' || booking.paymentStatus === 'success' || booking.paymentStatus === 'PAID' ? 'Received (Wallet Credited)' : 'Pending'}
+                <FiDollarSign className="w-3 h-3" />
+                <span>Payment: {booking.paymentStatus === 'SUCCESS' || booking.paymentStatus === 'paid' || booking.paymentStatus === 'success' || booking.paymentStatus === 'PAID' ? 'Received (Wallet Credited)' : 'Pending'}</span>
               </span>
             </div>
             {isPlanBenefit && (
@@ -1761,7 +1774,10 @@ export default function BookingDetails() {
                 </div>
                 {booking.work_evidence_photo && (
                   <div className="col-span-2 space-y-1 pt-2">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">🚜 Work Evidence (Field Photo)</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      <FiTool className="w-3 h-3 text-emerald-600" />
+                      <span>Work Evidence (Field Photo)</span>
+                    </p>
                     <div className="w-full aspect-video rounded-xl overflow-hidden bg-gray-100 border-2 border-dashed border-gray-200 relative group">
                       <img src={booking.work_evidence_photo} alt="Work Proof" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">

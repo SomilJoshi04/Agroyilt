@@ -140,6 +140,18 @@ const updateProfile = async (req, res) => {
       };
     }
 
+    if (req.body.location && req.body.location.lat !== undefined && req.body.location.lng !== undefined) {
+      const lat = Number(req.body.location.lat);
+      const lng = Number(req.body.location.lng);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        worker.location = {
+          lat,
+          lng,
+          updatedAt: new Date()
+        };
+      }
+    }
+
     await worker.save();
 
     // Broadcast real-time availability update via Socket.IO if status was updated

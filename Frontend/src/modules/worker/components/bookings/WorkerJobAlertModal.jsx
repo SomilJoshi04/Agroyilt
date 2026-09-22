@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiX, FiMapPin, FiClock, FiArrowRight, FiBell, FiBriefcase, FiMinimize2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { playAlertRing, stopAlertRing } from '../../../../utils/notificationSound';
@@ -125,7 +125,7 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
                   {/* Service Row */}
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-xl shadow-sm border border-gray-100">
-                      {job.serviceId?.iconUrl ? <img src={job.serviceId.iconUrl} className="w-8 h-8 object-contain" /> : '⚡'}
+                      {job.serviceId?.iconUrl ? <img src={job.serviceId.iconUrl} className="w-8 h-8 object-contain" /> : <FiBriefcase className="w-6 h-6 text-amber-500" />}
                     </div>
                     <div>
                       <h4 className="text-lg font-black text-gray-900 leading-none">{job.serviceType || job.serviceId?.title || 'Service'}</h4>

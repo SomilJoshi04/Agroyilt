@@ -1,6 +1,7 @@
-﻿import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBriefcase, FiMapPin, FiClock, FiUser, FiFilter, FiSearch, FiLoader, FiPackage } from 'react-icons/fi';
+import { FiBriefcase, FiMapPin, FiClock, FiUser, FiFilter, FiSearch, FiLoader, FiPackage, FiCalendar, FiCompass, FiDollarSign } from 'react-icons/fi';
+import { FaSeedling } from 'react-icons/fa';
 import { toastManager } from '../../../../utils/toastManager';
 import { vendorTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -345,8 +346,9 @@ const ActiveJobs = memo(() => {
                               {job.rental_type === 'daily' ? 'Daily Rental' : job.rental_type === 'land_based' ? 'Land Based' : job.rental_type === 'monthly' ? 'Monthly Rental' : job.rental_type}
                             </span>
                             {job.rental_type === 'daily' && job.estimatedDuration && (
-                              <span className="text-gray-600 font-semibold">
-                                📅 {job.estimatedDuration} Day{job.estimatedDuration > 1 ? 's' : ''}
+                              <span className="text-gray-600 font-semibold flex items-center flex-wrap gap-1">
+                                <FiCalendar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                <span>{job.estimatedDuration} Day{job.estimatedDuration > 1 ? 's' : ''}</span>
                                 {job.endDate && (
                                   <> · Ends {new Date(job.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</>
                                 )}
@@ -358,18 +360,25 @@ const ActiveJobs = memo(() => {
                               </span>
                             )}
                             {job.rental_type === 'monthly' && (
-                              <span className="text-gray-600 font-semibold">
-                                📅 1 Month
+                              <span className="text-gray-600 font-semibold flex items-center flex-wrap gap-1">
+                                <FiCalendar className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                <span>1 Month</span>
                                 {job.endDate && (
                                   <> · Ends {new Date(job.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</>
                                 )}
                               </span>
                             )}
                             {job.rental_type === 'land_based' && job.landSize && (
-                              <span className="text-gray-600 font-semibold">🗺️ {job.landSize}</span>
+                              <span className="text-gray-600 font-semibold flex items-center gap-1">
+                                <FiCompass className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                                <span>{job.landSize}</span>
+                              </span>
                             )}
                             {job.cropType && (
-                              <span className="text-gray-500 text-xs">🌾 Crop: {job.cropType}</span>
+                              <span className="text-gray-500 text-xs flex items-center gap-1">
+                                <FaSeedling className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                <span>Crop: {job.cropType}</span>
+                              </span>
                             )}
                           </div>
                         </div>
@@ -379,7 +388,10 @@ const ActiveJobs = memo(() => {
                           <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
                             <FiPackage className="w-4 h-4" style={{ color: statusColor }} />
                           </div>
-                          <span className="text-gray-700 font-semibold">⏱ {job.estimatedDuration} Hour{job.estimatedDuration > 1 ? 's' : ''}</span>
+                          <span className="text-gray-700 font-semibold flex items-center gap-1">
+                            <FiClock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                            <span>{job.estimatedDuration} Hour{job.estimatedDuration > 1 ? 's' : ''}</span>
+                          </span>
                         </div>
                       )}
                     </div>
@@ -390,7 +402,8 @@ const ActiveJobs = memo(() => {
                           ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                           : 'bg-amber-50 text-amber-600 border border-amber-100'
                       }`}>
-                        💰 Payment: {job.paymentStatus === 'SUCCESS' || job.paymentStatus === 'paid' || job.paymentStatus === 'success' || job.paymentStatus === 'PAID' ? 'Received (Wallet Credited)' : 'Pending'}
+                        <FiDollarSign className="w-3 h-3" />
+                        <span>Payment: {job.paymentStatus === 'SUCCESS' || job.paymentStatus === 'paid' || job.paymentStatus === 'success' || job.paymentStatus === 'PAID' ? 'Received (Wallet Credited)' : 'Pending'}</span>
                       </span>
                     </div>
 
