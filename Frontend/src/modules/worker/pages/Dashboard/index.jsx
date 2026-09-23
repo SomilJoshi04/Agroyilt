@@ -5,6 +5,7 @@ import { FaWallet } from 'react-icons/fa';
 import { workerTheme as themeColors, vendorTheme } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import workerService from '../../../../services/workerService';
+import workerRequestService from '../../../../services/workerRequestService';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import { SkeletonProfileHeader, SkeletonDashboardStats, SkeletonList } from '../../../../components/common/SkeletonLoaders';
 import OptimizedImage from '../../../../components/common/OptimizedImage';
@@ -95,11 +96,12 @@ const Dashboard = () => {
     try {
       setLoading(true);
 
-      // Fetch Profile, Stats, and Pending Requests in parallel
-      const [profileRes, statsRes, pendingRequestsRes] = await Promise.all([
+      // Fetch Profile, Stats, Pending Requests, and Team Member Invites in parallel
+      const [profileRes, statsRes, pendingRequestsRes, memberInvitesRes] = await Promise.all([
         workerService.getProfile(),
         workerService.getDashboardStats(),
-        workerService.getPendingFarmerRequests().catch(() => ({ success: false, data: [] }))
+        workerService.getPendingFarmerRequests().catch(() => ({ success: false, data: [] })),
+        workerRequestService.getMemberInvites().catch(() => ({ success: false, data: [] }))
       ]);
 
       if (profileRes.success) {
@@ -147,8 +149,23 @@ const Dashboard = () => {
         }
       }
 
-      // If there's any pending request, pop it up
-      if (pendingRequestsRes?.success && pendingRequestsRes.data?.length > 0) {
+      // Priority 1: If there's any pending team member invitation, pop it up
+      if (memberInvitesRes?.success && memberInvitesRes.data?.length > 0) {
+        const inviteDoc = memberInvitesRes.data[0];
+        if (inviteDoc && inviteDoc.requestId) {
+          window.dispatchEvent(new CustomEvent('workerIncomingBooking', {
+            detail: {
+              data: {
+                ...inviteDoc,
+                requestType: 'TEAM_MEMBER_INVITATION',
+                isTeamInvite: true
+              },
+              relatedId: inviteDoc.requestId
+            }
+          }));
+        }
+      } else if (pendingRequestsRes?.success && pendingRequestsRes.data?.length > 0) {
+        // Priority 2: Regular farmer broadcast request
         const reqDoc = pendingRequestsRes.data[0];
         if (reqDoc && reqDoc._id && (reqDoc.minRate || reqDoc.maxRate || reqDoc.farmerOfferedRate)) {
           window.dispatchEvent(new CustomEvent('workerIncomingBooking', {

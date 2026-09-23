@@ -38,6 +38,7 @@ const crypto                = require('crypto');
 const { getIO }             = require('../../sockets');
 const { createOrder, verifyPayment } = require('../../services/razorpayService');
 const { getWorkerFinancialSettings } = require('../../services/workerFinancialService');
+const { sendNotificationToWorker } = require('../../services/firebaseAdmin');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -710,18 +711,85 @@ exports.dispatchToMembers = async (req, res) => {
       return res.status(400).json({ success: false, message: 'All selected team members have conflicting bookings for this time.' });
     }
 
-    request.memberRequests = eligibleMembers.map(id => ({ workerId: id, status: 'pending' }));
+    request.memberRequests = eligibleMembers.map(id => ({ workerId: id, status: 'member_pending' }));
     request.status = 'collecting_members';
     await request.save();
 
+    const [leaderDoc, farmerDoc] = await Promise.all([
+      Worker.findById(leaderId).select('name phone rating profilePicture profilePhoto').lean(),
+      User.findById(request.farmerId).select('name phone profilePicture avatar profilePhoto').lean()
+    ]);
+
+    const leaderName = leaderDoc?.name || 'Team Leader';
+    const farmerName = farmerDoc?.name || 'Farmer';
+    const farmerPhone = farmerDoc?.phone || '';
+    const farmerPhoto = farmerDoc?.profilePicture || farmerDoc?.avatar || farmerDoc?.profilePhoto || '';
+
     for (const memberId of eligibleMembers) {
+      const invitePayload = {
+        requestId:       request._id.toString(),
+        offerId:         `${request._id}_${memberId}`,
+        requestType:     'TEAM_MEMBER_INVITATION',
+        isTeamInvite:    true,
+        status:          'member_pending',
+        source:          'WorkerGroupRequest',
+        teamLeader: {
+          id:     leaderId.toString(),
+          name:   leaderName,
+          phone:  leaderDoc?.phone || '',
+          rating: leaderDoc?.rating || 0
+        },
+        farmer: {
+          id:           request.farmerId.toString(),
+          name:         farmerName,
+          phone:        farmerPhone,
+          profileImage: farmerPhoto
+        },
+        job: {
+          title:        request.workTitle || request.workCategory || 'Farm Work',
+          category:     request.workCategory || '',
+          description:  request.workDescription || '',
+          skills:       request.requiredSkills || [],
+          date:         request.bookingType === 'DAILY' ? request.startDate : request.scheduledDate,
+          startTime:    request.startTime || '',
+          endTime:      request.endTime || '',
+          duration:     request.bookingType === 'DAILY' ? `${request.numberOfDays || 1} day(s)` : `${request.durationMinutes || 60} mins`,
+          location:     typeof request.location === 'object' && request.location !== null
+                          ? [request.location.addressLine1, request.location.city, request.location.state].filter(Boolean).join(', ') || 'Farmer Location'
+                          : (request.location || 'Location Provided'),
+          bookingType:  request.bookingType || 'HOURLY',
+          numberOfDays: request.numberOfDays || null,
+          startDate:    request.startDate || null,
+          requiredWorkers: request.requiredWorkers || 1
+        },
+        offeredRate:  request.agreedRatePerWorker || request.farmerOfferedRatePerWorker || request.leaderRate || 0,
+        rateUnit:     request.rateUnit || (request.bookingType === 'DAILY' ? 'daily' : 'hourly')
+      };
+
+      // In-app Notification
       await notify({
         recipientType: 'worker', recipientId: memberId,
-        type: 'group_member_request',
-        title: 'Team Work Request',
-        message: `Your team leader has a group job on ${new Date(request.scheduledDate).toDateString()}. Work: ${request.workTitle || 'Farm Work'}. Please respond.`,
+        type: 'team_member_invitation',
+        title: '👥 Team Job Invitation',
+        message: `Your team leader ${leaderName} has a group job on ${new Date(request.scheduledDate).toDateString()}. Work: ${request.workTitle || 'Farm Work'}. Please respond.`,
         relatedId: request._id, relatedType: 'worker_group_request'
       });
+
+      // Dedicated socket events
+      emitSafe(`worker_${memberId}`, 'team_member_invitation', invitePayload);
+      emitSafe(`worker_${memberId}`, 'group_member_request', invitePayload);
+      emitSafe(`worker_${memberId}`, 'workerJobsUpdated', {});
+
+      // FCM Fallback
+      sendNotificationToWorker(
+        memberId,
+        'New Team Job Invitation',
+        `You have been invited by ${leaderName}. Tap to view the job.`,
+        {
+          type: 'TEAM_MEMBER_INVITATION',
+          requestId: request._id.toString()
+        }
+      ).catch(fcmErr => console.warn('[FCM] Group member invite failed:', fcmErr.message));
     }
 
     return res.json({

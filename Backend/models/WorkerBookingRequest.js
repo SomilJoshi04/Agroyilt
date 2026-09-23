@@ -160,7 +160,29 @@ const workerBookingRequestSchema = new mongoose.Schema({
     workerId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', required: true },
     offeredRate: { type: Number, required: true },
     submittedAt: { type: Date, default: Date.now },
-    status:      { type: String, enum: ['pending', 'selected', 'rejected', 'expired'], default: 'pending' }
+    status:      { type: String, enum: ['pending', 'accepted', 'selected', 'rejected', 'expired'], default: 'pending' }
+  }],
+
+  // Team Leader ID if this is handled via Team Leader flow
+  teamLeaderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', default: null, index: true },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // TEAM MEMBER INVITATIONS (Team Leader → Selected Team Members)
+  // Backend single source of truth for individual member invitations.
+  // ════════════════════════════════════════════════════════════════════════
+  memberInvitations: [{
+    workerId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', required: true, index: true },
+    leaderId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', required: true },
+    offeredRate: { type: Number, required: true },
+    rateUnit:    { type: String, enum: ['hourly', 'daily'], default: 'daily' },
+    status:      { 
+      type: String, 
+      enum: ['member_pending', 'member_accepted', 'member_rejected', 'member_expired'], 
+      default: 'member_pending',
+      index: true
+    },
+    invitedAt:   { type: Date, default: Date.now },
+    respondedAt: { type: Date, default: null }
   }],
 
   // Worker IDs explicitly selected by Farmer (before payment)

@@ -116,7 +116,11 @@ const workerGroupRequestSchema = new mongoose.Schema({
   // Individual member requests sent by the leader
   memberRequests: [{
     workerId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', required: true },
-    status:      { type: String, enum: ['pending', 'accepted', 'rejected', 'withdrawn'], default: 'pending' },
+    status:      { 
+      type: String, 
+      enum: ['pending', 'member_pending', 'accepted', 'member_accepted', 'rejected', 'member_rejected', 'expired', 'member_expired', 'withdrawn'], 
+      default: 'member_pending' 
+    },
     respondedAt: { type: Date, default: null }
   }],
 

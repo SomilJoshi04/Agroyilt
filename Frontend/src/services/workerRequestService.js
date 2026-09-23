@@ -41,13 +41,33 @@ export const workerRequestService = {
 
   // ── Team Member (Group Request Responses & Invites) ──────────────────────
   getMemberGroupInvites: async () => {
-    const response = await api.get('/workers/group-requests/member-invites');
-    return response.data;
+    try {
+      const response = await api.get('/workers/farmer-requests/member-invites');
+      return response.data;
+    } catch (e) {
+      const response = await api.get('/workers/group-requests/member-invites');
+      return response.data;
+    }
+  },
+
+  getMemberInvites: async () => {
+    try {
+      const response = await api.get('/workers/farmer-requests/member-invites');
+      return response.data;
+    } catch (e) {
+      const response = await api.get('/workers/group-requests/member-invites');
+      return response.data;
+    }
   },
 
   memberRespondToRequest: async (id, action) => {
-    const response = await api.patch(`/workers/group-request/${id}/member-respond`, { action });
-    return response.data;
+    try {
+      const response = await api.patch(`/workers/farmer-request/${id}/member-respond`, { action });
+      return response.data;
+    } catch (e) {
+      const response = await api.patch(`/workers/group-request/${id}/member-respond`, { action });
+      return response.data;
+    }
   }
 };
 

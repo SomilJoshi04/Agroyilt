@@ -599,7 +599,30 @@ const normalizeSkills = (skills) => {
   )];
 };
 
-// â”€â”€â”€ Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/**
+ * Check if worker skills match required skills.
+ * If worker has 'ALL' (case-insensitive), it matches any required skills!
+ * Otherwise, if requiredSkills is empty or any required skill matches worker skills / service categories, it matches.
+ */
+const isWorkerSkillMatch = (workerSkills = [], requiredSkills = [], workerCategories = []) => {
+  if (!requiredSkills || requiredSkills.length === 0) return true;
+  const wSkills = Array.isArray(workerSkills) ? workerSkills.map(s => String(s).trim().toLowerCase()) : [];
+  if (wSkills.includes('all')) return true;
+
+  const wCats = Array.isArray(workerCategories) ? workerCategories.map(c => String(c).trim().toLowerCase()) : [];
+  const reqNormalized = requiredSkills.map(s => String(s).trim().toLowerCase()).filter(Boolean);
+
+  if (reqNormalized.length === 0) return true;
+
+  for (const req of reqNormalized) {
+    const matched = wSkills.some(ws => ws === req || ws.includes(req) || req.includes(ws)) ||
+                    wCats.some(wc => wc === req || wc.includes(req) || req.includes(wc));
+    if (matched) return true;
+  }
+  return false;
+};
+
+
 
 const validateRequestPayload = (body) => {
   const {
@@ -1490,6 +1513,23 @@ exports.getFarmerRequestById = async (req, res) => {
     } catch (extErr) {}
 
     const requestData = request.toObject ? request.toObject() : { ...request };
+
+    // SECTION 22: Farmer panel must ONLY see Team Leader + member_accepted
+    if (request.bookingMode === 'TEAM_LEADER' || request.requestType === 'team_leader') {
+      const leaderIdStr = request.teamLeaderId ? request.teamLeaderId.toString() : null;
+      const acceptedMemberIdStrs = Array.isArray(request.memberInvitations)
+        ? request.memberInvitations
+            .filter(inv => inv.status === 'member_accepted')
+            .map(inv => inv.workerId.toString())
+        : [];
+
+      requestData.workerOffers = (requestData.workerOffers || []).filter(o => {
+        const oIdStr = (o.workerId?._id || o.workerId)?.toString();
+        if (leaderIdStr && oIdStr === leaderIdStr) return true;
+        return acceptedMemberIdStrs.includes(oIdStr) || o.status === 'accepted';
+      });
+    }
+
     requestData.paymentSummary = buildFarmerPaymentSummary(request, assignments, null, confirmedExtensions);
     requestData.confirmedExtensions = confirmedExtensions;
 
@@ -1527,6 +1567,403 @@ exports.getWorkerPendingFarmerRequests = async (req, res) => {
   } catch (err) {
     console.error('[getWorkerPendingFarmerRequests]', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch pending requests.' });
+  }
+};
+
+/**
+ * GET /api/workers/farmer-requests/member-invites
+ * GET /api/workers/group-requests/member-invites
+ * Returns all active, pending invitations for the authenticated worker.
+ */
+exports.getMemberInvites = async (req, res) => {
+  try {
+    const workerId = req.user._id;
+
+    // 1. Check WorkerBookingRequest (Farmer broadcast routed to Team Leader)
+    const bookingRequests = await WorkerBookingRequest.find({
+      'memberInvitations': {
+        $elemMatch: {
+          workerId: workerId,
+          status: { $in: ['member_pending', 'pending'] }
+        }
+      },
+      status: { $nin: ['cancelled', 'expired', 'completed', 'rejected'] },
+      expiresAt: { $gt: new Date() }
+    })
+      .populate('teamLeaderId', 'name phone profilePicture profilePhoto rating')
+      .populate('farmerId', 'name phone profilePicture avatar profilePhoto')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 2. Check WorkerGroupRequest (Direct group booking to Team Leader)
+    const groupRequests = await WorkerGroupRequest.find({
+      'memberRequests': {
+        $elemMatch: {
+          workerId: workerId,
+          status: { $in: ['member_pending', 'pending'] }
+        }
+      },
+      status: { $in: ['collecting_members', 'selection_pending'] },
+      expiresAt: { $gt: new Date() }
+    })
+      .populate('teamLeaderId', 'name phone profilePicture profilePhoto rating')
+      .populate('farmerId', 'name phone profilePicture avatar profilePhoto')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const normalizedInvites = [];
+
+    // Map bookingRequests
+    for (const br of bookingRequests) {
+      const invite = (br.memberInvitations || []).find(
+        m => m.workerId?.toString() === workerId.toString() && (m.status === 'member_pending' || m.status === 'pending')
+      );
+      if (!invite) continue;
+
+      normalizedInvites.push({
+        requestId:       br._id.toString(),
+        offerId:         invite._id ? invite._id.toString() : `${br._id}_${workerId}`,
+        requestType:     'TEAM_MEMBER_INVITATION',
+        isTeamInvite:    true,
+        status:          'member_pending',
+        source:          'WorkerBookingRequest',
+        teamLeader: {
+          id:     br.teamLeaderId?._id?.toString() || '',
+          name:   br.teamLeaderId?.name || 'Team Leader',
+          phone:  br.teamLeaderId?.phone || '',
+          rating: br.teamLeaderId?.rating || 0
+        },
+        farmer: {
+          id:           br.farmerId?._id?.toString() || '',
+          name:         br.farmerId?.name || 'Farmer',
+          phone:        br.farmerId?.phone || '',
+          profileImage: br.farmerId?.profilePicture || br.farmerId?.avatar || br.farmerId?.profilePhoto || ''
+        },
+        job: {
+          title:        br.workTitle || br.workCategory || 'Farm Work',
+          category:     br.workCategory || '',
+          description:  br.workDescription || '',
+          skills:       br.requiredSkills || [],
+          date:         br.bookingType === 'DAILY' ? br.startDate : br.scheduledDate,
+          startTime:    br.startTime || '',
+          endTime:      br.endTime || '',
+          duration:     br.bookingType === 'DAILY' ? `${br.numberOfDays || 1} day(s)` : `${br.durationMinutes || 60} mins`,
+          location:     typeof br.location === 'object' && br.location !== null
+                          ? [br.location.addressLine1, br.location.city, br.location.state].filter(Boolean).join(', ') || 'Farmer Location'
+                          : (br.location || 'Location Provided'),
+          bookingType:  br.bookingType || 'HOURLY',
+          numberOfDays: br.numberOfDays || null,
+          startDate:    br.startDate || null,
+          requiredWorkers: br.requiredWorkers || 1
+        },
+        offeredRate:  invite.offeredRate || br.farmerOfferedRate || br.minRate || 0,
+        rateUnit:     invite.rateUnit || br.rateUnit || (br.bookingType === 'DAILY' ? 'daily' : 'hourly'),
+        createdAt:    invite.invitedAt || br.createdAt
+      });
+    }
+
+    // Map groupRequests
+    for (const gr of groupRequests) {
+      const invite = (gr.memberRequests || []).find(
+        m => m.workerId?.toString() === workerId.toString() && (m.status === 'member_pending' || m.status === 'pending')
+      );
+      if (!invite) continue;
+
+      normalizedInvites.push({
+        requestId:       gr._id.toString(),
+        offerId:         invite._id ? invite._id.toString() : `${gr._id}_${workerId}`,
+        requestType:     'TEAM_MEMBER_INVITATION',
+        isTeamInvite:    true,
+        status:          'member_pending',
+        source:          'WorkerGroupRequest',
+        teamLeader: {
+          id:     gr.teamLeaderId?._id?.toString() || '',
+          name:   gr.teamLeaderId?.name || 'Team Leader',
+          phone:  gr.teamLeaderId?.phone || '',
+          rating: gr.teamLeaderId?.rating || 0
+        },
+        farmer: {
+          id:           gr.farmerId?._id?.toString() || '',
+          name:         gr.farmerId?.name || 'Farmer',
+          phone:        gr.farmerId?.phone || '',
+          profileImage: gr.farmerId?.profilePicture || gr.farmerId?.avatar || gr.farmerId?.profilePhoto || ''
+        },
+        job: {
+          title:        gr.workTitle || gr.workCategory || 'Farm Work',
+          category:     gr.workCategory || '',
+          description:  gr.workDescription || '',
+          skills:       gr.requiredSkills || [],
+          date:         gr.bookingType === 'DAILY' ? gr.startDate : gr.scheduledDate,
+          startTime:    gr.startTime || '',
+          endTime:      gr.endTime || '',
+          duration:     gr.bookingType === 'DAILY' ? `${gr.numberOfDays || 1} day(s)` : `${gr.durationMinutes || 60} mins`,
+          location:     typeof gr.location === 'object' && gr.location !== null
+                          ? [gr.location.addressLine1, gr.location.city, gr.location.state].filter(Boolean).join(', ') || 'Farmer Location'
+                          : (gr.location || 'Location Provided'),
+          bookingType:  gr.bookingType || 'HOURLY',
+          numberOfDays: gr.numberOfDays || null,
+          startDate:    gr.startDate || null,
+          requiredWorkers: gr.requiredWorkers || 1
+        },
+        offeredRate:  gr.agreedRatePerWorker || gr.farmerOfferedRatePerWorker || gr.leaderRate || 0,
+        rateUnit:     gr.rateUnit || (gr.bookingType === 'DAILY' ? 'daily' : 'hourly'),
+        createdAt:    gr.createdAt
+      });
+    }
+
+    return res.json({ success: true, data: normalizedInvites });
+  } catch (err) {
+    console.error('[getMemberInvites]', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch member invitations.' });
+  }
+};
+
+/**
+ * PATCH /api/workers/farmer-request/:id/member-respond
+ * PATCH /api/workers/group-request/:id/member-respond
+ * Authenticated team member accepts or declines an invitation.
+ * body: { action: 'accept' | 'reject' }
+ */
+exports.memberRespondToRequest = async (req, res) => {
+  try {
+    const workerId = req.user._id.toString();
+    const { action } = req.body;
+    const requestId = req.params.id;
+
+    if (!['accept', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'Action must be "accept" or "reject".' });
+    }
+
+    const workerDoc = await Worker.findById(workerId).select('name phone skills rating profilePicture profilePhoto');
+    if (!workerDoc) {
+      return res.status(404).json({ success: false, message: 'Worker profile not found.' });
+    }
+
+    const newStatus = action === 'accept' ? 'member_accepted' : 'member_rejected';
+    const respondedAt = new Date();
+
+    // 1. Try finding in WorkerBookingRequest
+    const bookingReq = await WorkerBookingRequest.findOne({
+      _id: requestId,
+      'memberInvitations.workerId': workerId
+    });
+
+    if (bookingReq) {
+      if (['cancelled', 'rejected', 'expired'].includes(bookingReq.status)) {
+        return res.status(410).json({ success: false, message: `This request is no longer active (${bookingReq.status}).` });
+      }
+      if (bookingReq.paymentStatus === 'success' || bookingReq.status === 'confirmed') {
+        return res.status(409).json({ success: false, message: 'Farmer has already completed payment. Invitation expired.' });
+      }
+
+      const invite = bookingReq.memberInvitations.find(m => m.workerId.toString() === workerId);
+      if (!invite) {
+        return res.status(404).json({ success: false, message: 'Invitation not found for this worker.' });
+      }
+      if (invite.status === 'member_accepted' && action === 'accept') {
+        return res.json({ success: true, message: 'You have already accepted this invitation.', data: bookingReq });
+      }
+      if (invite.status === 'member_rejected') {
+        return res.status(400).json({ success: false, message: 'You have already declined this invitation.' });
+      }
+      if (invite.status === 'member_expired') {
+        return res.status(410).json({ success: false, message: 'This invitation has expired.' });
+      }
+
+      // Conflict re-check upon accepting
+      if (action === 'accept') {
+        const conflict = bookingReq.bookingType === 'DAILY'
+          ? await hasDailyConflict(workerId, bookingReq.startDate, bookingReq.endDate, bookingReq._id)
+          : await hasTimeConflict(workerId, bookingReq.scheduledDate, bookingReq.startTime, bookingReq.endTime, bookingReq._id);
+
+        if (conflict) {
+          invite.status = 'member_rejected';
+          invite.respondedAt = respondedAt;
+          await bookingReq.save();
+          return res.status(409).json({ success: false, message: 'You have a conflicting booking for this time slot.' });
+        }
+      }
+
+      // Atomically update invitation status
+      invite.status = newStatus;
+      invite.respondedAt = respondedAt;
+
+      // Also sync to workerOffers so Farmer selection sees accepted worker
+      let existingOffer = bookingReq.workerOffers.find(o => o.workerId.toString() === workerId);
+      if (action === 'accept') {
+        if (existingOffer) {
+          existingOffer.status = 'accepted';
+          existingOffer.offeredRate = invite.offeredRate;
+          existingOffer.submittedAt = respondedAt;
+        } else {
+          bookingReq.workerOffers.push({
+            workerId: workerId,
+            offeredRate: invite.offeredRate,
+            status: 'accepted',
+            submittedAt: respondedAt
+          });
+        }
+      } else {
+        if (existingOffer) {
+          existingOffer.status = 'rejected';
+        }
+      }
+
+      // Check if all needed workers have now accepted
+      const acceptedMembersCount = (bookingReq.memberInvitations || []).filter(m => m.status === 'member_accepted').length;
+      const totalAccepted = 1 + acceptedMembersCount; // Leader + accepted members
+      bookingReq.acceptedWorkersCount = totalAccepted;
+
+      if (totalAccepted >= bookingReq.requiredWorkers) {
+        bookingReq.status = 'awaiting_farmer_confirmation';
+      }
+
+      await bookingReq.save();
+
+      const rawLeaderId = invite.leaderId || bookingReq.teamLeaderId;
+      const leaderId = (rawLeaderId?._id || rawLeaderId)?.toString();
+      const rawFarmerId = bookingReq.farmerId || bookingReq.userId;
+      const farmerId = (rawFarmerId?._id || rawFarmerId)?.toString();
+
+      // Real-time update to Team Leader
+      if (leaderId) {
+        emitSafe(`worker_${leaderId}`, 'team_member_response', {
+          requestId: bookingReq._id,
+          memberId: workerId,
+          memberName: workerDoc.name,
+          status: action === 'accept' ? 'accepted' : 'declined',
+          respondedAt
+        });
+        emitSafe(`worker:${leaderId}`, 'team_member_response', {
+          requestId: bookingReq._id,
+          memberId: workerId,
+          memberName: workerDoc.name,
+          status: action === 'accept' ? 'accepted' : 'declined',
+          respondedAt
+        });
+        emitSafe(`worker_${leaderId}`, 'workerJobsUpdated', {});
+        emitSafe(`worker:${leaderId}`, 'workerJobsUpdated', {});
+      }
+
+      // Real-time update to Farmer (ONLY if accepted!)
+      if (action === 'accept' && farmerId) {
+        emitSafe(`user_${farmerId}`, 'team_member_status_updated', {
+          requestId: bookingReq._id,
+          member: {
+            _id: workerId,
+            name: workerDoc.name,
+            phone: workerDoc.phone,
+            rating: workerDoc.rating || 0,
+            skills: workerDoc.skills || [],
+            profilePhoto: workerDoc.profilePicture || workerDoc.profilePhoto || ''
+          },
+          status: 'accepted',
+          message: `${workerDoc.name} has accepted and is ready!`
+        });
+        emitSafe(`user:${farmerId}`, 'team_member_status_updated', {
+          requestId: bookingReq._id,
+          member: {
+            _id: workerId,
+            name: workerDoc.name,
+            phone: workerDoc.phone,
+            rating: workerDoc.rating || 0,
+            skills: workerDoc.skills || [],
+            profilePhoto: workerDoc.profilePicture || workerDoc.profilePhoto || ''
+          },
+          status: 'accepted',
+          message: `${workerDoc.name} has accepted and is ready!`
+        });
+        emitSafe(`user_${farmerId}`, 'userBookingsUpdated', {});
+        emitSafe(`user:${farmerId}`, 'userBookingsUpdated', {});
+
+        if (totalAccepted >= bookingReq.requiredWorkers) {
+          notify({
+            recipientType: 'user',
+            recipientId:   farmerId,
+            type:          'worker_booking_accepted',
+            title:         '✅ Team Ready!',
+            message:       `Your team of ${totalAccepted} workers has accepted and is ready for payment.`,
+            relatedId:     bookingReq._id,
+            relatedType:   'WorkerBookingRequest',
+            data: { requestId: bookingReq._id, acceptedCount: totalAccepted, requiredWorkers: bookingReq.requiredWorkers }
+          }).catch(() => {});
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: action === 'accept' ? 'Team job invitation accepted!' : 'Team job invitation declined.',
+        data: { status: newStatus }
+      });
+    }
+
+    // 2. Try finding in WorkerGroupRequest
+    const groupReq = await WorkerGroupRequest.findOne({
+      _id: requestId,
+      'memberRequests.workerId': workerId
+    });
+
+    if (groupReq) {
+      if (['cancelled', 'rejected', 'expired'].includes(groupReq.status)) {
+        return res.status(410).json({ success: false, message: `This request is no longer active (${groupReq.status}).` });
+      }
+      if (groupReq.paymentStatus === 'success' || groupReq.status === 'confirmed') {
+        return res.status(409).json({ success: false, message: 'Farmer has already completed payment. Invitation expired.' });
+      }
+
+      const invite = groupReq.memberRequests.find(m => m.workerId.toString() === workerId);
+      if (!invite) {
+        return res.status(404).json({ success: false, message: 'Invitation not found for this worker.' });
+      }
+      if (['accepted', 'member_accepted'].includes(invite.status) && action === 'accept') {
+        return res.json({ success: true, message: 'You have already accepted this invitation.', data: groupReq });
+      }
+      if (['rejected', 'member_rejected'].includes(invite.status)) {
+        return res.status(400).json({ success: false, message: 'You have already declined this invitation.' });
+      }
+
+      invite.status = action === 'accept' ? 'accepted' : 'rejected';
+      invite.respondedAt = respondedAt;
+      await groupReq.save();
+
+      // Real-time to Team Leader
+      emitSafe(`worker_${groupReq.teamLeaderId}`, 'team_member_response', {
+        requestId: groupReq._id,
+        memberId: workerId,
+        memberName: workerDoc.name,
+        status: action === 'accept' ? 'accepted' : 'declined',
+        respondedAt
+      });
+      emitSafe(`worker_${groupReq.teamLeaderId}`, 'workerJobsUpdated', {});
+
+      // Real-time to Farmer if accepted
+      if (action === 'accept') {
+        emitSafe(`user_${groupReq.farmerId}`, 'team_member_status_updated', {
+          requestId: groupReq._id,
+          member: {
+            _id: workerId,
+            name: workerDoc.name,
+            phone: workerDoc.phone,
+            rating: workerDoc.rating || 0,
+            skills: workerDoc.skills || []
+          },
+          status: 'accepted',
+          message: `${workerDoc.name} has accepted and is ready!`
+        });
+        emitSafe(`user_${groupReq.farmerId}`, 'userBookingsUpdated', {});
+      }
+
+      return res.json({
+        success: true,
+        message: action === 'accept' ? 'Team job invitation accepted!' : 'Team job invitation declined.',
+        data: { status: invite.status }
+      });
+    }
+
+    return res.status(404).json({ success: false, message: 'Invitation not found for this worker.' });
+  } catch (err) {
+    console.error('[memberRespondToRequest]', err);
+    return res.status(500).json({ success: false, message: 'Failed to process response.' });
   }
 };
 
@@ -1606,48 +2043,90 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
         const acceptingWorker = await Worker.findById(workerId);
 
         let offersToAdd = [];
+        let invitationsToCreate = [];
+        let eligibleMembers = [];
 
         if (isTeamLeaderReq && acceptingWorker && acceptingWorker.workerType === 'TEAM_LEADER' && acceptingWorker.teamId) {
-            // Include Leader
+            // Include Leader himself in workerOffers as accepted
             offersToAdd.push({
                 workerId: workerId,
                 offeredRate: offeredRate,
-                status: 'pending'
+                status: 'accepted',
+                submittedAt: new Date()
             });
 
-            // If leader selected specific memberIds from frontend
+            updateObj['$set']['teamLeaderId'] = workerId;
+
+            // Process selected memberIds from frontend
+            let memberIdsToProcess = [];
             if (Array.isArray(req.body.memberIds) && req.body.memberIds.length > 0) {
-                const selectedMembers = await Worker.find({
-                    _id: { $in: req.body.memberIds },
+                memberIdsToProcess = req.body.memberIds;
+            } else {
+                // Fallback: Find active members from leader's team
+                const neededMembersCount = Math.max(0, (request.requiredWorkers || 1) - 1);
+                if (neededMembersCount > 0) {
+                    const fallbackMembers = await Worker.find({
+                        teamId: acceptingWorker.teamId,
+                        _id: { $ne: workerId },
+                        isActive: { $ne: false }
+                    }).limit(neededMembersCount).select('_id');
+                    memberIdsToProcess = fallbackMembers.map(m => m._id);
+                }
+            }
+
+            if (memberIdsToProcess.length > 0) {
+                const candidates = await Worker.find({
+                    _id: { $in: memberIdsToProcess },
                     teamId: acceptingWorker.teamId,
                     isActive: { $ne: false }
                 });
 
-                for (const tm of selectedMembers) {
-                    offersToAdd.push({
+                for (const tm of candidates) {
+                    // 1. Check online status
+                    const tmStatus = String(tm.status || '').toUpperCase();
+                    if (!ONLINE_STATUSES.includes(tmStatus)) {
+                        console.log(`[TEAM DISPATCH] Member ${tm._id} (${tm.name}) is not online (${tmStatus}). Skipped.`);
+                        continue;
+                    }
+
+                    // 2. Check skill matching (including 'ALL')
+                    const skillMatched = isWorkerSkillMatch(tm.skills, request.requiredSkills, tm.serviceCategories);
+                    if (!skillMatched) {
+                        console.log(`[TEAM DISPATCH] Member ${tm._id} (${tm.name}) skills do not match required skills. Skipped.`);
+                        continue;
+                    }
+
+                    // 3. Check time conflicts
+                    const hasConflict = request.bookingType === 'DAILY'
+                        ? await hasDailyConflict(tm._id, request.startDate, request.endDate, request._id)
+                        : await hasTimeConflict(tm._id, request.scheduledDate, request.startTime, request.endTime, request._id);
+
+                    if (hasConflict) {
+                        console.log(`[TEAM DISPATCH] Member ${tm._id} (${tm.name}) has time conflict. Skipped.`);
+                        continue;
+                    }
+
+                    eligibleMembers.push(tm);
+                    invitationsToCreate.push({
                         workerId: tm._id,
+                        leaderId: workerId,
                         offeredRate: offeredRate,
-                        status: 'pending'
+                        rateUnit: request.rateUnit || (request.bookingType === 'DAILY' ? 'daily' : 'hourly'),
+                        status: 'member_pending',
+                        invitedAt: new Date()
                     });
                 }
-            } else {
-                // Fallback: Find required team members from leader's team
-                const neededMembersCount = Math.max(0, (request.requiredWorkers || 1) - 1);
-                if (neededMembersCount > 0) {
-                    const teamMembers = await Worker.find({
-                        teamId: acceptingWorker.teamId,
-                        _id: { $ne: workerId },
-                        isActive: { $ne: false }
-                    }).limit(neededMembersCount);
+            }
 
-                    for (const tm of teamMembers) {
-                        offersToAdd.push({
-                            workerId: tm._id,
-                            offeredRate: offeredRate,
-                            status: 'pending'
-                        });
-                    }
-                }
+            if (invitationsToCreate.length > 0) {
+                updateObj['$push'] = {
+                    workerOffers: { $each: offersToAdd },
+                    memberInvitations: { $each: invitationsToCreate }
+                };
+            } else {
+                updateObj['$push'] = {
+                    workerOffers: { $each: offersToAdd }
+                };
             }
         } else {
             offersToAdd.push({
@@ -1655,11 +2134,10 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
                 offeredRate: offeredRate,
                 status: 'pending'
             });
+            updateObj['$push'] = {
+                workerOffers: { $each: offersToAdd }
+            };
         }
-
-        updateObj['$push'] = {
-            workerOffers: { $each: offersToAdd }
-        };
     }
 
     await WorkerBookingRequest.updateOne(
@@ -1670,10 +2148,112 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
       updateObj
     );
 
+    // If team leader dispatched member invitations, send notifications and sockets NOW
+    if (invitationsToCreate && invitationsToCreate.length > 0) {
+      let farmerDoc = null;
+      try {
+        if (request.farmerId) {
+          farmerDoc = await User.findById(request.farmerId).select('name phone profilePicture avatar profilePhoto').lean();
+        }
+      } catch (e) {}
+
+      const farmerName = farmerDoc?.name || 'Farmer';
+      const farmerPhone = farmerDoc?.phone || '';
+      const farmerPhoto = farmerDoc?.profilePicture || farmerDoc?.avatar || farmerDoc?.profilePhoto || '';
+
+      for (const tm of eligibleMembers) {
+        const invitePayload = {
+          requestId:    request._id.toString(),
+          offerId:      `${request._id}_${tm._id}`,
+          requestType:  'TEAM_MEMBER_INVITATION',
+          isTeamInvite: true,
+          status:       'member_pending',
+          source:       'WorkerBookingRequest',
+          teamLeader: {
+            id:     workerId.toString(),
+            name:   acceptingWorker.name || 'Team Leader',
+            phone:  acceptingWorker.phone || '',
+            rating: acceptingWorker.rating || 0
+          },
+          farmer: {
+            id:           request.farmerId.toString(),
+            name:         farmerName,
+            phone:        farmerPhone,
+            profileImage: farmerPhoto
+          },
+          job: {
+            title:        request.workTitle || request.workCategory || 'Farm Work',
+            category:     request.workCategory || '',
+            description:  request.workDescription || '',
+            skills:       request.requiredSkills || [],
+            date:         request.bookingType === 'DAILY' ? request.startDate : request.scheduledDate,
+            startTime:    request.startTime || '',
+            endTime:      request.endTime || '',
+            duration:     request.bookingType === 'DAILY' ? `${request.numberOfDays || 1} day(s)` : `${request.durationMinutes || 60} mins`,
+            location:     typeof request.location === 'object' && request.location !== null
+                            ? [request.location.addressLine1, request.location.city, request.location.state].filter(Boolean).join(', ') || 'Farmer Location'
+                            : (request.location || 'Location Provided'),
+            bookingType:  request.bookingType || 'HOURLY',
+            numberOfDays: request.numberOfDays || null,
+            startDate:    request.startDate || null,
+            requiredWorkers: request.requiredWorkers || 1
+          },
+          offeredRate:  offeredRate,
+          rateUnit:     request.rateUnit || (request.bookingType === 'DAILY' ? 'daily' : 'hourly')
+        };
+
+        // 1. Emit dedicated real-time socket events
+        emitSafe(`worker_${tm._id}`, 'team_member_invitation', invitePayload);
+        emitSafe(`worker_${tm._id}`, 'group_member_request', invitePayload);
+        emitSafe(`worker_${tm._id}`, 'workerJobsUpdated', {});
+
+        // 2. Send push notification fallback (FCM)
+        sendNotificationToWorker(
+          tm._id,
+          'New Team Job Invitation',
+          `You have been invited by ${acceptingWorker.name || 'your Team Leader'}. Tap to view the job.`,
+          {
+            type: 'TEAM_MEMBER_INVITATION',
+            requestId: request._id.toString()
+          }
+        ).catch(fcmErr => console.warn('[FCM] Invite notification failed:', fcmErr.message));
+
+        // 3. In-app Notification doc
+        Notification.create({
+          workerId: tm._id,
+          type: 'team_member_invitation',
+          title: '👥 New Team Job Invitation',
+          message: `You have been invited by ${acceptingWorker.name || 'your Team Leader'} for ${request.workTitle || 'Farm Work'}.`,
+          relatedId: request._id,
+          relatedType: 'WorkerBookingRequest',
+          data: { requestId: request._id }
+        }).catch(() => {});
+      }
+
+      // Notify Team Leader about dispatch summary
+      emitSafe(`worker_${workerId}`, 'team_invitations_dispatched', {
+        requestId: request._id,
+        dispatchedCount: invitationsToCreate.length
+      });
+    }
+
     const updated = await WorkerBookingRequest.findById(request._id);
-    const acceptedCount = updated.dispatchedTo.filter(d => d.status === 'accepted').length;
-    const rejectedCount = updated.dispatchedTo.filter(d => d.status === 'rejected').length;
-    const pendingCount  = updated.dispatchedTo.filter(d => d.status === 'pending').length;
+    const isTeamLeader = updated.bookingMode === 'TEAM_LEADER' || updated.requestType === 'team_leader';
+
+    let acceptedCount = 0;
+    let rejectedCount = 0;
+    let pendingCount = 0;
+
+    if (isTeamLeader) {
+      const acceptedMembers = (updated.memberInvitations || []).filter(m => m.status === 'member_accepted').length;
+      acceptedCount = 1 + acceptedMembers; // Leader + accepted members
+      rejectedCount = (updated.memberInvitations || []).filter(m => m.status === 'member_rejected').length;
+      pendingCount  = (updated.memberInvitations || []).filter(m => m.status === 'member_pending').length;
+    } else {
+      acceptedCount = updated.dispatchedTo.filter(d => d.status === 'accepted').length;
+      rejectedCount = updated.dispatchedTo.filter(d => d.status === 'rejected').length;
+      pendingCount  = updated.dispatchedTo.filter(d => d.status === 'pending').length;
+    }
 
     // Update aggregated counts
     updated.acceptedWorkersCount = acceptedCount;
@@ -1712,7 +2292,7 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
           relatedType:   'WorkerBookingRequest',
           data: { requestId: updated._id, acceptedCount, requiredWorkers: updated.requiredWorkers }
         });
-      } else if (pendingCount === 0) {
+      } else if (pendingCount === 0 && !isTeamLeader) {
         // All workers responded, but fewer than required accepted
         updated.status = 'awaiting_farmer_confirmation';
         await updated.save();
@@ -1728,7 +2308,7 @@ exports.workerRespondToFarmerRequest = async (req, res) => {
           data: { requestId: updated._id, acceptedCount, requiredWorkers: updated.requiredWorkers }
         });
       } else {
-        // Still waiting for more responses
+        // Still waiting for member responses or more dispatches
         await updated.save();
       }
     } else {
@@ -2251,14 +2831,29 @@ exports.farmerSelectWorkers = async (req, res) => {
       return res.status(410).json({ success: false, message: 'This request has expired.' });
     }
 
-    // Validate selected workers
+    // Validate selected workers (Section 23: only leader and member_accepted workers are selectable)
+    const isTeamLeader = request.bookingMode === 'TEAM_LEADER' || request.requestType === 'team_leader';
+    const leaderIdStr = request.teamLeaderId ? request.teamLeaderId.toString() : null;
+    const acceptedMemberIdStrs = Array.isArray(request.memberInvitations)
+      ? request.memberInvitations
+          .filter(inv => inv.status === 'member_accepted')
+          .map(inv => inv.workerId.toString())
+      : [];
+
     const validWorkerIds = request.workerOffers
-      .filter(offer => offer.status === 'pending' || offer.status === 'selected')
+      .filter(offer => {
+        if (!['pending', 'selected', 'accepted'].includes(offer.status)) return false;
+        if (isTeamLeader) {
+          const oId = offer.workerId.toString();
+          return (leaderIdStr && oId === leaderIdStr) || acceptedMemberIdStrs.includes(oId) || offer.status === 'accepted';
+        }
+        return true;
+      })
       .map(offer => offer.workerId.toString());
 
     for (const wId of selectedWorkerIds) {
       if (!validWorkerIds.includes(wId.toString())) {
-        return res.status(400).json({ success: false, message: 'One or more selected workers are invalid or did not submit an offer.' });
+        return res.status(400).json({ success: false, message: 'One or more selected workers are invalid, pending acceptance, or not confirmed.' });
       }
     }
 
@@ -2563,6 +3158,20 @@ exports.verifyWorkerBookingPayment = async (req, res) => {
     request.refundAmount = null;
     request.refundCredited = false;
     request.refundCreditedAt = null;
+
+    // Section 25: Expire any remaining unresponded member invitations
+    if (Array.isArray(request.memberInvitations)) {
+      for (const inv of request.memberInvitations) {
+        if (inv.status === 'member_pending' || inv.status === 'pending') {
+          inv.status = 'member_expired';
+          emitSafe(`worker_${inv.workerId}`, 'workerBookingCancelled', {
+            requestId: request._id,
+            message: 'This team job invitation has expired because booking was finalized.'
+          });
+        }
+      }
+    }
+
     await request.save();
 
     // Notify each worker

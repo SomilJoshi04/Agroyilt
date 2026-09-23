@@ -11,16 +11,18 @@ router.get('/booking-requests',              authenticate, wb.getWorkerIncomingR
 router.patch('/booking-request/:id/respond', authenticate, wb.workerRespondToRequest);
 
 // ── Worker-side: respond to farmer broadcast request (NEW) ─────────────────
-router.get('/farmer-requests/pending',       authenticate, fwr.getWorkerPendingFarmerRequests);
-router.patch('/farmer-request/:id/respond',  authenticate, fwr.workerRespondToFarmerRequest);
+router.get('/farmer-requests/pending',         authenticate, fwr.getWorkerPendingFarmerRequests);
+router.get('/farmer-requests/member-invites',  authenticate, fwr.getMemberInvites);
+router.patch('/farmer-request/:id/respond',    authenticate, fwr.workerRespondToFarmerRequest);
+router.patch('/farmer-request/:id/member-respond', authenticate, fwr.memberRespondToRequest);
 
 // ── Team Leader group booking routes ──────────────────────────────────────
 router.get('/group-requests',                         authenticate, gb.getLeaderGroupRequests);
-router.get('/group-requests/member-invites',          authenticate, gb.getMemberGroupInvites);
+router.get('/group-requests/member-invites',          authenticate, fwr.getMemberInvites);
 router.patch('/group-request/:id/respond',            authenticate, gb.leaderRespondToRequest);
 router.post('/group-request/:id/dispatch-members',   authenticate, gb.dispatchToMembers);
 router.get('/group-request/:id/members',              authenticate, gb.getMemberResponses);
 router.patch('/group-request/:id/select-workers',     authenticate, gb.leaderSelectWorkers);
-router.patch('/group-request/:id/member-respond',     authenticate, gb.memberRespondToRequest);
+router.patch('/group-request/:id/member-respond',     authenticate, fwr.memberRespondToRequest);
 
 module.exports = router;

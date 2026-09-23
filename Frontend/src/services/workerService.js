@@ -170,6 +170,16 @@ const workerService = {
     return response.data;
   },
 
+  getMemberInvites: async () => {
+    try {
+      const response = await api.get('/workers/farmer-requests/member-invites');
+      return response.data;
+    } catch (e) {
+      const response = await api.get('/workers/group-requests/member-invites');
+      return response.data;
+    }
+  },
+
   acceptJob: async (id) => {
     const response = await api.put(`/workers/jobs/${id}/accept`);
     return response.data;

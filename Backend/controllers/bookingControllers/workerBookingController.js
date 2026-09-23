@@ -6,12 +6,26 @@ const { BOOKING_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
 /**
  * Get assigned jobs for worker
  */
+// Helper: map IndWorkerAssignment statuses to a unified job status string the frontend can understand
+const mapAssignmentStatus = (assignmentStatus, workStatus, journeyStatus) => {
+  if (assignmentStatus === 'CANCELLED') return 'cancelled';
+  if (assignmentStatus === 'COMPLETED') return 'completed';
+  if (workStatus === 'SUBMITTED' || workStatus === 'COMPLETED') return 'completed';
+  if (workStatus === 'IN_PROGRESS') return 'in_progress';
+  if (journeyStatus === 'STARTED' || journeyStatus === 'REACHED') return journeyStatus === 'STARTED' ? 'on_the_way' : 'visited';
+  if (assignmentStatus === 'CONFIRMED') return 'confirmed';
+  return 'confirmed';
+};
+
 const getAssignedJobs = async (req, res) => {
   try {
     const workerId = req.user.id;
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, page = 1, limit = 50 } = req.query;
 
     const BookingRequest = require('../../models/BookingRequest');
+    const IndWorkerAssignment = require('../../models/IndWorkerAssignment');
+    const { buildWorkerPaymentSummary } = require('../../services/workerFinancialService');
+
     const myRequests = await BookingRequest.find({ workerId, status: { $ne: 'REJECTED' } }).select('bookingId');
     const requestBookingIds = myRequests.map(r => r.bookingId);
 
@@ -32,28 +46,21 @@ const getAssignedJobs = async (req, res) => {
       }
     }
 
-    // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Get bookings
+    // ── 1. Legacy Booking records ──────────────────────────────────────────────
     const bookings = await Booking.find(query)
       .populate('userId', 'name phone email')
       .populate('vendorId', 'name businessName phone')
       .populate('serviceId', 'title iconUrl')
       .populate('categoryId', 'title slug')
-      .sort({ scheduledDate: 1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    // Get total count
-    const total = await Booking.countDocuments(query);
-
-    const IndWorkerAssignment = require('../../models/IndWorkerAssignment');
-    const { buildWorkerPaymentSummary } = require('../../services/workerFinancialService');
-
     const enrichedBookings = await Promise.all(bookings.map(async (bookingDoc) => {
       const b = bookingDoc.toObject ? bookingDoc.toObject() : { ...bookingDoc };
-      const isWorkerBooking = b.providerType === 'WORKER' || Boolean(b.workerRequestId) || (b.bookingNumber && b.bookingNumber.startsWith('WRK-'));
+      const isWorkerBooking = b.providerType === 'WORKER' || Boolean(b.workerRequestId) || (b.bookingNumber && b.bookingNumber.startsWith('WRK-')) || (b.bookingNumber && b.bookingNumber.startsWith('GRP-'));
       if (isWorkerBooking) {
         b.providerType = 'WORKER';
         try {
@@ -71,7 +78,7 @@ const getAssignedJobs = async (req, res) => {
             b.commissionRate = summary.commissionRate;
             b.commissionAmount = summary.commissionAmount;
             b.workerNetEarning = summary.netEarning;
-            b.finalAmount = summary.netEarning; // For worker, the net amount is their actual earnings
+            b.finalAmount = summary.netEarning;
           } else {
             const gross = b.workerGrossEarning || b.agreedRate || b.workerOfferedRate || b.finalAmount || 0;
             const comm = Math.round((gross * 10) / 100);
@@ -91,14 +98,93 @@ const getAssignedJobs = async (req, res) => {
       return b;
     }));
 
+    // ── 2. IndWorkerAssignment records (confirmed group / independent bookings) ─
+    // These are the authoritative docs created after farmer payment. They do NOT
+    // always have a corresponding legacy Booking doc, so we must include them
+    // separately — this is the core fix for "Ram Kumar not showing job card".
+    const assignmentQuery = { workerId, assignmentStatus: { $ne: 'CANCELLED' } };
+    const assignments = await IndWorkerAssignment.find(assignmentQuery)
+      .populate('farmerId', 'name phone email')
+      .populate({
+        path: 'parentRequestId',
+        select: 'workTitle workCategory workDescription scheduledDate startTime endTime location rateUnit minRate maxRate bookingType startDate endDate numberOfDays'
+      })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    // Track legacy booking IDs already included to avoid duplicates
+    const existingLegacyIds = new Set(
+      enrichedBookings.filter(b => b.legacyBookingId).map(b => b.legacyBookingId.toString())
+    );
+    const existingBookingIds = new Set(enrichedBookings.map(b => b._id.toString()));
+
+    for (const aDoc of assignments) {
+      const a = aDoc.toObject ? aDoc.toObject() : { ...aDoc };
+
+      // Skip if this assignment's legacy booking is already in list
+      if (a.legacyBookingId && existingLegacyIds.has(a.legacyBookingId.toString())) continue;
+      // Skip if the assignment _id is already in list (shouldn't happen but be safe)
+      if (existingBookingIds.has(a._id.toString())) continue;
+
+      const parent = (a.parentRequestId && typeof a.parentRequestId === 'object') ? a.parentRequestId : {};
+      let summary = null;
+      try { summary = buildWorkerPaymentSummary(aDoc); } catch (_) {}
+
+      const gross = summary?.grossAmount || a.agreedRate || 0;
+      const commRate = summary?.commissionRate || a.commissionRate || 10;
+      const commAmt = summary?.commissionAmount || Math.round((gross * commRate) / 100);
+      const net = summary?.netEarning || (gross - commAmt);
+
+      const normalizedJob = {
+        _id: a._id,
+        __type: 'IndWorkerAssignment',
+        bookingNumber: `ASGN-${a._id.toString().slice(-6).toUpperCase()}`,
+        providerType: 'WORKER',
+        workerId: a.workerId,
+        userId: a.farmerId,
+        serviceName: parent.workTitle || parent.workCategory || 'Farm Work',
+        serviceCategory: parent.workCategory || 'Worker',
+        status: mapAssignmentStatus(a.assignmentStatus, a.workStatus, a.journeyStatus),
+        assignmentStatus: a.assignmentStatus,
+        workStatus: a.workStatus,
+        journeyStatus: a.journeyStatus,
+        scheduledDate: parent.scheduledDate || a.createdAt,
+        scheduledTime: parent.startTime || '',
+        address: parent.location || {},
+        agreedRate: a.agreedRate,
+        rateUnit: a.rateUnit || parent.rateUnit || 'daily',
+        bookingType: a.bookingType || parent.bookingType || 'HOURLY',
+        startDate: parent.startDate || null,
+        endDate: parent.endDate || null,
+        numberOfDays: a.bookedDays || parent.numberOfDays || null,
+        workedDays: a.workedDays || 0,
+        workerGrossEarning: gross,
+        commissionRate: commRate,
+        commissionAmount: commAmt,
+        workerNetEarning: net,
+        finalAmount: net,
+        paymentSummary: summary || null,
+        paymentStatus: a.settlementStatus === 'SETTLED' ? 'success' : 'pending',
+        assignmentId: a._id,
+        parentRequestId: a.parentRequestId?._id || a.parentRequestId,
+        createdAt: a.createdAt,
+        updatedAt: a.updatedAt
+      };
+
+      enrichedBookings.push(normalizedJob);
+    }
+
+    // Sort final merged list: newest first
+    enrichedBookings.sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt));
+
     res.status(200).json({
       success: true,
       data: enrichedBookings,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
+        total: enrichedBookings.length,
+        pages: Math.ceil(enrichedBookings.length / parseInt(limit))
       }
     });
   } catch (error) {

@@ -244,7 +244,14 @@ export const SocketProvider = ({ children }) => {
       // Dispatch update events to refresh UI components
       if (userType === 'worker') {
         window.dispatchEvent(new Event('workerJobsUpdated'));
-        if (data.type === 'worker_booking_request' || data.type === 'new_booking_request' || data.type === 'booking_request' || data.type === 'group_booking_request') {
+        if (
+          data.type === 'worker_booking_request' ||
+          data.type === 'new_booking_request' ||
+          data.type === 'booking_request' ||
+          data.type === 'group_booking_request' ||
+          data.type === 'team_member_invitation' ||
+          data.type === 'group_member_request'
+        ) {
           // Play loud alert ring
           try {
             playAlertRing(true);
@@ -252,9 +259,13 @@ export const SocketProvider = ({ children }) => {
             console.warn('[SOCKET] Could not play alert ringtone:', soundErr);
           }
           
+          const isTeam = data.type === 'team_member_invitation' || data.type === 'group_member_request' || data.data?.isTeamInvite;
           window.dispatchEvent(new CustomEvent('workerIncomingBooking', { 
             detail: {
-              data: data.data || data,
+              data: {
+                ...(data.data || data),
+                ...(isTeam ? { requestType: 'TEAM_MEMBER_INVITATION', isTeamInvite: true } : {})
+              },
               relatedId: data.relatedId || (data.data && data.data.requestId)
             }
           }));
@@ -386,13 +397,49 @@ export const SocketProvider = ({ children }) => {
       newSocket.on('booking_request', handleWorkerIncoming);
       newSocket.on('group_booking_request', handleWorkerIncoming);
 
+      // Team member gets this when leader dispatches them for a group job
+      const handleTeamInvite = (data) => {
+        try { playAlertRing(true); } catch (e) {}
+        const requestData = data.data || data;
+        const reqId = data.relatedId || requestData.requestId || requestData._id;
+        window.dispatchEvent(new CustomEvent('workerIncomingBooking', {
+          detail: {
+            data: { ...requestData, requestType: 'TEAM_MEMBER_INVITATION', isTeamInvite: true },
+            relatedId: reqId
+          }
+        }));
+        window.dispatchEvent(new Event('workerJobsUpdated'));
+      };
+
+      newSocket.on('team_member_invitation', handleTeamInvite);
+      newSocket.on('group_member_request', handleTeamInvite);
+
       newSocket.on('worker_booking_cancelled', handleWorkerCancellation);
       newSocket.on('worker_request_cancelled', handleWorkerCancellation);
       newSocket.on('job_cancelled', handleWorkerCancellation);
       newSocket.on('booking_cancelled', handleWorkerCancellation);
 
+      newSocket.on('team_member_response', (data) => {
+        if (data?.message) {
+          toastManager.info(data.message);
+        }
+        window.dispatchEvent(new CustomEvent('team_member_response', { detail: data }));
+        window.dispatchEvent(new Event('workerJobsUpdated'));
+      });
+
       newSocket.on('worker_booking_update', (data) => {
         window.dispatchEvent(new Event('workerJobsUpdated'));
+      });
+    }
+
+    // Listen for special Farmer / User events
+    if (userType === 'user') {
+      newSocket.on('team_member_status_updated', (data) => {
+        if (data?.message) {
+          toastManager.info(data.message);
+        }
+        window.dispatchEvent(new CustomEvent('team_member_status_updated', { detail: data }));
+        window.dispatchEvent(new Event('userBookingsUpdated'));
       });
     }
 

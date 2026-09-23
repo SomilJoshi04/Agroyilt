@@ -44,15 +44,15 @@ const FarmerRequestDetail = () => {
     }
   };
 
-  const fetchRequest = useCallback(async () => {
+  const fetchRequest = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await workerBookingService.getFarmerRequestById(id);
       setRequest(res.data);
     } catch (err) {
-      toast.error('Failed to load request details.');
+      if (!silent) toast.error('Failed to load request details.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [id]);
 
@@ -60,11 +60,35 @@ const FarmerRequestDetail = () => {
     fetchRequest();
     const interval = setInterval(() => {
       if (request && ['pending', 'matching', 'awaiting_farmer_confirmation'].includes(request.status)) {
-        fetchRequest();
+        fetchRequest(true);
       }
-    }, 15000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [fetchRequest, request?.status]);
+
+  // Real-time listener for team members accepting or declining
+  useEffect(() => {
+    const handleTeamMemberUpdate = (e) => {
+      const detail = e.detail || {};
+      if (!detail.requestId || String(detail.requestId) === String(id)) {
+        fetchRequest(true);
+        if (detail.message) {
+          toast.success(detail.message);
+        }
+      }
+    };
+
+    const handleUserBookingsUpdate = () => {
+      fetchRequest(true);
+    };
+
+    window.addEventListener('team_member_status_updated', handleTeamMemberUpdate);
+    window.addEventListener('userBookingsUpdated', handleUserBookingsUpdate);
+    return () => {
+      window.removeEventListener('team_member_status_updated', handleTeamMemberUpdate);
+      window.removeEventListener('userBookingsUpdated', handleUserBookingsUpdate);
+    };
+  }, [id, fetchRequest]);
 
   const toggleWorkerSelection = (workerId) => {
     setSelectedWorkerIds(prev => {
@@ -357,9 +381,14 @@ const FarmerRequestDetail = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-slate-800 text-sm truncate">{worker.name}</span>
-                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${isLeader ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${isLeader ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                                 {isLeader ? 'Team Leader' : 'Team Member'}
                               </span>
+                              {!isLeader && (
+                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                  ✓ Ready & Accepted
+                                </span>
+                              )}
                               {worker.rating > 0 && (
                                 <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
                                   <FiStar size={9} className="fill-amber-500" /> {worker.rating.toFixed(1)}

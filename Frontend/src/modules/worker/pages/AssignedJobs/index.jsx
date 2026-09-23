@@ -200,7 +200,14 @@ const AssignedJobs = () => {
               return (
                 <div
                   key={job._id}
-                  onClick={() => navigate(`/worker/job/${job._id}`, { state: { fromJobs: true } })}
+                  onClick={() => {
+                    if (job.__type === 'IndWorkerAssignment') {
+                      // Group/confirmed booking — navigate to DAILY tracking or assignment detail
+                      navigate(`/worker/job/${job._id}`, { state: { fromJobs: true, isAssignment: true, assignmentData: job } });
+                    } else {
+                      navigate(`/worker/job/${job._id}`, { state: { fromJobs: true } });
+                    }
+                  }}
                   className="rounded-xl p-4 shadow-lg cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
                   style={{
                     background: 'linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%)',
@@ -229,7 +236,7 @@ const AssignedJobs = () => {
                           >
                             <FiBriefcase className="w-4 h-4" style={{ color: statusColor }} />
                           </div>
-                          <h3 className="font-bold text-gray-800 text-base">{job.serviceName}</h3>
+                          <h3 className="font-bold text-gray-800 text-base">{job.serviceName || job.serviceId?.title || 'Farm Work'}</h3>
                         </div>
                         <div className="ml-8 mb-2">
                           <span
@@ -262,7 +269,7 @@ const AssignedJobs = () => {
                         <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
                           <FiUser className="w-4 h-4" style={{ color: statusColor }} />
                         </div>
-                        <span className="text-gray-700 font-medium">{job.userId?.name || 'Customer'}</span>
+                        <span className="text-gray-700 font-medium">{job.userId?.name || job.farmerName || 'Customer'}</span>
                       </div>
 
                       <div className="flex items-center gap-2 text-sm">

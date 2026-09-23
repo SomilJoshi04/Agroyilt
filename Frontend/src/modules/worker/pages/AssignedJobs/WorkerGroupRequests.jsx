@@ -92,6 +92,13 @@ const WorkerGroupRequests = () => {
 
   useEffect(() => {
     fetchAllData();
+    const handleUpdate = () => fetchAllData();
+    window.addEventListener('workerJobsUpdated', handleUpdate);
+    window.addEventListener('team_member_response', handleUpdate);
+    return () => {
+      window.removeEventListener('workerJobsUpdated', handleUpdate);
+      window.removeEventListener('team_member_response', handleUpdate);
+    };
   }, []);
 
   const handleLeaderAction = async (id, action, rate = null) => {
@@ -535,49 +542,56 @@ const WorkerGroupRequests = () => {
 
   // ── Render Member Group Invite Card ───────────────────────────────────────
   const renderMemberInvite = (req) => {
-    const myEntry = req.memberRequests?.find(m => m.workerId?._id === profile?._id || m.workerId === profile?._id);
-    const myStatus = myEntry?.status || 'pending';
-    const ratePerWorker = req.agreedRatePerWorker || req.farmerOfferedRatePerWorker || 0;
+    const myEntry = req.memberRequests?.find(m => (m.workerId?._id || m.workerId)?.toString() === profile?._id?.toString()) ||
+                    req.memberInvitations?.find(m => (m.workerId?._id || m.workerId)?.toString() === profile?._id?.toString());
+    const rawStatus = myEntry?.status || req.status || 'pending';
+    const myStatus = rawStatus.replace('member_', '');
+    const ratePerWorker = req.offeredRate || myEntry?.offeredRate || req.agreedRatePerWorker || req.farmerOfferedRatePerWorker || 0;
+    const rateUnit = req.rateUnit || (req.bookingType === 'DAILY' ? 'day' : 'hr');
+    const targetId = req.requestId || req._id;
+    const leaderName = req.teamLeader?.name || req.teamLeaderId?.name || 'Your Team Leader';
 
     return (
-      <div key={req._id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-5">
+      <div key={targetId} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-5">
         <div className="p-5">
           <div className="flex justify-between items-center mb-3">
             <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${STATUS_BADGES[myStatus] || 'bg-slate-100'}`}>
               Invite: {myStatus}
             </span>
             <span className="text-[11px] font-bold text-slate-400">
-              {new Date(req.scheduledDate).toDateString()}
+              {req.scheduledDate ? new Date(req.scheduledDate).toDateString() : (req.startDate ? new Date(req.startDate).toDateString() : 'Upcoming')}
             </span>
           </div>
 
-          <h3 className="font-black text-slate-800 text-lg mb-1">{req.workTitle || 'Team Farm Job'}</h3>
+          <h3 className="font-black text-slate-800 text-lg mb-1">{req.workTitle || req.workCategory || 'Team Farm Job'}</h3>
           <p className="text-xs text-slate-500 mb-3">
-            Leader: <strong className="text-slate-700">{req.teamLeaderId?.name || 'Your Team Leader'}</strong>
+            Leader: <strong className="text-slate-700">{leaderName}</strong>
           </p>
 
           <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-100 mb-4 text-xs">
             <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase">Time</p>
-              <p className="font-bold text-slate-800">{req.startTime} - {req.endTime}</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase">Schedule</p>
+              <p className="font-bold text-slate-800">
+                {req.bookingType === 'DAILY' ? `${req.numberOfDays || 1} Day(s)` : `${req.startTime || '00:00'} - ${req.endTime || 'Flexible'}`}
+              </p>
             </div>
             <div>
               <p className="text-[10px] text-slate-400 font-bold uppercase">Your Earnings</p>
-              <p className="font-black text-emerald-600 text-sm">₹{ratePerWorker} <span className="text-[10px] font-normal text-slate-400">/{req.rateUnit || 'day'}</span></p>
+              <p className="font-black text-emerald-600 text-sm">₹{ratePerWorker} <span className="text-[10px] font-normal text-slate-400">/{rateUnit}</span></p>
             </div>
           </div>
 
           {myStatus === 'pending' && (
             <div className="flex gap-2">
               <button 
-                onClick={() => handleMemberResponse(req._id, 'accept')} 
+                onClick={() => handleMemberResponse(targetId, 'accept')} 
                 disabled={submittingAction}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm flex items-center justify-center gap-1.5"
               >
                 <FiCheck /> Accept Job (₹{ratePerWorker})
               </button>
               <button 
-                onClick={() => handleMemberResponse(req._id, 'reject')} 
+                onClick={() => handleMemberResponse(targetId, 'reject')} 
                 disabled={submittingAction}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-2.5 rounded-xl font-bold text-xs"
               >

@@ -8,6 +8,7 @@ import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
 import WorkerBookingRequestAlertModal from '../components/bookings/WorkerBookingRequestAlertModal';
 import workerService from '../../../services/workerService';
+import workerRequestService from '../../../services/workerRequestService';
 import { stopAlertRing } from '../../../utils/notificationSound';
 
 // Lazy load wrapper with error handling
@@ -71,25 +72,40 @@ const WorkerRoutes = () => {
   // Normalize request data from any source (socket or API) into the shape the modal expects
   const normalizeRequestData = (raw) => {
     if (!raw) return null;
+    const isTeam = raw.isTeamInvite === true ||
+                   raw.requestType === 'TEAM_MEMBER_INVITATION' ||
+                   raw.requestType === 'group_member_request';
+
     return {
       requestId:       raw.requestId || raw._id || raw.id,
       _id:             raw.requestId || raw._id || raw.id,
-      workTitle:       raw.workTitle || raw.serviceName || raw.title || '',
-      workCategory:    raw.workCategory || raw.serviceCategory || '',
-      workDescription: raw.workDescription || raw.description || '',
-      farmerName:      raw.farmerName || 'Farmer',
-      farmerId:        raw.farmerId,
-      requiredSkills:  raw.requiredSkills || [],
-      requiredWorkers: raw.requiredWorkers || 1,
-      scheduledDate:   raw.scheduledDate,
-      startTime:       raw.startTime,
-      endTime:         raw.endTime,
-      location:        raw.location || {},
+      workTitle:       raw.workTitle || raw.job?.title || raw.serviceName || raw.title || '',
+      workCategory:    raw.workCategory || raw.job?.category || raw.serviceCategory || '',
+      workDescription: raw.workDescription || raw.job?.description || raw.description || '',
+      farmerName:      raw.farmer?.name || raw.farmerName || 'Farmer',
+      farmerId:        raw.farmer?.id || raw.farmerId,
+      farmerPhone:     raw.farmer?.phone || raw.farmerPhone || '',
+      farmerImage:     raw.farmer?.profileImage || raw.farmerImage || '',
+      farmer:          raw.farmer || (raw.farmerName ? { name: raw.farmerName } : null),
+      teamLeader:      raw.teamLeader || (raw.leaderName ? { name: raw.leaderName } : null),
+      requiredSkills:  raw.requiredSkills || raw.job?.skills || [],
+      requiredWorkers: raw.requiredWorkers || raw.job?.requiredWorkers || 1,
+      scheduledDate:   raw.scheduledDate || raw.job?.date,
+      startTime:       raw.startTime || raw.job?.startTime,
+      endTime:         raw.endTime || raw.job?.endTime,
+      location:        raw.location || raw.job?.location || {},
       minRate:         raw.minRate || raw.farmerOfferedRate || 0,
       maxRate:         raw.maxRate || raw.farmerOfferedRate || 0,
+      offeredRate:     raw.offeredRate || raw.minRate || raw.farmerOfferedRate || 0,
       farmerOfferedRate: raw.farmerOfferedRate || raw.minRate || 0,
-      rateUnit:        raw.rateUnit || 'daily',
-      isFarmerBroadcast: raw.isFarmerBroadcast !== undefined ? raw.isFarmerBroadcast : true,
+      rateUnit:        raw.rateUnit || raw.job?.rateUnit || 'daily',
+      isFarmerBroadcast: raw.isFarmerBroadcast !== undefined ? raw.isFarmerBroadcast : !isTeam,
+      // Team invite fields
+      requestType:     isTeam ? 'TEAM_MEMBER_INVITATION' : (raw.requestType || null),
+      isTeamInvite:    isTeam,
+      bookingType:     raw.bookingType || raw.job?.bookingType || null,
+      numberOfDays:    raw.numberOfDays || raw.job?.numberOfDays || null,
+      startDate:       raw.startDate || raw.job?.startDate || null,
     };
   };
 
@@ -98,8 +114,24 @@ const WorkerRoutes = () => {
     if (isFetchingRef.current) return;
     try {
       isFetchingRef.current = true;
-      const res = await workerService.getPendingFarmerRequests();
-      const requests = res?.data || [];
+      // Fetch member invites AND pending farmer requests in parallel
+      const [memberInvitesRes, farmerRequestsRes] = await Promise.all([
+        workerRequestService.getMemberInvites().catch(() => ({ success: false, data: [] })),
+        workerService.getPendingFarmerRequests().catch(() => ({ success: false, data: [] }))
+      ]);
+
+      // Priority 1: Team Member Invitations (Accept / Decline Card)
+      const invites = memberInvitesRes?.data || [];
+      if (Array.isArray(invites) && invites.length > 0) {
+        const normalized = normalizeRequestData(invites[0]);
+        if (normalized?.requestId) {
+          setIncomingRequestData(normalized);
+          return;
+        }
+      }
+
+      // Priority 2: Regular Farmer Requests
+      const requests = farmerRequestsRes?.data || [];
       if (Array.isArray(requests) && requests.length > 0) {
         const normalized = normalizeRequestData(requests[0]);
         if (normalized?.requestId && normalized?.workTitle) {
@@ -107,7 +139,7 @@ const WorkerRoutes = () => {
         }
       }
     } catch (err) {
-      console.warn('[WorkerRoutes] Failed to fetch pending farmer requests:', err);
+      console.warn('[WorkerRoutes] Failed to fetch pending requests:', err);
     } finally {
       isFetchingRef.current = false;
     }
