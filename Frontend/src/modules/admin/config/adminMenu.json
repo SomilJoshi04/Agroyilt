@@ -212,6 +212,15 @@
     ]
   },
   {
+    "title": "Referrals",
+    "route": "/admin/referrals",
+    "allowedRoles": [
+      "super_admin",
+      "admin"
+    ],
+    "children": []
+  },
+  {
     "title": "Settings",
     "route": "/admin/settings",
     "allowedRoles": [

@@ -293,6 +293,10 @@ app.use('/api/admin/support', require('./routes/admin-routes/support.routes'));
 // Dispute routes (Common)
 app.use('/api/disputes', require('./routes/common-routes/dispute.routes'));
 
+// Referral routes
+app.use('/api/referrals', require('./routes/common-routes/referral.routes'));
+app.use('/api/admin/referrals', require('./routes/admin-routes/referralManagement.routes'));
+
 // Public routes (no authentication required)
 app.use('/api/content', require('./routes/contentRoutes'));
 app.use('/api/webhooks', require('./routes/common-routes/webhook.routes'));

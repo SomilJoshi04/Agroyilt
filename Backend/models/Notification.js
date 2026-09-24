@@ -122,6 +122,8 @@ const notificationSchema = new mongoose.Schema({
       'worker_work_submitted',
       'assignment_settled',
       'refund',
+      'referral_reward',
+      'referral_reversed',
       'general'
     ],
     index: true

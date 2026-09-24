@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiChevronRight, FiTag, FiLogOut } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiChevronRight, FiTag, FiLogOut, FiGift } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
 import { workerTheme as themeColors, vendorTheme } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
@@ -441,6 +441,26 @@ const Profile = () => {
             </div>
           </div>
         </div>
+
+        {/* Refer & Earn Button */}
+        <button
+          onClick={() => navigate('/worker/referrals')}
+          className="w-full bg-white rounded-xl p-4 flex items-center justify-between shadow-md transition-all active:scale-95 mb-4 border border-orange-100 hover:border-orange-300"
+          style={{
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+              <FiGift className="w-5 h-5 text-orange-600" />
+            </div>
+            <div className="text-left">
+              <span className="font-bold text-gray-900 block text-sm">Refer & Earn</span>
+              <span className="text-xs text-gray-500">Invite workers & earn cash rewards</span>
+            </div>
+          </div>
+          <FiChevronRight className="w-5 h-5 text-gray-400" />
+        </button>
 
         {/* Settings Button */}
         <button

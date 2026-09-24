@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // Import module routes
@@ -91,6 +91,12 @@ const AppRoutes = () => {
         <Route path="/privacy" element={<Navigate to="/user/privacy" replace />} />
         <Route path="/support" element={<Navigate to="/user/help-support" replace />} />
         <Route path="/terms" element={<Navigate to="/user/cancellation-policy" replace />} />
+
+        {/* Referral / Universal Registration Entry */}
+        <Route
+          path="/register"
+          element={<Navigate to={`/app/register${location.search}`} replace />}
+        />
 
         {/* Fallback for any unknown user routes to go to home */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -275,6 +275,31 @@ const register = async (req, res) => {
 
     const vendor = await Vendor.create(vendorData);
 
+    // Process Referral Attribution if referral code provided
+    const referralCode = req.body.referralCode || req.body.ref;
+    if (referralCode) {
+      try {
+        const referralService = require('../../services/referralService');
+        await referralService.createReferralAttribution({
+          referredUserId: vendor._id,
+          referredModel: 'Vendor',
+          referredRole: 'vendor',
+          referralCode,
+          metadata: { ip: req.ip, userAgent: req.headers['user-agent'] }
+        });
+      } catch (refErr) {
+        console.error('Referral attribution error for vendor:', refErr);
+      }
+    }
+
+    // Auto-create unique referral code for this new vendor
+    try {
+      const referralService = require('../../services/referralService');
+      await referralService.getOrCreateUserReferralCode(vendor._id, 'Vendor');
+    } catch (e) {
+      console.error('Auto-generate referral code error for vendor:', e);
+    }
+
     // Notify Admins
     try {
       const { createNotification } = require('../notificationControllers/notificationController');

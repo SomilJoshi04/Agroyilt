@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiArrowRight, FiChevronLeft, FiCheckCircle, FiX } from 'react-icons/fi';
@@ -8,6 +8,7 @@ import { userAuthService } from '../../../services/authService';
 import Logo from '../../../components/common/Logo';
 import LogoLoader from '../../../components/common/LogoLoader';
 import API from '../../../services/api';
+import ReferralInput from '../../../components/common/ReferralInput';
 
 import { z } from "zod";
 
@@ -33,6 +34,8 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [errors, setErrors] = useState({});
+  const [referralCode, setReferralCode] = useState('');
+  const [isReferralVerified, setIsReferralVerified] = useState(false);
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
@@ -139,7 +142,8 @@ const Signup = () => {
         const response = await userAuthService.register({
           name: formData.name,
           email: formData.email || null,
-          verificationToken
+          verificationToken,
+          referralCode: referralCode || undefined
         });
         if (response.success) {
           try {
@@ -240,7 +244,8 @@ const Signup = () => {
         email: formData.email || null,
         phone: formData.phoneNumber,
         otp: otpValue,
-        token: otpToken
+        token: otpToken,
+        referralCode: referralCode || undefined
       });
       if (response.success) {
         try {
@@ -402,6 +407,13 @@ const Signup = () => {
                 </div>
               </div>
             )}
+
+            <ReferralInput
+              referralCode={referralCode}
+              setReferralCode={setReferralCode}
+              isVerified={isReferralVerified}
+              setIsVerified={setIsReferralVerified}
+            />
 
               <div className="flex items-start bg-gray-50 p-3 rounded-xl border border-gray-100 mt-2 mb-4">
                 <input

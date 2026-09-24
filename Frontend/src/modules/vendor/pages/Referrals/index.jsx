@@ -9,15 +9,13 @@ import {
   FiCheckCircle,
   FiClock,
   FiUsers,
-  FiAward,
-  FiAlertCircle
+  FiAward
 } from 'react-icons/fi';
-import { FaWhatsapp, FaFacebookMessenger } from 'react-icons/fa';
-import { themeColors } from '../../../../theme';
+import { FaWhatsapp } from 'react-icons/fa';
 import referralService from '../../../../services/referralService';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
-const Rewards = () => {
+const VendorReferrals = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
@@ -85,7 +83,7 @@ const Rewards = () => {
   };
 
   const handleShareWhatsApp = () => {
-    const text = `Join AgroYilt - India's Smart Agri Services & Equipment Platform! 🌾🚜\n\nUse my Referral Code: *${data.referralCode}*\n\nRegister directly here:\n${registerLink}\n\n(Enter this referral code during registration to earn rewards!)`;
+    const text = `Join AgroYilt - India's Smart Agri Services & Equipment Platform! 🌾🚜\n\nUse my Referral Code: *${data.referralCode}*\n\nRegister directly here:\n${registerLink}\n\n(Enter this referral code during registration to get started!)`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -93,11 +91,11 @@ const Rewards = () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Join AgroYilt',
+          title: 'Join AgroYilt as Vendor/Farmer',
           text: `Use my Referral Code: ${data.referralCode} when registering on AgroYilt!\nRegister here: ${registerLink}`,
         });
       } catch (e) {
-        // User cancelled share
+        // User cancelled
       }
     } else {
       handleCopy(registerLink, 'Registration Link');
@@ -113,61 +111,56 @@ const Rewards = () => {
   }
 
   return (
-    <div
-      className="min-h-screen bg-slate-50 text-slate-800 pb-16"
-      style={{ background: themeColors.backgroundGradient || '#F8FAF8' }}
-    >
+    <div className="min-h-screen bg-slate-50 text-slate-800 pb-16">
       {/* Header */}
       <div className="bg-white sticky top-0 z-40 border-b border-gray-100 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/user')}
+            onClick={() => navigate('/vendor/profile')}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <FiArrowLeft className="w-5 h-5 text-gray-700" />
           </button>
           <div className="flex items-center gap-2">
-            <FiGift className="w-5 h-5 text-emerald-600" />
-            <h1 className="text-lg font-bold text-gray-900">Refer & Earn</h1>
+            <FiGift className="w-5 h-5 text-blue-600" />
+            <h1 className="text-lg font-bold text-gray-900">Vendor Refer & Earn</h1>
           </div>
         </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-5">
         {/* Banner Hero Card */}
-        <div className="relative overflow-hidden rounded-3xl p-6 text-white bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-700 shadow-xl shadow-emerald-900/10">
+        <div className="relative overflow-hidden rounded-3xl p-6 text-white bg-gradient-to-br from-blue-700 via-indigo-600 to-blue-800 shadow-xl shadow-blue-900/10">
           <div className="relative z-10">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md mb-3 text-emerald-100 uppercase tracking-wider">
-              <FiAward className="w-3.5 h-3.5" /> AgroYilt Rewards
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md mb-3 text-blue-100 uppercase tracking-wider">
+              <FiAward className="w-3.5 h-3.5" /> Vendor Rewards
             </span>
             <h2 className="text-2xl sm:text-3xl font-black mb-2">
-              Invite Friends, Earn Cash!
+              Refer Agri Partners & Earn
             </h2>
-            <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed mb-5 max-w-md">
-              Earn rewards credited directly into your wallet when your invited friends register and get approved across any role.
+            <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed mb-5 max-w-md">
+              Invite fellow vendors, farmers, or independent workers to AgroYilt. Earn direct wallet credits for each qualified referral!
             </p>
 
             {/* Referral Code Box */}
             <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-white/20 flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] text-emerald-200 uppercase font-bold tracking-wider">Your Referral Code</p>
+                <p className="text-[10px] text-blue-200 uppercase font-bold tracking-wider">Your Referral Code</p>
                 <p className="text-xl sm:text-2xl font-black tracking-widest text-white font-mono mt-0.5">
                   {data.referralCode}
                 </p>
               </div>
               <button
                 onClick={() => handleCopy(data.referralCode, 'Referral Code')}
-                className="px-4 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                className="px-4 py-2.5 bg-white text-blue-800 hover:bg-blue-50 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
               >
-                {copied ? <FiCheckCircle className="w-4 h-4 text-emerald-600" /> : <FiCopy className="w-4 h-4" />}
+                {copied ? <FiCheckCircle className="w-4 h-4 text-blue-600" /> : <FiCopy className="w-4 h-4" />}
                 <span>{copied ? 'Copied!' : 'Copy Code'}</span>
               </button>
             </div>
           </div>
 
-          {/* Decorative shapes */}
           <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute bottom-0 right-10 w-24 h-24 bg-yellow-400/20 rounded-full blur-xl pointer-events-none" />
         </div>
 
         {/* Share Action Buttons */}
@@ -207,7 +200,7 @@ const Rewards = () => {
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
             <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Total Earned</p>
-            <p className="text-2xl font-black text-emerald-600 mt-1">₹{data.totalEarnedRupees}</p>
+            <p className="text-2xl font-black text-blue-600 mt-1">₹{data.totalEarnedRupees}</p>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
             <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Qualified</p>
@@ -219,16 +212,16 @@ const Rewards = () => {
           </div>
         </div>
 
-        {/* Role-Based Reward Structure */}
+        {/* Role Reward Rates */}
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3 flex items-center gap-2">
-            <FiAward className="text-emerald-600" /> Reward Per Role Qualified
+            <FiAward className="text-blue-600" /> Reward Per Role Qualified
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl flex items-center justify-between sm:flex-col sm:items-start">
               <div>
                 <span className="text-xs font-semibold text-emerald-900 block">🌾 Farmer</span>
-                <span className="text-[10px] text-emerald-700">On account qualification</span>
+                <span className="text-[10px] text-emerald-700">On farmer approval</span>
               </div>
               <span className="text-lg font-black text-emerald-700 sm:mt-2">₹{data.rates?.farmer ?? 0}</span>
             </div>
@@ -236,7 +229,7 @@ const Rewards = () => {
             <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-center justify-between sm:flex-col sm:items-start">
               <div>
                 <span className="text-xs font-semibold text-blue-900 block">🚛 Vendor</span>
-                <span className="text-[10px] text-blue-700">On vendor qualification</span>
+                <span className="text-[10px] text-blue-700">On vendor approval</span>
               </div>
               <span className="text-lg font-black text-blue-700 sm:mt-2">₹{data.rates?.vendor ?? 0}</span>
             </div>
@@ -244,50 +237,9 @@ const Rewards = () => {
             <div className="p-3 bg-orange-50/70 border border-orange-100 rounded-xl flex items-center justify-between sm:flex-col sm:items-start">
               <div>
                 <span className="text-xs font-semibold text-orange-900 block">🛠️ Independent Worker</span>
-                <span className="text-[10px] text-orange-700">On worker qualification</span>
+                <span className="text-[10px] text-orange-700">On worker approval</span>
               </div>
               <span className="text-lg font-black text-orange-700 sm:mt-2">₹{data.rates?.worker ?? 0}</span>
-            </div>
-          </div>
-          <p className="text-[11px] text-gray-500 mt-3 leading-relaxed">
-            * Reward amounts are set by Admin and credited directly into your AgroYilt wallet upon admin verification of the new account.
-          </p>
-        </div>
-
-        {/* How It Works */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-4">
-            How It Works
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
-                1
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-800">Share Your Link or Code</p>
-                <p className="text-xs text-gray-600">Send your code or link to Farmers, Vendors, or Workers.</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
-                2
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-800">They Sign Up & Select Role</p>
-                <p className="text-xs text-gray-600">They register with your code and complete phone verification.</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
-                3
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-800">Get Rewarded in Wallet</p>
-                <p className="text-xs text-gray-600">Once qualified/approved, the role reward is instantly credited to your wallet!</p>
-              </div>
             </div>
           </div>
         </div>
@@ -307,7 +259,7 @@ const Rewards = () => {
                 <FiUsers className="w-6 h-6" />
               </div>
               <p className="text-sm font-bold text-gray-700">No referrals yet</p>
-              <p className="text-xs text-gray-500 mt-1">Start sharing your referral link with friends and colleagues!</p>
+              <p className="text-xs text-gray-500 mt-1">Start inviting equipment owners, service providers, and farmers!</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -356,4 +308,4 @@ const Rewards = () => {
   );
 };
 
-export default Rewards;
+export default VendorReferrals;

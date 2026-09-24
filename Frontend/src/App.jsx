@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react'; // Updated index to .jsx
+import React, { useEffect } from 'react'; // Updated index to .jsx
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
@@ -22,34 +22,60 @@ function App() {
     // On iOS, messaging is null because FCM is not supported
     try {
       setupForegroundNotificationHandler((payload) => {
-        console.log('🔔 [App.jsx] Foreground notification received in callback:', payload);
+        console.log(' [App.jsx] Foreground notification received in callback:', payload);
         const title = payload.notification?.title || payload.data?.title || 'New Notification';
         const body = payload.notification?.body || payload.data?.body || '';
+        const type = payload.data?.type || '';
 
-        console.log(`🔔 [App.jsx] Attempting to display in-app toast for: "${title}"`);
+        // Role & Route Filtering:
+        // When on /admin portal, suppress personal worker/vendor/user account notifications (e.g. "Worker Account Approved, You can now login")
+        const currentPath = window.location.pathname;
+        if (currentPath.startsWith('/admin')) {
+          const isWorkerPersonalMessage = payload.data?.workerId || type.startsWith('worker_') || title.includes('[Pro]') || title.toLowerCase().includes('worker account');
+          const isVendorPersonalMessage = payload.data?.vendorId || type.startsWith('vendor_') || title.toLowerCase().includes('vendor account');
+          const isFarmerPersonalMessage = payload.data?.userId || type.startsWith('farmer_') || title.toLowerCase().includes('farmer account');
+
+          // Exceptions: Admin alerts that the admin actually needs to see
+          const isAdminAlert = type.includes('_request') || type.includes('admin_') || type.includes('withdrawal') || type.includes('dispute') || payload.data?.adminId;
+
+          if ((isWorkerPersonalMessage || isVendorPersonalMessage || isFarmerPersonalMessage) && !isAdminAlert) {
+            console.log(' [App.jsx] Suppressed recipient personal notification on Admin portal:', title);
+            return;
+          }
+        }
+
+        console.log(` [App.jsx] Displaying in-app toast for: "${title}"`);
         toast((t) => (
-          <div className="flex flex-col">
-            <span className="font-semibold text-green-600">{title}</span>
-            <span className="text-xs text-gray-500 mt-1">{body}</span>
+          <div className="flex flex-col text-left">
+            <span className="font-bold text-gray-900 text-sm leading-snug">{title}</span>
+            {body && <span className="text-xs text-gray-600 mt-1 leading-relaxed">{body}</span>}
           </div>
         ), {
           icon: '🔔',
-          duration: 4000
+          duration: 5000,
+          style: {
+            background: '#ffffff',
+            color: '#111827',
+            border: '1px solid #e5e7eb',
+            borderRadius: '16px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+            padding: '14px 18px',
+          }
         });
 
         // Show native browser notification in foreground if permission is granted
         if ('Notification' in window && Notification.permission === 'granted') {
-          console.log('🔔 [App.jsx] Displaying native browser notification...');
+          console.log(' [App.jsx] Displaying native browser notification...');
           try {
             new Notification(title, {
               body: body,
               icon: payload.notification?.icon || payload.data?.icon || '/AgroyiltLogo.png'
             });
           } catch (e) {
-            console.error('🔔 [App.jsx] Error showing native notification in foreground:', e);
+            console.error('Error showing native notification in foreground:', e);
           }
         } else {
-          console.log('🔔 [App.jsx] Native browser notifications skipped. Permission status:', 'Notification' in window ? Notification.permission : 'Not supported');
+          console.log('Native browser notifications skipped. Permission status:', 'Notification' in window ? Notification.permission : 'Not supported');
         }
 
         // Dispatch update events for listening components to refresh UI
@@ -61,7 +87,7 @@ function App() {
 
       });
     } catch (error) {
-      // Silently ignore — expected on iOS where messaging is null
+      console.log(error);
     }
   }, []);
 
@@ -79,23 +105,30 @@ function App() {
                     position="top-center"
                     reverseOrder={false}
                     toastOptions={{
-                      duration: 2000, // Global default (reduced from 3000)
+                      duration: 2500,
                       style: {
-                        background: '#333',
-                        color: '#fff',
-                        borderRadius: '10px',
-                        padding: '12px 20px',
+                        background: '#ffffff',
+                        color: '#111827',
+                        borderRadius: '16px',
+                        padding: '14px 20px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                        border: '1px solid #e5e7eb',
+                        fontWeight: '500'
                       },
                       success: {
-                        duration: 1000, // 1 second as requested
+                        duration: 1500,
                         style: {
-                          background: '#10B981',
+                          background: '#ffffff',
+                          color: '#065f46',
+                          border: '1px solid #a7f3d0'
                         },
                       },
                       error: {
-                        duration: 2000, // Reduced from 4000
+                        duration: 3000,
                         style: {
-                          background: '#EF4444',
+                          background: '#ffffff',
+                          color: '#991b1b',
+                          border: '1px solid #fecaca'
                         },
                       },
                     }}

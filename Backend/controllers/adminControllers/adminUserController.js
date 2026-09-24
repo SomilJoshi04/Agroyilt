@@ -463,6 +463,19 @@ const updateApprovalStatus = async (req, res) => {
 
     await user.save();
 
+    // Trigger Referral Reward Qualification if user was referred
+    if (approvalStatus === 'approved') {
+      try {
+        const referralService = require('../../services/referralService');
+        await referralService.qualifyAndRewardReferral({
+          referredUserId: user._id,
+          event: 'approval'
+        });
+      } catch (refErr) {
+        console.error('Referral qualification error for approved farmer:', refErr);
+      }
+    }
+
     // Send notification to user
     try {
       const { createNotification } = require('../notificationControllers/notificationController');

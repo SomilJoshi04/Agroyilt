@@ -223,7 +223,7 @@ const getWalletTransactions = async (req, res) => {
         id: wt._id,
         type: wt.type || 'credit',
         amount: wt.amount,
-        description: wt.reason === 'refund' ? 'Booking Unused Reserve Refund' : (wt.reason === 'topup' ? 'Wallet Top-up' : (wt.reason || 'Wallet Credit')),
+        description: wt.reason === 'refund' ? 'Booking Unused Reserve Refund' : (wt.reason === 'topup' ? 'Wallet Top-up' : (wt.reason === 'referral_reward' ? 'Referral Reward' : (wt.reason === 'referral_reversal' ? 'Referral Reward Reversal' : (wt.reason || 'Wallet Credit')))),
         date: wt.createdAt,
         status: wt.status || 'completed',
         referenceId: wt.referenceId

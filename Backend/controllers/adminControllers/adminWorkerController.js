@@ -177,6 +177,17 @@ const approveWorker = async (req, res) => {
     worker.approvalDate = new Date();
     await worker.save();
 
+    // Trigger Referral Reward Qualification if worker was referred
+    try {
+      const referralService = require('../../services/referralService');
+      await referralService.qualifyAndRewardReferral({
+        referredUserId: worker._id,
+        event: 'approval'
+      });
+    } catch (refErr) {
+      console.error('Referral qualification error for approved worker:', refErr);
+    }
+
     // Send notification to worker
     try {
       await createNotification({

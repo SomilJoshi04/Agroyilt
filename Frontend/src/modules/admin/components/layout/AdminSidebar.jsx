@@ -21,6 +21,7 @@ import {
   FiAlertTriangle,
   FiGlobe,
   FiTruck,
+  FiGift,
 } from "react-icons/fi";
 import adminMenu from "../../config/adminMenu.json";
 import dashboardService from "../../services/dashboardService";
@@ -47,7 +48,8 @@ const iconMap = {
   "Equipment Catalog": FiGrid,
   "Machinery Management": FiPackage,
   "Manage Website": FiGlobe,
-  "Machinery Approvals": FiTruck
+  "Machinery Approvals": FiTruck,
+  Referrals: FiGift
 };
 
 // Helper function to convert child name to route path

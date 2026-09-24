@@ -56,6 +56,7 @@ const Wallet = lazyLoad(() => import('../pages/Wallet'));
 const Team = lazyLoad(() => import('../pages/Team'));
 const WorkerBookingRequests = lazyLoad(() => import('../pages/AssignedJobs/WorkerBookingRequests'));
 const WorkerGroupRequests = lazyLoad(() => import('../pages/AssignedJobs/WorkerGroupRequests'));
+const WorkerReferrals = lazyLoad(() => import('../pages/Referrals'));
 
 // Lightweight loading fallback - no logo to avoid iOS rejection
 const LoadingFallback = () => (
@@ -232,6 +233,7 @@ const WorkerRoutes = () => {
               <Route path="/notifications" element={<ProtectedRoute userType="worker"><Notifications /></ProtectedRoute>} />
               <Route path="/wallet" element={<ProtectedRoute userType="worker"><Wallet /></ProtectedRoute>} />
               <Route path="/team" element={<ProtectedRoute userType="worker"><Team /></ProtectedRoute>} />
+              <Route path="/referrals" element={<ProtectedRoute userType="worker"><WorkerReferrals /></ProtectedRoute>} />
               <Route path="/booking-requests" element={<ProtectedRoute userType="worker"><WorkerBookingRequests /></ProtectedRoute>} />
               <Route path="/group-requests" element={<ProtectedRoute userType="worker"><WorkerGroupRequests /></ProtectedRoute>} />
             </Routes>

@@ -1,4 +1,4 @@
-﻿import React, { lazy, Suspense, useEffect } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import PageTransition from '../components/common/PageTransition';
 import BottomNav from '../components/layout/BottomNav';
@@ -38,6 +38,7 @@ const MyRatings = lazy(() => import('../pages/MyRatings'));
 const AboutGroo = lazy(() => import('../pages/AboutHomster'));
 const BillingPage = lazy(() => import('../pages/BillingPage'));
 const Maintenance = lazy(() => import('../pages/Maintenance'));
+const VendorReferrals = lazy(() => import('../pages/Referrals'));
 const Compliance = lazy(() => import('../pages/Compliance'));
 const Analytics = lazy(() => import('../pages/Analytics'));
 const MyStore = lazy(() => import('../pages/MyStore'));
@@ -137,6 +138,7 @@ const VendorRoutes = () => {
                 <Route path="/my-ratings" element={<ProtectedRoute userType="vendor"><MyRatings /></ProtectedRoute>} />
                 <Route path="/about-groo" element={<ProtectedRoute userType="vendor"><AboutGroo /></ProtectedRoute>} />
                 <Route path="/maintenance" element={<ProtectedRoute userType="vendor"><Maintenance /></ProtectedRoute>} />
+                <Route path="/referrals" element={<ProtectedRoute userType="vendor"><VendorReferrals /></ProtectedRoute>} />
                 <Route path="/compliance" element={<ProtectedRoute userType="vendor"><Compliance /></ProtectedRoute>} />
                 <Route path="/analytics" element={<ProtectedRoute userType="vendor"><Analytics /></ProtectedRoute>} />
                 <Route path="/store" element={<ProtectedRoute userType="vendor"><MyStore /></ProtectedRoute>} />

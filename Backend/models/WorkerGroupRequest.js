@@ -140,8 +140,7 @@ const workerGroupRequestSchema = new mongoose.Schema({
   workerBookingRequestId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'WorkerBookingRequest',
-    default: null,
-    index: true
+    default: null
   },
 
   /** Mirror of WorkerBookingRequest.assignmentIds for quick access */

@@ -154,6 +154,17 @@ const approveVendor = async (req, res) => {
     vendor.approvalDate = new Date();
     await vendor.save();
 
+    // Trigger Referral Reward Qualification if vendor was referred
+    try {
+      const referralService = require('../../services/referralService');
+      await referralService.qualifyAndRewardReferral({
+        referredUserId: vendor._id,
+        event: 'approval'
+      });
+    } catch (refErr) {
+      console.error('Referral qualification error for approved vendor:', refErr);
+    }
+
     // Send notification to vendor
     await createNotification({
       vendorId: vendor._id,

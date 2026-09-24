@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FiChevronRight, FiChevronLeft, FiUser, FiTruck, FiTool, FiUsers, FiX } from 'react-icons/fi';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { FiChevronRight, FiChevronLeft, FiUser, FiTruck, FiTool, FiUsers, FiX, FiGift } from 'react-icons/fi';
 import { useBrand } from '../../../context/BrandContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -36,9 +36,13 @@ const roles = [
 
 const AppRegister = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { appLogo, appName } = useBrand();
   const [selected, setSelected] = useState(null);
   const [showWorkerTypeModal, setShowWorkerTypeModal] = useState(false);
+
+  const refCode = (searchParams.get('ref') || searchParams.get('referralCode') || '').trim().toUpperCase();
 
   const handleProceed = () => {
     if (!selected) return;
@@ -47,7 +51,9 @@ const AppRegister = () => {
       return;
     }
     const role = roles.find(r => r.id === selected);
-    if (role) navigate(role.route);
+    if (role) {
+      navigate(role.route + location.search);
+    }
   };
 
   return (
@@ -112,9 +118,21 @@ const AppRegister = () => {
         }}>
           Join AgroYilt as...
         </p>
-        <p style={{ margin: '0 0 24px', fontSize: '0.85rem', color: '#78909C' }}>
+        <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: '#78909C' }}>
           Select your role to get started
         </p>
+
+        {refCode && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            background: '#E8F5E9', border: '1px solid #A5D6A7',
+            padding: '10px 14px', borderRadius: '12px',
+            marginBottom: '16px', color: '#1B5E20', fontSize: '0.82rem', fontWeight: 600
+          }}>
+            <FiGift size={18} color="#2E7D32" />
+            <span>Referral Invite Active: <strong>{refCode}</strong></span>
+          </div>
+        )}
 
         {/* Role Cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -291,7 +309,7 @@ const AppRegister = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
                 <button
-                  onClick={() => navigate('/worker/signup?type=TEAM_LEADER')}
+                  onClick={() => navigate('/worker/signup?type=TEAM_LEADER' + (refCode ? `&ref=${refCode}` : ''))}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '16px',
                     background: '#fff', border: '2px solid #E3F2FD', borderRadius: '16px',
@@ -310,7 +328,7 @@ const AppRegister = () => {
                 </button>
 
                 <button
-                  onClick={() => navigate('/worker/signup?type=WORKER')}
+                  onClick={() => navigate('/worker/signup?type=WORKER' + (refCode ? `&ref=${refCode}` : ''))}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '16px',
                     background: '#fff', border: '2px solid #FFF3E0', borderRadius: '16px',

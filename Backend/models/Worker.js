@@ -210,8 +210,7 @@ const workerSchema = new mongoose.Schema({
   // Real-time Socket Connectivity (strictly separate from business availability 'status')
   isOnline: {
     type: Boolean,
-    default: false,
-    index: true
+    default: false
   },
   lastSeenAt: {
     type: Date,

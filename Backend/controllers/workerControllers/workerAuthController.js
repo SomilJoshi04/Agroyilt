@@ -175,6 +175,31 @@ const register = async (req, res) => {
       approvalStatus: 'pending'
     });
 
+    // Process Referral Attribution if referral code provided
+    const referralCode = req.body.referralCode || req.body.ref;
+    if (referralCode) {
+      try {
+        const referralService = require('../../services/referralService');
+        await referralService.createReferralAttribution({
+          referredUserId: worker._id,
+          referredModel: 'Worker',
+          referredRole: 'worker',
+          referralCode,
+          metadata: { ip: req.ip, userAgent: req.headers['user-agent'] }
+        });
+      } catch (refErr) {
+        console.error('Referral attribution error for worker:', refErr);
+      }
+    }
+
+    // Auto-create unique referral code for this new worker
+    try {
+      const referralService = require('../../services/referralService');
+      await referralService.getOrCreateUserReferralCode(worker._id, 'Worker');
+    } catch (e) {
+      console.error('Auto-generate referral code error for worker:', e);
+    }
+
     // Notify Admins about new Worker registration
     try {
       const { createNotification } = require('../notificationControllers/notificationController');

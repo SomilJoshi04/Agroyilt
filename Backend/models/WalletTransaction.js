@@ -18,7 +18,7 @@ const walletTransactionSchema = new mongoose.Schema({
   },
   reason: {
     type: String,
-    enum: ['booking_payment', 'commission_deduction', 'refund', 'payout', 'security_deposit_hold', 'security_deposit_release'],
+    enum: ['booking_payment', 'commission_deduction', 'refund', 'payout', 'security_deposit_hold', 'security_deposit_release', 'topup', 'referral_reward', 'referral_reversal'],
     required: true
   },
   referenceId: {
@@ -42,7 +42,6 @@ const walletTransactionSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Ensure fast duplicate lookups and history fetching
-walletTransactionSchema.index({ idempotencyKey: 1 });
 walletTransactionSchema.index({ gatewayTransactionId: 1 });
 walletTransactionSchema.index({ walletId: 1, createdAt: -1 });
 

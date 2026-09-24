@@ -145,6 +145,5 @@ indWorkerExtensionSchema.index({ 'workerExtensions.workerId': 1, status: 1 });
 indWorkerExtensionSchema.index({ 'workerExtensions.assignmentId': 1, status: 1 });
 indWorkerExtensionSchema.index({ expiresAt: 1, status: 1 });  // expiry cron queries
 indWorkerExtensionSchema.index({ razorpayOrderId: 1 });
-indWorkerExtensionSchema.index({ idempotencyKey: 1 });
 
 module.exports = mongoose.model('IndWorkerExtension', indWorkerExtensionSchema);

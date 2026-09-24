@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiX, FiArrowRight, FiChevronLeft, FiCheckCircle, FiCamera, FiBriefcase, FiChevronDown } from 'react-icons/fi';
@@ -9,6 +9,7 @@ import LogoLoader from '../../../components/common/LogoLoader';
 import Logo from '../../../components/common/Logo';
 import { compressImage } from '../../../utils/imageCompression';
 import API from '../../../services/api';
+import ReferralInput from '../../../components/common/ReferralInput';
 
 import { z } from "zod";
 import { publicCatalogService } from '../../../services/catalogService';
@@ -60,6 +61,8 @@ const VendorSignup = () => {
   const [documentPreview, setDocumentPreview] = useState({});
   const [uploadingDocs, setUploadingDocs] = useState({});
   const [resendTimer, setResendTimer] = useState(0);
+  const [referralCode, setReferralCode] = useState('');
+  const [isReferralVerified, setIsReferralVerified] = useState(false);
   const isSubmittingRef = useRef(false);
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -355,7 +358,8 @@ const VendorSignup = () => {
           otherDocuments: otherDocs,
           labDetails: labDetailsPayload ? JSON.stringify(labDetailsPayload) : null,
           shopDetails: shopDetailsPayload ? JSON.stringify(shopDetailsPayload) : null,
-          verificationToken
+          verificationToken,
+          referralCode: referralCode || undefined
         };
 
         const response = await register(registerData);
@@ -486,7 +490,8 @@ const VendorSignup = () => {
         labDetails: labDetailsPayload ? JSON.stringify(labDetailsPayload) : null,
         shopDetails: shopDetailsPayload ? JSON.stringify(shopDetailsPayload) : null,
         otp: otpValue,
-        token: otpToken
+        token: otpToken,
+        referralCode: referralCode || undefined
       };
 
       const response = await register(registerData);
@@ -956,6 +961,13 @@ const VendorSignup = () => {
               </div>
 
               <div className="animate-stagger-3 animate-fade-in space-y-4">
+                <ReferralInput
+                  referralCode={referralCode}
+                  setReferralCode={setReferralCode}
+                  isVerified={isReferralVerified}
+                  setIsVerified={setIsReferralVerified}
+                />
+
                 <div className="flex items-start mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
                   <input
                     type="checkbox"

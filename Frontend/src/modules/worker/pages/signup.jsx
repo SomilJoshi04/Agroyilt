@@ -1,10 +1,11 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiCamera, FiX, FiArrowRight, FiChevronLeft, FiCheckCircle } from 'react-icons/fi';
 import { toastManager } from '../../../utils/toastManager';
 import { themeColors } from '../../../theme';
 import { workerAuthService } from '../../../services/authService';
 import Logo from '../../../components/common/Logo';
+import ReferralInput from '../../../components/common/ReferralInput';
 
 import { z } from "zod";
 
@@ -35,6 +36,8 @@ const WorkerSignup = () => {
   const [documentPreview, setDocumentPreview] = useState({});
   const [resendTimer, setResendTimer] = useState(0);
   const [errors, setErrors] = useState({});
+  const [referralCode, setReferralCode] = useState('');
+  const [isReferralVerified, setIsReferralVerified] = useState(false);
 
 
   // Timer countdown effect
@@ -190,7 +193,8 @@ const WorkerSignup = () => {
           aadharDocument: aadharDoc,
           aadharBackDocument: aadharBackDoc,
           verificationToken,
-          workerType: new URLSearchParams(location.search).get('type') || 'WORKER'
+          workerType: new URLSearchParams(location.search).get('type') || 'WORKER',
+          referralCode: referralCode || undefined
         };
 
         const response = await workerAuthService.register(registerData);
@@ -280,7 +284,8 @@ const WorkerSignup = () => {
         aadharBackDocument: aadharBackDoc,
         otp: otpValue,
         token: otpToken,
-        workerType: new URLSearchParams(location.search).get('type') || 'WORKER'
+        workerType: new URLSearchParams(location.search).get('type') || 'WORKER',
+        referralCode: referralCode || undefined
       };
 
       const response = await workerAuthService.register(registerData);
@@ -462,6 +467,13 @@ const WorkerSignup = () => {
                   </div>
                 )}
               </div>
+
+              <ReferralInput
+                referralCode={referralCode}
+                setReferralCode={setReferralCode}
+                isVerified={isReferralVerified}
+                setIsVerified={setIsReferralVerified}
+              />
 
               <div className="animate-stagger-[6] animate-fade-in">
                 <button
