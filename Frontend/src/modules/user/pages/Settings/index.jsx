@@ -165,6 +165,8 @@ const Settings = () => {
               </button>
             </div>
           </div>
+        </div>
+
         {/* Banking Details Section */}
         <div className="mb-6">
           <BankDetailsSection />

@@ -199,10 +199,12 @@ const Settings = () => {
               </button>
             </div>
           </div>
-            {/* Banking / Payout Details */}
-          <div className="mb-6">
+        </div>
+
+        {/* Banking / Payout Details */}
+        <div className="mb-6">
           <BankDetailsSection />
-           </div>
+        </div>
 
          {/* Security Settings */}
          <div
