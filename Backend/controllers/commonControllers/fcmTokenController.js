@@ -101,7 +101,7 @@ const saveToken = async (req, res) => {
     }
 
     // Push token to front of array and keep at most MAX_TOKENS_PER_USER
-    const updatedEntity = await Model.findByIdAndUpdate(
+    let updatedEntity = await Model.findByIdAndUpdate(
       userId,
       {
         $push: {
@@ -122,6 +122,33 @@ const saveToken = async (req, res) => {
       });
     }
 
+    // ── EXTRA BULLETPROOF DEDUPLICATION (Self-healing for historical records) ──
+    // In case historical records had duplicate token strings or legacy formats:
+    const rawTokens = updatedEntity.fcmTokens || [];
+    const seenTokens = new Set();
+    const cleanTokens = [];
+
+    for (const item of rawTokens) {
+      const tokString = (typeof item === 'string' ? item : item.token || '').trim();
+      if (tokString && !seenTokens.has(tokString)) {
+        seenTokens.add(tokString);
+        cleanTokens.push(
+          typeof item === 'string'
+            ? { token: tokString, platform: normalizedPlatform, createdAt: new Date(), updatedAt: new Date() }
+            : item
+        );
+      }
+    }
+
+    // If duplicates were pruned, update database with clean list
+    if (cleanTokens.length !== rawTokens.length) {
+      updatedEntity = await Model.findByIdAndUpdate(
+        userId,
+        { $set: { fcmTokens: cleanTokens } },
+        { new: true }
+      );
+    }
+
     return res.status(200).json({
       success: true,
       message: 'FCM token registered successfully',
@@ -129,7 +156,9 @@ const saveToken = async (req, res) => {
         role,
         userId,
         platform: normalizedPlatform,
-        totalTokens: updatedEntity.fcmTokens ? updatedEntity.fcmTokens.length : 1
+        totalTokens: cleanTokens.length,
+        uniqueTokensCount: cleanTokens.length,
+        platforms: [...new Set(cleanTokens.map(t => t.platform))]
       }
     });
   } catch (error) {
