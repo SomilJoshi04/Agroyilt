@@ -32,8 +32,8 @@ const Settings = () => {
 
     setSendingTest(true);
     try {
-      console.log('[Test Notification] Sending API request to /vendors/fcm-tokens/test...');
-      const response = await api.post('/vendors/fcm-tokens/test');
+      console.log('[Test Notification] Sending API request to /fcm-tokens/test...');
+      const response = await api.post('/fcm-tokens/test');
       console.log('[Test Notification] API response:', response.data);
       if (response.data.success) {
         toastManager.success('Test push notification sent successfully!');

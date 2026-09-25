@@ -185,7 +185,6 @@ app.use('/api/users', require('./routes/user-routes/profile.routes'));
 app.use('/api/user/wallet', require('./routes/user-routes/userWallet.routes'));
 app.use('/api/users/bookings', require('./routes/user-routes/booking.routes'));
 app.use('/api/users', require('./routes/user-routes/cart.routes'));
-app.use('/api/users/fcm-tokens', require('./routes/user-routes/fcmToken.routes'));
 app.use('/api/users/requirements', require('./routes/user-routes/requirement.routes'));
 app.use('/api/users', require('./routes/user-routes/workerBooking.routes'));
 
@@ -201,7 +200,6 @@ app.use('/api/vendors/ledger', require('./routes/vendor-routes/vendorLedger.rout
 app.use('/api/vendors', require('./routes/vendor-routes/service.routes'));
 app.use('/api/vendors/bookings', require('./routes/vendor-routes/booking.routes'));
 // NOTE: Vendor Worker management removed — Workers are independent users, not Vendor-owned
-app.use('/api/vendors/fcm-tokens', require('./routes/vendor-routes/fcmToken.routes'));
 app.use('/api/vendors', require('./routes/vendor-routes/vendorBill.routes'));
 
 app.use('/api/vendors/maintenance', require('./routes/vendor-routes/maintenance.routes'));
@@ -217,15 +215,15 @@ app.use('/api/workers', require('./routes/worker-routes/profile.routes'));
 app.use('/api/workers', require('./routes/worker-routes/job.routes'));
 app.use('/api/workers', require('./routes/worker-routes/dashboard.routes'));
 app.use('/api/workers/wallet', require('./routes/worker-routes/wallet.routes'));
-app.use('/api/workers/fcm-tokens', require('./routes/worker-routes/fcmToken.routes'));
 app.use('/api/workers/team', require('./routes/worker-routes/team.routes'));
 app.use('/api/workers', require('./routes/worker-routes/workerRequests.routes'));
 app.use('/api/workers/assignments', require('./routes/worker-routes/assignment.routes'));
 app.use('/api/workers', require('./routes/worker-routes/assignment.routes'));
 
 
-// Mobile App Routes (unified login role detection)
+// Mobile App Routes (unified login role detection & common FCM tokens)
 app.use('/api/app', require('./routes/common-routes/appAuth.routes'));
+app.use('/api/fcm-tokens', require('./routes/common-routes/fcmToken.routes'));
 
 // Admin routes
 app.use('/api/admin/auth', require('./routes/admin-routes/adminAuth.routes'));

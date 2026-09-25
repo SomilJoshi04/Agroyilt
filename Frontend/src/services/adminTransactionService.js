@@ -21,6 +21,29 @@ export const adminTransactionService = {
     }
   },
 
+  getReconciliationReport: async () => {
+    try {
+      const response = await api.get('/admin/transactions/reconciliation');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching reconciliation report:', error);
+      throw error;
+    }
+  },
+
+  exportTransactionsCSV: async (params) => {
+    try {
+      const response = await api.get('/admin/transactions/export', {
+        params,
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error exporting transactions CSV:', error);
+      throw error;
+    }
+  },
+
   // Settlement / Vendor endpoints
   getVendorBalances: async (params) => {
     try {
@@ -55,8 +78,6 @@ export const adminTransactionService = {
 
   // Reports
   getPaymentReports: async (params) => {
-    // Re-using transactions endpoint with report-specific filters if needed
-    // or we can implement specific report endpoint later
     return adminTransactionService.getAllTransactions(params);
   }
 };

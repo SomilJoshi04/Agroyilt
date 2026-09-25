@@ -173,19 +173,8 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
  */
 async function saveTokenToBackend(token, userType, platform) {
   try {
-    let endpoint;
-    switch (userType) {
-      case 'vendor':
-        endpoint = '/vendors/fcm-tokens/save';
-        break;
-      case 'worker':
-        endpoint = '/workers/fcm-tokens/save';
-        break;
-      case 'user':
-      default:
-        endpoint = '/users/fcm-tokens/save';
-        break;
-    }
+    // Unified common endpoint for all roles
+    const endpoint = '/fcm-tokens/save';
 
     // Get tab-isolated auth token for the target role
     const authToken = authStorage.getAccessToken(userType);
@@ -237,19 +226,8 @@ async function removeFCMToken(userType = 'user') {
       return;
     }
 
-    // Determine API endpoint based on user type
-    let endpoint;
-    switch (userType) {
-      case 'vendor':
-        endpoint = '/vendors/fcm-tokens/remove';
-        break;
-      case 'worker':
-        endpoint = '/workers/fcm-tokens/remove';
-        break;
-      default:
-        endpoint = '/users/fcm-tokens/remove';
-        break;
-    }
+    // Unified common endpoint for all roles
+    const endpoint = '/fcm-tokens/remove';
 
     const authToken = authStorage.getAccessToken(userType);
     // If we have an auth token in the tab session, remove from backend

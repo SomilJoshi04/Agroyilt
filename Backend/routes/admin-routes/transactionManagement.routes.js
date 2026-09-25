@@ -4,13 +4,17 @@ const { authenticate } = require('../../middleware/authMiddleware');
 const { isAdmin } = require('../../middleware/roleMiddleware');
 const {
   getAllTransactions,
-  getTransactionStats
+  getTransactionStats,
+  getReconciliationReport,
+  exportTransactionsCSV
 } = require('../../controllers/adminControllers/adminTransactionController');
 
 // All routes are protected and admin only
 router.use(authenticate, isAdmin);
 
-router.get('/transactions', getAllTransactions);
 router.get('/transactions/stats', getTransactionStats);
+router.get('/transactions/reconciliation', getReconciliationReport);
+router.get('/transactions/export', exportTransactionsCSV);
+router.get('/transactions', getAllTransactions);
 
 module.exports = router;

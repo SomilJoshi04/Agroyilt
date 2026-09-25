@@ -313,7 +313,7 @@ const Settings = () => {
                 // 2. Send Test Notification from Backend
                 toastManager.info('Sending test notification...', { id: toastId });
 
-                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/users/fcm-tokens/test`, {
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/fcm-tokens/test`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
