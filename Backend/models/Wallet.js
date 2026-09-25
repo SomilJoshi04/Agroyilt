@@ -16,6 +16,10 @@ const walletSchema = new mongoose.Schema({
     type: Number, // Stored as integer (paise) to avoid float issues
     default: 0
   },
+  reservedBalance: {
+    type: Number, // Stored as integer (paise) reserved for pending withdrawals
+    default: 0
+  },
   currency: {
     type: String,
     default: 'INR'

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiArrowRight, FiSettings, FiChevronRight, FiCreditCard, FiLogOut, FiTrash2, FiClock, FiCheckCircle, FiPackage, FiActivity, FiGift } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiArrowRight, FiSettings, FiChevronRight, FiCreditCard, FiLogOut, FiTrash2, FiClock, FiCheckCircle, FiPackage, FiActivity, FiGift, FiX } from 'react-icons/fi';
 import { FaWallet, FaTractor } from 'react-icons/fa';
 import { toastManager } from '../../../../utils/toastManager';
 import { vendorTheme as themeColors } from '../../../../theme';
@@ -10,10 +10,12 @@ import BottomNav from '../../components/layout/BottomNav';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import vendorProductService from '../../services/vendorProductService';
 import authStorage from '../../../../utils/authStorage';
+import BankDetailsSection from '../../../../components/common/BankDetailsSection';
 
 const Profile = () => {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Helper function to convert hex to rgba
@@ -30,6 +32,7 @@ const Profile = () => {
   const [hasOutOfStockProducts, setHasOutOfStockProducts] = useState(false);
 
   const menuItems = React.useMemo(() => [
+    { id: 'bank_details', label: 'Bank Account & Payout Details', icon: FiCreditCard, onClick: () => setShowBankModal(true) },
     { id: 12, label: 'My Agri-Store (Supplies)', icon: FaTractor, path: '/vendor/store' },
     { id: 'referrals', label: 'Refer & Earn', icon: FiGift, path: '/vendor/referrals' },
     { id: 14, label: 'Business Profile & Registrations', icon: FiBriefcase, path: '/vendor/business-details' },
@@ -401,7 +404,13 @@ const Profile = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => navigate(item.path)}
+                onClick={() => {
+                  if (item.onClick) {
+                    item.onClick();
+                  } else if (item.path) {
+                    navigate(item.path);
+                  }
+                }}
                 className="w-full flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-teal-200 hover:shadow-md transition-all active:scale-[0.98]"
               >
                 <div className="flex items-center gap-4">
@@ -546,6 +555,22 @@ const Profile = () => {
                 {isDeleting ? 'Deleting...' : 'Yes, Delete'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bank & Payout Details Modal */}
+      {showBankModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowBankModal(false)}
+              className="absolute top-5 right-5 p-2 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors z-10"
+              title="Close"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+            <BankDetailsSection />
           </div>
         </div>
       )}

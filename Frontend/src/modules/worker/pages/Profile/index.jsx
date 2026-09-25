@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiChevronRight, FiTag, FiLogOut, FiGift } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiChevronRight, FiTag, FiLogOut, FiGift, FiCreditCard, FiX } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
 import { workerTheme as themeColors, vendorTheme } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
@@ -10,6 +10,7 @@ import BottomNav from '../../components/layout/BottomNav';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import authStorage from '../../../../utils/authStorage';
 import { useSocket } from '../../../../context/SocketContext';
+import BankDetailsSection from '../../../../components/common/BankDetailsSection';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const Profile = () => {
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showBankModal, setShowBankModal] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const statusSeqRef = useRef(0);
 
@@ -462,6 +464,26 @@ const Profile = () => {
           <FiChevronRight className="w-5 h-5 text-gray-400" />
         </button>
 
+        {/* Bank & Payout Details Button */}
+        <button
+          onClick={() => setShowBankModal(true)}
+          className="w-full bg-white rounded-xl p-4 flex items-center justify-between shadow-md transition-all active:scale-95 mb-4 border border-teal-100 hover:border-teal-300"
+          style={{
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+              <FiCreditCard className="w-5 h-5 text-teal-600" />
+            </div>
+            <div className="text-left">
+              <span className="font-bold text-gray-900 block text-sm">Bank Account & Payout Details</span>
+              <span className="text-xs text-gray-500">View or update bank account for wage payouts</span>
+            </div>
+          </div>
+          <FiChevronRight className="w-5 h-5 text-gray-400" />
+        </button>
+
         {/* Settings Button */}
         <button
           onClick={() => navigate('/worker/settings')}
@@ -500,6 +522,22 @@ const Profile = () => {
       </main>
 
       <BottomNav />
+
+      {/* Bank & Payout Details Modal */}
+      {showBankModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowBankModal(false)}
+              className="absolute top-5 right-5 p-2 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors z-10"
+              title="Close"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+            <BankDetailsSection />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

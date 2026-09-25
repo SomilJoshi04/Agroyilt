@@ -9,6 +9,7 @@ import api from '../../../../services/api';
 import authStorage from '../../../../utils/authStorage';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
+import BankDetailsSection from '../../../../components/common/BankDetailsSection';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -211,6 +212,11 @@ const Settings = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Banking Details */}
+        <div className="mb-6">
+          <BankDetailsSection />
         </div>
 
         {/* Address Management */}

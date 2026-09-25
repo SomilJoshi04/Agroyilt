@@ -57,6 +57,33 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  wallet: {
+    balance: {
+      type: Number,
+      default: 0
+    },
+    penalty: {
+      type: Number,
+      default: 0
+    },
+    reservedWithdrawal: {
+      type: Number,
+      default: 0
+    },
+    totalWithdrawn: {
+      type: Number,
+      default: 0
+    }
+  },
+  bankDetails: {
+    accountHolderName: { type: String, trim: true, default: null },
+    accountNumber: { type: String, trim: true, default: null },
+    ifscCode: { type: String, trim: true, uppercase: true, default: null },
+    bankName: { type: String, trim: true, default: null },
+    branchName: { type: String, trim: true, default: null },
+    upiId: { type: String, trim: true, default: null },
+    updatedAt: { type: Date, default: null }
+  },
   // ENFORCED POLICY: Only 1 address allowed. If user changes it, we replace.
   addresses: [{
     type: {
@@ -105,16 +132,6 @@ const userSchema = new mongoose.Schema({
       default: null
     }
   }],
-  wallet: {
-    balance: {
-      type: Number,
-      default: 0
-    },
-    penalty: {
-      type: Number,
-      default: 0
-    }
-  },
   plans: {
     isActive: {
       type: Boolean,

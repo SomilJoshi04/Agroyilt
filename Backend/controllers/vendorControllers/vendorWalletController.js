@@ -6,6 +6,7 @@ const Booking = require('../../models/Booking');
 const Worker = require('../../models/Worker');
 const { uploadPaymentScreenshot } = require('../../utils/cloudinaryUpload');
 const { createOrder, verifyPayment } = require('../../services/razorpayService');
+const withdrawalService = require('../../services/withdrawalService');
 
 /**
  * Get vendor wallet with ledger balance
@@ -548,79 +549,33 @@ const requestWithdrawal = async (req, res) => {
     const vendorId = req.user.id;
     const { amount, bankDetails, notes } = req.body;
 
-    if (!amount || amount <= 0) {
+    if (!amount || Number(amount) <= 0) {
       return res.status(400).json({ success: false, message: 'Valid amount is required' });
     }
 
-    const vendor = await Vendor.findById(vendorId);
-    if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
-
-    const currentEarnings = vendor.wallet?.earnings || 0;
-
-    // Check pending withdrawals?
-    const pendingWithdrawals = await Withdrawal.aggregate([
-      { $match: { vendorId: vendor._id, status: 'pending' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    const pendingAmount = pendingWithdrawals[0]?.total || 0;
-    const availableEarnings = currentEarnings - pendingAmount;
-
-    if (amount > availableEarnings) {
-      return res.status(400).json({
-        success: false,
-        message: `Insufficient earnings. Available: ₹${availableEarnings} (Pending: ₹${pendingAmount})`
-      });
+    // If client supplied bankDetails in body, update profile first
+    if (bankDetails && typeof bankDetails === 'object' && bankDetails.accountNumber) {
+      await withdrawalService.updateBankDetails(vendorId, 'vendor', bankDetails);
     }
 
-    const withdrawal = await Withdrawal.create({
-      vendorId,
-      amount,
-      bankDetails,
-      adminNotes: notes,
-      status: 'pending'
+    const result = await withdrawalService.createWithdrawalRequest({
+      requesterId: vendorId,
+      requesterRole: 'vendor',
+      amountINR: Number(amount),
+      notes
     });
 
-    // 🔔 NOTIFY ALL ADMINS about withdrawal request
-    try {
-      const { createNotification } = require('../notificationControllers/notificationController');
-      const Admin = require('../../models/Admin');
-
-      const admins = await Admin.find({ isActive: true }).select('_id');
-
-      for (const admin of admins) {
-        await createNotification({
-          adminId: admin._id,
-          type: 'vendor_withdrawal_request',
-          title: '💸 Withdrawal Request',
-          message: `${vendor.businessName || vendor.name} requested withdrawal of ₹${amount}`,
-          relatedId: withdrawal._id,
-          relatedType: 'withdrawal',
-          data: {
-            vendorId: vendor._id,
-            vendorName: vendor.businessName || vendor.name,
-            amount,
-            withdrawalId: withdrawal._id
-          },
-          pushData: {
-            type: 'admin_alert',
-            link: '/admin/settlements'
-          }
-        });
-      }
-      console.log(`[Withdrawal] Notified ${admins.length} admins about withdrawal request from ${vendor.name}`);
-    } catch (notifyErr) {
-      console.error('[Withdrawal] Failed to notify admins:', notifyErr);
-    }
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Withdrawal request submitted successfully',
-      data: withdrawal
+      data: result.data
     });
-
   } catch (error) {
     console.error('Request withdrawal error:', error);
-    res.status(500).json({ success: false, message: 'Failed to request withdrawal' });
+    return res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to request withdrawal'
+    });
   }
 };
 
@@ -893,31 +848,20 @@ const getWithdrawals = async (req, res) => {
     const vendorId = req.user.id;
     const { page = 1, limit = 20, status } = req.query;
 
-    const query = { vendorId };
-    if (status) query.status = status;
+    const result = await withdrawalService.getWithdrawalHistory('vendor', vendorId, {
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 20,
+      status
+    });
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const withdrawals = await Withdrawal.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Withdrawal.countDocuments(query);
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: withdrawals,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
-      }
+      data: result.data,
+      pagination: result.pagination
     });
   } catch (error) {
     console.error('Get withdrawals error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch withdrawals'
     });

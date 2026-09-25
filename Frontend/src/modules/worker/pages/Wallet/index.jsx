@@ -7,10 +7,14 @@ import BottomNav from '../../components/layout/BottomNav';
 import workerWalletService from '../../../../services/workerWalletService';
 import { toastManager } from '../../../../utils/toastManager';
 import LogoLoader from '../../../../components/common/LogoLoader';
+import WithdrawalModal from '../../../../components/common/WithdrawalModal';
+import WithdrawalHistoryList from '../../../../components/common/WithdrawalHistoryList';
 
 const Wallet = () => {
   const [loading, setLoading] = useState(true);
   const [payoutLoading, setPayoutLoading] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [wallet, setWallet] = useState({
     balance: 0,
     pendingPayout: 0
@@ -165,15 +169,31 @@ const Wallet = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-white/80 text-sm font-medium mb-1">Available Balance</p>
-                <p className="text-3xl font-bold mb-4">
+                <p className="text-3xl font-bold mb-1">
                   ₹{Number(wallet?.balance ?? wallet?.wallet?.balance ?? 0).toLocaleString('en-IN')}
                 </p>
+                {Number(wallet?.reservedWithdrawal || wallet?.wallet?.reservedWithdrawal || 0) > 0 && (
+                  <p className="text-xs text-teal-200 mb-2">
+                    ₹{Number(wallet?.reservedWithdrawal || wallet?.wallet?.reservedWithdrawal || 0).toLocaleString('en-IN')} reserved in pending withdrawal
+                  </p>
+                )}
               </div>
               <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
                 <FiDollarSign className="w-6 h-6 text-white" />
               </div>
             </div>
-            <div className="w-full bg-white/10 text-white py-2 rounded-xl font-medium text-xs text-center border border-white/20">
+
+            <div className="mt-4 flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={() => setShowWithdrawModal(true)}
+                className="w-full bg-white hover:bg-teal-50 text-teal-900 font-bold py-2.5 px-4 rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+              >
+                <FiArrowUp className="w-4 h-4 text-teal-700" />
+                Request Withdrawal
+              </button>
+            </div>
+
+            <div className="mt-3 w-full bg-white/10 text-white py-1.5 rounded-xl font-medium text-[11px] text-center border border-white/20">
               {(wallet?.vendorId || wallet?.wallet?.vendorId) ? 'Payments are managed by your Vendor' : 'Direct Platform Payouts Active'}
             </div>
           </div>
@@ -309,6 +329,11 @@ const Wallet = () => {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Withdrawal History Section */}
+        <div className="mt-8">
+          <WithdrawalHistoryList role="worker" refreshTrigger={historyRefreshKey} />
         </div>
       </main>
 
@@ -489,6 +514,19 @@ const Wallet = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Universal Withdrawal Modal */}
+      <WithdrawalModal
+        isOpen={showWithdrawModal}
+        onClose={() => setShowWithdrawModal(false)}
+        role="worker"
+        workerType={wallet?.workerType || wallet?.wallet?.workerType || 'WORKER'}
+        currentBalance={Number(wallet?.balance ?? wallet?.wallet?.balance ?? 0)}
+        onSuccess={() => {
+          loadWalletData();
+          setHistoryRefreshKey(prev => prev + 1);
+        }}
+      />
 
       {/* Hide BottomNav when modal is open */}
       {!selectedTransaction && !imageModalOpen && <BottomNav />}

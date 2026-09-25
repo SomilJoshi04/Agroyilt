@@ -238,6 +238,10 @@ const vendorSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
+    reservedWithdrawal: {
+      type: Number,
+      default: 0
+    },
     totalSettled: {
       type: Number,
       default: 0
@@ -258,6 +262,15 @@ const vendorSchema = new mongoose.Schema({
       type: String,
       default: null
     }
+  },
+  bankDetails: {
+    accountHolderName: { type: String, trim: true, default: null },
+    accountNumber: { type: String, trim: true, default: null },
+    ifscCode: { type: String, trim: true, uppercase: true, default: null },
+    bankName: { type: String, trim: true, default: null },
+    branchName: { type: String, trim: true, default: null },
+    upiId: { type: String, trim: true, default: null },
+    updatedAt: { type: Date, default: null }
   },
   isActive: {
     type: Boolean,

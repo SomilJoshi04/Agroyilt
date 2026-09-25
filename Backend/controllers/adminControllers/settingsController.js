@@ -66,7 +66,10 @@ exports.updateSettings = async (req, res, next) => {
       workerPenaltyFreeMinutes,
       workerPenaltyMaxAmount,
       workerPenaltyPercentage,
-      extensionExpiryMinutes
+      extensionExpiryMinutes,
+      // Withdrawal settings
+      minWithdrawalAmount,
+      minWithdrawalAmountPaise
     } = req.body;
 
     let settings = await Settings.findOne({ type: 'global' });
@@ -183,6 +186,20 @@ exports.updateSettings = async (req, res, next) => {
       if (workerPenaltyMaxAmount !== undefined) settings.workerPenaltyMaxAmount = Math.max(0, Number(workerPenaltyMaxAmount) || 0);
       if (workerPenaltyPercentage !== undefined) settings.workerPenaltyPercentage = Math.min(100, Math.max(0, Number(workerPenaltyPercentage) || 0));
       if (extensionExpiryMinutes !== undefined) settings.extensionExpiryMinutes = Math.max(1, Number(extensionExpiryMinutes) || 30);
+
+      // Minimum withdrawal limit configuration
+      if (minWithdrawalAmount !== undefined) {
+        const val = Number(minWithdrawalAmount);
+        if (!isNaN(val) && val >= 1) {
+          settings.minWithdrawalAmountPaise = Math.round(val * 100);
+        }
+      }
+      if (minWithdrawalAmountPaise !== undefined) {
+        const val = Number(minWithdrawalAmountPaise);
+        if (!isNaN(val) && val >= 100) {
+          settings.minWithdrawalAmountPaise = Math.round(val);
+        }
+      }
 
       await settings.save();
 

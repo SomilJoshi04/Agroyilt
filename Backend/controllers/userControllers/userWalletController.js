@@ -200,16 +200,19 @@ const verifyWalletTopup = async (req, res) => {
 const getWalletTransactions = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     let wallet = await Wallet.findOne({ userId, userModel: 'User' });
+    if (!wallet) {
+      wallet = await Wallet.findOne({ userId });
+    }
     const walletId = wallet ? wallet._id : null;
 
     // Fetch from WalletTransaction and Transaction
     const [walletTxns, generalTxns] = await Promise.all([
-      walletId ? WalletTransaction.find({ walletId }).sort({ createdAt: -1 }).limit(100).lean() : [],
-      Transaction.find({ userId }).sort({ createdAt: -1 }).limit(100).lean()
+      walletId ? WalletTransaction.find({ walletId }).sort({ createdAt: -1 }).limit(500).lean() : [],
+      Transaction.find({ userId }).sort({ createdAt: -1 }).limit(500).lean()
     ]);
 
     // Merge and deduplicate by referenceId / idempotencyKey
@@ -250,12 +253,29 @@ const getWalletTransactions = async (req, res) => {
     // Sort descending by date
     merged.sort((a, b) => new Date(b.date) - new Date(a.date));
 
+    // Calculate full ledger metrics
+    const totalSpent = merged
+      .filter(t => ['payment', 'withdrawal', 'platform_fee', 'convenience_fee', 'gst', 'worker_payment', 'cash_collected'].includes(t.type))
+      .reduce((sum, t) => sum + (t.amount || 0), 0) -
+      merged
+      .filter(t => ['refund', 'cashback'].includes(t.type))
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    const totalPenalty = merged
+      .filter(t => ['penalty', 'fine', 'cancellation_fee', 'debit'].includes(t.type))
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+
     const total = merged.length;
     const paginated = merged.slice(skip, skip + parseInt(limit));
 
     return res.status(200).json({
       success: true,
       data: paginated,
+      summary: {
+        totalSpent: Math.max(0, totalSpent),
+        totalPenalty: Math.max(0, totalPenalty),
+        totalCount: total
+      },
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

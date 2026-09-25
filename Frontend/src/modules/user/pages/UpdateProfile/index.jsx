@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiUser, FiMail, FiPhone, FiCamera, FiPlus, FiMapPin, FiTrash2, FiMap } from 'react-icons/fi';
+import { FiArrowLeft, FiUser, FiMail, FiPhone, FiCamera, FiPlus, FiMapPin, FiTrash2, FiMap, FiCreditCard, FiX } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
 import { themeColors } from '../../../../theme';
 import { userAuthService } from '../../../../services/authService';
 import AddressSelectionModal from '../Checkout/components/AddressSelectionModal';
+import BankDetailsSection from '../../../../components/common/BankDetailsSection';
 import { z } from "zod";
 import authStorage from '../../../../utils/authStorage';
 
@@ -30,6 +31,7 @@ const UpdateProfile = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
 
   // Map state for farms
   const [activeFarmIndex, setActiveFarmIndex] = useState(null);
@@ -545,6 +547,26 @@ const UpdateProfile = () => {
           </div>
         </div>
 
+        {/* Banking & Payout Details Card */}
+        <div className="mt-6 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600">
+              <FiCreditCard className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-gray-800">Bank & Payout Details</h4>
+              <p className="text-xs text-gray-500">Manage account for refunds & withdrawals</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowBankModal(true)}
+            className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold rounded-lg transition-colors"
+          >
+            Manage
+          </button>
+        </div>
+
         {/* Save Button */}
         <div className="mt-8">
           <button
@@ -601,6 +623,22 @@ const UpdateProfile = () => {
         }}
         onSave={handleAddressSave}
       />
+
+      {/* Bank & Payout Details Modal */}
+      {showBankModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowBankModal(false)}
+              className="absolute top-5 right-5 p-2 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors z-10"
+              title="Close"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+            <BankDetailsSection />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

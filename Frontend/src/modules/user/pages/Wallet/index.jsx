@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiChevronRight, FiLoader } from 'react-icons/fi';
+import { FiArrowLeft, FiChevronLeft, FiChevronRight, FiLoader } from 'react-icons/fi';
 import { MdAccountBalanceWallet } from 'react-icons/md';
 import { toastManager } from '../../../../utils/toastManager';
 import { walletService } from '../../../../services/walletService';
@@ -8,6 +8,8 @@ import LogoLoader from '../../../../components/common/LogoLoader';
 import NotificationBell from '../../components/common/NotificationBell';
 import { themeColors } from '../../../../theme';
 import { useSocket } from '../../../../context/SocketContext';
+import WithdrawalModal from '../../../../components/common/WithdrawalModal';
+import WithdrawalHistoryList from '../../../../components/common/WithdrawalHistoryList';
 
 const Wallet = () => {
   const navigate = useNavigate();
@@ -15,7 +17,14 @@ const Wallet = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [txLoading, setTxLoading] = useState(false);
+  const [txPage, setTxPage] = useState(1);
+  const [txLimit, setTxLimit] = useState(10);
+  const [txPagination, setTxPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
+  const [txSummary, setTxSummary] = useState({ totalSpent: 0, totalPenalty: 0 });
   const [showAddMoney, setShowAddMoney] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [amountToAdd, setAmountToAdd] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -28,12 +37,34 @@ const Wallet = () => {
     return () => { document.body.removeChild(script); };
   }, []);
 
+  const loadTransactions = async (page = 1, limit = txLimit, showIndicator = true) => {
+    try {
+      if (showIndicator) setTxLoading(true);
+      const res = await walletService.getTransactions({ page, limit });
+      if (res.success) {
+        setTransactions(res.data || []);
+        if (res.pagination) {
+          setTxPagination(res.pagination);
+          setTxPage(res.pagination.page);
+        }
+        if (res.summary) {
+          setTxSummary(res.summary);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      toastManager.error('Failed to load transactions');
+    } finally {
+      if (showIndicator) setTxLoading(false);
+    }
+  };
+
   const loadWalletData = async (showLoader = true) => {
     try {
       if (showLoader) setLoading(true);
       const [balanceResponse, transactionsResponse] = await Promise.all([
         walletService.getBalance(),
-        walletService.getTransactions()
+        walletService.getTransactions({ page: txPage, limit: txLimit })
       ]);
 
       if (balanceResponse.success) {
@@ -42,6 +73,13 @@ const Wallet = () => {
 
       if (transactionsResponse.success) {
         setTransactions(transactionsResponse.data || []);
+        if (transactionsResponse.pagination) {
+          setTxPagination(transactionsResponse.pagination);
+          setTxPage(transactionsResponse.pagination.page);
+        }
+        if (transactionsResponse.summary) {
+          setTxSummary(transactionsResponse.summary);
+        }
       }
     } catch (error) {
       if (showLoader) toastManager.error('Failed to load wallet data');
@@ -83,7 +121,7 @@ const Wallet = () => {
     try {
       setIsProcessing(true);
       const res = await walletService.addMoney(Number(amountToAdd));
-      
+
       if (res.success) {
         setShowAddMoney(false);
         const options = {
@@ -101,13 +139,18 @@ const Wallet = () => {
                 razorpay_signature: response.razorpay_signature,
                 amount: Number(amountToAdd)
               });
-              
+
               if (verifyRes.success) {
                 toastManager.success('Money added to wallet successfully!');
                 setWalletBalance(verifyRes.data.balance);
                 setAmountToAdd('');
-                const tRes = await walletService.getTransactions();
-                if(tRes.success) setTransactions(tRes.data || []);
+                const tRes = await walletService.getTransactions({ page: 1, limit: txLimit });
+                if (tRes.success) {
+                  setTransactions(tRes.data || []);
+                  if (tRes.pagination) setTxPagination(tRes.pagination);
+                  if (tRes.summary) setTxSummary(tRes.summary);
+                  setTxPage(1);
+                }
               }
             } catch (error) {
               toastManager.error('Payment verification failed');
@@ -172,8 +215,7 @@ const Wallet = () => {
           {/* Referral Banner */}
           <div className="bg-gray-100 rounded-xl p-4 mb-4 relative overflow-hidden">
             <div className="relative z-10">
-              <h2 className="text-lg font-bold text-black mb-1">Refer your friends and earn</h2>
-              <p className="text-sm text-gray-700">They get ₹100 and you get ₹100</p>
+              <h2 className="text-lg font-bold text-black">Refer your friends and earn</h2>
             </div>
             {/* Gift Box Illustration */}
             <div className="absolute right-4 top-2 z-0">
@@ -204,11 +246,20 @@ const Wallet = () => {
                   ₹{walletBalance.toLocaleString('en-IN')}
                 </h2>
               </div>
-              <button 
-                onClick={() => setShowAddMoney(true)}
-                className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm flex items-center gap-1">
-                <span className="text-lg leading-none">+</span> Add Money
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowWithdrawModal(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5"
+                >
+                  <MdAccountBalanceWallet className="w-4 h-4" /> Withdraw
+                </button>
+                <button
+                  onClick={() => setShowAddMoney(true)}
+                  className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm flex items-center gap-1"
+                >
+                  <span className="text-lg leading-none">+</span> Add Money
+                </button>
+              </div>
             </div>
           </div>
 
@@ -223,12 +274,16 @@ const Wallet = () => {
               <p className="text-gray-500 text-xs font-medium">Total Spent</p>
               <p className="text-lg font-bold text-gray-900">
                 ₹{(
-                  transactions
-                    .filter(t => ['payment', 'withdrawal', 'platform_fee', 'convenience_fee', 'gst', 'worker_payment', 'cash_collected'].includes(t.type))
-                    .reduce((sum, t) => sum + t.amount, 0) -
-                  transactions
-                    .filter(t => ['refund', 'cashback'].includes(t.type))
-                    .reduce((sum, t) => sum + t.amount, 0)
+                  txSummary.totalSpent !== undefined
+                    ? txSummary.totalSpent
+                    : (
+                      transactions
+                        .filter(t => ['payment', 'withdrawal', 'platform_fee', 'convenience_fee', 'gst', 'worker_payment', 'cash_collected'].includes(t.type))
+                        .reduce((sum, t) => sum + t.amount, 0) -
+                      transactions
+                        .filter(t => ['refund', 'cashback'].includes(t.type))
+                        .reduce((sum, t) => sum + t.amount, 0)
+                    )
                 ).toLocaleString('en-IN')}
               </p>
             </div>
@@ -241,18 +296,29 @@ const Wallet = () => {
               </div>
               <p className="text-gray-500 text-xs font-medium">Total Penalty</p>
               <p className="text-lg font-bold text-orange-600">
-                ₹{transactions
-                  .filter(t => ['penalty', 'fine', 'cancellation_fee', 'debit'].includes(t.type))
-                  .reduce((sum, t) => sum + t.amount, 0)
-                  .toLocaleString('en-IN')}
+                ₹{(
+                  txSummary.totalPenalty !== undefined
+                    ? txSummary.totalPenalty
+                    : transactions
+                      .filter(t => ['penalty', 'fine', 'cancellation_fee', 'debit'].includes(t.type))
+                      .reduce((sum, t) => sum + t.amount, 0)
+                ).toLocaleString('en-IN')}
               </p>
             </div>
           </div>
 
           {/* Recent Transactions List */}
           <div>
-            <h3 className="text-base font-bold text-black mb-3">Recent Transactions</h3>
-            <div className="space-y-3">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold text-black">Recent Transactions</h3>
+              {txPagination.total > 0 && (
+                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                  {txPagination.total} {txPagination.total === 1 ? 'transaction' : 'transactions'}
+                </span>
+              )}
+            </div>
+
+            <div className={`space-y-3 transition-opacity ${txLoading ? 'opacity-50' : 'opacity-100'}`}>
               {loading ? (
                 <div className="text-center py-20">
                   <LogoLoader fullScreen={false} />
@@ -275,11 +341,7 @@ const Wallet = () => {
                   let typeStyle = { color: 'text-gray-600', bg: 'bg-gray-100', icon: '?', sign: '' };
 
                   if (['credit', 'refund', 'topup', 'referral', 'cashback', 'cash_collected'].includes(item.type)) {
-                    // User requested cash_collected in GREEN
                     typeStyle = { color: 'text-green-600', bg: 'bg-green-50', icon: '↓', sign: '' };
-                    // Note: removed '+' sign for cash_collected to be neutral or just distinct? 
-                    // Usually 'cash_collected' means user GAVE money. 
-                    // But user wants it green.
                   } else if (['payment', 'withdrawal'].includes(item.type)) {
                     typeStyle = { color: 'text-red-600', bg: 'bg-red-50', icon: '↑', sign: '-' };
                   } else if (['penalty', 'fine', 'cancellation_fee', 'debit'].includes(item.type)) {
@@ -330,9 +392,85 @@ const Wallet = () => {
                 })
               )}
             </div>
+
+            {/* Transactions Pagination Controls */}
+            {!loading && txPagination.total > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-gray-100 text-xs text-gray-500 mt-3">
+                <div className="flex items-center gap-2">
+                  <span>
+                    Showing <span className="font-bold text-gray-900">{(txPagination.page - 1) * txPagination.limit + 1}</span> - <span className="font-bold text-gray-900">{Math.min(txPagination.page * txPagination.limit, txPagination.total)}</span> of <span className="font-bold text-gray-900">{txPagination.total}</span>
+                  </span>
+                  {txLoading && <FiLoader className="w-3.5 h-3.5 animate-spin text-teal-600" />}
+                </div>
+
+                {txPagination.pages > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => loadTransactions(txPagination.page - 1, txLimit)}
+                      disabled={txPagination.page <= 1 || txLoading}
+                      className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                    >
+                      <FiChevronLeft className="w-3.5 h-3.5" />
+                      <span>Prev</span>
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      {[...Array(txPagination.pages)].map((_, i) => {
+                        const p = i + 1;
+                        if (txPagination.pages > 6 && Math.abs(p - txPagination.page) > 2 && p !== 1 && p !== txPagination.pages) {
+                          if (Math.abs(p - txPagination.page) === 3) {
+                            return <span key={p} className="px-1 text-gray-400">...</span>;
+                          }
+                          return null;
+                        }
+                        const isActive = p === txPagination.page;
+                        return (
+                          <button
+                            key={p}
+                            onClick={() => loadTransactions(p, txLimit)}
+                            disabled={txLoading}
+                            className={`min-w-[32px] h-8 px-2 rounded-xl text-xs font-bold transition-all ${isActive
+                                ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/30'
+                                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                              }`}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => loadTransactions(txPagination.page + 1, txLimit)}
+                      disabled={txPagination.page >= txPagination.pages || txLoading}
+                      className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                    >
+                      <span>Next</span>
+                      <FiChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Withdrawal History Section */}
+          <div className="mt-8">
+            <WithdrawalHistoryList refreshTrigger={historyRefreshKey} />
           </div>
         </main>
       </div>
+
+      {/* Withdrawal Modal */}
+      <WithdrawalModal
+        isOpen={showWithdrawModal}
+        onClose={() => setShowWithdrawModal(false)}
+        onSuccess={() => {
+          loadWalletData(false);
+          setHistoryRefreshKey(k => k + 1);
+        }}
+        role="farmer"
+      />
 
       {/* Add Money Modal */}
       {showAddMoney && (
@@ -345,12 +483,12 @@ const Wallet = () => {
                 ✕
               </button>
             </div>
-            
+
             <form onSubmit={handleAddMoney}>
               <div className="mb-6">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 block">Amount (₹)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={amountToAdd}
                   onChange={(e) => setAmountToAdd(e.target.value)}
                   placeholder="Enter amount (Min ₹100)"
@@ -362,8 +500,8 @@ const Wallet = () => {
 
               <div className="grid grid-cols-3 gap-3 mb-6">
                 {[100, 500, 1000].map(amt => (
-                  <button 
-                    key={amt} type="button" 
+                  <button
+                    key={amt} type="button"
                     onClick={() => setAmountToAdd(amt.toString())}
                     className="py-2.5 rounded-xl border-2 border-gray-100 text-sm font-bold text-gray-600 hover:border-teal-500 hover:text-teal-600 transition-colors">
                     +₹{amt}
@@ -371,8 +509,8 @@ const Wallet = () => {
                 ))}
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={isProcessing || !amountToAdd || Number(amountToAdd) < 100}
                 className="w-full bg-teal-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-teal-600/20 disabled:opacity-50 active:scale-95 transition-all">
                 {isProcessing ? 'Processing...' : 'Proceed to Pay'}

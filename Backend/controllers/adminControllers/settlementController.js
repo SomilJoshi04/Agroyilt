@@ -4,6 +4,7 @@ const Settlement = require('../../models/Settlement');
 const Withdrawal = require('../../models/Withdrawal');
 const mongoose = require('mongoose');
 const { recordSettlement, recordWithdrawal } = require('../../services/earningTrackerService');
+const withdrawalService = require('../../services/withdrawalService');
 
 /**
  * Get all vendors with their wallet balances
@@ -531,186 +532,73 @@ module.exports = {
   unblockVendor,
   updateCashLimit,
 
-  // Withdrawal functions
+  // Withdrawal functions (Delegated to centralized withdrawalService)
   getWithdrawalRequests: async (req, res) => {
     try {
-      const { page = 1, limit = 20 } = req.query;
-      const skip = (parseInt(page) - 1) * parseInt(limit);
-
-      const withdrawals = await Withdrawal.find({ status: 'pending' })
-        .populate('vendorId', 'name businessName phone wallet.earnings')
-        .sort({ createdAt: 1 })
-        .skip(skip)
-        .limit(parseInt(limit));
-
-      const total = await Withdrawal.countDocuments({ status: 'pending' });
-
-      res.status(200).json({
-        success: true,
-        data: withdrawals,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / parseInt(limit))
-        }
+      const { page = 1, limit = 20, status, role, search } = req.query;
+      const result = await withdrawalService.getAdminWithdrawals({
+        page: parseInt(page) || 1,
+        limit: parseInt(limit) || 20,
+        status,
+        role,
+        search
       });
+      return res.status(200).json(result);
     } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+      return res.status(500).json({ success: false, message: error.message });
     }
   },
 
   approveWithdrawal: async (req, res) => {
     try {
       const { withdrawalId } = req.params;
-      const { transactionReference, notes } = req.body;
-      const adminId = req.user.id;
+      const { transactionReference, notes, adminNotes } = req.body;
+      const adminId = req.user.id || req.user._id;
 
-      // Fetch global settings for rates
-      const Settings = require('../../models/Settings');
-      const settings = await Settings.findOne({ type: 'global' });
-      const tdsRate = settings?.tdsPercentage || 1;
-      const platformFeeRate = settings?.platformFeePercentage || 1;
-
-      const withdrawal = await Withdrawal.findById(withdrawalId);
+      let withdrawal = await Withdrawal.findById(withdrawalId);
       if (!withdrawal) return res.status(404).json({ success: false, message: 'Withdrawal not found' });
-      if (withdrawal.status !== 'pending') return res.status(400).json({ success: false, message: 'Not pending' });
 
-      const vendor = await Vendor.findById(withdrawal.vendorId);
-      if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
-
-      if (vendor.wallet.earnings < withdrawal.amount) {
-        return res.status(400).json({
-          success: false,
-          message: `Insufficient earnings. Available: ₹${vendor.wallet.earnings}`
+      // If pending, accept for payout
+      if (withdrawal.status === 'PENDING' || withdrawal.status === 'pending') {
+        const acceptRes = await withdrawalService.acceptWithdrawal(withdrawalId, adminId, notes || adminNotes);
+        return res.status(200).json({
+          success: true,
+          message: 'Withdrawal accepted for manual payout processing',
+          data: acceptRes.data
         });
       }
 
-      // Calculate Deductions
-      const grossAmount = withdrawal.amount;
-      const tdsAmount = Math.round((grossAmount * tdsRate) / 100);
-      const platformFeeAmount = Math.round((grossAmount * platformFeeRate) / 100);
-      const netAmount = grossAmount - tdsAmount - platformFeeAmount;
-
-      // Deduct full amount from vendor earnings (gross)
-      vendor.wallet.earnings -= grossAmount;
-      vendor.wallet.totalWithdrawn = (vendor.wallet.totalWithdrawn || 0) + grossAmount;
-      await vendor.save();
-
-      // Update withdrawal with details
-      withdrawal.status = 'approved';
-      withdrawal.processedBy = adminId;
-      withdrawal.processedDate = new Date();
-      withdrawal.transactionReference = transactionReference;
-      withdrawal.adminNotes = notes;
-      withdrawal.tdsRate = tdsRate;
-      withdrawal.tdsAmount = tdsAmount;
-      withdrawal.platformFeeRate = platformFeeRate;
-      withdrawal.platformFeeAmount = platformFeeAmount;
-      withdrawal.netAmount = netAmount;
-      await withdrawal.save();
-
-      // Record withdrawal payout in earning tracker
-      // We pass the amount that legitimately left platform bounds to Vendor (including TDS tracking separately later if needed)
-      recordWithdrawal(new Date(), grossAmount);
-
-      // Send Withdrawal Approved Email
-      const { sendWithdrawalApprovedEmail } = require('../../services/emailService');
-      sendWithdrawalApprovedEmail(vendor, grossAmount, transactionReference).catch(e => console.error(e));
-
-      // Transaction 1: Withdrawal Payout (Gross Amount Debited from Wallet)
-      await Transaction.create({
-        vendorId: vendor._id,
-        type: 'withdrawal',
-        amount: grossAmount,
-        status: 'completed',
-        paymentMethod: 'bank_transfer',
-        description: `Withdrawal payout processed. Gross: ₹${grossAmount}`,
-        referenceId: transactionReference,
-        metadata: {
-          withdrawalId: withdrawal._id,
-          tdsRate,
-          tdsAmount,
-          platformFeeRate,
-          platformFeeAmount,
-          netAmount
-        }
-      });
-
-      // Transaction 2: TDS Deduction
-      await Transaction.create({
-        vendorId: vendor._id,
-        type: 'tds_deduction',
-        amount: tdsAmount,
-        status: 'completed',
-        paymentMethod: 'system',
-        description: `TDS Deduction (${tdsRate}%) on withdrawal of ₹${grossAmount}`,
-        referenceId: transactionReference,
-        metadata: {
-          withdrawalId: withdrawal._id,
-          grossAmount,
-          tdsRate,
-          netAmountTransferred: netAmount
-        }
-      });
-
-      // Transaction 3: Platform Fee Deduction
-      await Transaction.create({
-        vendorId: vendor._id,
-        type: 'platform_fee',
-        amount: platformFeeAmount,
-        status: 'completed',
-        paymentMethod: 'system',
-        description: `Platform Charge Fee (${platformFeeRate}%) on withdrawal of ₹${grossAmount}`,
-        referenceId: transactionReference,
-        metadata: {
-          withdrawalId: withdrawal._id,
-          grossAmount,
-          platformFeeRate,
-          netAmountTransferred: netAmount
-        }
-      });
-
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
-        message: 'Withdrawal approved with deductions',
-        data: {
-          grossAmount,
-          tdsRate,
-          tdsAmount,
-          platformFeeRate,
-          platformFeeAmount,
-          netAmount,
-          transactionReference
-        }
+        message: `Withdrawal status is ${withdrawal.status}`,
+        data: withdrawal
       });
     } catch (error) {
       console.error('Approve withdrawal error:', error);
-      res.status(500).json({ success: false, message: error.message });
+      return res.status(400).json({ success: false, message: error.message });
     }
   },
-
 
   rejectWithdrawal: async (req, res) => {
     try {
       const { withdrawalId } = req.params;
-      const { reason } = req.body;
-      const adminId = req.user.id;
+      const { reason, rejectionReason } = req.body;
+      const adminId = req.user.id || req.user._id;
 
-      const withdrawal = await Withdrawal.findById(withdrawalId);
-      if (!withdrawal) return res.status(404).json({ success: false, message: 'Withdrawal not found' });
+      const rReason = rejectionReason || reason;
+      if (!rReason || !rReason.trim()) {
+        return res.status(400).json({ success: false, message: 'Rejection reason is mandatory' });
+      }
 
-      withdrawal.status = 'rejected';
-      withdrawal.processedBy = adminId;
-      withdrawal.processedAt = new Date();
-      withdrawal.rejectionReason = reason;
-      await withdrawal.save();
-
-
-
-      res.status(200).json({ success: true, message: 'Withdrawal rejected' });
+      const result = await withdrawalService.rejectWithdrawal(withdrawalId, adminId, rReason.trim());
+      return res.status(200).json({
+        success: true,
+        message: 'Withdrawal rejected and reserved balance refunded',
+        data: result.data
+      });
     } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+      console.error('Reject withdrawal error:', error);
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 };

@@ -24,17 +24,20 @@ import {
   FiShield,
   FiZap,
   FiCheckCircle,
-  FiTrash2
+  FiTrash2,
+  FiX
 } from 'react-icons/fi';
 import { MdAccountBalanceWallet } from 'react-icons/md';
 import NotificationBell from '../../components/common/NotificationBell';
 import { useSocket } from '../../../../context/SocketContext';
 import authStorage from '../../../../utils/authStorage';
+import BankDetailsSection from '../../../../components/common/BankDetailsSection';
 
 const Account = () => {
   const navigate = useNavigate();
   const socket = useSocket();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: 'Verified Farmer',
@@ -419,6 +422,21 @@ const Account = () => {
             />
           </motion.div>
 
+          {/* Finance & Payouts */}
+          <motion.div variants={itemVariants} className="mb-6">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pl-2">Finance & Payouts</h3>
+            <MenuItem
+              icon={FiCreditCard}
+              label="Bank Account & Payout Details"
+              onClick={() => setShowBankModal(true)}
+            />
+            <MenuItem
+              icon={MdAccountBalanceWallet}
+              label="Wallet & History"
+              onClick={() => navigate('/user/wallet')}
+            />
+          </motion.div>
+
           {/* Preferences */}
           <motion.div variants={itemVariants} className="mb-6">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pl-2">Preferences</h3>
@@ -530,6 +548,22 @@ const Account = () => {
                 {isDeleting ? 'Deleting...' : 'Yes, Delete'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bank & Payout Details Modal */}
+      {showBankModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowBankModal(false)}
+              className="absolute top-5 right-5 p-2 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors z-10"
+              title="Close"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+            <BankDetailsSection />
           </div>
         </div>
       )}

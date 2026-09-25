@@ -8,6 +8,7 @@ import { userAuthService } from '../../../../services/authService';
 import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
 import authStorage from '../../../../utils/authStorage';
 import BottomNav from '../../components/layout/BottomNav';
+import BankDetailsSection from '../../../../components/common/BankDetailsSection';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -164,6 +165,9 @@ const Settings = () => {
               </button>
             </div>
           </div>
+        {/* Banking Details Section */}
+        <div className="mb-6">
+          <BankDetailsSection />
         </div>
 
         {/* Account Actions Section */}

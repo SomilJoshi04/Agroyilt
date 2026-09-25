@@ -79,14 +79,23 @@
     ]
   },
   {
+    "title": "Withdrawals",
+    "route": "/admin/withdrawals",
+    "allowedRoles": [
+      "super_admin",
+      "admin"
+    ],
+    "children": []
+  },
+  {
     "title": "Settlements",
     "route": "/admin/settlements",
     "allowedRoles": [
-      "super_admin"
+      "super_admin",
+      "admin"
     ],
     "children": [
       "Pending",
-      "Withdrawals",
       "Owners with Due",
       "History"
     ]

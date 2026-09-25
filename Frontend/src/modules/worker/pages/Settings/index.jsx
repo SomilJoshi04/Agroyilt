@@ -9,6 +9,7 @@ import BottomNav from '../../components/layout/BottomNav';
 import workerService from '../../../../services/workerService';
 import { registerFCMToken, removeFCMToken } from '../../../../services/pushNotificationService';
 import authStorage from '../../../../utils/authStorage';
+import BankDetailsSection from '../../../../components/common/BankDetailsSection';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -140,7 +141,7 @@ const Settings = () => {
           style={{
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
           }}
-        >
+         >
           <h3 className="font-bold text-gray-800 mb-4">Notifications</h3>
 
           <div className="space-y-4">
@@ -198,16 +199,19 @@ const Settings = () => {
               </button>
             </div>
           </div>
-        </div>
+            {/* Banking / Payout Details */}
+          <div className="mb-6">
+          <BankDetailsSection />
+           </div>
 
-        {/* Security Settings */}
-        <div
+         {/* Security Settings */}
+         <div
           className="bg-white rounded-xl p-4 mb-6 shadow-md cursor-pointer hover:shadow-lg transition-shadow"
           style={{
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
           }}
           onClick={() => navigate('/worker/settings/mpin-setup')}
-        >
+         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <FiShield className="w-5 h-5" style={{ color: themeColors.icon }} />

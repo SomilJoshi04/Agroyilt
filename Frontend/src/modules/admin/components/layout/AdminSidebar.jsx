@@ -39,6 +39,7 @@ const iconMap = {
   Reports: FiFileText,
   Notifications: FiBell,
   Reviews: FiStar,
+  Withdrawals: FiDollarSign,
   Settlements: FiDollarSign,
   Settings: FiSettings,
   Plans: FiPackage,
@@ -110,7 +111,6 @@ const getChildRoute = (parentRoute, childName) => {
     },
     "/admin/settlements": {
       "Pending": "/admin/settlements/pending",
-      "Withdrawals": "/admin/settlements/withdrawals",
       "Owners with Due": "/admin/settlements/vendors",
       "History": "/admin/settlements/history",
     },
@@ -353,9 +353,14 @@ const AdminSidebar = ({ isOpen, onClose }) => {
               {counts.owners > 99 ? '99+' : counts.owners}
             </span>
           )}
-          {item.title === "Settlements" && (counts.withdrawals + counts.pendingSettlements) > 0 && (
+          {item.title === "Withdrawals" && counts.withdrawals > 0 && (
             <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse mr-2">
-              {(counts.withdrawals + counts.pendingSettlements) > 99 ? '99+' : (counts.withdrawals + counts.pendingSettlements)}
+              {counts.withdrawals > 99 ? '99+' : counts.withdrawals}
+            </span>
+          )}
+          {item.title === "Settlements" && counts.pendingSettlements > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse mr-2">
+              {counts.pendingSettlements > 99 ? '99+' : counts.pendingSettlements}
             </span>
           )}
 
@@ -403,11 +408,6 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                       {item.title === "Settlements" && child === "Pending" && counts.pendingSettlements > 0 && (
                         <span className="bg-red-500 text-white text-[10px] h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full">
                           {counts.pendingSettlements}
-                        </span>
-                      )}
-                      {item.title === "Settlements" && child === "Withdrawals" && counts.withdrawals > 0 && (
-                        <span className="bg-orange-500 text-white text-[10px] h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full">
-                          {counts.withdrawals}
                         </span>
                       )}
                     </div>

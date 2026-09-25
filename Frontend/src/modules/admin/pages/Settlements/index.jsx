@@ -1,11 +1,21 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiDollarSign, FiCheck, FiX, FiEye, FiClock, FiUsers, FiTrendingUp, FiAlertCircle, FiDownload, FiRefreshCw } from 'react-icons/fi';
+import {
+  FiDollarSign,
+  FiCheck,
+  FiX,
+  FiEye,
+  FiClock,
+  FiUsers,
+  FiTrendingUp,
+  FiDownload,
+  FiRefreshCw,
+  FiAlertCircle
+} from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
 import Modal from '../../components/Modal';
 import Button from '../../components/Button';
 import adminSettlementService from '../../../../services/adminSettlementService';
-import { getSettings } from '../../services/settingsService';
 import { exportToCSV } from '../../../../utils/csvExport';
 
 const SettlementManagement = () => {
@@ -17,21 +27,18 @@ const SettlementManagement = () => {
   const [pendingSettlements, setPendingSettlements] = useState([]);
   const [owners, setOwners] = useState([]);
   const [history, setHistory] = useState([]);
-  const [withdrawals, setWithdrawals] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
-  const [settings, setSettings] = useState(null);
 
   // Modal State
   const [activeModal, setActiveModal] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [modalInput, setModalInput] = useState('');
-  const [modalInput2, setModalInput2] = useState('');
 
   // Determine active tab from URL
   useEffect(() => {
     const path = location.pathname.split('/').pop();
-    if (['pending', 'owners', 'history', 'withdrawals'].includes(path)) {
-      setActiveTab(path);
+    if (['pending', 'owners', 'vendors', 'history'].includes(path)) {
+      setActiveTab(path === 'vendors' ? 'owners' : path);
     } else {
       setActiveTab('pending');
     }
@@ -45,7 +52,7 @@ const SettlementManagement = () => {
     try {
       setLoading(true);
 
-      // Always load dashboard
+      // Always load dashboard stats
       const dashRes = await adminSettlementService.getDashboard();
       if (dashRes.success) {
         setDashboard(dashRes.data);
@@ -60,17 +67,10 @@ const SettlementManagement = () => {
       } else if (activeTab === 'history') {
         const res = await adminSettlementService.getSettlementHistory();
         if (res.success) setHistory(res.data || []);
-      } else if (activeTab === 'withdrawals') {
-        const res = await adminSettlementService.getWithdrawalRequests();
-        if (res.success) setWithdrawals(res.data || []);
-
-        // Load settings for fee calculation
-        const setRes = await getSettings();
-        if (setRes.success) setSettings(setRes.settings);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
-      toastManager.error('Failed to load data');
+      console.error('Error loading settlement data:', error);
+      toastManager.error('Failed to load settlement data');
     } finally {
       setLoading(false);
     }
@@ -101,50 +101,35 @@ const SettlementManagement = () => {
 
   const openUpdateLimit = (vendor) => {
     setSelectedItem(vendor);
-    setModalInput(vendor.cashLimit || 10000);
+    setModalInput(vendor.maxCashLimit || 5000);
     setActiveModal('update_limit');
-  };
-
-  const openApproveWithdrawal = (item) => {
-    setSelectedItem(item);
-    setModalInput('');
-    setActiveModal('approve_withdrawal');
-  };
-
-  const openRejectWithdrawal = (item) => {
-    setSelectedItem(item);
-    setModalInput('');
-    setActiveModal('reject_withdrawal');
   };
 
   const closeModals = () => {
     setActiveModal(null);
     setSelectedItem(null);
     setModalInput('');
-    setModalInput2('');
   };
 
-  // --- Action Handlers ---
+  // --- Actions ---
   const handleApproveSettlement = async () => {
     try {
       setActionLoading(true);
       const res = await adminSettlementService.approveSettlement(selectedItem._id);
       if (res.success) {
-        toastManager.success('Settlement approved!');
+        toastManager.success('Settlement approved successfully');
         loadData();
         closeModals();
-      } else {
-        toastManager.error(res.message || 'Failed to approve');
       }
     } catch (error) {
-      toastManager.error('Failed to approve');
+      toastManager.error(error.response?.data?.message || 'Failed to approve settlement');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleRejectSettlement = async () => {
-    if (!modalInput.trim()) return toastManager.error('Rejection reason is required');
+    if (!modalInput.trim()) return toastManager.error('Reason is required');
     try {
       setActionLoading(true);
       const res = await adminSettlementService.rejectSettlement(selectedItem._id, modalInput);
@@ -154,41 +139,24 @@ const SettlementManagement = () => {
         closeModals();
       }
     } catch (error) {
-      toastManager.error('Failed to reject');
+      toastManager.error(error.response?.data?.message || 'Failed to reject settlement');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleBlockVendor = async () => {
-    if (!modalInput.trim()) return toastManager.error('Blocking reason is required');
+    if (!modalInput.trim()) return toastManager.error('Reason is required');
     try {
       setActionLoading(true);
       const res = await adminSettlementService.blockVendor(selectedItem._id, modalInput);
       if (res.success) {
-        toastManager.success('Owner blocked');
+        toastManager.success('Owner blocked from taking cash orders');
         loadData();
         closeModals();
       }
     } catch (error) {
-      toastManager.error('Failed to block');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUpdateLimitSubmit = async () => {
-    if (!modalInput || isNaN(modalInput)) return toastManager.error('Valid limit required');
-    try {
-      setActionLoading(true);
-      const res = await adminSettlementService.updateCashLimit(selectedItem._id, parseInt(modalInput));
-      if (res.success) {
-        toastManager.success('Limit updated');
-        loadData();
-        closeModals();
-      }
-    } catch (error) {
-      toastManager.error('Failed to update limit');
+      toastManager.error('Failed to block owner');
     } finally {
       setActionLoading(false);
     }
@@ -210,35 +178,19 @@ const SettlementManagement = () => {
     }
   };
 
-  const handleApproveWithdrawalSubmit = async () => {
-    const ref = modalInput.trim() || `MANUAL-${Date.now()}`;
+  const handleUpdateLimitSubmit = async () => {
+    const limit = Number(modalInput);
+    if (isNaN(limit) || limit < 0) return toastManager.error('Invalid limit amount');
     try {
       setActionLoading(true);
-      const res = await adminSettlementService.approveWithdrawal(selectedItem._id, { transactionReference: ref });
+      const res = await adminSettlementService.updateVendorLimit(selectedItem._id, limit);
       if (res.success) {
-        toastManager.success('Withdrawal approved');
+        toastManager.success('Limit updated successfully');
         loadData();
         closeModals();
       }
     } catch (error) {
-      toastManager.error('Failed to approve');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRejectWithdrawalSubmit = async () => {
-    if (!modalInput.trim()) return toastManager.error('Rejection reason required');
-    try {
-      setActionLoading(true);
-      const res = await adminSettlementService.rejectWithdrawal(selectedItem._id, modalInput);
-      if (res.success) {
-        toastManager.success('Withdrawal rejected');
-        loadData();
-        closeModals();
-      }
-    } catch (error) {
-      toastManager.error('Failed to reject');
+      toastManager.error('Failed to update limit');
     } finally {
       setActionLoading(false);
     }
@@ -265,22 +217,14 @@ const SettlementManagement = () => {
         { key: 'status', label: 'Status' },
         { key: 'createdAt', label: 'Date', type: 'datetime' }
       ]);
-    } else if ((activeTab === 'owners' || activeTab === 'vendors') && owners.length > 0) {
-      exportToCSV(owners, 'owner_dues', [
+    } else if (activeTab === 'owners' && owners.length > 0) {
+      exportToCSV(owners, 'owner_balances_due', [
         { key: 'name', label: 'Owner Name' },
         { key: 'businessName', label: 'Business Name' },
-        { key: 'phone', label: 'Phone', type: 'phone' },
+        { key: 'phone', label: 'Phone' },
         { key: 'amountDue', label: 'Amount Due', type: 'currency' },
-        { key: 'cashLimit', label: 'Cash Limit', type: 'currency' },
+        { key: 'maxCashLimit', label: 'Max Cash Limit', type: 'currency' },
         { key: 'isBlocked', label: 'Blocked' }
-      ]);
-    } else if (activeTab === 'withdrawals' && withdrawals.length > 0) {
-      exportToCSV(withdrawals, 'withdrawal_requests', [
-        { key: 'vendorId.name', label: 'Owner Name' },
-        { key: 'vendorId.businessName', label: 'Business Name' },
-        { key: 'amount', label: 'Amount', type: 'currency' },
-        { key: 'status', label: 'Status' },
-        { key: 'requestDate', label: 'Request Date', type: 'date' }
       ]);
     } else if (activeTab === 'pending' && pendingSettlements.length > 0) {
       exportToCSV(pendingSettlements, 'pending_settlements', [
@@ -296,58 +240,14 @@ const SettlementManagement = () => {
     }
   };
 
-  /* --- Dynamic Dashboard Card Renderer --- */
+  /* --- Dashboard Cards --- */
   const renderDashboardCards = () => {
-    if (loading && !dashboard) return null;
-
     let cards = [];
 
-    if (activeTab === 'withdrawals') {
-      // Withdrawals specific stats
-      const pendingCount = withdrawals.length;
-      const pendingAmount = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
-
-      cards = [
-        {
-          title: 'Total Pending Amount',
-          value: `₹${pendingAmount.toLocaleString()}`,
-          icon: FiDollarSign,
-          color: 'text-orange-600',
-          bg: 'bg-orange-50',
-          border: 'border-orange-100'
-        },
-        {
-          title: 'Pending Requests',
-          value: pendingCount,
-          icon: FiClock,
-          color: 'text-blue-600',
-          bg: 'bg-blue-50',
-          border: 'border-blue-100'
-        },
-        // Fallback to dashboard stats if available, or static
-        {
-          title: 'Avg. Payout',
-          value: pendingCount > 0 ? `₹${Math.round(pendingAmount / pendingCount).toLocaleString()}` : '₹0',
-          icon: FiTrendingUp,
-          color: 'text-green-600',
-          bg: 'bg-green-50',
-          border: 'border-green-100'
-        },
-        {
-          title: 'Processing Status',
-          value: 'Active',
-          icon: FiCheck,
-          color: 'text-purple-600',
-          bg: 'bg-purple-50',
-          border: 'border-purple-100'
-        }
-      ];
-    } else if (activeTab === 'owners' || activeTab === 'vendors') {
-      // Owner Payables stats
-      const totalOwners = owners.length;
-      const totalDue = owners.reduce((sum, v) => sum + (v.amountDue || 0), 0);
-      const blockedCount = owners.filter(v => v.isBlocked).length;
-      const totalLimit = owners.reduce((sum, v) => sum + (v.cashLimit || 0), 0);
+    if (activeTab === 'owners') {
+      const totalDue = owners.reduce((sum, o) => sum + (o.amountDue || 0), 0);
+      const blockedCount = owners.filter(o => o.isBlocked).length;
+      const totalLimit = owners.reduce((sum, o) => sum + (o.maxCashLimit || 0), 0);
 
       cards = [
         {
@@ -359,20 +259,20 @@ const SettlementManagement = () => {
           border: 'border-red-100'
         },
         {
-          title: 'Owners with Dues',
-          value: totalOwners,
+          title: 'Owners with Due',
+          value: owners.length,
           icon: FiUsers,
-          color: 'text-blue-600',
-          bg: 'bg-blue-50',
-          border: 'border-blue-100'
+          color: 'text-orange-600',
+          bg: 'bg-orange-50',
+          border: 'border-orange-100'
         },
         {
           title: 'Blocked Owners',
           value: blockedCount,
           icon: FiAlertCircle,
-          color: 'text-orange-600',
-          bg: 'bg-orange-50',
-          border: 'border-orange-100'
+          color: 'text-red-600',
+          bg: 'bg-red-50',
+          border: 'border-red-100'
         },
         {
           title: 'Total Cash Limit',
@@ -384,7 +284,6 @@ const SettlementManagement = () => {
         }
       ];
     } else if (activeTab === 'history') {
-      // History stats
       const totalTxns = history.length;
       const totalSettled = history.reduce((sum, h) => h.status === 'approved' ? sum + (h.amount || 0) : 0, 0);
       const approvedCount = history.filter(h => h.status === 'approved').length;
@@ -425,7 +324,7 @@ const SettlementManagement = () => {
         }
       ];
     } else {
-      // Default Pending Tab (use dashboard data)
+      // Default Pending Tab
       if (!dashboard) return null;
       cards = [
         {
@@ -466,7 +365,7 @@ const SettlementManagement = () => {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card, index) => (
-          <div key={index} className={`bg-white rounded-xl p-4 shadow-sm border hover:shadow-md transition-all ${card.border}`}>
+          <div key={index} className={`bg-white rounded-2xl p-5 shadow-sm border hover:shadow-md transition-all ${card.border}`}>
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{card.title}</p>
@@ -481,38 +380,28 @@ const SettlementManagement = () => {
       </div>
     );
   };
-  const getPageTitle = () => {
-    switch (activeTab) {
-      case 'pending': return 'Pending Settlements';
-      case 'owners':
-      case 'vendors': return 'Owner Balances & Limits';
-      case 'history': return 'Settlement History';
-      case 'withdrawals': return 'Withdrawal Requests';
-      default: return 'Settlements';
-    }
-  };
 
-  // --- Render Helpers ---
-
+  // --- Render Lists ---
   const renderPendingSettlements = () => (
     pendingSettlements.length === 0 ? (
-      <div className="text-center py-10">
-        <FiClock className="w-12 h-12 mx-auto mb-3 text-gray-200" />
-        <p className="text-gray-500 text-sm font-medium">No pending settlements</p>
+      <div className="text-center py-16 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+        <FiClock className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+        <p className="text-gray-700 font-bold text-base">No pending settlements</p>
+        <p className="text-gray-400 text-xs mt-1">All owner cash settlements have been reviewed.</p>
       </div>
     ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {pendingSettlements.map(settlement => (
-          <div key={settlement._id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all">
+        {pendingSettlements.map((settlement) => (
+          <div key={settlement._id} className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all space-y-4">
             <div className="flex justify-between items-start gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-bold text-gray-900">{settlement.vendorId?.name || 'Unknown Owner'}</h3>
-                  <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">{settlement.vendorId?.businessName}</span>
+                  <h3 className="font-bold text-gray-900 text-sm">{settlement.vendorId?.name || 'Unknown Owner'}</h3>
+                  <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">{settlement.vendorId?.businessName}</span>
                 </div>
 
                 <div className="flex items-center gap-2 mb-2">
-                  <p className="text-2xl font-bold text-blue-600">₹{settlement.amount?.toLocaleString()}</p>
+                  <p className="text-2xl font-black text-blue-600">₹{settlement.amount?.toLocaleString()}</p>
                   <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase rounded">{settlement.paymentMethod}</span>
                 </div>
 
@@ -529,30 +418,25 @@ const SettlementManagement = () => {
                     href={settlement.paymentProof}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-200 text-center transition-colors mb-2"
+                    className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-200 text-center transition-colors mb-1"
                   >
                     View Proof
                   </a>
                 )}
                 <button
                   onClick={() => openApproveSettlement(settlement)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-green-700 shadow-sm transition-all"
+                  className="px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-bold uppercase hover:bg-green-700 shadow-sm active:scale-95 transition-all"
                 >
                   Approve
                 </button>
                 <button
                   onClick={() => openRejectSettlement(settlement)}
-                  className="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-bold uppercase hover:bg-red-50 transition-all"
+                  className="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-xl text-xs font-bold uppercase hover:bg-red-50 active:scale-95 transition-all"
                 >
                   Reject
                 </button>
               </div>
             </div>
-            {settlement.vendorNotes && (
-              <div className="mt-3 pt-3 border-t border-gray-50">
-                <p className="text-xs text-gray-500 italic">"{settlement.vendorNotes}"</p>
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -561,44 +445,40 @@ const SettlementManagement = () => {
 
   const renderOwnersList = () => (
     owners.length === 0 ? (
-      <div className="text-center py-10">
-        <FiCheck className="w-12 h-12 mx-auto mb-3 text-gray-200" />
-        <p className="text-gray-500 text-sm font-medium">All owners are settled!</p>
+      <div className="text-center py-16 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+        <FiUsers className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+        <p className="text-gray-700 font-bold text-base">No owners with outstanding dues</p>
       </div>
     ) : (
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[800px]">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Owner Details</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Cash Limit Status</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Amount Due</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+        <table className="w-full text-left text-sm text-gray-600">
+          <thead className="bg-gray-50 text-gray-700 uppercase text-xs">
+            <tr>
+              <th className="px-6 py-3 font-semibold">Owner</th>
+              <th className="px-6 py-3 font-semibold">Cash Collection vs Limit</th>
+              <th className="px-6 py-3 font-semibold text-right">Amount Due</th>
+              <th className="px-6 py-3 font-semibold text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {owners.map(vendor => (
-              <tr key={vendor._id} className="hover:bg-gray-50/50 transition-colors">
+              <tr key={vendor._id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${vendor.isBlocked ? 'bg-red-500' : 'bg-blue-600'}`}>
-                      {vendor.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-900 text-sm">{vendor.name}</p>
-                      <p className="text-xs text-gray-500">{vendor.businessName} ? {vendor.phone}</p>
-                    </div>
+                  <div>
+                    <p className="font-bold text-gray-900">{vendor.name}</p>
+                    <p className="text-xs text-gray-500">{vendor.businessName} ? {vendor.phone}</p>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex flex-col items-end">
-                    <p className="text-xs font-semibold text-gray-700 mb-1">
-                      ₹{Math.abs(vendor.balance).toLocaleString()} <span className="text-gray-400">/</span> ₹{vendor.cashLimit?.toLocaleString()}
-                    </p>
-                    <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <td className="px-6 py-4">
+                  <div className="flex flex-col gap-1 max-w-[200px]">
+                    <div className="flex justify-between text-xs font-medium">
+                      <span>₹{vendor.currentCashHoldings?.toLocaleString() || 0}</span>
+                      <span className="text-gray-400">Limit: ₹{vendor.maxCashLimit?.toLocaleString() || 5000}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${vendor.isBlocked ? 'bg-red-500' : 'bg-blue-500'}`}
-                        style={{ width: `${Math.min((vendor.amountDue / vendor.cashLimit) * 100, 100)}%` }}
+                        className={`h-full ${vendor.isBlocked ? 'bg-red-600' : 'bg-green-500'}`}
+                        style={{ width: `${Math.min(100, ((vendor.currentCashHoldings || 0) / (vendor.maxCashLimit || 5000)) * 100)}%` }}
                       />
                     </div>
                     {vendor.isBlocked && <span className="text-[10px] text-red-600 font-bold mt-1 uppercase tracking-wide">Blocked</span>}
@@ -652,16 +532,16 @@ const SettlementManagement = () => {
 
   const renderHistoryList = () => (
     history.length === 0 ? (
-      <div className="text-center py-10">
-        <FiTrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-200" />
-        <p className="text-gray-500 text-sm font-medium">No settlement history found</p>
+      <div className="text-center py-16 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+        <FiTrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+        <p className="text-gray-700 font-bold text-base">No settlement history found</p>
       </div>
     ) : (
       <div className="space-y-3">
         {history.map(settlement => (
           <div
             key={settlement._id}
-            className={`bg-white rounded-xl p-4 border transition-all hover:shadow-md ${settlement.status === 'approved' ? 'border-l-4 border-l-green-500 border-gray-100' :
+            className={`bg-white rounded-2xl p-4 border transition-all hover:shadow-md ${settlement.status === 'approved' ? 'border-l-4 border-l-green-500 border-gray-100' :
               settlement.status === 'rejected' ? 'border-l-4 border-l-red-500 border-gray-100' :
                 'border-l-4 border-l-orange-500 border-gray-100'
               }`}
@@ -676,7 +556,7 @@ const SettlementManagement = () => {
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-gray-900">{settlement.vendorId?.name || 'Unknown'} <span className="font-normal text-gray-500">paid</span> ₹{settlement.amount?.toLocaleString()}</h4>
-                  <p className="text-xs text-gray-500">{formatDate(settlement.createdAt)} ? via {settlement.paymentMethod}</p>
+                  <p className="text-xs text-gray-500">{formatDate(settlement.createdAt)} • via {settlement.paymentMethod}</p>
                 </div>
               </div>
               <div className="text-right">
@@ -697,118 +577,103 @@ const SettlementManagement = () => {
     )
   );
 
-  const renderWithdrawalsList = () => (
-    withdrawals.length === 0 ? (
-      <div className="text-center py-10">
-        <FiCheck className="w-12 h-12 mx-auto mb-3 text-gray-200" />
-        <p className="text-gray-500 text-sm font-medium">No pending withdrawal requests. All settled!</p>
-      </div>
-    ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {withdrawals.map(request => (
-          <div key={request._id} className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:border-green-200 transition-all group">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center font-bold text-lg">
-                  {request.vendorId?.name?.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">{request.vendorId?.name}</h3>
-                  <p className="text-xs text-gray-500">{request.vendorId?.businessName}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-green-600">₹{request.amount?.toLocaleString()}</p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mt-1">Requested Amount</p>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">Available Earnings</span>
-                <span className="font-bold text-gray-700">₹{request.vendorId?.wallet?.earnings?.toLocaleString() || 0}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">Requested Date</span>
-                <span className="font-medium text-gray-700">{formatDate(request.requestDate)}</span>
-              </div>
-              {request.bankDetails && (
-                <div className="pt-2 border-t border-gray-200 mt-2">
-                  <p className="text-xs font-bold text-gray-400 uppercase mb-1">Bank Details</p>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    {Object.entries(request.bankDetails).map(([key, val]) => (
-                      <div key={key}>
-                        <span className="text-gray-500 capitalize">{key}:</span> <span className="text-gray-800 font-medium">{val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => openApproveWithdrawal(request)}
-                className="flex-1 py-2.5 bg-green-600 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-green-700 hover:shadow transform active:scale-95 transition-all"
-              >
-                Approve & Pay
-              </button>
-              <button
-                onClick={() => openRejectWithdrawal(request)}
-                className="flex-1 py-2.5 bg-white border border-red-200 text-red-600 rounded-lg font-bold text-sm hover:bg-red-50 active:scale-95 transition-all"
-              >
-                Reject
-              </button>
-            </div>
-            {request.adminNotes && (
-              <p className="mt-3 text-xs text-gray-500 italic text-center">"{request.adminNotes}"</p>
-            )}
-          </div>
-        ))}
-      </div>
-    )
-  );
-
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+          {activeTab === 'owners' || activeTab === 'vendors'
+            ? 'Owners with Due'
+            : activeTab === 'history'
+            ? 'Settlement History'
+            : 'Pending Settlements'}
+        </h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {activeTab === 'owners' || activeTab === 'vendors'
+            ? 'Monitor owner cash holdings, limits, and outstanding dues'
+            : activeTab === 'history'
+            ? 'View past transaction records and approved settlements'
+            : 'Review and approve owner cash settlements'}
+        </p>
+      </div>
+
       {/* Dynamic Dashboard Cards */}
       {renderDashboardCards()}
 
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={handleExport}
-          className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all"
-        >
-          <FiDownload className="w-4 h-4" />
-          Export CSV
-        </button>
-        <button
-          onClick={() => loadData()}
-          className="px-3 py-2.5 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 transition-colors"
-          title="Refresh Data"
-        >
-          <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+      {/* Navigation Tabs Bar & Action Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { id: 'pending', label: 'Pending Settlements', icon: FiClock, count: pendingSettlements.length },
+            { id: 'owners', label: 'Owners with Due', icon: FiUsers },
+            { id: 'history', label: 'Settlement History', icon: FiTrendingUp }
+          ].map(tab => {
+            const isActive = activeTab === tab.id;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  navigate(`/admin/settlements/${tab.id}`);
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                      isActive ? 'bg-white text-blue-600' : 'bg-orange-100 text-orange-600'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleExport}
+            className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all"
+          >
+            <FiDownload className="w-4 h-4" />
+            Export CSV
+          </button>
+          <button
+            onClick={() => loadData()}
+            className="p-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm hover:bg-gray-50 transition-colors shadow-sm"
+            title="Refresh Data"
+          >
+            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px]">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 min-h-[400px]">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-gray-500 mt-4 font-medium">Loading data...</p>
+            <p className="text-gray-500 mt-4 font-medium text-xs">Loading settlement data...</p>
           </div>
         ) : (
-          <div className="p-6">
+          <div>
             {activeTab === 'pending' && renderPendingSettlements()}
             {(activeTab === 'owners' || activeTab === 'vendors') && renderOwnersList()}
             {activeTab === 'history' && renderHistoryList()}
-            {activeTab === 'withdrawals' && renderWithdrawalsList()}
           </div>
         )}
       </div>
 
-      {/* --- Modals --- */}
+      {/* Modals */}
       {/* Approve Settlement Modal */}
       <Modal
         isOpen={activeModal === 'approve_settlement'}
@@ -817,7 +682,7 @@ const SettlementManagement = () => {
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm">
             Are you sure you want to approve this settlement of
             <span className="font-bold text-gray-900 mx-1">₹{selectedItem?.amount?.toLocaleString()}</span>
             from {selectedItem?.vendorId?.name || selectedItem?.name}?
@@ -843,12 +708,12 @@ const SettlementManagement = () => {
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-gray-600">Please provide a reason for rejecting this settlement.</p>
+          <p className="text-gray-600 text-sm">Please provide a reason for rejecting this settlement.</p>
           <textarea
             value={modalInput}
             onChange={(e) => setModalInput(e.target.value)}
-            placeholder="e.g., Transaction ID not found, Invalid screenshot..."
-            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+            placeholder="e.g. Transaction ID not found, Invalid screenshot..."
+            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-xs"
             rows={3}
           />
           <div className="flex justify-end gap-3 mt-4">
@@ -864,7 +729,7 @@ const SettlementManagement = () => {
         </div>
       </Modal>
 
-      {/* Block Vendor Modal */}
+      {/* Block Owner Modal */}
       <Modal
         isOpen={activeModal === 'block_owner'}
         onClose={closeModals}
@@ -872,14 +737,14 @@ const SettlementManagement = () => {
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm">
             Blocking <span className="font-bold">{selectedItem?.name}</span> will prevent them from accepting new cash jobs.
           </p>
           <textarea
             value={modalInput}
             onChange={(e) => setModalInput(e.target.value)}
             placeholder="Reason for blocking..."
-            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-xs"
             rows={3}
           />
           <div className="flex justify-end gap-3 mt-4">
@@ -903,7 +768,7 @@ const SettlementManagement = () => {
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm">
             Are you sure you want to unblock <span className="font-bold text-gray-900">{selectedItem?.name}</span>?
             Their cash limit and blocking status will be reset.
           </p>
@@ -928,14 +793,14 @@ const SettlementManagement = () => {
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-gray-600">Set a new cash collection limit for {selectedItem?.name}.</p>
+          <p className="text-gray-600 text-sm">Set a new cash collection limit for {selectedItem?.name}.</p>
           <div className="relative">
-            <span className="absolute left-3 top-3 text-gray-500 font-bold">₹</span>
+            <span className="absolute left-3 top-2.5 text-gray-500 font-bold">₹</span>
             <input
               type="number"
               value={modalInput}
               onChange={(e) => setModalInput(e.target.value)}
-              className="w-full p-3 pl-8 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-2.5 pl-8 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold"
             />
           </div>
           <div className="flex justify-end gap-3 mt-4">
@@ -949,112 +814,6 @@ const SettlementManagement = () => {
           </div>
         </div>
       </Modal>
-
-      {/* Approve Withdrawal Modal */}
-      <Modal
-        isOpen={activeModal === 'approve_withdrawal'}
-        onClose={closeModals}
-        title="Approve Withdrawal"
-        size="md"
-      >
-        <div className="space-y-5">
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-black text-sm">
-              {selectedItem?.vendorId?.name?.charAt(0) || 'V'}
-            </div>
-            <div>
-              <p className="font-bold text-gray-900 text-sm">{selectedItem?.vendorId?.name}</p>
-              <p className="text-xs text-gray-500">{selectedItem?.vendorId?.businessName}</p>
-            </div>
-          </div>
-
-          {/* Fee Breakdown */}
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-3">
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Payout Breakdown</h4>
-
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">Gross Amount</span>
-              <span className="font-bold text-gray-900">₹{selectedItem?.amount?.toLocaleString()}</span>
-            </div>
-
-            <div className="flex justify-between items-center text-sm">
-              <div className="flex items-center gap-1">
-                <span className="text-gray-600">TDS Deduction</span>
-                <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">{settings?.tdsPercentage || 1}%</span>
-              </div>
-              <span className="font-bold text-red-600">-₹{Math.round((selectedItem?.amount * (settings?.tdsPercentage || 1)) / 100).toLocaleString()}</span>
-            </div>
-
-            <div className="flex justify-between items-center text-sm">
-              <div className="flex items-center gap-1">
-                <span className="text-gray-600">Platform Charge</span>
-                <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">{settings?.platformFeePercentage || 1}%</span>
-              </div>
-              <span className="font-bold text-red-600">-₹{Math.round((selectedItem?.amount * (settings?.platformFeePercentage || 1)) / 100).toLocaleString()}</span>
-            </div>
-
-            <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
-              <span className="font-bold text-gray-800">Final Net Payout</span>
-              <span className="text-xl font-black text-green-600">
-                ₹{Math.round(selectedItem?.amount - (selectedItem?.amount * (settings?.tdsPercentage || 1) / 100) - (selectedItem?.amount * (settings?.platformFeePercentage || 1) / 100)).toLocaleString()}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Transaction Reference</label>
-            <input
-              type="text"
-              value={modalInput}
-              onChange={(e) => setModalInput(e.target.value)}
-              placeholder="Enter Transaction ID / Ref No."
-              className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
-            />
-            <p className="text-xs text-gray-400 mt-1">Reference ID for the manual bank transfer.</p>
-          </div>
-
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="ghost" onClick={closeModals}>Cancel</Button>
-            <Button
-              onClick={handleApproveWithdrawalSubmit}
-              isLoading={actionLoading}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              Confirm Payment
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Reject Withdrawal Modal */}
-      <Modal
-        isOpen={activeModal === 'reject_withdrawal'}
-        onClose={closeModals}
-        title="Reject Withdrawal"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <p className="text-gray-600">Reason for rejection:</p>
-          <textarea
-            value={modalInput}
-            onChange={(e) => setModalInput(e.target.value)}
-            placeholder="Reason for rejecting withdrawal..."
-            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 outline-none"
-            rows={3}
-          />
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="ghost" onClick={closeModals}>Cancel</Button>
-            <Button
-              onClick={handleRejectWithdrawalSubmit}
-              isLoading={actionLoading}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              Reject Request
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
     </div>
   );
 };

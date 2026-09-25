@@ -27,6 +27,7 @@ const Notifications = lazy(() => import('../pages/Notifications'));
 
 const Plans = lazy(() => import('../pages/Plans/Plans'));
 
+const Withdrawals = lazy(() => import('../pages/Withdrawals'));
 const Settlements = lazy(() => import('../pages/Settlements'));
 const Reviews = lazy(() => import('../pages/Reviews'));
 const Products = lazy(() => import('../pages/Products'));
@@ -93,6 +94,8 @@ const AdminRoutes = () => {
           <Route path="marketplace/registered-shops" element={<RegisteredShops />} />
           <Route path="soil-tests" element={<SoilTesting />} />
           <Route path="disputes" element={<Disputes />} />
+          <Route path="withdrawals" element={<Withdrawals />} />
+          <Route path="withdrawals/*" element={<Withdrawals />} />
           <Route path="settlements/*" element={<Settlements />} />
           <Route path="manage-website/*" element={<WebsiteSettings />} />
           <Route path="support" element={<Support />} />

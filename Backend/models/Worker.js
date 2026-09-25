@@ -174,7 +174,24 @@ const workerSchema = new mongoose.Schema({
     balance: {
       type: Number,
       default: 0
+    },
+    reservedWithdrawal: {
+      type: Number,
+      default: 0
+    },
+    totalWithdrawn: {
+      type: Number,
+      default: 0
     }
+  },
+  bankDetails: {
+    accountHolderName: { type: String, trim: true, default: null },
+    accountNumber: { type: String, trim: true, default: null },
+    ifscCode: { type: String, trim: true, uppercase: true, default: null },
+    bankName: { type: String, trim: true, default: null },
+    branchName: { type: String, trim: true, default: null },
+    upiId: { type: String, trim: true, default: null },
+    updatedAt: { type: Date, default: null }
   },
   // Settings
   settings: {

@@ -38,7 +38,7 @@ const uploadFile = async (file, options = {}) => {
     const uploadOptions = {
       folder,
       resource_type,
-      transformation,
+      ...(resource_type !== 'raw' && transformation && transformation.length > 0 ? { transformation } : {}),
       ...restOptions
     };
 
@@ -61,6 +61,7 @@ const uploadFile = async (file, options = {}) => {
     return {
       success: true,
       url: result.secure_url,
+      secure_url: result.secure_url,
       public_id: result.public_id,
       format: result.format,
       width: result.width,

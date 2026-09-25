@@ -293,6 +293,9 @@ app.use('/api/admin/support', require('./routes/admin-routes/support.routes'));
 // Dispute routes (Common)
 app.use('/api/disputes', require('./routes/common-routes/dispute.routes'));
 
+// Withdrawal routes (Common: User, Vendor, Worker, Admin)
+app.use('/api/withdrawals', require('./routes/common-routes/withdrawal.routes'));
+
 // Referral routes
 app.use('/api/referrals', require('./routes/common-routes/referral.routes'));
 app.use('/api/admin/referrals', require('./routes/admin-routes/referralManagement.routes'));

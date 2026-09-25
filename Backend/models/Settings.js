@@ -79,6 +79,11 @@ const settingsSchema = new mongoose.Schema({
     default: 10000,
     min: 0
   },
+  minWithdrawalAmountPaise: {
+    type: Number,
+    default: 30000, // ₹300 = 30000 paise
+    min: 100 // minimum 100 paise = ₹1
+  },
   cancellationPenalty: {
     type: Number,
     default: 49,

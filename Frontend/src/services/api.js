@@ -43,6 +43,13 @@ export const getRoleForRequest = (url, config = null) => {
 // Request interceptor - Add tab-isolated auth token
 api.interceptors.request.use(
   (config) => {
+    // If uploading FormData, delete Content-Type to let browser/Axios compute boundary dynamically
+    if (config.data instanceof FormData) {
+      if (config.headers) {
+        delete config.headers['Content-Type'];
+      }
+    }
+
     const role = getRoleForRequest(config.url, config);
     const token = authStorage.getAccessToken(role);
 

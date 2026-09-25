@@ -3,11 +3,12 @@
 const Worker = require('../../models/Worker');
 const Transaction = require('../../models/Transaction');
 const { getWorkerFinancialSettings } = require('../../services/workerFinancialService');
+const withdrawalService = require('../../services/withdrawalService');
 
 exports.getWallet = async (req, res) => {
   try {
     const workerId = req.user._id;
-    const worker = await Worker.findById(workerId).select('wallet outstandingDues isRestricted restrictionReason vendorId');
+    const worker = await Worker.findById(workerId).select('wallet outstandingDues isRestricted restrictionReason vendorId workerType');
     
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
     
@@ -25,12 +26,18 @@ exports.getWallet = async (req, res) => {
       ? Number(worker.wallet.balance)
       : (workerWalletDoc?.balance !== undefined ? Number(workerWalletDoc.balance) : 0);
 
+    const reservedWithdrawal = Number(worker.wallet?.reservedWithdrawal || 0);
+
     return res.json({
       success: true,
       data: {
         balance: currentBalance,
+        reservedWithdrawal,
+        workerType: worker.workerType || 'WORKER',
         wallet: {
           balance: currentBalance,
+          reservedWithdrawal,
+          workerType: worker.workerType || 'WORKER',
           ...(worker.wallet || {})
         },
         outstandingDues: worker.outstandingDues || 0,
@@ -76,12 +83,28 @@ exports.getTransactions = async (req, res) => {
 
 exports.requestPayout = async (req, res) => {
   try {
-    const workerId = req.user._id;
-    // Payout logic - placeholder for now
-    return res.json({ success: true, message: 'Payout requested successfully' });
+    const workerId = req.user._id || req.user.id;
+    const { amount, notes } = req.body;
+
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ success: false, message: 'Valid amount is required' });
+    }
+
+    const result = await withdrawalService.createWithdrawalRequest({
+      requesterId: workerId,
+      requesterRole: 'worker',
+      amountINR: Number(amount),
+      notes
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Withdrawal request submitted successfully',
+      data: result.data
+    });
   } catch (error) {
     console.error('[requestPayout]', error);
-    return res.status(500).json({ success: false, message: 'Failed to request payout' });
+    return res.status(400).json({ success: false, message: error.message || 'Failed to request payout' });
   }
 };
 

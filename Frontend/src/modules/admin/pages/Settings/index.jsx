@@ -28,7 +28,8 @@ const AdminSettings = () => {
     bookingCommissionPercentage: 10,
     workerCommissionPercentage: 10,
     workerPlatformChargePercentage: 1,
-    rentalGstPercentage: 5
+    rentalGstPercentage: 5,
+    minWithdrawalAmount: 300
   });
 
   // One-time registration fees state
@@ -305,7 +306,8 @@ const AdminSettings = () => {
             bookingCommissionPercentage: res.settings.bookingCommissionPercentage ?? 10,
             workerCommissionPercentage: res.settings.workerCommissionPercentage ?? 10,
             workerPlatformChargePercentage: res.settings.workerPlatformChargePercentage ?? 1,
-            rentalGstPercentage: res.settings.rentalGstPercentage ?? 5
+            rentalGstPercentage: res.settings.rentalGstPercentage ?? 5,
+            minWithdrawalAmount: res.settings.minWithdrawalAmountPaise ? Math.round(res.settings.minWithdrawalAmountPaise / 100) : (res.settings.minWithdrawalAmount || 300)
           });
 
           // Load billing settings
@@ -1036,7 +1038,28 @@ const AdminSettings = () => {
                         min="0" max="100"
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all font-bold text-gray-800"
                       />
-                      <p className="text-[10px] text-gray-400 mt-1">Upfront platform fee charged to farmer on worker hire requests (default 1%)</p>
+                    </div>
+
+                    {/* Minimum Withdrawal Amount */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">
+                        Minimum Withdrawal Amount (₹)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-2.5 font-bold text-gray-400">₹</span>
+                        <input
+                          type="number"
+                          name="minWithdrawalAmount"
+                          value={financialSettings.minWithdrawalAmount}
+                          onChange={handleFinancialChange}
+                          min="1"
+                          step="1"
+                          className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all font-bold text-gray-900"
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        System-wide minimum amount required for Farmers, Vendors, and Workers to request a withdrawal (Stored safely as integer paise: ₹{financialSettings.minWithdrawalAmount || 300} = {Math.round((financialSettings.minWithdrawalAmount || 300) * 100)} paise)
+                      </p>
                     </div>
                   </div>
                   <div className="flex justify-end pt-2">
