@@ -163,7 +163,8 @@ const Signup = () => {
           toastManager.error(response.message || 'Registration failed');
         }
       } catch (error) {
-        toastManager.error(error.response?.data?.message || 'Registration failed');
+        const errorMsg = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || error.message || 'Registration failed';
+        toastManager.error(errorMsg);
       } finally {
         setIsLoading(false);
       }
@@ -272,7 +273,8 @@ const Signup = () => {
         toastManager.error(response.message || 'Registration failed');
       }
     } catch (error) {
-      toastManager.error(error.response?.data?.message || 'Registration failed');
+      const errorMsg = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || error.message || 'Registration failed';
+      toastManager.error(errorMsg);
     } finally {
       setIsLoading(false);
       isSubmittingRef.current = false;

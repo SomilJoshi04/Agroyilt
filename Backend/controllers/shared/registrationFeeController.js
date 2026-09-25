@@ -103,26 +103,36 @@ const initiatePayment = async (req, res) => {
       });
     }
 
-    // Create Razorpay Order
-    const orderOptions = await createOrder(feeConfig.amount, feeConfig.currency, `reg_fee_${role}_${Date.now()}`);
-    
-    if (!orderOptions.success) {
-      return res.status(500).json({ success: false, message: 'Failed to create payment order' });
-    }
-
-    // Save pending payment record
+    // Save pending payment record first to get its ID for gateway notes
     const paymentRecord = new RegistrationFeePayment({
       accountId: account._id,
       roleModel: role === 'USER' ? 'User' : role === 'VENDOR' ? 'Vendor' : 'Worker',
       role,
       mobileNumberNormalized: account.phone,
-      gatewayOrderId: orderOptions.orderId,
       status: 'PENDING',
       amount: feeConfig.amount,
       currency: feeConfig.currency,
       feeVersion: feeConfig.version
     });
 
+    // Create Razorpay Order with security notes
+    const orderOptions = await createOrder(
+      feeConfig.amount,
+      feeConfig.currency,
+      `reg_fee_${role}_${Date.now()}`,
+      {
+        paymentType: 'REGISTRATION_FEE',
+        role,
+        accountId: account._id.toString(),
+        paymentRecordId: paymentRecord._id.toString()
+      }
+    );
+    
+    if (!orderOptions.success) {
+      return res.status(500).json({ success: false, message: 'Failed to create payment order' });
+    }
+
+    paymentRecord.gatewayOrderId = orderOptions.orderId;
     await paymentRecord.save();
 
     res.status(200).json({
@@ -186,6 +196,20 @@ const verifyFeePayment = async (req, res) => {
       account.registrationFeeVersion = paymentRecord.feeVersion;
       account.registrationFeePaymentId = paymentRecord._id;
       await account.save();
+    }
+
+    // Trigger Referral Qualification if active rule is REGISTRATION_FEE_PAYMENT
+    try {
+      const referralService = require('../../services/referralService');
+      await referralService.qualifyAndRewardReferral({
+        referredUserId: paymentRecord.accountId,
+        event: 'REGISTRATION_FEE_PAYMENT',
+        paymentId: paymentRecord._id,
+        gatewayPaymentId: paymentRecord.gatewayPaymentId,
+        paymentRecord
+      });
+    } catch (refErr) {
+      console.error('Referral qualification on registration fee payment error:', refErr);
     }
 
     // Issue Full Access Tokens

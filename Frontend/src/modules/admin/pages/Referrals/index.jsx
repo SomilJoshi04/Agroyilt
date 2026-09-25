@@ -28,7 +28,7 @@ const ReferralManagement = () => {
   const [settings, setSettings] = useState({
     systemEnabled: true,
     registrationUrl: 'https://agroyilt.com/app/register',
-    qualificationEvent: 'on_approval',
+    qualificationEvent: 'ADMIN_APPROVAL',
     version: 1,
     roles: {
       farmer: { enabled: true, rewardAmount: 50, rewardAmountPaise: 5000 },
@@ -457,19 +457,20 @@ const ReferralManagement = () => {
             <p className="text-xs text-gray-500 mb-3">
               Define when the referral reward is disbursed to the referrer.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
-              <label className={`p-3 rounded-xl border cursor-pointer flex items-center gap-3 ${
-                settings.qualificationEvent === 'on_approval'
-                  ? 'border-emerald-500 bg-emerald-50/40 text-emerald-900'
+            <div className="grid grid-cols-1 gap-3 max-w-xl">
+              {/* Option 1: On Admin Approval */}
+              <label className={`p-3.5 rounded-xl border cursor-pointer flex items-center gap-3 transition-all ${
+                (settings.qualificationEvent === 'ADMIN_APPROVAL' || settings.qualificationEvent === 'on_approval')
+                  ? 'border-emerald-500 bg-emerald-50/40 text-emerald-900 shadow-sm ring-1 ring-emerald-500/20'
                   : 'border-gray-200 hover:bg-gray-50'
               }`}>
                 <input
                   type="radio"
                   name="qualificationEvent"
-                  value="on_approval"
-                  checked={settings.qualificationEvent === 'on_approval'}
+                  value="ADMIN_APPROVAL"
+                  checked={settings.qualificationEvent === 'ADMIN_APPROVAL' || settings.qualificationEvent === 'on_approval'}
                   onChange={(e) => setSettings(prev => ({ ...prev, qualificationEvent: e.target.value }))}
-                  className="w-4 h-4 text-emerald-600"
+                  className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
                 />
                 <div>
                   <span className="text-xs font-bold block">On Admin Approval (Recommended)</span>
@@ -477,22 +478,43 @@ const ReferralManagement = () => {
                 </div>
               </label>
 
-              <label className={`p-3 rounded-xl border cursor-pointer flex items-center gap-3 ${
-                settings.qualificationEvent === 'on_registration'
-                  ? 'border-emerald-500 bg-emerald-50/40 text-emerald-900'
+              {/* Option 2: On Registration */}
+              <label className={`p-3.5 rounded-xl border cursor-pointer flex items-center gap-3 transition-all ${
+                (settings.qualificationEvent === 'REGISTRATION' || settings.qualificationEvent === 'on_registration')
+                  ? 'border-emerald-500 bg-emerald-50/40 text-emerald-900 shadow-sm ring-1 ring-emerald-500/20'
                   : 'border-gray-200 hover:bg-gray-50'
               }`}>
                 <input
                   type="radio"
                   name="qualificationEvent"
-                  value="on_registration"
-                  checked={settings.qualificationEvent === 'on_registration'}
+                  value="REGISTRATION"
+                  checked={settings.qualificationEvent === 'REGISTRATION' || settings.qualificationEvent === 'on_registration'}
                   onChange={(e) => setSettings(prev => ({ ...prev, qualificationEvent: e.target.value }))}
-                  className="w-4 h-4 text-emerald-600"
+                  className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
                 />
                 <div>
                   <span className="text-xs font-bold block">On Registration</span>
                   <span className="text-[11px] text-gray-500">Reward credited immediately upon verified signup</span>
+                </div>
+              </label>
+
+              {/* Option 3: On Registration Fee Payment */}
+              <label className={`p-3.5 rounded-xl border cursor-pointer flex items-center gap-3 transition-all ${
+                (settings.qualificationEvent === 'REGISTRATION_FEE_PAYMENT' || settings.qualificationEvent === 'on_registration_fee_payment')
+                  ? 'border-emerald-500 bg-emerald-50/40 text-emerald-900 shadow-sm ring-1 ring-emerald-500/20'
+                  : 'border-gray-200 hover:bg-gray-50'
+              }`}>
+                <input
+                  type="radio"
+                  name="qualificationEvent"
+                  value="REGISTRATION_FEE_PAYMENT"
+                  checked={settings.qualificationEvent === 'REGISTRATION_FEE_PAYMENT' || settings.qualificationEvent === 'on_registration_fee_payment'}
+                  onChange={(e) => setSettings(prev => ({ ...prev, qualificationEvent: e.target.value }))}
+                  className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+                />
+                <div>
+                  <span className="text-xs font-bold block">On Registration Fee Payment</span>
+                  <span className="text-[11px] text-gray-500">Reward credited after registration fee payment is successfully verified</span>
                 </div>
               </label>
             </div>
@@ -699,17 +721,40 @@ const ReferralManagement = () => {
 
                         <td className="px-4 py-3">
                           {row.status === 'qualified' ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                              <FiCheck className="w-3 h-3" /> Credited
-                            </span>
+                            <div>
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                                <FiCheck className="w-3 h-3" /> Credited
+                              </span>
+                              {row.qualificationRule && (
+                                <span className="text-[10px] text-gray-500 block mt-0.5 font-medium">
+                                  {row.qualificationRule === 'REGISTRATION_FEE_PAYMENT' || row.qualificationRule === 'on_registration_fee_payment'
+                                    ? '💳 Fee Payment'
+                                    : row.qualificationRule === 'REGISTRATION' || row.qualificationRule === 'on_registration'
+                                    ? '📝 On Signup'
+                                    : '🛡️ Admin Approval'}
+                                </span>
+                              )}
+                              {row.paymentReference && (
+                                <span className="text-[9px] text-gray-400 block font-mono" title={row.paymentReference}>
+                                  Ref: {row.paymentReference.slice(-10)}
+                                </span>
+                              )}
+                            </div>
                           ) : row.status === 'reversed' ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">
                               <FiRotateCcw className="w-3 h-3" /> Reversed
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
-                              <FiClock className="w-3 h-3" /> Pending
-                            </span>
+                            <div>
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
+                                <FiClock className="w-3 h-3" /> Pending
+                              </span>
+                              {row.qualificationRule && (
+                                <span className="text-[10px] text-gray-400 block mt-0.5">
+                                  Awaiting: {row.qualificationRule === 'REGISTRATION_FEE_PAYMENT' ? 'Fee Payment' : 'Approval'}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </td>
 

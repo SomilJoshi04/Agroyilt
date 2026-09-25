@@ -21,6 +21,8 @@ Backend/REDIS_SETUP.md
 Frontend/docs/
 docs/
 Backend/scripts/
+Backend/tests/
+tests/
 
 # Test, Scratch & Debug Scripts
 test*.js

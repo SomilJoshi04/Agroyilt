@@ -47,11 +47,63 @@ exports.razorpayWebhook = async (req, res) => {
 
     const paymentEntity = req.body.payload.payment.entity;
     const gatewayTransactionId = paymentEntity.id;
+
+    // Check if this payment is for Registration Fee
+    const isRegFee = paymentEntity.notes?.paymentType === 'REGISTRATION_FEE' || paymentEntity.notes?.paymentRecordId;
+    if (isRegFee) {
+      const RegistrationFeePayment = require('../../models/RegistrationFeePayment');
+      const User = require('../../models/User');
+      const Vendor = require('../../models/Vendor');
+      const Worker = require('../../models/Worker');
+      const referralService = require('../../services/referralService');
+
+      let paymentRecord = null;
+      if (paymentEntity.notes?.paymentRecordId) {
+        paymentRecord = await RegistrationFeePayment.findById(paymentEntity.notes.paymentRecordId);
+      }
+      if (!paymentRecord && paymentEntity.order_id) {
+        paymentRecord = await RegistrationFeePayment.findOne({ gatewayOrderId: paymentEntity.order_id });
+      }
+
+      if (paymentRecord) {
+        if (paymentRecord.status !== 'PAID') {
+          paymentRecord.status = 'PAID';
+          paymentRecord.gatewayPaymentId = gatewayTransactionId;
+          paymentRecord.paidAt = new Date();
+          await paymentRecord.save();
+
+          const getModel = (r) => (r === 'USER' ? User : r === 'VENDOR' ? Vendor : Worker);
+          const Model = getModel(paymentRecord.role);
+          const account = await Model.findById(paymentRecord.accountId);
+          if (account) {
+            account.registrationFeeStatus = 'PAID';
+            account.registrationFeeAmount = paymentRecord.amount;
+            account.registrationFeeVersion = paymentRecord.feeVersion;
+            account.registrationFeePaymentId = paymentRecord._id;
+            await account.save();
+          }
+        }
+
+        // Trigger referral qualification (idempotent, concurrency-safe)
+        await referralService.qualifyAndRewardReferral({
+          referredUserId: paymentRecord.accountId,
+          event: 'REGISTRATION_FEE_PAYMENT',
+          paymentId: paymentRecord._id,
+          gatewayPaymentId: gatewayTransactionId,
+          paymentRecord
+        });
+
+        logEntry.processedStatus = 'processed';
+        await logEntry.save();
+        return res.status(200).send('OK');
+      }
+    }
+
     const bookingId = paymentEntity.notes?.bookingId; 
     
     if (!bookingId) {
       logEntry.processedStatus = 'failed';
-      logEntry.errorDetails = 'No bookingId in payment notes';
+      logEntry.errorDetails = 'No bookingId or registration fee details in payment notes';
       await logEntry.save();
       return res.status(200).send('OK'); // Return 200 so RP stops retrying
     }

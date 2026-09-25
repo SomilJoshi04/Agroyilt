@@ -134,8 +134,12 @@ const register = async (req, res) => {
       if (!ver.success) return res.status(400).json({ success: false, message: ver.message });
     }
 
-    // Check existing
-    const existingWorker = await Worker.findOne({ $or: [{ phone }, { email }] });
+    // Check existing worker
+    const existingQuery = [{ phone }];
+    if (email && typeof email === 'string' && email.trim() !== '') {
+      existingQuery.push({ email: email.trim().toLowerCase() });
+    }
+    const existingWorker = await Worker.findOne({ $or: existingQuery });
     if (existingWorker) {
       return res.status(400).json({
         success: false,
@@ -160,9 +164,15 @@ const register = async (req, res) => {
     // Validate workerType
     const validWorkerType = ['TEAM_LEADER', 'WORKER'].includes(workerType) ? workerType : 'WORKER';
 
+    const normalizedEmail = (email && typeof email === 'string' && email.trim() !== '')
+      ? email.trim().toLowerCase()
+      : undefined;
+
     // Create worker
     const worker = await Worker.create({
-      name, email, phone,
+      name,
+      email: normalizedEmail,
+      phone,
       isPhoneVerified: true,
       aadhar: {
         number: req.body.aadhar || aadharNumber,

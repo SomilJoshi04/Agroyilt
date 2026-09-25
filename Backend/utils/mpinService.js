@@ -43,6 +43,12 @@ const compareMpin = async (plainMpin, hashedMpin) => {
  * @returns {Object} - Result object { locked: boolean, remainingAttempts: number, lockUntil: Date|null }
  */
 const incrementMpinAttempts = async (entity) => {
+  // If previous lockout window has expired, reset attempts counter first
+  if (entity.mpinLockedUntil && entity.mpinLockedUntil <= new Date()) {
+    entity.mpinAttempts = 0;
+    entity.mpinLockedUntil = null;
+  }
+
   let attempts = (entity.mpinAttempts || 0) + 1;
   let locked = false;
   let lockUntil = null;
@@ -81,8 +87,14 @@ const resetMpinAttempts = async (entity) => {
  * @returns {boolean} - true if locked out
  */
 const isMpinLocked = (entity) => {
-  if (entity.mpinLockedUntil && entity.mpinLockedUntil > new Date()) {
-    return true;
+  if (entity.mpinLockedUntil) {
+    if (entity.mpinLockedUntil > new Date()) {
+      return true;
+    }
+    // Lockout has expired -> clear fields
+    entity.mpinLockedUntil = null;
+    entity.mpinAttempts = 0;
+    entity.save().catch(() => {});
   }
   return false;
 };

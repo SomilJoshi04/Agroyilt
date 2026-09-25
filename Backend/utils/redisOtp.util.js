@@ -49,6 +49,11 @@ const checkRateLimit = async (phone) => {
     return true;
   }
 
+  // Bypass rate limiting when USE_DEFAULT_OTP is enabled or in development
+  if (process.env.USE_DEFAULT_OTP === 'true' || process.env.NODE_ENV === 'development') {
+    return true;
+  }
+
   const redis = getRedis();
   if (!isRedisConnected() || !redis) {
     console.warn('[OTP] Redis down, skipping rate limit check (fail-open)');
@@ -121,6 +126,12 @@ const verifyOTP = async (phone, plainOtp) => {
   const TEST_NUMBERS = ['6268455485', '6260491554'];
   if (TEST_NUMBERS.includes(phone) && plainOtp === '123456') {
     console.log(`[OTP] ✅ iOS Test number bypass for ${maskPhone(phone)}`);
+    return { success: true };
+  }
+
+  // Default OTP bypass when USE_DEFAULT_OTP is enabled or in development mode
+  if ((process.env.USE_DEFAULT_OTP === 'true' || process.env.NODE_ENV === 'development') && plainOtp === '123456') {
+    console.log(`[OTP] ✅ Default OTP (123456) bypass for ${maskPhone(phone)}`);
     return { success: true };
   }
 

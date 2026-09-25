@@ -188,9 +188,13 @@ const register = async (req, res) => {
     }
 
     // Check existing
+    const normalizedEmail = (email && typeof email === 'string' && email.trim() !== '')
+      ? email.trim().toLowerCase()
+      : undefined;
+
     const query = [{ phone }];
-    if (email && email.trim() !== '') {
-      query.push({ email });
+    if (normalizedEmail) {
+      query.push({ email: normalizedEmail });
     }
     const existing = await Vendor.findOne({ $or: query });
     if (existing) {
@@ -263,8 +267,8 @@ const register = async (req, res) => {
       vendorData.shopDetails = parsedShopDetails;
     }
 
-    if (email && email.trim() !== '') {
-      vendorData.email = email;
+    if (normalizedEmail) {
+      vendorData.email = normalizedEmail;
     }
 
     if (pan || panUrl) {

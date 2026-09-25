@@ -146,17 +146,20 @@ exports.updateAdminSettings = async (req, res) => {
       config.registrationUrl = cleanUrl;
     }
 
-    if (qualificationEvent && qualificationEvent !== config.qualificationEvent) {
-      audits.push({
-        adminId,
-        adminEmail,
-        role: 'system',
-        field: 'qualificationEvent',
-        oldValue: config.qualificationEvent,
-        newValue: qualificationEvent,
-        timestamp: new Date()
-      });
-      config.qualificationEvent = qualificationEvent;
+    if (qualificationEvent) {
+      const canonicalEvent = referralService.normalizeQualificationEvent(qualificationEvent);
+      if (canonicalEvent !== config.qualificationEvent) {
+        audits.push({
+          adminId,
+          adminEmail,
+          role: 'system',
+          field: 'qualificationEvent',
+          oldValue: config.qualificationEvent,
+          newValue: canonicalEvent,
+          timestamp: new Date()
+        });
+        config.qualificationEvent = canonicalEvent;
+      }
     }
 
     // Role rewards audit & updates (stored strictly in paise)
@@ -214,6 +217,7 @@ exports.updateAdminSettings = async (req, res) => {
         version: config.version,
         systemEnabled: config.systemEnabled,
         registrationUrl: config.registrationUrl,
+        qualificationEvent: config.qualificationEvent,
         roles: config.roles
       }
     });

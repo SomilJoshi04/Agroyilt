@@ -71,11 +71,11 @@ const vendorSchema = new mongoose.Schema({
       trim: true
     },
     document: {
-      type: String, // Cloudinary URL (Front Side)
+      type: String, 
       required: [true, 'Please upload Aadhar Front document']
     },
     backDocument: {
-      type: String, // Cloudinary URL (Back Side)
+      type: String,
       required: [true, 'Please upload Aadhar Back document']
     }
   },

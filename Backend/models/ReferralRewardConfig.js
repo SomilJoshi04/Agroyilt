@@ -31,8 +31,15 @@ const referralRewardConfigSchema = new mongoose.Schema({
   },
   qualificationEvent: {
     type: String,
-    enum: ['on_approval', 'on_registration'],
-    default: 'on_approval'
+    enum: [
+      'ADMIN_APPROVAL',
+      'REGISTRATION',
+      'REGISTRATION_FEE_PAYMENT',
+      'on_approval',
+      'on_registration',
+      'on_registration_fee_payment'
+    ],
+    default: 'ADMIN_APPROVAL'
   },
   version: {
     type: Number,

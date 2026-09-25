@@ -30,7 +30,7 @@ const verifyLoginValidation = [
 const registerValidation = [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Please provide a valid email'),
-  body('phone').trim().notEmpty().withMessage('Phone number is required').isLength({ min: 10, max: 10 }).withMessage('Phone number must be 10 digits'),
+  body('phone').optional({ nullable: true, checkFalsy: true }).trim().isLength({ min: 10, max: 10 }).withMessage('Phone number must be 10 digits'),
   body('aadhar').trim().notEmpty().withMessage('Aadhar number is required').isLength({ min: 12, max: 12 }).withMessage('Aadhar number must be 12 digits'),
   body('pan').optional({ nullable: true, checkFalsy: true }).trim().isLength({ min: 10, max: 10 }).withMessage('PAN number must be 10 characters')
   // service and otp/token relaxed

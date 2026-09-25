@@ -14,6 +14,36 @@ const { createNotification } = require('../controllers/notificationControllers/n
 // Base alphabet for referral codes (omits ambiguous characters: 0, O, 1, I, L)
 const SAFE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 
+// Canonical qualification event rules
+const QUALIFICATION_RULES = {
+  ADMIN_APPROVAL: 'ADMIN_APPROVAL',
+  REGISTRATION: 'REGISTRATION',
+  REGISTRATION_FEE_PAYMENT: 'REGISTRATION_FEE_PAYMENT'
+};
+
+/**
+ * Normalizes any qualification event string to canonical rule enum
+ */
+const normalizeQualificationEvent = (event) => {
+  if (!event) return QUALIFICATION_RULES.ADMIN_APPROVAL;
+  const str = event.toString().toUpperCase().trim();
+  if (str === 'ADMIN_APPROVAL' || str === 'ON_APPROVAL' || str === 'APPROVAL') {
+    return QUALIFICATION_RULES.ADMIN_APPROVAL;
+  }
+  if (str === 'REGISTRATION' || str === 'ON_REGISTRATION') {
+    return QUALIFICATION_RULES.REGISTRATION;
+  }
+  if (
+    str === 'REGISTRATION_FEE_PAYMENT' ||
+    str === 'ON_REGISTRATION_FEE_PAYMENT' ||
+    str === 'PAYMENT' ||
+    str === 'FEE_PAYMENT'
+  ) {
+    return QUALIFICATION_RULES.REGISTRATION_FEE_PAYMENT;
+  }
+  return QUALIFICATION_RULES.ADMIN_APPROVAL;
+};
+
 /**
  * Get or initialize global referral reward config
  */
@@ -29,7 +59,7 @@ const getOrCreateConfig = async () => {
         vendor: { enabled: true, rewardAmountPaise: 4000 },  // ₹40
         worker: { enabled: true, rewardAmountPaise: 5000 }   // ₹50
       },
-      qualificationEvent: 'on_approval',
+      qualificationEvent: QUALIFICATION_RULES.ADMIN_APPROVAL,
       version: 1,
       auditHistory: []
     });
@@ -187,7 +217,9 @@ const createReferralAttribution = async ({
     return { success: false, message: 'Self-referral is not allowed' };
   }
 
-  // Create attribution record
+  const activeRule = normalizeQualificationEvent(config.qualificationEvent);
+
+  // Create attribution record with snapshotted qualification rule
   const attribution = await ReferralAttribution.create({
     referredUserId,
     referredModel,
@@ -197,11 +229,24 @@ const createReferralAttribution = async ({
     referralCode: normalizedCode,
     status: 'pending_qualification',
     rewardStatus: 'unrewarded',
+    qualificationRule: activeRule,
     metadata
   });
 
   // Increment totalReferred counter
   await ReferralCode.findByIdAndUpdate(codeDoc._id, { $inc: { totalReferred: 1 } });
+
+  // If active qualification rule is REGISTRATION, trigger immediate qualification
+  if (activeRule === QUALIFICATION_RULES.REGISTRATION) {
+    try {
+      await qualifyAndRewardReferral({
+        referredUserId,
+        event: QUALIFICATION_RULES.REGISTRATION
+      });
+    } catch (qualErr) {
+      console.error('[createReferralAttribution] Immediate qualification error:', qualErr);
+    }
+  }
 
   return {
     success: true,
@@ -212,11 +257,14 @@ const createReferralAttribution = async ({
 
 /**
  * Qualify referral and credit reward to Referrer
- * Called upon approval (or registration if qualification event is on_registration)
+ * Called upon approval, registration, or registration fee payment verification
  */
 const qualifyAndRewardReferral = async ({
   referredUserId,
-  event = 'approval'
+  event = 'ADMIN_APPROVAL',
+  paymentId = null,
+  gatewayPaymentId = null,
+  paymentRecord = null
 }) => {
   if (!referredUserId) return { success: false, message: 'Missing user ID' };
 
@@ -235,10 +283,78 @@ const qualifyAndRewardReferral = async ({
     return { success: false, message: 'Referral status does not allow reward' };
   }
 
+  // Self-referral protection check
+  if (attribution.referrerId.toString() === referredUserId.toString()) {
+    attribution.status = 'rejected';
+    attribution.metadata = { ...attribution.metadata, rejectReason: 'self_referral' };
+    await attribution.save();
+    return { success: false, message: 'Self-referral is not allowed' };
+  }
+
   // Get active config
   const config = await getOrCreateConfig();
   if (!config.systemEnabled) {
     return { success: false, message: 'Referral system disabled' };
+  }
+
+  // Compare incoming event against target qualification rule (snapshotted on attribution, or active fallback)
+  const activeRule = normalizeQualificationEvent(config.qualificationEvent);
+  const targetRule = attribution.qualificationRule
+    ? normalizeQualificationEvent(attribution.qualificationRule)
+    : activeRule;
+  const incomingEvent = normalizeQualificationEvent(event);
+
+  if (incomingEvent !== targetRule) {
+    return {
+      success: false,
+      message: `Referral not qualified: target rule is ${targetRule}, received event ${incomingEvent}`
+    };
+  }
+
+  // Verification specifically required for REGISTRATION_FEE_PAYMENT rule
+  let verifiedPaymentId = paymentId || null;
+  let verifiedPaymentRef = gatewayPaymentId || null;
+
+  if (targetRule === QUALIFICATION_RULES.REGISTRATION_FEE_PAYMENT) {
+    const RegistrationFeePayment = require('../models/RegistrationFeePayment');
+    let payment = paymentRecord;
+
+    if (!payment) {
+      if (verifiedPaymentId) {
+        payment = await RegistrationFeePayment.findById(verifiedPaymentId);
+      } else {
+        payment = await RegistrationFeePayment.findOne({
+          accountId: referredUserId,
+          status: 'PAID'
+        }).sort({ createdAt: -1 });
+      }
+    }
+
+    if (!payment || payment.status !== 'PAID') {
+      return {
+        success: false,
+        message: 'Valid paid registration fee payment required to qualify referral'
+      };
+    }
+
+    // Verify payment belongs to this referred user
+    if (payment.accountId.toString() !== referredUserId.toString()) {
+      return {
+        success: false,
+        message: 'Registration fee payment does not belong to the referred user'
+      };
+    }
+
+    // Verify payment amount is greater than zero
+    if (!payment.amount || payment.amount <= 0) {
+      return {
+        success: false,
+        message: 'Invalid registration fee payment amount'
+      };
+    }
+
+    verifiedPaymentId = payment._id;
+    verifiedPaymentRef = payment.gatewayPaymentId || payment.gatewayOrderId || payment._id.toString();
   }
 
   const role = attribution.referredRole;
@@ -254,10 +370,44 @@ const qualifyAndRewardReferral = async ({
   }
   const rewardAmountRupees = Math.round(rewardAmountPaise / 100);
 
+  // ATOMIC LOCK: Transition status from pending_qualification to qualified
+  // Guarantees concurrency safety and idempotency across API retries and webhooks
+  const updatedAttribution = await ReferralAttribution.findOneAndUpdate(
+    {
+      _id: attribution._id,
+      status: 'pending_qualification',
+      rewardStatus: 'unrewarded'
+    },
+    {
+      $set: {
+        status: 'qualified',
+        rewardStatus: 'rewarded',
+        rewardAmountPaise,
+        rewardAmount: rewardAmountRupees,
+        rewardedRole: role,
+        rewardConfigId: config._id,
+        rewardConfigVersion: config.version,
+        qualificationRule: targetRule,
+        qualificationEvent: incomingEvent,
+        qualifiedAt: new Date(),
+        rewardedAt: new Date(),
+        paymentId: verifiedPaymentId,
+        paymentReference: verifiedPaymentRef
+      }
+    },
+    { new: true }
+  );
+
+  if (!updatedAttribution) {
+    return {
+      success: true,
+      message: 'Referral already rewarded by concurrent transaction',
+      attribution
+    };
+  }
+
   const referrerId = attribution.referrerId;
   const referrerModel = attribution.referrerModel;
-
-  // Credit Referrer's Wallet based on referrerModel
   let creditSuccess = false;
   const idempotencyKey = `ref_reward_${attribution._id}`;
 
@@ -276,7 +426,7 @@ const qualifyAndRewardReferral = async ({
       // Sync User model
       await User.findByIdAndUpdate(referrerId, { 'wallet.balance': wallet.balance });
 
-      // Create WalletTransaction
+      // Create WalletTransaction with unique idempotencyKey
       await WalletTransaction.create({
         walletId: wallet._id,
         type: 'credit',
@@ -301,7 +451,8 @@ const qualifyAndRewardReferral = async ({
         metadata: {
           referredUserId: attribution.referredUserId,
           referredRole: role,
-          rewardPaise: rewardAmountPaise
+          rewardPaise: rewardAmountPaise,
+          qualificationRule: targetRule
         }
       });
       creditSuccess = true;
@@ -330,7 +481,8 @@ const qualifyAndRewardReferral = async ({
           metadata: {
             referredUserId: attribution.referredUserId,
             referredRole: role,
-            rewardPaise: rewardAmountPaise
+            rewardPaise: rewardAmountPaise,
+            qualificationRule: targetRule
           }
         });
         creditSuccess = true;
@@ -360,7 +512,8 @@ const qualifyAndRewardReferral = async ({
           metadata: {
             referredUserId: attribution.referredUserId,
             referredRole: role,
-            rewardPaise: rewardAmountPaise
+            rewardPaise: rewardAmountPaise,
+            qualificationRule: targetRule
           }
         });
         creditSuccess = true;
@@ -368,25 +521,16 @@ const qualifyAndRewardReferral = async ({
     }
   } catch (walletErr) {
     console.error('[qualifyAndRewardReferral] Wallet credit failed:', walletErr);
-    return { success: false, message: 'Failed to credit wallet: ' + walletErr.message };
+    if (walletErr.code === 11000) {
+      creditSuccess = true; // Duplicate key on wallet transaction indicates already credited
+    } else {
+      return { success: false, message: 'Failed to credit wallet: ' + walletErr.message };
+    }
   }
 
   if (!creditSuccess) {
     return { success: false, message: 'Referrer account not found or unsupported model' };
   }
-
-  // Update Attribution with immutable snapshot
-  attribution.status = 'qualified';
-  attribution.rewardStatus = 'rewarded';
-  attribution.rewardAmountPaise = rewardAmountPaise;
-  attribution.rewardAmount = rewardAmountRupees;
-  attribution.rewardedRole = role;
-  attribution.rewardConfigId = config._id;
-  attribution.rewardConfigVersion = config.version;
-  attribution.qualificationEvent = event;
-  attribution.qualifiedAt = new Date();
-  attribution.rewardedAt = new Date();
-  await attribution.save();
 
   // Update ReferralCode statistics
   await ReferralCode.findOneAndUpdate(
@@ -426,7 +570,7 @@ const qualifyAndRewardReferral = async ({
     success: true,
     rewardAmountRupees,
     rewardAmountPaise,
-    attribution
+    attribution: updatedAttribution
   };
 };
 
@@ -600,6 +744,8 @@ const getUserReferralStats = async (userId, userModel) => {
 };
 
 module.exports = {
+  QUALIFICATION_RULES,
+  normalizeQualificationEvent,
   getOrCreateConfig,
   generateUniqueReferralCode,
   getOrCreateUserReferralCode,

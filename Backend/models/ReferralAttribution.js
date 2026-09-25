@@ -77,6 +77,19 @@ const referralAttributionSchema = new mongoose.Schema({
   },
 
   // Event & Audit Details
+  qualificationRule: {
+    type: String,
+    enum: [
+      'ADMIN_APPROVAL',
+      'REGISTRATION',
+      'REGISTRATION_FEE_PAYMENT',
+      'on_approval',
+      'on_registration',
+      'on_registration_fee_payment',
+      null
+    ],
+    default: null
+  },
   qualificationEvent: {
     type: String,
     default: null
@@ -87,6 +100,15 @@ const referralAttributionSchema = new mongoose.Schema({
   },
   rewardedAt: {
     type: Date,
+    default: null
+  },
+  paymentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RegistrationFeePayment',
+    default: null
+  },
+  paymentReference: {
+    type: String,
     default: null
   },
 
