@@ -55,7 +55,7 @@ export const normalizeRole = (role) => {
 };
 
 /**
- * Detects current portal role from window.location.pathname
+ * Detects current portal role from window.location.pathname or active session
  * @returns {'user' | 'worker' | 'vendor' | 'admin'}
  */
 export const getCurrentPortalRole = () => {
@@ -66,12 +66,20 @@ export const getCurrentPortalRole = () => {
   if (path.startsWith('/worker')) return 'worker';
   if (path.startsWith('/user')) return 'user';
 
-  // When on common routes (e.g. /app, /, modals): detect active session in this tab
+  // When on common routes (e.g. /app, /, modals): detect active session across storage
   try {
-    if (sessionStorage.getItem(AUTH_KEYS.worker) || sessionStorage.getItem(COMPAT_KEYS.worker.access)) return 'worker';
-    if (sessionStorage.getItem(AUTH_KEYS.vendor) || sessionStorage.getItem(COMPAT_KEYS.vendor.access)) return 'vendor';
-    if (sessionStorage.getItem(AUTH_KEYS.admin) || sessionStorage.getItem(COMPAT_KEYS.admin.access)) return 'admin';
-    if (sessionStorage.getItem(AUTH_KEYS.user) || sessionStorage.getItem(COMPAT_KEYS.user.access)) return 'user';
+    const roles = ['user', 'worker', 'vendor', 'admin'];
+    for (const r of roles) {
+      const sKey = AUTH_KEYS[r];
+      const cKey = COMPAT_KEYS[r]?.access;
+      if (
+        sessionStorage.getItem(sKey) ||
+        localStorage.getItem(sKey) ||
+        (cKey && (sessionStorage.getItem(cKey) || localStorage.getItem(cKey)))
+      ) {
+        return r;
+      }
+    }
   } catch (e) {}
 
   return 'user';
@@ -107,7 +115,7 @@ export const decodeToken = (token) => {
  * @returns {boolean}
  */
 export const isTokenValid = (token) => {
-  if (!token) return false;
+  if (!token || typeof token !== 'string') return false;
   const decoded = decodeToken(token);
   if (!decoded) return false;
   if (decoded.exp) {
@@ -118,8 +126,11 @@ export const isTokenValid = (token) => {
 };
 
 /**
- * Get structured authentication session for a role strictly from the current tab's sessionStorage.
- * Guaranteed tab isolation: Opening a new tab never inherits another tab's authentication.
+ * Get structured authentication session for a role.
+ * Checks sessionStorage first, then falls back to persistent localStorage
+ * (which survives WebView restarts, app termination, and process recreation).
+ * Rehydrates sessionStorage when restored from localStorage.
+ * 
  * @param {'user' | 'worker' | 'vendor' | 'admin'} role 
  * @returns {object|null}
  */
@@ -133,31 +144,127 @@ export const getAuthSession = (role) => {
     // 1. Check current tab's structured session in sessionStorage
     let raw = sessionStorage.getItem(sessionKey);
     if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.accessToken) {
-        return parsed;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.accessToken) {
+          if (isTokenValid(parsed.accessToken)) {
+            return parsed;
+          } else {
+            // Expired in sessionStorage - clean up
+            clearAuthSession(canonicalRole);
+            return null;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 2. Check persistent localStorage (survives app restart / process kill in WebView)
+    let localRaw = localStorage.getItem(sessionKey);
+    if (localRaw) {
+      try {
+        const parsed = JSON.parse(localRaw);
+        if (parsed && parsed.accessToken) {
+          if (isTokenValid(parsed.accessToken)) {
+            // Rehydrate sessionStorage for fast in-tab access
+            try {
+              sessionStorage.setItem(sessionKey, localRaw);
+              if (parsed.accessToken) sessionStorage.setItem(compat.access, parsed.accessToken);
+              if (parsed.refreshToken) sessionStorage.setItem(compat.refresh, parsed.refreshToken);
+              if (parsed.user) sessionStorage.setItem(compat.data, JSON.stringify(parsed.user));
+            } catch (e) {}
+            return parsed;
+          } else {
+            // Stale/expired token in localStorage - clean up
+            clearAuthSession(canonicalRole);
+            return null;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 3. Fallback: check compat keys in sessionStorage
+    const access = sessionStorage.getItem(compat.access);
+    if (access) {
+      if (isTokenValid(access)) {
+        const refresh = sessionStorage.getItem(compat.refresh);
+        let userData = {};
+        try {
+          userData = JSON.parse(sessionStorage.getItem(compat.data) || '{}');
+        } catch {}
+        const reconstructed = {
+          accessToken: access,
+          refreshToken: refresh || null,
+          user: userData || {},
+          role: canonicalRole
+        };
+        const recStr = JSON.stringify(reconstructed);
+        try {
+          sessionStorage.setItem(sessionKey, recStr);
+          localStorage.setItem(sessionKey, recStr);
+        } catch (e) {}
+        return reconstructed;
+      } else {
+        clearAuthSession(canonicalRole);
+        return null;
       }
     }
 
-    // 2. Check tab-isolated individual keys in sessionStorage
-    const access = sessionStorage.getItem(compat.access);
-    if (access) {
-      const refresh = sessionStorage.getItem(compat.refresh);
-      let userData = null;
-      try {
-        userData = JSON.parse(sessionStorage.getItem(compat.data) || '{}');
-      } catch {
-        userData = {};
+    // 4. Fallback: check compat keys in localStorage
+    const localAccess = localStorage.getItem(compat.access);
+    if (localAccess) {
+      if (isTokenValid(localAccess)) {
+        const refresh = localStorage.getItem(compat.refresh);
+        let userData = {};
+        try {
+          userData = JSON.parse(localStorage.getItem(compat.data) || '{}');
+        } catch {}
+        const reconstructed = {
+          accessToken: localAccess,
+          refreshToken: refresh || null,
+          user: userData || {},
+          role: canonicalRole
+        };
+        const recStr = JSON.stringify(reconstructed);
+        try {
+          sessionStorage.setItem(sessionKey, recStr);
+          localStorage.setItem(sessionKey, recStr);
+          if (localAccess) sessionStorage.setItem(compat.access, localAccess);
+          if (refresh) sessionStorage.setItem(compat.refresh, refresh);
+          sessionStorage.setItem(compat.data, JSON.stringify(userData));
+        } catch (e) {}
+        return reconstructed;
+      } else {
+        clearAuthSession(canonicalRole);
+        return null;
       }
-      const reconstructed = {
-        accessToken: access,
-        refreshToken: refresh || null,
-        user: userData || {},
-        role: canonicalRole
-      };
-      sessionStorage.setItem(sessionKey, JSON.stringify(reconstructed));
-      return reconstructed;
     }
+
+    // 5. Fallback: Check persistent cookie (managed by WebView CookieManager)
+    try {
+      const cookieMatch = document.cookie.match(/(?:^|;\s*)accessToken=([^;]+)/);
+      const cookieRoleMatch = document.cookie.match(/(?:^|;\s*)agroyilt_role=([^;]+)/);
+      if (cookieMatch) {
+        const cookieRole = cookieRoleMatch ? normalizeRole(cookieRoleMatch[1]) : canonicalRole;
+        if (cookieRole === canonicalRole) {
+          const cookieToken = decodeURIComponent(cookieMatch[1]);
+          if (isTokenValid(cookieToken)) {
+            const reconstructed = {
+              accessToken: cookieToken,
+              refreshToken: null,
+              user: {},
+              role: canonicalRole
+            };
+            const recStr = JSON.stringify(reconstructed);
+            try {
+              sessionStorage.setItem(sessionKey, recStr);
+              localStorage.setItem(sessionKey, recStr);
+            } catch (e) {}
+            return reconstructed;
+          }
+        }
+      }
+    } catch (e) {}
+
   } catch (err) {
     console.error(`[authStorage] Error reading session for ${canonicalRole}:`, err);
   }
@@ -166,7 +273,10 @@ export const getAuthSession = (role) => {
 };
 
 /**
- * Set structured authentication session for a role strictly in the current tab's sessionStorage.
+ * Set structured authentication session for a role.
+ * Writes to both sessionStorage (tab memory) and localStorage (persistent WebView storage).
+ * Also writes an authenticated cookie for WebView CookieManager persistence.
+ * 
  * @param {'user' | 'worker' | 'vendor' | 'admin'} role 
  * @param {object} sessionData - { accessToken, refreshToken, user, vendor, worker, admin, role }
  */
@@ -192,24 +302,44 @@ export const setAuthSession = (role, sessionData) => {
     const sessionStr = JSON.stringify(structuredSession);
     const profileStr = JSON.stringify(profile);
 
-    // Write strictly to current tab's sessionStorage (tab-isolated)
-    sessionStorage.setItem(sessionKey, sessionStr);
-    if (accessToken) sessionStorage.setItem(compat.access, accessToken);
-    if (refreshToken) sessionStorage.setItem(compat.refresh, refreshToken);
-    if (profile) sessionStorage.setItem(compat.data, profileStr);
+    // 1. Write to sessionStorage (current tab memory)
+    try {
+      sessionStorage.setItem(sessionKey, sessionStr);
+      if (accessToken) sessionStorage.setItem(compat.access, accessToken);
+      if (refreshToken) sessionStorage.setItem(compat.refresh, refreshToken);
+      if (profile) sessionStorage.setItem(compat.data, profileStr);
+    } catch (e) {
+      console.warn('[authStorage] Failed to write sessionStorage:', e);
+    }
 
-    // Clean up any old cross-tab conflicting keys in localStorage to prevent leakage
-    localStorage.removeItem(sessionKey);
-    localStorage.removeItem(compat.access);
-    localStorage.removeItem(compat.refresh);
-    localStorage.removeItem(compat.data);
+    // 2. Write to localStorage (persistent across WebView restarts, app kills, and phone reboots)
+    try {
+      localStorage.setItem(sessionKey, sessionStr);
+      if (accessToken) localStorage.setItem(compat.access, accessToken);
+      if (refreshToken) localStorage.setItem(compat.refresh, refreshToken);
+      if (profile) localStorage.setItem(compat.data, profileStr);
+    } catch (e) {
+      console.warn('[authStorage] Failed to write localStorage:', e);
+    }
+
+    // 3. Write persistent cookie for native WebView CookieManager sync (7 days)
+    try {
+      if (accessToken) {
+        document.cookie = `accessToken=${encodeURIComponent(accessToken)}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = `agroyilt_role=${canonicalRole}; path=/; max-age=604800; SameSite=Lax`;
+      }
+    } catch (e) {}
+
   } catch (err) {
     console.error(`[authStorage] Error saving session for ${canonicalRole}:`, err);
   }
 };
 
 /**
- * Clear authentication session for a specific role in current tab's sessionStorage
+ * Clear authentication session for a specific role across all storage mechanisms:
+ * sessionStorage, localStorage, and persistent cookies.
+ * Also notifies Flutter WebView container if running inside WebView.
+ * 
  * @param {'user' | 'worker' | 'vendor' | 'admin'} role 
  */
 export const clearAuthSession = (role) => {
@@ -219,17 +349,35 @@ export const clearAuthSession = (role) => {
   const compat = COMPAT_KEYS[canonicalRole];
 
   try {
-    // Remove from current tab's sessionStorage
-    sessionStorage.removeItem(sessionKey);
-    sessionStorage.removeItem(compat.access);
-    sessionStorage.removeItem(compat.refresh);
-    sessionStorage.removeItem(compat.data);
+    // 1. Remove from sessionStorage
+    try {
+      sessionStorage.removeItem(sessionKey);
+      sessionStorage.removeItem(compat.access);
+      sessionStorage.removeItem(compat.refresh);
+      sessionStorage.removeItem(compat.data);
+    } catch (e) {}
 
-    // Ensure legacy localStorage keys are also removed if present
-    localStorage.removeItem(sessionKey);
-    localStorage.removeItem(compat.access);
-    localStorage.removeItem(compat.refresh);
-    localStorage.removeItem(compat.data);
+    // 2. Remove from localStorage
+    try {
+      localStorage.removeItem(sessionKey);
+      localStorage.removeItem(compat.access);
+      localStorage.removeItem(compat.refresh);
+      localStorage.removeItem(compat.data);
+    } catch (e) {}
+
+    // 3. Expire persistent cookies
+    try {
+      document.cookie = 'accessToken=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      document.cookie = 'agroyilt_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    } catch (e) {}
+
+    // 4. Notify Flutter WebView container of explicit logout
+    try {
+      if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        window.flutter_inappwebview.callHandler('onWebLogout', JSON.stringify({ role: canonicalRole }));
+      }
+    } catch (e) {}
+
   } catch (err) {
     console.error(`[authStorage] Error clearing session for ${canonicalRole}:`, err);
   }

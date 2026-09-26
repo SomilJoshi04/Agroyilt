@@ -18,10 +18,18 @@ import WorkflowPage from '../modules/landing/pages/WorkflowPage';
 import FAQPage from '../modules/landing/pages/FAQPage';
 import { LocationPermissionChecker, Chatbot } from '../components/common';
 import { isMobileApp } from '../utils/platformUtils';
+import authStorage from '../utils/authStorage';
 
 const AppRoutes = () => {
   const location = useLocation();
   const [isMobile, setIsMobile] = React.useState(isMobileApp());
+
+  const getMobileRedirect = () => {
+    if (authStorage.isAuthenticated('user')) return '/user';
+    if (authStorage.isAuthenticated('vendor')) return '/vendor';
+    if (authStorage.isAuthenticated('worker')) return '/worker';
+    return '/app';
+  };
 
   React.useEffect(() => {
     const handleResize = () => setIsMobile(isMobileApp());
@@ -74,7 +82,7 @@ const AppRoutes = () => {
           path="/"
           element={
             isMobile
-              ? <Navigate to="/app" replace />
+              ? <Navigate to={getMobileRedirect()} replace />
               : <LandingPage />
           }
         />

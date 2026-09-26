@@ -8,16 +8,57 @@ const AppEntry = () => {
   const navigate = useNavigate();
   const { appLogo, appName } = useBrand();
 
-  // If already logged in as any role in THIS tab, redirect to their dashboard
+  const authenticatedRole = React.useMemo(() => {
+    if (authStorage.isAuthenticated('user')) return 'user';
+    if (authStorage.isAuthenticated('vendor')) return 'vendor';
+    if (authStorage.isAuthenticated('worker')) return 'worker';
+    return null;
+  }, []);
+
+  // If already logged in, redirect immediately without flash
   useEffect(() => {
-    if (authStorage.isAuthenticated('user')) {
-      navigate('/user', { replace: true });
-    } else if (authStorage.isAuthenticated('vendor')) {
-      navigate('/vendor', { replace: true });
-    } else if (authStorage.isAuthenticated('worker')) {
-      navigate('/worker', { replace: true });
+    if (authenticatedRole) {
+      navigate(`/${authenticatedRole}`, { replace: true });
     }
-  }, [navigate]);
+  }, [authenticatedRole, navigate]);
+
+  if (authenticatedRole) {
+    return (
+      <div
+        style={{
+          minHeight: '100dvh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(160deg, #1B5E20 0%, #2E7D32 35%, #388E3C 65%, #43A047 100%)',
+        }}
+      >
+        <div style={{
+          width: '80px', height: '80px', borderRadius: '24px',
+          overflow: 'hidden', marginBottom: '20px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          background: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <img
+            src={appLogo || '/AgroyiltLogo.png'}
+            alt={appName || 'AgroYilt'}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={(e) => { e.target.src = '/AgroyiltLogo.png'; }}
+          />
+        </div>
+        <div style={{
+          width: '32px', height: '32px',
+          border: '3px solid rgba(255,255,255,0.3)',
+          borderTopColor: '#fff',
+          borderRadius: '50%',
+          animation: 'spin 0.7s linear infinite',
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div

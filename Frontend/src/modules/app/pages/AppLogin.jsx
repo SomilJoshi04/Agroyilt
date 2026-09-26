@@ -42,12 +42,19 @@ const AppLogin = () => {
   const mpinInputRef = useRef(null);
   const otpInputRefs = useRef([]);
 
-  // Auto-redirect if already logged in in this tab
+  const authenticatedRole = React.useMemo(() => {
+    if (authStorage.isAuthenticated('user')) return 'user';
+    if (authStorage.isAuthenticated('vendor')) return 'vendor';
+    if (authStorage.isAuthenticated('worker')) return 'worker';
+    return null;
+  }, []);
+
+  // Auto-redirect if already logged in
   useEffect(() => {
-    if (authStorage.isAuthenticated('user')) navigate('/user', { replace: true });
-    else if (authStorage.isAuthenticated('vendor')) navigate('/vendor', { replace: true });
-    else if (authStorage.isAuthenticated('worker')) navigate('/worker', { replace: true });
-  }, [navigate]);
+    if (authenticatedRole) {
+      navigate(`/${authenticatedRole}`, { replace: true });
+    }
+  }, [authenticatedRole, navigate]);
 
   // Resend timer
   useEffect(() => {
