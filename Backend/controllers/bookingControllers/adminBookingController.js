@@ -53,7 +53,7 @@ const getAllBookings = async (req, res) => {
     // Fetch bookings & count concurrently with .lean() and focused projection for maximum speed
     const [bookings, total] = await Promise.all([
       Booking.find(query)
-        .select('bookingNumber status scheduledDate scheduledTime timeSlot totalAmount paymentStatus rental_type serviceCategory serviceName address liveLocation estimatedArrivalTime distanceRemaining createdAt userId vendorId workerId serviceId categoryId')
+        .select('bookingNumber status scheduledDate scheduledTime timeSlot finalAmount agreedRate basePrice minRate maxRate userPayableAmount totalAmount paymentStatus paymentMethod items bookedItems selectedImplements rental_type serviceCategory serviceName address liveLocation estimatedArrivalTime distanceRemaining createdAt userId vendorId workerId serviceId categoryId')
         .populate('userId', 'name phone email')
         .populate('vendorId', 'name businessName phone')
         .populate('serviceId', 'title iconUrl')
@@ -66,9 +66,20 @@ const getAllBookings = async (req, res) => {
       Booking.countDocuments(query)
     ]);
 
+    // Ensure finalAmount, totalAmount, and paymentMethod are always reliably populated
+    const formattedBookings = bookings.map(b => {
+      const computedAmount = b.finalAmount ?? b.agreedRate ?? b.basePrice ?? b.userPayableAmount ?? b.minRate ?? b.totalAmount ?? 0;
+      return {
+        ...b,
+        finalAmount: computedAmount,
+        totalAmount: computedAmount,
+        paymentMethod: b.paymentMethod || 'cash'
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: bookings,
+      data: formattedBookings,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

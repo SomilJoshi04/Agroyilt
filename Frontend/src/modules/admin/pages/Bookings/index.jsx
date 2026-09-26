@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -261,7 +261,9 @@ const Bookings = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-bold text-gray-900 text-xs">₹{booking.finalAmount?.toLocaleString()}</span>
+                      <span className="font-bold text-gray-900 text-xs">
+                        ₹{Number(booking.finalAmount ?? booking.totalAmount ?? booking.agreedRate ?? booking.basePrice ?? 0).toLocaleString('en-IN')}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider
@@ -274,7 +276,9 @@ const Bookings = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-[11px] text-gray-600 capitalize font-medium">{booking.paymentMethod?.replace('_', ' ')}</span>
+                      <span className="text-[11px] text-gray-600 capitalize font-medium">
+                        {(booking.paymentMethod || booking.paymentStatus || 'Cash').replace('_', ' ')}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-[10px] text-gray-600 font-medium">

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -138,7 +138,7 @@ const BookingDetailsPage = () => {
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-gray-800">{booking.serviceId?.title || 'Bulk Booking'}</h4>
-                                        <p className="text-xs text-gray-500">₹{booking.finalAmount?.toLocaleString()}</p>
+                                        <p className="text-xs text-gray-500">₹{Number(booking.finalAmount ?? booking.totalAmount ?? booking.agreedRate ?? booking.basePrice ?? 0).toLocaleString('en-IN')}</p>
                                     </div>
                                 </div>
                             )}
@@ -214,7 +214,7 @@ const BookingDetailsPage = () => {
                             </div>
                             <div className="pt-3 border-t border-gray-50 flex justify-between font-bold text-lg text-gray-900">
                                 <span>Total Paid</span>
-                                <span>₹{booking.finalAmount?.toLocaleString()}</span>
+                                <span>₹{Number(booking.finalAmount ?? booking.totalAmount ?? booking.agreedRate ?? booking.basePrice ?? 0).toLocaleString('en-IN')}</span>
                             </div>
                             <div className="mt-4 bg-gray-50 rounded-lg p-3 border border-gray-100">
                                 <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1">Status</p>
