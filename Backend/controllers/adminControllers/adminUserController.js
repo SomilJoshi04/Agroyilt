@@ -1,6 +1,8 @@
 const User = require('../../models/User');
+const Admin = require('../../models/Admin');
 const Booking = require('../../models/Booking');
 const { validationResult } = require('express-validator');
+const { buildAdminScopeFilter, auditAdminAction } = require('../../utils/adminScopeHelper');
 
 /**
  * Get all users with filters and pagination
@@ -47,22 +49,40 @@ const getAllUsers = async (req, res) => {
       ];
     }
 
+    // Filter for people added by this specific admin
+    if (req.query.createdByMe === 'true' && req.user?._id) {
+      query.createdByAdmin = req.user._id;
+    }
+
+    // Apply Geographic Scope Filter for scoped Admins
+    const scopeFilter = buildAdminScopeFilter(req.user, 'user');
+    const finalQuery = Object.keys(scopeFilter).length > 0
+      ? { $and: [query, scopeFilter] }
+      : query;
+
     // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Get users
-    const users = await User.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    // Get total count
-    const total = await User.countDocuments(query);
+    // Fetch users, total count, and myRegistrations in parallel with .lean()
+    const [users, total, myCount] = await Promise.all([
+      User.find(finalQuery)
+        .select('-password -mpin')
+        .populate('createdByAdmin', 'name email role')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      User.countDocuments(finalQuery),
+      req.user?._id ? User.countDocuments({ createdByAdmin: req.user._id }) : 0
+    ]);
 
     res.status(200).json({
       success: true,
       data: users,
+      counts: {
+        total,
+        myRegistrations: myCount
+      },
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -86,7 +106,7 @@ const getUserDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findById(id).select('-password');
+    const user = await User.findById(id).select('-password').populate('createdByAdmin', 'name email role');
 
     if (!user) {
       return res.status(404).json({
@@ -162,6 +182,16 @@ const toggleUserStatus = async (req, res) => {
     user.isActive = isActive !== undefined ? isActive : !user.isActive;
     await user.save();
 
+    await auditAdminAction(
+      req,
+      user.isActive ? 'ACTIVATE_USER' : 'BLOCK_USER',
+      'USER_MANAGEMENT',
+      `${user.isActive ? 'Activated' : 'Blocked'} farmer "${user.name}" (${user.phone})`,
+      user._id,
+      'User',
+      user.name
+    );
+
     res.status(200).json({
       success: true,
       message: `User ${user.isActive ? 'activated' : 'blocked'} successfully`,
@@ -191,6 +221,16 @@ const deleteUser = async (req, res) => {
         message: 'Farmer not found'
       });
     }
+
+    await auditAdminAction(
+      req,
+      'DELETE_USER',
+      'USER_MANAGEMENT',
+      `Deleted farmer "${user.name}" (${user.phone})`,
+      user._id,
+      'User',
+      user.name
+    );
 
     res.status(200).json({
       success: true,
@@ -396,8 +436,18 @@ const addUser = async (req, res) => {
       });
     }
 
+    // Validate 10-digit Indian mobile number
+    const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+    const indianMobileRegex = /^[6-9]\d{9}$/;
+    if (!cleanPhone || cleanPhone.length !== 10 || !indianMobileRegex.test(cleanPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9'
+      });
+    }
+
     // Check if user already exists
-    const existingUser = await User.findOne({ phone });
+    const existingUser = await User.findOne({ phone: cleanPhone });
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -405,16 +455,54 @@ const addUser = async (req, res) => {
       });
     }
 
-    // Create user
-    const user = await User.create({
-      name,
-      phone,
+    // Create user with admin traceability
+    const userCity = req.body.city || req.user?.cityName || '';
+    const userDistrict = req.body.district || req.user?.districtName || '';
+    const userSubDistrict = req.body.subDistrict || req.user?.subDistrictName || '';
+
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const userData = {
+      name: name.trim(),
+      phone: cleanPhone,
       email: email || null,
       isPhoneVerified: true, // Auto verify since admin is adding
       isActive: true,
       approvalStatus: 'approved',
-      approvalDate: new Date()
-    });
+      approvalDate: new Date(),
+      createdByAdmin: req.user?._id || null,
+      createdByType: isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN',
+      creationSource: isSuperAdmin ? 'SUPER_ADMIN_CREATED' : 'ADMIN_CREATED',
+      createdByAdminSnapshot: req.user ? {
+        adminId: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role
+      } : null
+    };
+
+    if (userCity || userDistrict || userSubDistrict) {
+      userData.addresses = [{
+        addressLine1: req.body.address || '',
+        city: userCity,
+        district: userDistrict,
+        subDistrict: userSubDistrict,
+        state: req.body.state || 'Maharashtra',
+        pincode: req.body.pincode || '',
+        isDefault: true
+      }];
+    }
+
+    const user = await User.create(userData);
+
+    await auditAdminAction(
+      req,
+      'CREATE_USER',
+      'USER_MANAGEMENT',
+      `Registered new farmer "${user.name}" (${user.phone})`,
+      user._id,
+      'User',
+      user.name
+    );
 
     res.status(201).json({
       success: true,
@@ -462,6 +550,16 @@ const updateApprovalStatus = async (req, res) => {
     }
 
     await user.save();
+
+    await auditAdminAction(
+      req,
+      approvalStatus === 'approved' ? 'APPROVE_USER' : approvalStatus === 'rejected' ? 'REJECT_USER' : 'UPDATE_APPROVAL_USER',
+      'USER_MANAGEMENT',
+      `Farmer "${user.name}" (${user.phone}) application ${approvalStatus}${approvalStatus === 'rejected' ? ': ' + user.rejectionReason : ''}`,
+      user._id,
+      'User',
+      user.name
+    );
 
     // Trigger Referral Reward Qualification if user was referred
     if (approvalStatus === 'approved') {

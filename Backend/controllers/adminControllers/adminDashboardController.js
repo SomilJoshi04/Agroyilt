@@ -6,8 +6,11 @@ const Withdrawal = require('../../models/Withdrawal');
 const Settlement = require('../../models/Settlement');
 const SoilTestRequest = require('../../models/SoilTestRequest');
 const EcommerceOrder = require('../../models/EcommerceOrder');
+const Admin = require('../../models/Admin');
+const AdminPayroll = require('../../models/AdminPayroll');
 
 const { BOOKING_STATUS, PAYMENT_STATUS, VENDOR_STATUS } = require('../../utils/constants');
+const { buildAdminScopeFilter } = require('../../utils/adminScopeHelper');
 
 /**
  * Get overall dashboard stats
@@ -23,6 +26,17 @@ const getDashboardStats = async (req, res) => {
       if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
     }
 
+    // Apply Admin Geographic Scope
+    const userScope = buildAdminScopeFilter(req.user, 'user');
+    const vendorScope = buildAdminScopeFilter(req.user, 'vendor');
+    const workerScope = buildAdminScopeFilter(req.user, 'worker');
+    const bookingScope = buildAdminScopeFilter(req.user, 'booking');
+
+    const userQuery = Object.keys(userScope).length > 0 ? { $and: [{ isActive: true, ...dateFilter }, userScope] } : { isActive: true, ...dateFilter };
+    const vendorQuery = Object.keys(vendorScope).length > 0 ? { $and: [{ isActive: true, ...dateFilter }, vendorScope] } : { isActive: true, ...dateFilter };
+    const workerBase = Object.keys(workerScope).length > 0 ? { $and: [dateFilter, workerScope] } : dateFilter;
+    const bookingBase = Object.keys(bookingScope).length > 0 ? { $and: [dateFilter, bookingScope] } : dateFilter;
+
     // Special match for booking completions (using completedAt for revenue)
     const bookingMatch = {
       status: BOOKING_STATUS.COMPLETED,
@@ -33,114 +47,262 @@ const getDashboardStats = async (req, res) => {
       if (startDate) bookingMatch.completedAt.$gte = new Date(startDate);
       if (endDate) bookingMatch.completedAt.$lte = new Date(endDate);
     }
+    if (Object.keys(bookingScope).length > 0) {
+      Object.assign(bookingMatch, bookingScope);
+    }
 
-    // Total counts (Users, Vendors, and Workers follow the date filter)
-    const totalUsers = await User.countDocuments({ isActive: true, ...dateFilter });
-    const totalVendors = await Vendor.countDocuments({ isActive: true, ...dateFilter });
-    const totalWorkers = await Worker.countDocuments(dateFilter);
-    const totalTeamLeaders = await Worker.countDocuments({ workerType: 'TEAM_LEADER', ...dateFilter });
-    const totalIndependentWorkers = await Worker.countDocuments({ workerType: { $ne: 'TEAM_LEADER' }, ...dateFilter });
-    const totalBookings = await Booking.countDocuments(dateFilter);
+    // Run all dashboard metric queries in parallel for high performance
+    const adminId = req.user?._id;
+    const workerTypeScope = Object.keys(workerScope).length > 0 ? { $and: [dateFilter, workerScope] } : dateFilter;
 
-    // Booking stats
-    const pendingBookings = await Booking.countDocuments({
-      ...dateFilter,
-      status: { $nin: [BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CANCELLED] }
-    });
-    const completedBookings = await Booking.countDocuments({ 
-      ...dateFilter,
-      status: BOOKING_STATUS.COMPLETED 
-    });
-    const cancelledBookings = await Booking.countDocuments({ 
-      ...dateFilter,
-      status: BOOKING_STATUS.CANCELLED 
-    });
+    const [
+      totalUsers,
+      vendorStatusStats,
+      workerTypeStats,
+      bookingStatusStats,
+      revenueResult,
+      soilTestRevenueResult,
+      ecommerceRevenueResult,
+      pendingWithdrawals,
+      pendingSettlementsCount,
+      recentActivityDocs,
+      [myFarmersCount, myVendorsCount, myWorkersCount]
+    ] = await Promise.all([
+      // 1. Total users
+      User.countDocuments(userQuery),
 
-    // Booking Revenue stats (using bookingMatch based on completion date)
-    const revenueResult = await Booking.aggregate([
-      { $match: bookingMatch },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: '$finalAmount' },
-          totalBookings: { $sum: 1 }
+      // 2. Vendor counts grouped by approvalStatus in 1 query
+      Vendor.aggregate([
+        { $match: vendorQuery },
+        { $group: { _id: '$approvalStatus', count: { $sum: 1 } } }
+      ]),
+
+      // 3. Worker counts grouped by workerType in 1 query
+      Worker.aggregate([
+        { $match: workerTypeScope },
+        { $group: { _id: '$workerType', count: { $sum: 1 } } }
+      ]),
+
+      // 4. Booking counts grouped by status in 1 query
+      Booking.aggregate([
+        { $match: bookingBase },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]),
+
+      // 5. Booking revenue
+      Booking.aggregate([
+        { $match: bookingMatch },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: '$finalAmount' },
+            totalBookings: { $sum: 1 }
+          }
         }
-      }
+      ]),
+
+      // 6. Soil test revenue
+      SoilTestRequest.aggregate([
+        {
+          $match: {
+            paymentStatus: 'paid',
+            ...(startDate || endDate ? { 
+              updatedAt: { 
+                ...(startDate ? { $gte: new Date(startDate) } : {}), 
+                ...(endDate ? { $lte: new Date(endDate) } : {}) 
+              } 
+            } : {})
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: '$totalAmount' },
+            totalCommission: { $sum: '$adminCommission' },
+            count: { $sum: 1 }
+          }
+        }
+      ]),
+
+      // 7. Ecommerce revenue
+      EcommerceOrder.aggregate([
+        {
+          $match: {
+            paymentStatus: 'paid',
+            deliveryStatus: { $ne: 'cancelled' },
+            ...(startDate || endDate ? { 
+              createdAt: { 
+                ...(startDate ? { $gte: new Date(startDate) } : {}), 
+                ...(endDate ? { $lte: new Date(endDate) } : {}) 
+              } 
+            } : {})
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalCommission: { $sum: '$pricing.platformFee' },
+            count: { $sum: 1 }
+          }
+        }
+      ]),
+
+      // 8. Pending withdrawals
+      Withdrawal.countDocuments({ status: 'pending' }),
+
+      // 9. Pending settlements
+      Settlement.countDocuments({ status: 'pending' }),
+
+      // 10. Recent 10 bookings with .lean() and projection (Scoped to territory for field admins)
+      Booking.find(bookingBase)
+        .select('bookingNumber status finalAmount basePrice createdAt serviceName userId vendorId serviceId acceptedAt assignedAt visitedAt completedAt workerPaymentStatus')
+        .populate('userId', 'name phone')
+        .populate('vendorId', 'name businessName')
+        .populate('serviceId', 'title')
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean(),
+
+      // 11. My personal registrations count (Admin Traceability)
+      adminId
+        ? Promise.all([
+            User.countDocuments({ createdByAdmin: adminId }),
+            Vendor.countDocuments({ createdByAdmin: adminId }),
+            Worker.countDocuments({ createdByAdmin: adminId })
+          ])
+        : Promise.resolve([0, 0, 0])
     ]);
 
+    // Fetch Admin Compensation, Official Payroll Status & Territory details
+    let adminCompensation = null;
+    if (adminId) {
+      try {
+        const adminDoc = await Admin.findById(adminId).select('salary scopeType cityName districtName subDistrictName').lean();
+        if (adminDoc) {
+          const farmerIncentive = adminDoc.salary?.farmerIncentive || 0;
+          const vendorIncentive = adminDoc.salary?.vendorIncentive || 0;
+          const workerIncentive = adminDoc.salary?.workerIncentive || 0;
+          const baseSalary = adminDoc.salary?.baseSalary || 0;
+
+          // Date window for current month's live attribution
+          const now = new Date();
+          const currentYear = now.getFullYear();
+          const currentMonth = now.getMonth() + 1;
+          const currentPayrollMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+          const cycleStartDate = new Date(currentYear, currentMonth - 1, 1, 0, 0, 0, 0);
+          const cycleEndDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+
+          // Check current month registrations & official payroll record
+          const [curFarmers, curVendors, curWorkers, payrollRecord] = await Promise.all([
+            User.countDocuments({ createdByAdmin: adminId, createdAt: { $gte: cycleStartDate, $lte: cycleEndDate } }),
+            Vendor.countDocuments({ createdByAdmin: adminId, createdAt: { $gte: cycleStartDate, $lte: cycleEndDate } }),
+            Worker.countDocuments({ createdByAdmin: adminId, createdAt: { $gte: cycleStartDate, $lte: cycleEndDate } }),
+            AdminPayroll.findOne({ adminId, payrollMonth: currentPayrollMonth }).lean()
+          ]);
+
+          const curEarnedIncentive = (curFarmers * farmerIncentive) + (curVendors * vendorIncentive) + (curWorkers * workerIncentive);
+          const estimatedCurrentCompensation = baseSalary + curEarnedIncentive;
+
+          // Payment Status Extraction
+          const lastPayment = payrollRecord?.payments?.filter(p => p.status === 'SUCCESS').slice(-1)[0] || null;
+          const paymentStatus = payrollRecord ? payrollRecord.status : 'PENDING_PAYMENT';
+          const paidThisMonth = payrollRecord?.paidAmount || 0;
+          const pendingSalary = payrollRecord ? payrollRecord.remainingAmount : estimatedCurrentCompensation;
+
+          adminCompensation = {
+            baseSalary,
+            farmerIncentive,
+            vendorIncentive,
+            workerIncentive,
+            payFrequency: adminDoc.salary?.payFrequency || 'monthly',
+            salaryStatus: adminDoc.salary?.status || 'ACTIVE',
+
+            // Current Month Live Compensation
+            payrollMonth: currentPayrollMonth,
+            monthName: now.toLocaleString('default', { month: 'long', year: 'numeric' }),
+            curFarmers,
+            curVendors,
+            curWorkers,
+            earnedIncentive: curEarnedIncentive,
+            estimatedCurrentCompensation,
+            totalEstimatedPayout: estimatedCurrentCompensation,
+
+            // All-Time Registrations
+            allTimeFarmers: myFarmersCount,
+            allTimeVendors: myVendorsCount,
+            allTimeWorkers: myWorkersCount,
+
+            // Official Payroll & Payment Status (SEPARATED FROM ACCRUED COMPENSATION)
+            payrollId: payrollRecord?._id || null,
+            payrollStatus: paymentStatus,
+            isPaid: payrollRecord?.status === 'PAID',
+            isPartiallyPaid: payrollRecord?.status === 'PARTIALLY_PAID',
+            paidThisMonth,
+            pendingSalary,
+            paidAt: lastPayment?.paymentDate || null,
+            paymentMethod: lastPayment?.paymentMethod || null,
+            utr: lastPayment?.transactionReference || null,
+            paymentProofUrl: lastPayment?.paymentProofUrl || null,
+
+            // Geographic Scope
+            scopeType: adminDoc.scopeType || 'GLOBAL',
+            cityName: adminDoc.cityName || '',
+            districtName: adminDoc.districtName || '',
+            subDistrictName: adminDoc.subDistrictName || ''
+          };
+        }
+      } catch (err) {
+        console.error('Failed to load admin compensation:', err);
+      }
+    }
+
+    // Parse vendor counts
+    let totalVendors = 0;
+    let pendingVendors = 0;
+    let approvedVendors = 0;
+    vendorStatusStats.forEach(item => {
+      totalVendors += item.count;
+      if (item._id === VENDOR_STATUS.PENDING) pendingVendors = item.count;
+      if (item._id === VENDOR_STATUS.APPROVED) approvedVendors = item.count;
+    });
+
+    // Parse worker counts
+    let totalWorkers = 0;
+    let totalTeamLeaders = 0;
+    let totalIndependentWorkers = 0;
+    workerTypeStats.forEach(item => {
+      totalWorkers += item.count;
+      if (item._id === 'TEAM_LEADER') {
+        totalTeamLeaders += item.count;
+      } else {
+        totalIndependentWorkers += item.count;
+      }
+    });
+
+    // Parse booking counts
+    let totalBookings = 0;
+    let pendingBookings = 0;
+    let completedBookings = 0;
+    let cancelledBookings = 0;
+    bookingStatusStats.forEach(item => {
+      totalBookings += item.count;
+      if (item._id === BOOKING_STATUS.COMPLETED) completedBookings = item.count;
+      else if (item._id === BOOKING_STATUS.CANCELLED) cancelledBookings = item.count;
+      else pendingBookings += item.count;
+    });
+
+    // Revenue calculations
     const bookingRevData = revenueResult[0] || { totalRevenue: 0, totalBookings: 0 };
     const bookingRevenue = bookingRevData.totalRevenue;
     const bookingCommission = bookingRevenue * 0.2; // 20% commission
 
-    // Soil Test Revenue
-    const soilTestRevenueResult = await SoilTestRequest.aggregate([
-      {
-        $match: {
-          paymentStatus: 'paid',
-          ...(startDate || endDate ? { 
-            updatedAt: { 
-              ...(startDate ? { $gte: new Date(startDate) } : {}), 
-              ...(endDate ? { $lte: new Date(endDate) } : {}) 
-            } 
-          } : {})
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalAmount: { $sum: '$totalAmount' },
-          totalCommission: { $sum: '$adminCommission' },
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
     const soilTestRevData = soilTestRevenueResult[0] || { totalAmount: 0, totalCommission: 0, count: 0 };
     const soilTestCommission = soilTestRevData.totalCommission;
-
-    // Ecommerce Revenue
-    const ecommerceRevenueResult = await EcommerceOrder.aggregate([
-      {
-        $match: {
-          paymentStatus: 'paid',
-          deliveryStatus: { $ne: 'cancelled' },
-          ...(startDate || endDate ? { 
-            createdAt: { 
-              ...(startDate ? { $gte: new Date(startDate) } : {}), 
-              ...(endDate ? { $lte: new Date(endDate) } : {}) 
-            } 
-          } : {})
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalCommission: { $sum: '$pricing.platformFee' },
-          count: { $sum: 1 }
-        }
-      }
-    ]);
 
     const ecommerceRevData = ecommerceRevenueResult[0] || { totalCommission: 0, count: 0 };
     const ecommerceCommission = ecommerceRevData.totalCommission;
 
     const totalRevenue = bookingCommission + soilTestCommission + ecommerceCommission;
-
-    // Vendor approval stats
-    const pendingVendors = await Vendor.countDocuments({ approvalStatus: VENDOR_STATUS.PENDING });
-    const approvedVendors = await Vendor.countDocuments({ approvalStatus: VENDOR_STATUS.APPROVED });
-
-    // Withdrawal & Settlement stats
-    const pendingWithdrawals = await Withdrawal.countDocuments({ status: 'pending' });
-    const pendingSettlementsCount = await Settlement.countDocuments({ status: 'pending' });
-
-    // Recent activities (last 10 bookings)
-    const recentActivityDocs = await Booking.find()
-      .populate('userId', 'name phone')
-      .populate('vendorId', 'name businessName')
-      .populate('serviceId', 'title')
-      .sort({ createdAt: -1 })
-      .limit(10);
 
     const recentBookings = recentActivityDocs.map(b => ({
       id: b.bookingNumber || b._id,
@@ -181,7 +343,14 @@ const getDashboardStats = async (req, res) => {
           pendingVendors,
           approvedVendors,
           pendingWithdrawals,
-          pendingSettlements: pendingSettlementsCount
+          pendingSettlements: pendingSettlementsCount,
+          myRegistrations: {
+            farmers: myFarmersCount,
+            vendors: myVendorsCount,
+            workers: myWorkersCount,
+            total: myFarmersCount + myVendorsCount + myWorkersCount
+          },
+          adminCompensation
         },
         recentBookings
       }

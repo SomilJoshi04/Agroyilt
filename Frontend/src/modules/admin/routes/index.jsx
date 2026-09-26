@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminLayout from '../components/layout/AdminLayout';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
 
 // Login page (not lazy loaded for faster initial access)
@@ -43,6 +44,8 @@ const Support = lazy(() => import('../pages/Support'));
 const Referrals = lazy(() => import('../pages/Referrals'));
 
 
+const AdminManagement = lazy(() => import('../pages/AdminManagement'));
+const MySalary = lazy(() => import('../pages/MySalary'));
 
 // Loading fallback component
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -57,53 +60,59 @@ const AdminRoutes = () => {
   // useAppNotifications('admin');
 
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <Routes>
-        {/* Login route - outside of layout (public) */}
-        <Route path="/login" element={<PublicRoute userType="admin"><Login /></PublicRoute>} />
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          {/* Login route - outside of layout (public) */}
+          <Route path="/login" element={<PublicRoute userType="admin"><Login /></PublicRoute>} />
 
-        {/* Protected routes - inside layout */}
-        <Route path="/" element={
-          <ProtectedRoute userType="admin">
-            <AdminLayout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="users/*" element={<Users />} />
-          <Route path="workers/*" element={<Workers />} />
-          <Route path="vendors/*" element={<Vendors />} />
-          <Route path="bookings" element={<Bookings />} />
-          <Route path="bookings/:id" element={<BookingDetailsPage />} />
-          <Route path="bookings/tracking" element={<BookingTracking />} />
-          <Route path="bookings/notifications" element={<BookingNotifications />} />
-          <Route path="bookings/km-photos" element={<BookingKmPhotos />} />
-          <Route path="users/kyc" element={<KycVerification />} />
-          <Route path="equipment-catalog/*" element={<UserCategories />} />
-          <Route path="equipment-approvals/*" element={<EquipmentApproval />} />
-          <Route path="payments/*" element={<Payments />} />
-          <Route path="reports/*" element={<Reports />} />
-          <Route path="notifications/*" element={<Notifications />} />
+          {/* Protected routes - inside layout */}
+          <Route path="/" element={
+            <ProtectedRoute userType="admin">
+              <AdminLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="users/*" element={<Users />} />
+            <Route path="workers/*" element={<Workers />} />
+            <Route path="vendors/*" element={<Vendors />} />
+            <Route path="bookings" element={<Bookings />} />
+            <Route path="bookings/:id" element={<BookingDetailsPage />} />
+            <Route path="bookings/tracking" element={<BookingTracking />} />
+            <Route path="bookings/notifications" element={<BookingNotifications />} />
+            <Route path="bookings/km-photos" element={<BookingKmPhotos />} />
+            <Route path="users/kyc" element={<KycVerification />} />
+            <Route path="equipment-catalog/*" element={<UserCategories />} />
+            <Route path="equipment-approvals/*" element={<EquipmentApproval />} />
+            <Route path="payments/*" element={<Payments />} />
+            <Route path="reports/*" element={<Reports />} />
+            <Route path="notifications/*" element={<Notifications />} />
 
-          <Route path="plans" element={<Plans />} />
-          <Route path="reviews" element={<Reviews />} />
-          <Route path="products" element={<Products />} />
-          <Route path="products/orders" element={<EcommerceOrders />} />
-          <Route path="marketplace" element={<Marketplace />} />
-          <Route path="marketplace/store-approvals" element={<StoreApprovals />} />
-          <Route path="marketplace/registered-shops" element={<RegisteredShops />} />
-          <Route path="soil-tests" element={<SoilTesting />} />
-          <Route path="disputes" element={<Disputes />} />
-          <Route path="withdrawals" element={<Withdrawals />} />
-          <Route path="withdrawals/*" element={<Withdrawals />} />
-          <Route path="settlements/*" element={<Settlements />} />
-          <Route path="manage-website/*" element={<WebsiteSettings />} />
-          <Route path="support" element={<Support />} />
-          <Route path="referrals" element={<Referrals />} />
-          <Route path="settings/*" element={<Settings />} />
-        </Route>
-      </Routes>
-    </Suspense>
+            <Route path="plans" element={<Plans />} />
+            <Route path="reviews" element={<Reviews />} />
+            <Route path="products" element={<Products />} />
+            <Route path="products/orders" element={<EcommerceOrders />} />
+            <Route path="marketplace" element={<Marketplace />} />
+            <Route path="marketplace/store-approvals" element={<StoreApprovals />} />
+            <Route path="marketplace/registered-shops" element={<RegisteredShops />} />
+            <Route path="soil-tests" element={<SoilTesting />} />
+            <Route path="disputes" element={<Disputes />} />
+            <Route path="withdrawals" element={<Withdrawals />} />
+            <Route path="withdrawals/*" element={<Withdrawals />} />
+            <Route path="settlements/*" element={<Settlements />} />
+            <Route path="manage-website/*" element={<WebsiteSettings />} />
+            <Route path="support" element={<Support />} />
+            <Route path="referrals" element={<Referrals />} />
+            <Route path="settings/*" element={<Settings />} />
+            <Route path="admin-management" element={<AdminManagement />} />
+            <Route path="admin-salaries" element={<AdminManagement defaultTab="payroll" />} />
+            <Route path="admin-payroll" element={<AdminManagement defaultTab="payroll" />} />
+            <Route path="my-salary" element={<MySalary />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
   );
 };
 

@@ -22,6 +22,7 @@ import {
   FiGlobe,
   FiTruck,
   FiGift,
+  FiShield,
 } from "react-icons/fi";
 import adminMenu from "../../config/adminMenu.json";
 import dashboardService from "../../services/dashboardService";
@@ -50,7 +51,10 @@ const iconMap = {
   "Machinery Management": FiPackage,
   "Manage Website": FiGlobe,
   "Machinery Approvals": FiTruck,
-  Referrals: FiGift
+  Referrals: FiGift,
+  "Admin Management": FiShield,
+  "Admin Payroll": FiDollarSign,
+  "My Salary": FiDollarSign,
 };
 
 // Helper function to convert child name to route path
@@ -158,7 +162,12 @@ const AdminSidebar = ({ isOpen, onClose }) => {
         setAdminUser({
           name: stored.name || 'Admin',
           email: stored.email || '',
-          role: stored.role || 'admin'
+          role: stored.role || 'admin',
+          scopeType: stored.scopeType || 'GLOBAL',
+          cityName: stored.cityName || '',
+          districtName: stored.districtName || '',
+          subDistrictName: stored.subDistrictName || '',
+          permissions: stored.permissions || {}
         });
       }
     } catch (e) {
@@ -166,11 +175,56 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     }
   }, []);
 
-  // Filter menu items by role
+  // Map menu title to required permission for sub-admins
+  const MENU_PERMISSION_MAP = {
+    'Dashboard': 'dashboard.view',
+    'Farmers': 'users.view',
+    'Workers': 'workers.view',
+    'Equipment Owners': 'vendors.view',
+    'Bookings': 'bookings.view',
+    'Payments': 'payments.view',
+    'Withdrawals': 'settlements.view',
+    'Settlements': 'settlements.view',
+    'Equipment Catalog': 'services.view',
+    'Machinery Approvals': 'machinery.approvals.view',
+    'Machinery Management': 'machinery.view',
+    'Agri Marketplace': 'marketplace.view',
+    'Reports': 'reports.view',
+    'Reviews': 'reviews.view',
+    'Plans': 'plans.view',
+    'Soil Testing': 'soiltest.view',
+    'Disputes': 'disputes.view',
+    'Help & Support': 'support.view',
+    'Manage Website': 'website.view',
+    'Referrals': 'referrals.view',
+    'Admin Management': null, // strictly super_admin only
+    'Admin Payroll': null, // strictly super_admin only
+    'Settings': 'settings.view'
+  };
+
+  // Filter menu items by role and granular permissions
   const filteredMenu = useMemo(() => adminMenu.filter(item => {
-    if (!item.allowedRoles) return true;
-    return item.allowedRoles.includes(adminUser.role);
-  }), [adminUser.role]);
+    // Role check
+    if (item.allowedRoles && !item.allowedRoles.includes(adminUser.role)) {
+      return false;
+    }
+
+    // Super Admin has full unrestricted access
+    if (adminUser.role === 'super_admin') return true;
+
+    // Granular permission check for regular admin
+    const requiredPermission = MENU_PERMISSION_MAP[item.title];
+    if (requiredPermission === null) {
+      // Strictly super_admin only
+      return false;
+    }
+    if (requiredPermission && adminUser.permissions && Object.keys(adminUser.permissions).length > 0) {
+      // If permission is defined in map, check if admin has it
+      return !!adminUser.permissions[requiredPermission];
+    }
+
+    return true;
+  }), [adminUser.role, adminUser.permissions]);
 
   // Fetch pending counts for badges
   useEffect(() => {
@@ -440,9 +494,18 @@ const AdminSidebar = ({ isOpen, onClose }) => {
               <h2 className="font-semibold text-white text-base truncate">
                 {adminUser.name}
               </h2>
-              <p className="text-xs text-gray-400 truncate">
-                {adminUser.role === 'super_admin' ? '⭐ Super Admin' : 'Admin'}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                  adminUser.role === 'super_admin' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                }`}>
+                  {adminUser.role === 'super_admin' ? '⭐ Super Admin' : 'Admin'}
+                </span>
+                {adminUser.role !== 'super_admin' && (
+                  <span className="text-[10px] text-gray-300 truncate max-w-[130px]" title={adminUser.cityName ? `${adminUser.cityName}${adminUser.districtName ? ` • ${adminUser.districtName}` : ''}` : 'Scoped Admin'}>
+                    📍 {adminUser.cityName || 'Scoped'}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 

@@ -244,15 +244,58 @@ const workerSchema = new mongoose.Schema({
     platform: { type: String, enum: ["web", "android", "ios", "mobile"], default: "web" },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
-  }]
+  }],
+
+  // Admin Traceability: which admin created/registered this worker (immutable)
+  createdByAdmin: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null,
+    index: true,
+    immutable: true
+  },
+  createdByType: {
+    type: String,
+    enum: ['ADMIN', 'SUPER_ADMIN', 'SYSTEM', 'VENDOR', null],
+    default: null,
+    index: true,
+    immutable: true
+  },
+  creationSource: {
+    type: String,
+    enum: [
+      'ADMIN_CREATED',
+      'SUPER_ADMIN_CREATED',
+      'SELF_REGISTERED',
+      'IMPORT',
+      'SYSTEM',
+      'MIGRATION',
+      'VENDOR_CREATED',
+      'LEGACY_OR_SELF'
+    ],
+    default: 'SELF_REGISTERED',
+    index: true,
+    immutable: true
+  },
+  createdByAdminSnapshot: {
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+    name: { type: String, trim: true },
+    email: { type: String, trim: true },
+    role: { type: String, trim: true }
+  }
 }, {
   timestamps: true
 });
 
 // Indexes for faster queries
+workerSchema.index({ createdAt: -1 });
+workerSchema.index({ approvalStatus: 1, createdAt: -1 });
+workerSchema.index({ workerType: 1, createdAt: -1 });
+workerSchema.index({ createdByAdmin: 1, createdAt: -1 });
+workerSchema.index({ creationSource: 1, createdAt: -1 });
+workerSchema.index({ createdByType: 1, createdAt: -1 });
 workerSchema.index({ status: 1 });
 workerSchema.index({ isOnline: 1 });
-workerSchema.index({ approvalStatus: 1 });
 
 // Hash password before saving
 workerSchema.pre('save', async function (next) {

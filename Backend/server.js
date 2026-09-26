@@ -19,6 +19,23 @@ console.log('[Server Startup] MONGODB_URI:', process.env.MONGODB_URI ? 'Configur
 // Connect to database
 connectDB();
 
+// Preload core Mongoose models to ensure schemas are registered for populate
+require('./models/Admin');
+require('./models/User');
+require('./models/Vendor');
+require('./models/Worker');
+require('./models/District');
+require('./models/SubDistrict');
+require('./models/City');
+require('./models/AdminAuditLog');
+require('./models/Booking');
+require('./models/Service');
+require('./models/Category');
+require('./models/Brand');
+require('./models/Review');
+require('./models/Product');
+require('./models/VendorBill');
+
 // Initialize Redis (if enabled)
 const { initRedis } = require('./services/redisService');
 initRedis();
@@ -254,6 +271,7 @@ app.use('/api/admin/settlements', require('./routes/admin-routes/settlementManag
 app.use('/api/admin/website', require('./routes/admin-routes/websiteManagement.routes'));
 app.use('/api/admin', require('./routes/admin-routes/adminPayout.routes'));
 app.use('/api/admin/admins', require('./routes/admin-routes/adminManagement.routes'));
+app.use('/api/admin/payroll', require('./routes/admin-routes/adminPayroll.routes'));
 app.use('/api/image', require('./routes/admin-routes/image.routes'));
 app.use('/api', require('./routes/admin-routes/upload.routes')); // Generic upload access
 

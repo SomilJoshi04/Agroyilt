@@ -240,6 +240,43 @@ const userSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
   }],
 
+  // Admin Traceability: which admin created/registered this user (immutable)
+  createdByAdmin: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null,
+    index: true,
+    immutable: true
+  },
+  createdByType: {
+    type: String,
+    enum: ['ADMIN', 'SUPER_ADMIN', 'SYSTEM', null],
+    default: null,
+    index: true,
+    immutable: true
+  },
+  creationSource: {
+    type: String,
+    enum: [
+      'ADMIN_CREATED',
+      'SUPER_ADMIN_CREATED',
+      'SELF_REGISTERED',
+      'IMPORT',
+      'SYSTEM',
+      'MIGRATION',
+      'LEGACY_OR_SELF'
+    ],
+    default: 'SELF_REGISTERED',
+    index: true,
+    immutable: true
+  },
+  createdByAdminSnapshot: {
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+    name: { type: String, trim: true },
+    email: { type: String, trim: true },
+    role: { type: String, trim: true }
+  },
+
 }, {
   timestamps: true
 });
@@ -260,8 +297,14 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 };
 
 // Indexes
+userSchema.index({ createdAt: -1 });
+userSchema.index({ approvalStatus: 1, createdAt: -1 });
+userSchema.index({ createdByAdmin: 1, createdAt: -1 });
+userSchema.index({ creationSource: 1, createdAt: -1 });
+userSchema.index({ createdByType: 1, createdAt: -1 });
+userSchema.index({ 'addresses.city': 1 });
+userSchema.index({ 'addresses.district': 1 });
 userSchema.index({ 'farms.location': '2dsphere' });
-userSchema.index({ approvalStatus: 1 });
 
 module.exports = mongoose.model('User', userSchema);
 

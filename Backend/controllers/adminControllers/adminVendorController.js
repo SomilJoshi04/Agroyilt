@@ -1,10 +1,13 @@
 const Vendor = require('../../models/Vendor');
+const Admin = require('../../models/Admin');
+const City = require('../../models/City');
 const Booking = require('../../models/Booking');
 const VendorBill = require('../../models/VendorBill');
 const Product = require('../../models/Product');
 const { validationResult } = require('express-validator');
 const { VENDOR_STATUS, BOOKING_STATUS, PAYMENT_STATUS } = require('../../utils/constants');
 const { createNotification } = require('../notificationControllers/notificationController');
+const { buildAdminScopeFilter, auditAdminAction } = require('../../utils/adminScopeHelper');
 
 /**
  * Get all vendors with filters and pagination
@@ -16,7 +19,7 @@ const getAllVendors = async (req, res) => {
       approvalStatus,
       isActive,
       page = 1,
-      limit = 200  // Higher default for admin use (soil lab listing needs all vendors)
+      limit = 50
     } = req.query;
 
     // Build query
@@ -39,22 +42,41 @@ const getAllVendors = async (req, res) => {
       ];
     }
 
+    // Filter for vendors added by this specific admin
+    if (req.query.createdByMe === 'true' && req.user?._id) {
+      query.createdByAdmin = req.user._id;
+    }
+
+    // Apply Geographic Scope Filter for scoped Admins
+    const scopeFilter = buildAdminScopeFilter(req.user, 'vendor');
+    const finalQuery = Object.keys(scopeFilter).length > 0
+      ? { $and: [query, scopeFilter] }
+      : query;
+
     // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Get vendors
-    const vendors = await Vendor.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    // Get total count
-    const total = await Vendor.countDocuments(query);
+    // Fetch vendors, total count, and myRegistrations in parallel with .lean()
+    const [vendors, total, myCount] = await Promise.all([
+      Vendor.find(finalQuery)
+        .select('-password -fcmTokens')
+        .populate('createdByAdmin', 'name email role')
+        .populate('cityId', 'name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Vendor.countDocuments(finalQuery),
+      req.user?._id ? Vendor.countDocuments({ createdByAdmin: req.user._id }) : 0
+    ]);
 
     res.status(200).json({
       success: true,
       data: vendors,
+      counts: {
+        total,
+        myRegistrations: myCount
+      },
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -78,7 +100,7 @@ const getVendorDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const vendor = await Vendor.findById(id).select('-password');
+    const vendor = await Vendor.findById(id).select('-password').populate('createdByAdmin', 'name email role');
 
     if (!vendor) {
       return res.status(404).json({
@@ -153,6 +175,16 @@ const approveVendor = async (req, res) => {
     vendor.approvalStatus = VENDOR_STATUS.APPROVED;
     vendor.approvalDate = new Date();
     await vendor.save();
+
+    await auditAdminAction(
+      req,
+      'APPROVE_VENDOR',
+      'VENDOR_MANAGEMENT',
+      `Approved equipment owner registration for "${vendor.name}" (${vendor.phone})`,
+      vendor._id,
+      'Vendor',
+      vendor.name
+    );
 
     // Trigger Referral Reward Qualification if vendor was referred
     try {
@@ -718,8 +750,18 @@ module.exports = {
       let parsedLabDetails = labDetails ? (typeof labDetails === 'string' ? JSON.parse(labDetails) : labDetails) : null;
       let parsedShopDetails = shopDetails ? (typeof shopDetails === 'string' ? JSON.parse(shopDetails) : shopDetails) : null;
 
+      // Validate 10-digit Indian mobile number
+      const cleanPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+      const indianMobileRegex = /^[6-9]\d{9}$/;
+      if (!cleanPhone || cleanPhone.length !== 10 || !indianMobileRegex.test(cleanPhone)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.'
+        });
+      }
+
       // Check if vendor already exists
-      const existingVendor = await Vendor.findOne({ $or: [{ phone }, { email }] });
+      const existingVendor = await Vendor.findOne({ $or: [{ phone: cleanPhone }, { email }] });
       if (existingVendor) {
         return res.status(400).json({
           success: false,
@@ -777,7 +819,7 @@ module.exports = {
       const vendorData = {
         name,
         email,
-        phone,
+        phone: cleanPhone,
         businessName,
         service: serviceArray,
         categories: serviceArray,
@@ -794,7 +836,26 @@ module.exports = {
         approvalStatus: VENDOR_STATUS.APPROVED,
         approvalDate: new Date(),
         isActive: true,
-        isPhoneVerified: true
+        isPhoneVerified: true,
+        createdByAdmin: req.user?._id || null,
+        createdByType: req.user?.role === 'super_admin' ? 'SUPER_ADMIN' : 'ADMIN',
+        creationSource: req.user?.role === 'super_admin' ? 'SUPER_ADMIN_CREATED' : 'ADMIN_CREATED',
+        createdByAdminSnapshot: req.user ? {
+          adminId: req.user._id,
+          name: req.user.name,
+          email: req.user.email,
+          role: req.user.role
+        } : null,
+        address: {
+          fullAddress: req.body.address || req.body.fullAddress || '',
+          city: req.body.city || req.user?.cityName || '',
+          district: req.body.district || req.user?.districtName || '',
+          subDistrict: req.body.subDistrict || req.user?.subDistrictName || '',
+          state: req.body.state || 'Maharashtra',
+          pincode: req.body.pincode || '',
+          cityId: req.user?.cityId || null
+        },
+        cityId: req.user?.cityId || null
       };
 
       if (parsedLabDetails) {
@@ -807,6 +868,16 @@ module.exports = {
       }
 
       const vendor = await Vendor.create(vendorData);
+
+      await auditAdminAction(
+        req,
+        'CREATE_VENDOR',
+        'VENDOR_MANAGEMENT',
+        `Registered equipment owner "${vendor.name}" (${vendor.phone})`,
+        vendor._id,
+        'Vendor',
+        vendor.name
+      );
 
       res.status(201).json({
         success: true,

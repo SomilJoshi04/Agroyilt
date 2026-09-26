@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSearch, FiUser, FiPhone, FiMail, FiCheckCircle, FiSlash, FiCheck, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
+import { FiSearch, FiUser, FiPhone, FiMail, FiCheckCircle, FiSlash, FiCheck, FiTrash2, FiPlus, FiX, FiUserCheck } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
 import { adminUserService } from '../../../../services/adminUserService';
 
@@ -10,6 +10,8 @@ const AllFarmers = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, inactive
   const [approvalFilter, setApprovalFilter] = useState('all'); // all, pending, approved, rejected
+  const [createdByMe, setCreatedByMe] = useState(false);
+  const [myRegistrationsCount, setMyRegistrationsCount] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -28,13 +30,29 @@ const AllFarmers = () => {
 
   const handleAddFarmer = async (e) => {
     e.preventDefault();
-    if (!newFarmer.name || !newFarmer.phone) {
-      return toastManager.error('Name and Phone are required');
+    if (!newFarmer.name?.trim()) {
+      return toastManager.error('Farmer full name is required');
+    }
+
+    const cleanPhone = (newFarmer.phone || '').replace(/\D/g, '').slice(-10);
+    const indianMobileRegex = /^[6-9]\d{9}$/;
+
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      return toastManager.error('Please enter a complete 10-digit mobile number');
+    }
+
+    if (!indianMobileRegex.test(cleanPhone)) {
+      return toastManager.error('Please enter a valid Indian mobile number starting with 6, 7, 8, or 9');
     }
     
     try {
       setIsAdding(true);
-      const response = await adminUserService.addUser(newFarmer);
+      const response = await adminUserService.addUser({
+        ...newFarmer,
+        name: newFarmer.name.trim(),
+        phone: cleanPhone,
+        email: newFarmer.email?.trim() || undefined
+      });
       if (response.success) {
         toastManager.success(response.message || 'Farmer added successfully');
         setIsAddModalOpen(false);
@@ -65,15 +83,22 @@ const AllFarmers = () => {
         params.approvalStatus = approvalFilter;
       }
 
+      if (createdByMe) {
+        params.createdByMe = 'true';
+      }
+
       const response = await adminUserService.getAllUsers(params);
       if (response.success) {
         setUsers(response.data);
-        setTotalPages(response.pagination.pages);
-        setTotalUsers(response.pagination.total);
+        setTotalPages(response.pagination?.pages || 1);
+        setTotalUsers(response.pagination?.total || 0);
+        if (response.counts?.myRegistrations !== undefined) {
+          setMyRegistrationsCount(response.counts.myRegistrations);
+        }
       }
     } catch (error) {
       console.error('Error fetching farmers:', error);
-      toastManager.error('Failed to load farmers');
+      toastManager.error(error.message || 'Failed to load farmers');
     } finally {
       setLoading(false);
     }
@@ -81,7 +106,7 @@ const AllFarmers = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [page, debouncedSearch, statusFilter, approvalFilter]);
+  }, [page, debouncedSearch, statusFilter, approvalFilter, createdByMe]);
 
   const handleApprove = async (userId) => {
     try {
@@ -151,9 +176,27 @@ const AllFarmers = () => {
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex flex-col gap-3">
-        <div className="flex justify-between items-center w-full">
-          <div className="px-3 py-2 bg-green-50 rounded-lg border border-green-100">
-            <span className="text-xs font-bold text-green-700">{totalUsers} Farmers</span>
+        <div className="flex flex-wrap justify-between items-center w-full gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="px-3 py-2 bg-green-50 rounded-lg border border-green-100">
+              <span className="text-xs font-bold text-green-700">{totalUsers} Farmers</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setCreatedByMe(prev => !prev);
+                setPage(1);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                createdByMe
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+              title="Filter farmers registered by your admin account"
+            >
+              <FiUserCheck className="w-3.5 h-3.5" />
+              Added by Me ({myRegistrationsCount})
+            </button>
           </div>
           <button
             onClick={() => setIsAddModalOpen(true)}
@@ -255,6 +298,11 @@ const AllFarmers = () => {
                           <div>
                             <p className="font-bold text-gray-900 text-xs">{user.name}</p>
                             <p className="text-[10px] text-gray-400">ID: {user._id.slice(-6).toUpperCase()}</p>
+                            {user.createdByAdmin && (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-amber-800 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 mt-0.5" title={`Created by Admin: ${user.createdByAdmin.name} (${user.createdByAdmin.email})`}>
+                                🛡️ By {user.createdByAdmin.name}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -407,15 +455,52 @@ const AllFarmers = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Phone Number *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={newFarmer.phone}
-                    onChange={(e) => setNewFarmer({ ...newFarmer, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Enter phone number"
-                  />
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-medium text-gray-700">Phone Number *</label>
+                    <span className="text-[10px] text-gray-400 font-mono">
+                      {newFarmer.phone?.length || 0}/10 digits
+                    </span>
+                  </div>
+                  <div className="relative flex rounded-lg shadow-xs">
+                    <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 text-gray-600 text-xs font-semibold select-none">
+                      🇮🇳 +91
+                    </span>
+                    <input
+                      type="tel"
+                      required
+                      maxLength={10}
+                      value={newFarmer.phone}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setNewFarmer({ ...newFarmer, phone: val });
+                      }}
+                      className={`w-full px-3 py-2 border rounded-r-lg text-sm focus:outline-none font-medium ${
+                        newFarmer.phone && newFarmer.phone.length === 10 && !/^[6-9]\d{9}$/.test(newFarmer.phone)
+                          ? 'border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500 text-red-900 bg-red-50/20'
+                          : newFarmer.phone && /^[6-9]\d{9}$/.test(newFarmer.phone)
+                          ? 'border-green-400 focus:border-green-500 focus:ring-1 focus:ring-green-500'
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                      }`}
+                      placeholder="Enter 10-digit mobile number"
+                    />
+                  </div>
+                  {newFarmer.phone && newFarmer.phone.length > 0 && (
+                    <div className="mt-1 text-[11px]">
+                      {newFarmer.phone.length < 10 ? (
+                        <p className="text-amber-600 font-medium flex items-center gap-1">
+                          ⚠️ Needs 10 digits ({10 - newFarmer.phone.length} more)
+                        </p>
+                      ) : !/^[6-9]/.test(newFarmer.phone) ? (
+                        <p className="text-red-600 font-medium flex items-center gap-1">
+                          ⚠️ Indian mobile numbers must start with 6, 7, 8, or 9
+                        </p>
+                      ) : (
+                        <p className="text-green-600 font-medium flex items-center gap-1">
+                          ✓ Valid 10-digit Indian mobile number
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Email Address (Optional)</label>

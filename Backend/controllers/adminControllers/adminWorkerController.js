@@ -1,10 +1,12 @@
 const Worker = require('../../models/Worker');
 const User = require('../../models/User');
+const Admin = require('../../models/Admin');
 const Review = require('../../models/Review');
 const Booking = require('../../models/Booking');
 const { validationResult } = require('express-validator');
 const { WORKER_STATUS, BOOKING_STATUS, VENDOR_STATUS } = require('../../utils/constants');
 const { createNotification } = require('../notificationControllers/notificationController');
+const { buildAdminScopeFilter, auditAdminAction } = require('../../utils/adminScopeHelper');
 
 /**
  * Get all workers with filters and pagination
@@ -15,6 +17,7 @@ const getAllWorkers = async (req, res) => {
       search,
       approvalStatus,
       isActive,
+      workerType,
       page = 1,
       limit = 20
     } = req.query;
@@ -29,59 +32,108 @@ const getAllWorkers = async (req, res) => {
       query.isActive = isActive === 'true';
     }
 
-    // Search by name, email, phone
+    // Filter by Worker Type (TEAM_LEADER vs INDEPENDENT / WORKER)
+    if (workerType && workerType !== 'all') {
+      const typeUpper = workerType.toUpperCase();
+      if (typeUpper === 'TEAM_LEADER') {
+        query.workerType = 'TEAM_LEADER';
+      } else if (typeUpper === 'INDEPENDENT' || typeUpper === 'WORKER') {
+        query.workerType = { $ne: 'TEAM_LEADER' };
+      }
+    }
+
+    // Search by name, email, phone, category, or skills
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { phone: { $regex: search, $options: 'i' } },
-        { serviceCategory: { $regex: search, $options: 'i' } }
+        { serviceCategory: { $regex: search, $options: 'i' } },
+        { skills: { $regex: search, $options: 'i' } }
       ];
+    }
+
+    // Apply Geographic Scope Filter for scoped Admins
+    const scopeFilter = buildAdminScopeFilter(req.user, 'worker');
+    const finalQuery = Object.keys(scopeFilter).length > 0
+      ? { $and: [query, scopeFilter] }
+      : query;
+
+    if (req.query.createdByMe === 'true' && req.user?._id) {
+      query.createdByAdmin = req.user._id;
     }
 
     // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Get workers
-    const workers = await Worker.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    // Fetch workers and total count in parallel with .lean()
+    const [workers, total] = await Promise.all([
+      Worker.find(finalQuery)
+        .select('-password')
+        .populate('createdByAdmin', 'name email role')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Worker.countDocuments(finalQuery)
+    ]);
 
+    // Batch aggregate jobs & ratings in 2 single queries instead of 2N queries
     const Review = require('../../models/Review');
+    const workerIds = workers.map(w => w._id);
 
-    const dynamicWorkers = await Promise.all(workers.map(async (w) => {
-      const workerObj = w.toObject();
-      
-      // Calculate dynamic jobs
-      const completedJobs = await Booking.countDocuments({
-        workerId: w._id,
-        status: BOOKING_STATUS.COMPLETED
-      });
-      workerObj.totalJobs = completedJobs || w.totalJobs || 0;
+    const [completedJobsStats, reviewStats] = await Promise.all([
+      workerIds.length > 0
+        ? Booking.aggregate([
+            { $match: { workerId: { $in: workerIds }, status: BOOKING_STATUS.COMPLETED } },
+            { $group: { _id: '$workerId', count: { $sum: 1 } } }
+          ])
+        : [],
+      workerIds.length > 0
+        ? Review.aggregate([
+            { $match: { workerId: { $in: workerIds } } },
+            { $group: { _id: '$workerId', avgRating: { $avg: '$rating' } } }
+          ])
+        : []
+    ]);
 
-      // Calculate dynamic rating
-      const reviews = await Review.aggregate([
-        { $match: { workerId: w._id } },
-        { $group: { _id: null, avgRating: { $avg: '$rating' } } }
-      ]);
-      
-      if (reviews.length > 0 && reviews[0].avgRating) {
-        workerObj.rating = Number(reviews[0].avgRating.toFixed(1));
-      } else {
-        workerObj.rating = w.rating || 0;
-      }
-      
-      return workerObj;
-    }));
+    const jobsMap = new Map(completedJobsStats.map(item => [item._id.toString(), item.count]));
+    const ratingsMap = new Map(reviewStats.map(item => [item._id.toString(), Number(item.avgRating.toFixed(1))]));
 
-    // Get total count
-    const total = await Worker.countDocuments(query);
+    const dynamicWorkers = workers.map(w => {
+      const idStr = w._id.toString();
+      return {
+        ...w,
+        totalJobs: jobsMap.get(idStr) ?? w.totalJobs ?? 0,
+        rating: ratingsMap.get(idStr) ?? w.rating ?? 0
+      };
+    });
+
+    // Base filter for counting types (respecting status filter if applied)
+    const baseCountQuery = {};
+    if (approvalStatus) {
+      baseCountQuery.approvalStatus = approvalStatus;
+    }
+    const finalBaseCount = Object.keys(scopeFilter).length > 0
+      ? { $and: [baseCountQuery, scopeFilter] }
+      : baseCountQuery;
+
+    const [totalWorkersCount, independentCount, teamLeaderCount, myWorkersCount] = await Promise.all([
+      Worker.countDocuments(finalBaseCount),
+      Worker.countDocuments({ ...finalBaseCount, workerType: { $ne: 'TEAM_LEADER' } }),
+      Worker.countDocuments({ ...finalBaseCount, workerType: 'TEAM_LEADER' }),
+      req.user?._id ? Worker.countDocuments({ createdByAdmin: req.user._id }) : 0
+    ]);
 
     res.status(200).json({
       success: true,
       data: dynamicWorkers,
+      counts: {
+        total: totalWorkersCount,
+        independent: independentCount,
+        teamLeader: teamLeaderCount,
+        myRegistrations: myWorkersCount
+      },
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -105,7 +157,7 @@ const getWorkerDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const worker = await Worker.findById(id).select('-password');
+    const worker = await Worker.findById(id).select('-password').populate('createdByAdmin', 'name email role');
 
     if (!worker) {
       return res.status(404).json({
@@ -136,10 +188,27 @@ const getWorkerDetails = async (req, res) => {
       }
     ]);
 
+    // If Team Leader or linked to a team, fetch team details
+    let team = null;
+    if (worker.workerType === 'TEAM_LEADER' || worker.teamId) {
+      try {
+        const Team = require('../../models/Team');
+        if (worker.teamId) {
+          team = await Team.findById(worker.teamId).lean();
+        }
+        if (!team) {
+          team = await Team.findOne({ leaderId: worker._id }).lean();
+        }
+      } catch (teamErr) {
+        console.error('Error fetching team for worker:', teamErr);
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: {
         worker,
+        team,
         stats: jobStats[0] || {
           totalJobs: 0,
           completedJobs: 0,
@@ -176,6 +245,16 @@ const approveWorker = async (req, res) => {
     worker.isActive = true;
     worker.approvalDate = new Date();
     await worker.save();
+
+    await auditAdminAction(
+      req,
+      'APPROVE_WORKER',
+      'WORKER_MANAGEMENT',
+      `Approved worker application for "${worker.name}" (${worker.phone})`,
+      worker._id,
+      'Worker',
+      worker.name
+    );
 
     // Trigger Referral Reward Qualification if worker was referred
     try {
@@ -239,6 +318,16 @@ const rejectWorker = async (req, res) => {
     worker.isActive = false;
     worker.rejectionReason = reason || 'Application does not meet requirements';
     await worker.save();
+
+    await auditAdminAction(
+      req,
+      'REJECT_WORKER',
+      'WORKER_MANAGEMENT',
+      `Rejected worker application for "${worker.name}" (${worker.phone}) - ${reason || 'No reason'}`,
+      worker._id,
+      'Worker',
+      worker.name
+    );
 
     // Send notification to worker
     try {
@@ -736,6 +825,16 @@ const toggleWorkerStatus = async (req, res) => {
     worker.isActive = isActive;
     await worker.save();
 
+    await auditAdminAction(
+      req,
+      worker.isActive ? 'ACTIVATE_WORKER' : 'DEACTIVATE_WORKER',
+      'WORKER_MANAGEMENT',
+      `${worker.isActive ? 'Activated' : 'Deactivated'} worker "${worker.name}" (${worker.phone})`,
+      worker._id,
+      'Worker',
+      worker.name
+    );
+
     res.status(200).json({
       success: true,
       message: `Worker ${isActive ? 'activated' : 'deactivated'} successfully`,
@@ -766,6 +865,16 @@ const deleteWorker = async (req, res) => {
       });
     }
 
+    await auditAdminAction(
+      req,
+      'DELETE_WORKER',
+      'WORKER_MANAGEMENT',
+      `Deleted worker "${worker.name}" (${worker.phone})`,
+      worker._id,
+      'Worker',
+      worker.name
+    );
+
     res.status(200).json({
       success: true,
       message: 'Worker deleted successfully'
@@ -776,6 +885,85 @@ const deleteWorker = async (req, res) => {
       success: false,
       message: 'Failed to delete worker'
     });
+  }
+};
+
+/**
+ * Add worker directly by Admin
+ */
+const addWorker = async (req, res) => {
+  try {
+    const { name, email, phone, workerType, serviceCategory, skills, hourlyRate, dailyRate } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, message: 'Name and phone are required' });
+    }
+
+    // Validate 10-digit Indian mobile number
+    const cleanPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+    const indianMobileRegex = /^[6-9]\d{9}$/;
+    if (!cleanPhone || cleanPhone.length !== 10 || !indianMobileRegex.test(cleanPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.'
+      });
+    }
+
+    const existing = await Worker.findOne({ phone: cleanPhone });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Worker with this phone already exists' });
+    }
+
+    const worker = await Worker.create({
+      name: name.trim(),
+      email: email || null,
+      phone: cleanPhone,
+      workerType: workerType || 'WORKER',
+      serviceCategory: serviceCategory || '',
+      skills: Array.isArray(skills) ? skills : (skills ? [skills] : []),
+      hourlyRate: hourlyRate || 0,
+      dailyRate: dailyRate || 0,
+      approvalStatus: 'approved',
+      approvalDate: new Date(),
+      isActive: true,
+      isPhoneVerified: true,
+      createdByAdmin: req.user?._id || null,
+      createdByType: req.user?.role === 'super_admin' ? 'SUPER_ADMIN' : 'ADMIN',
+      creationSource: req.user?.role === 'super_admin' ? 'SUPER_ADMIN_CREATED' : 'ADMIN_CREATED',
+      createdByAdminSnapshot: req.user ? {
+        adminId: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role
+      } : null,
+      address: {
+        addressLine1: req.body.address || '',
+        city: req.body.city || req.user?.cityName || '',
+        district: req.body.district || req.user?.districtName || '',
+        subDistrict: req.body.subDistrict || req.user?.subDistrictName || '',
+        state: req.body.state || 'Maharashtra',
+        pincode: req.body.pincode || ''
+      }
+    });
+
+    await auditAdminAction(
+      req,
+      'CREATE_WORKER',
+      'WORKER_MANAGEMENT',
+      `Registered worker "${worker.name}" (${worker.phone}) [Type: ${worker.workerType}]`,
+      worker._id,
+      'Worker',
+      worker.name
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Worker added successfully',
+      data: worker
+    });
+  } catch (error) {
+    console.error('Admin add worker error:', error);
+    res.status(500).json({ success: false, message: 'Failed to add worker: ' + error.message });
   }
 };
 
@@ -792,5 +980,6 @@ module.exports = {
   getWorkerAnalytics,
   getWorkerPaymentsSummary,
   toggleWorkerStatus,
-  deleteWorker
+  deleteWorker,
+  addWorker
 };

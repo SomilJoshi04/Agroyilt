@@ -16,7 +16,8 @@ const {
   getWorkerAnalytics,
   getWorkerPaymentsSummary,
   toggleWorkerStatus,
-  deleteWorker
+  deleteWorker,
+  addWorker
 } = require('../../controllers/adminControllers/adminWorkerController');
 
 // Validation rules
@@ -32,6 +33,7 @@ const payWorkerValidation = [
 
 // Routes
 router.get('/workers', authenticate, isAdmin, getAllWorkers);
+router.post('/workers', authenticate, isAdmin, addWorker);
 router.get('/workers/analytics', authenticate, isAdmin, getWorkerAnalytics);
 router.get('/workers/jobs', authenticate, isAdmin, getAllWorkerJobs);
 router.get('/workers/payments', authenticate, isAdmin, getWorkerPaymentsSummary);

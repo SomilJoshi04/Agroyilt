@@ -493,6 +493,9 @@ bookingSchema.pre('save', async function (next) {
 });
 
 // Indexes
+bookingSchema.index({ createdAt: -1 });
+bookingSchema.index({ status: 1, createdAt: -1 });
+bookingSchema.index({ bookingNumber: 1 });
 bookingSchema.index({ userId: 1, status: 1, createdAt: -1 });
 bookingSchema.index({ vendorId: 1, status: 1, createdAt: -1 });
 bookingSchema.index({ workerId: 1, status: 1, createdAt: -1 });

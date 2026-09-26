@@ -10,7 +10,7 @@ const {
 } = require('../../controllers/adminControllers/adminTransactionController');
 
 // All routes are protected and admin only
-router.use(authenticate, isAdmin);
+router.use('/transactions', authenticate, isAdmin);
 
 router.get('/transactions/stats', getTransactionStats);
 router.get('/transactions/reconciliation', getReconciliationReport);

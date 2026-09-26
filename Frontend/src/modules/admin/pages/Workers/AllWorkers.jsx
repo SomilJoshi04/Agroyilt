@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiSearch, 
@@ -19,7 +19,9 @@ import {
   FiDollarSign, 
   FiAlertCircle, 
   FiBriefcase,
-  FiShield
+  FiShield,
+  FiFilter,
+  FiUserCheck
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import workerService from '../../services/workerService';
@@ -48,6 +50,9 @@ const AllWorkers = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [workerTypeFilter, setWorkerTypeFilter] = useState(''); // '' | 'INDEPENDENT' | 'TEAM_LEADER'
+  const [createdByMe, setCreatedByMe] = useState(false);
+  const [typeCounts, setTypeCounts] = useState({ total: 0, independent: 0, teamLeader: 0, myRegistrations: 0 });
   const [actionLoading, setActionLoading] = useState(null);
 
   // Worker Details & Document Modal State
@@ -61,12 +66,17 @@ const AllWorkers = () => {
     try {
       setLoading(true);
       const res = await workerService.getAllWorkers({
-        search,
+        search: search.trim() || undefined,
         approvalStatus: statusFilter || undefined,
+        workerType: workerTypeFilter || undefined,
+        createdByMe: createdByMe ? 'true' : undefined,
         limit: 100
       });
-      if (res.success) {
-        setWorkers(res.data);
+      if (res && res.success) {
+        setWorkers(res.data || []);
+        if (res.counts) {
+          setTypeCounts(res.counts);
+        }
       }
     } catch (err) {
       toast.error('Failed to load workers');
@@ -79,9 +89,9 @@ const AllWorkers = () => {
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       fetchWorkers();
-    }, 500);
+    }, 400);
     return () => clearTimeout(delayDebounceFn);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, workerTypeFilter, createdByMe]);
 
   // Open worker details modal and fetch full details
   const handleOpenDetails = async (worker) => {
@@ -152,10 +162,11 @@ const AllWorkers = () => {
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
+      {/* Search and Worker Type Filter */}
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
+        {/* Search */}
         <div className="flex-1 flex items-center bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-          <FiSearch className="text-slate-400 mr-3" />
+          <FiSearch className="text-slate-400 mr-3 text-base shrink-0" />
           <input
             type="text"
             placeholder="Search by name, phone, or skill..."
@@ -163,6 +174,99 @@ const AllWorkers = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="text-slate-400 hover:text-slate-600 p-1 transition-colors cursor-pointer"
+              title="Clear search"
+            >
+              <FiX size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Worker Type Filter (Where admin filters by Independent Worker vs Team Leader) */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200 shrink-0 self-start lg:self-auto shadow-xs">
+          <button
+            type="button"
+            onClick={() => setWorkerTypeFilter('')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              workerTypeFilter === ''
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            <FiFilter size={13} className={workerTypeFilter === '' ? 'text-blue-600' : 'text-slate-400'} />
+            <span>All Types</span>
+            {typeCounts.total > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                workerTypeFilter === '' ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {typeCounts.total}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setWorkerTypeFilter('INDEPENDENT')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              workerTypeFilter === 'INDEPENDENT'
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            <FiUser size={13} className={workerTypeFilter === 'INDEPENDENT' ? 'text-white' : 'text-blue-600'} />
+            <span>Independent</span>
+            {typeCounts.independent > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                workerTypeFilter === 'INDEPENDENT' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {typeCounts.independent}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setWorkerTypeFilter('TEAM_LEADER')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              workerTypeFilter === 'TEAM_LEADER'
+                ? 'bg-purple-600 text-white shadow-sm shadow-purple-500/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            <FiUsers size={13} className={workerTypeFilter === 'TEAM_LEADER' ? 'text-white' : 'text-purple-600'} />
+            <span>Team Leader</span>
+            {typeCounts.teamLeader > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                workerTypeFilter === 'TEAM_LEADER' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'
+              }`}>
+                {typeCounts.teamLeader}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCreatedByMe(prev => !prev)}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              createdByMe
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+            title="Filter workers registered by your admin account"
+          >
+            <FiUserCheck size={13} className={createdByMe ? 'text-white' : 'text-blue-600'} />
+            <span>Added by Me</span>
+            {typeCounts.myRegistrations !== undefined && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                createdByMe ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {typeCounts.myRegistrations}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -245,14 +349,26 @@ const AllWorkers = () => {
                         <div>
                           <p className="font-bold text-slate-800 text-sm">{worker.name}</p>
                           <p className="text-xs font-medium text-slate-500">{worker.phone}</p>
+                          {worker.createdByAdmin && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-800 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 mt-0.5" title={`Created by Admin: ${worker.createdByAdmin.name} (${worker.createdByAdmin.email})`}>
+                               By {worker.createdByAdmin.name}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-4">
-                      <div className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg inline-flex">
-                        {worker.workerType === 'TEAM_LEADER' ? <FiUsers /> : <FiUser />}
-                        {worker.workerType === 'TEAM_LEADER' ? 'Team Leader' : 'Independent'}
-                      </div>
+                      {worker.workerType === 'TEAM_LEADER' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200/80 shadow-2xs">
+                          <FiUsers className="text-purple-600" size={13} />
+                          Team Leader
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+                          <FiUser className="text-blue-600" size={13} />
+                          Independent
+                        </span>
+                      )}
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex flex-wrap gap-1">
@@ -385,10 +501,17 @@ const AllWorkers = () => {
                       {selectedWorker.email && (
                         <span className="hidden sm:flex items-center gap-1"><FiMail className="text-indigo-500 shrink-0" /> {selectedWorker.email}</span>
                       )}
-                      <span className="bg-slate-200/70 text-slate-700 font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
-                        {selectedWorker.workerType === 'TEAM_LEADER' ? <FiUsers /> : <FiUser />}
-                        {selectedWorker.workerType === 'TEAM_LEADER' ? 'Team Leader' : 'Independent'}
-                      </span>
+                      {selectedWorker.workerType === 'TEAM_LEADER' ? (
+                        <span className="bg-purple-100 text-purple-800 border border-purple-200 font-bold px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1.5 shadow-2xs">
+                          <FiUsers size={12} className="text-purple-600" />
+                          Team Leader
+                        </span>
+                      ) : (
+                        <span className="bg-blue-100 text-blue-800 border border-blue-200 font-bold px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1.5 shadow-2xs">
+                          <FiUser size={12} className="text-blue-600" />
+                          Independent Worker
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -411,6 +534,47 @@ const AllWorkers = () => {
                   </div>
                 ) : (
                   <>
+                    {/* Worker Role Information Card */}
+                    {selectedWorker.workerType === 'TEAM_LEADER' ? (
+                      <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50/60 border border-purple-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold shrink-0 shadow-sm shadow-purple-500/20">
+                            <FiUsers size={18} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-wider bg-purple-200 text-purple-800 px-2 py-0.5 rounded-md">
+                                Team Leader Account
+                              </span>
+                              {selectedWorker.team?.status && (
+                                <span className="text-[10px] font-bold text-slate-500">
+                                  Status: {selectedWorker.team.status}
+                                </span>
+                              )}
+                            </div>
+                            <h5 className="text-sm font-black text-slate-800 mt-0.5">
+                              {selectedWorker.team?.name || 'Assigned Farm Worker Team'}
+                            </h5>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                          <span className="px-3 py-1.5 bg-white rounded-xl border border-purple-200 text-xs font-bold text-purple-700 shadow-2xs">
+                            👥 {selectedWorker.team?.memberCount || 0} Team Members
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200/80 flex items-center gap-3 text-xs text-blue-900 font-medium">
+                        <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                          <FiUser size={15} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-blue-950">Independent Farm Worker</p>
+                          <p className="text-blue-700 text-[11px] mt-0.5">Direct individual worker available for single-worker farm bookings and tasks.</p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Rejection Notice if applicable */}
                     {selectedWorker.approvalStatus === 'rejected' && (
                       <div className="p-3.5 sm:p-4 rounded-2xl bg-red-50 border border-red-200 flex items-start gap-3">
@@ -421,6 +585,21 @@ const AllWorkers = () => {
                             {selectedWorker.rejectionReason || 'No specific reason provided.'}
                           </p>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Admin Traceability Notice */}
+                    {selectedWorker.createdByAdmin && (
+                      <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between text-xs text-amber-900 font-medium">
+                        <div className="flex items-center gap-2.5">
+                          <FiShield className="text-amber-600" size={16} />
+                          <div>
+                            <span className="font-bold text-amber-950">Created by Admin:</span> {selectedWorker.createdByAdmin.name} ({selectedWorker.createdByAdmin.email})
+                          </div>
+                        </div>
+                        <span className="text-[10px] uppercase font-black bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
+                          {selectedWorker.createdByAdmin.role || 'Admin'}
+                        </span>
                       </div>
                     )}
 

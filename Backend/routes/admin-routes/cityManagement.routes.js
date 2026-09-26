@@ -16,8 +16,7 @@ const { isSuperAdmin } = require('../../middleware/roleMiddleware');
  * @desc    Admin city management routes
  * @access  Private (Super Admin)
  */
-router.use(authenticate);
-router.use(isSuperAdmin);
+router.use('/cities', authenticate, isSuperAdmin);
 
 router.get('/cities', getAllCities);
 router.get('/cities/:id', getCity);

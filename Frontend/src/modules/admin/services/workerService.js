@@ -1,4 +1,4 @@
-﻿import api from '../../../services/api';
+import api from '../../../services/api';
 
 /**
  * Service for Admin to manage Workers and Team Leaders
@@ -14,6 +14,7 @@ export const workerService = {
     if (params.search) qp.append('search', params.search);
     if (params.approvalStatus) qp.append('approvalStatus', params.approvalStatus);
     if (params.isActive !== undefined) qp.append('isActive', params.isActive);
+    if (params.workerType) qp.append('workerType', params.workerType);
     
     const response = await api.get(`/admin/workers${qp.toString() ? `?${qp.toString()}` : ''}`);
     return response.data;

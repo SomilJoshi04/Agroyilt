@@ -371,13 +371,54 @@ const vendorSchema = new mongoose.Schema({
     platform: { type: String, enum: ["web", "android", "ios", "mobile"], default: "web" },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
-  }]
+  }],
+
+  // Admin Traceability: which admin created/registered this vendor (immutable)
+  createdByAdmin: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null,
+    index: true,
+    immutable: true
+  },
+  createdByType: {
+    type: String,
+    enum: ['ADMIN', 'SUPER_ADMIN', 'SYSTEM', null],
+    default: null,
+    index: true,
+    immutable: true
+  },
+  creationSource: {
+    type: String,
+    enum: [
+      'ADMIN_CREATED',
+      'SUPER_ADMIN_CREATED',
+      'SELF_REGISTERED',
+      'IMPORT',
+      'SYSTEM',
+      'MIGRATION',
+      'LEGACY_OR_SELF'
+    ],
+    default: 'SELF_REGISTERED',
+    index: true,
+    immutable: true
+  },
+  createdByAdminSnapshot: {
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+    name: { type: String, trim: true },
+    email: { type: String, trim: true },
+    role: { type: String, trim: true }
+  }
 }, {
   timestamps: true
 });
 
 // Indexes for faster queries
-vendorSchema.index({ approvalStatus: 1 });
+vendorSchema.index({ createdAt: -1 });
+vendorSchema.index({ approvalStatus: 1, createdAt: -1 });
+vendorSchema.index({ createdByAdmin: 1, createdAt: -1 });
+vendorSchema.index({ creationSource: 1, createdAt: -1 });
+vendorSchema.index({ createdByType: 1, createdAt: -1 });
 vendorSchema.index({ 'wallet.earnings': -1 });
 vendorSchema.index({ geoLocation: '2dsphere' }); // Fast geo queries
 vendorSchema.index({ isOnline: 1, availability: 1, approvalStatus: 1 }); // Compound index for vendor search

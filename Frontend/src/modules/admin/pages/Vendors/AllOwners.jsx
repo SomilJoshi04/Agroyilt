@@ -1,6 +1,6 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader, FiPower, FiTrash2, FiPlus, FiUpload } from 'react-icons/fi';
+import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader, FiPower, FiTrash2, FiPlus, FiUpload, FiUserCheck } from 'react-icons/fi';
 import { toastManager } from '../../../../utils/toastManager';
 import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
@@ -12,6 +12,8 @@ const AllOwners = () => {
   const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'pending', 'approved', 'rejected'
+  const [createdByMe, setCreatedByMe] = useState(false);
+  const [myRegistrationsCount, setMyRegistrationsCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -101,8 +103,15 @@ const AllOwners = () => {
   const loadOwners = async () => {
     try {
       setLoading(true);
-      const response = await adminVendorService.getAllVendors();
+      const params = {};
+      if (createdByMe) {
+        params.createdByMe = 'true';
+      }
+      const response = await adminVendorService.getAllVendors(params);
       if (response.success) {
+        if (response.counts?.myRegistrations !== undefined) {
+          setMyRegistrationsCount(response.counts.myRegistrations);
+        }
         // Transform backend data to frontend format
         const transformedOwners = response.data.map(owner => ({
           id: owner._id,
@@ -118,6 +127,7 @@ const AllOwners = () => {
           pan: owner.pan?.number,
           address: owner.address,       // ← address field add kiya
           cityId: owner.cityId,         // ← cityId add kiya
+          createdByAdmin: owner.createdByAdmin,
           documents: {
             aadhar: owner.aadhar?.document,
             aadharBack: owner.aadhar?.backDocument,
@@ -138,6 +148,10 @@ const AllOwners = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadOwners();
+  }, [createdByMe]);
 
   const filteredOwners = useMemo(() => {
     return owners.filter(owner => {
@@ -567,6 +581,20 @@ const AllOwners = () => {
                   {status}
                 </button>
               ))}
+
+              <button
+                type="button"
+                onClick={() => setCreatedByMe(prev => !prev)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition cursor-pointer whitespace-nowrap ${
+                  createdByMe
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+                title="Filter vendors registered by your admin account"
+              >
+                <FiUserCheck className="w-3.5 h-3.5" />
+                Added by Me ({myRegistrationsCount})
+              </button>
             </div>
           </div>
         </div>
@@ -601,6 +629,11 @@ const AllOwners = () => {
                           <p className="font-bold text-gray-900 text-xs">{owner.name}</p>
                           <p className="text-[10px] text-gray-500">{owner.phone}</p>
                           <p className="text-[10px] text-gray-400">{owner.email}</p>
+                          {owner.createdByAdmin && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-800 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 mt-0.5" title={`Created by Admin: ${owner.createdByAdmin.name} (${owner.createdByAdmin.email})`}>
+                              🛡️ By {owner.createdByAdmin.name}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3">

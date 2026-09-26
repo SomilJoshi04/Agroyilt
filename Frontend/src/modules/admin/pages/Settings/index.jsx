@@ -221,7 +221,15 @@ const AdminSettings = () => {
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
-        profilePhoto: stored.profilePhoto || null
+        profilePhoto: stored.profilePhoto || null,
+        bankDetails: {
+          accountHolderName: stored.salary?.bankDetails?.accountHolderName || '',
+          bankName: stored.salary?.bankDetails?.bankName || '',
+          accountNumber: stored.salary?.bankDetails?.accountNumber || '',
+          ifscCode: stored.salary?.bankDetails?.ifscCode || '',
+          upiId: stored.salary?.bankDetails?.upiId || ''
+        },
+        salaryInfo: stored.salary || null
       };
     } catch (e) {
       return {
@@ -232,7 +240,15 @@ const AdminSettings = () => {
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
-        profilePhoto: null
+        profilePhoto: null,
+        bankDetails: {
+          accountHolderName: '',
+          bankName: '',
+          accountNumber: '',
+          ifscCode: '',
+          upiId: ''
+        },
+        salaryInfo: null
       };
     }
   });
@@ -269,7 +285,15 @@ const AdminSettings = () => {
             name: res.data.name || 'Admin',
             role: res.data.role || prev.role || 'admin',
             profilePhoto: res.data.profilePhoto || null,
-            assignedCity: res.data.cityName || res.data.cityId?.name || ''
+            assignedCity: res.data.cityName || res.data.cityId?.name || '',
+            bankDetails: {
+              accountHolderName: res.data.salary?.bankDetails?.accountHolderName || '',
+              bankName: res.data.salary?.bankDetails?.bankName || '',
+              accountNumber: res.data.salary?.bankDetails?.accountNumber || '',
+              ifscCode: res.data.salary?.bankDetails?.ifscCode || '',
+              upiId: res.data.salary?.bankDetails?.upiId || ''
+            },
+            salaryInfo: res.data.salary || null
           }));
           authStorage.updateUserData('admin', res.data);
         }
@@ -422,6 +446,17 @@ const AdminSettings = () => {
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleBankChange = (e) => {
+    const { name, value } = e.target;
+    setProfile(prev => ({
+      ...prev,
+      bankDetails: {
+        ...(prev.bankDetails || {}),
+        [name]: name === 'ifscCode' ? value.toUpperCase() : value
+      }
+    }));
   };
 
   const handleFinancialSave = async (e) => {
@@ -647,7 +682,8 @@ const AdminSettings = () => {
       const updateData = { 
         email: profile.email,
         name: profile.name,
-        profilePhoto: profile.profilePhoto
+        profilePhoto: profile.profilePhoto,
+        bankDetails: profile.bankDetails
       };
       if (profile.newPassword) {
         updateData.currentPassword = profile.currentPassword;
@@ -656,17 +692,18 @@ const AdminSettings = () => {
         updateData.currentPassword = profile.currentPassword;
       }
 
-      await updateAdminProfile(updateData);
+      const res = await updateAdminProfile(updateData);
       authStorage.updateUserData('admin', {
         email: profile.email,
         name: profile.name,
-        profilePhoto: profile.profilePhoto
+        profilePhoto: profile.profilePhoto,
+        salary: res?.admin?.salary || { ...(profile.salaryInfo || {}), bankDetails: profile.bankDetails }
       });
 
-      toastManager.success('Profile updated');
+      toastManager.success('Profile and payout details updated successfully');
       setProfile(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
     } catch (error) {
-      toastManager.error(error.response?.data?.message || 'Failed to update');
+      toastManager.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setProfileLoading(false);
     }
@@ -921,11 +958,135 @@ const AdminSettings = () => {
                   </div>
                 </div>
 
+                {/* Assigned Salary & Incentive Package (Read-only for Admin, set by Super Admin) */}
+                {profile.salaryInfo && (profile.salaryInfo.baseSalary > 0 || profile.salaryInfo.farmerIncentive > 0 || profile.salaryInfo.vendorIncentive > 0 || profile.salaryInfo.workerIncentive > 0) && (
+                  <div className="pt-6 border-t border-gray-100 space-y-3">
+                    <div className="p-4 bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <FiDollarSign className="text-indigo-600" /> Your Assigned Compensation Structure
+                        </h4>
+                        <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                          Configured by Super Admin
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div className="bg-white p-2.5 rounded-lg border border-indigo-50 shadow-xs">
+                          <p className="text-[10px] text-gray-500">Base Salary</p>
+                          <p className="text-sm font-bold text-gray-900">₹{(profile.salaryInfo.baseSalary || 0).toLocaleString()}</p>
+                          <p className="text-[10px] text-gray-400 capitalize">{profile.salaryInfo.payFrequency || 'monthly'}</p>
+                        </div>
+                        <div className="bg-white p-2.5 rounded-lg border border-indigo-50 shadow-xs">
+                          <p className="text-[10px] text-gray-500">Per Farmer</p>
+                          <p className="text-sm font-bold text-emerald-600">+₹{profile.salaryInfo.farmerIncentive || 0}</p>
+                          <p className="text-[10px] text-gray-400">per registration</p>
+                        </div>
+                        <div className="bg-white p-2.5 rounded-lg border border-indigo-50 shadow-xs">
+                          <p className="text-[10px] text-gray-500">Per Owner</p>
+                          <p className="text-sm font-bold text-blue-600">+₹{profile.salaryInfo.vendorIncentive || 0}</p>
+                          <p className="text-[10px] text-gray-400">per registration</p>
+                        </div>
+                        <div className="bg-white p-2.5 rounded-lg border border-indigo-50 shadow-xs">
+                          <p className="text-[10px] text-gray-500">Per Worker</p>
+                          <p className="text-sm font-bold text-purple-600">+₹{profile.salaryInfo.workerIncentive || 0}</p>
+                          <p className="text-[10px] text-gray-400">per registration</p>
+                        </div>
+                      </div>
+                      {profile.salaryInfo.notes && (
+                        <p className="text-[11px] text-indigo-700 bg-white/80 p-2 rounded-lg border border-indigo-100">
+                          <span className="font-semibold">Note from Super Admin:</span> {profile.salaryInfo.notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bank & Payout Information - Admin fills this directly */}
+                <div className="pt-6 border-t border-gray-100 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
+                        <FiDollarSign className="text-emerald-600" /> Bank &amp; Payout Information
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Provide your bank account or UPI details to receive your salary and onboarding incentives.
+                      </p>
+                    </div>
+                    {profile.bankDetails?.accountNumber || profile.bankDetails?.upiId ? (
+                      <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                        ✓ Details Saved
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
+                        Pending Details
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Account Holder Name</label>
+                      <input
+                        type="text"
+                        name="accountHolderName"
+                        value={profile.bankDetails?.accountHolderName || ''}
+                        onChange={handleBankChange}
+                        placeholder="Full name as in bank passbook"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Bank Name</label>
+                      <input
+                        type="text"
+                        name="bankName"
+                        value={profile.bankDetails?.bankName || ''}
+                        onChange={handleBankChange}
+                        placeholder="e.g. State Bank of India, HDFC Bank"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Account Number</label>
+                      <input
+                        type="text"
+                        name="accountNumber"
+                        value={profile.bankDetails?.accountNumber || ''}
+                        onChange={handleBankChange}
+                        placeholder="Enter bank account number"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">IFSC Code</label>
+                      <input
+                        type="text"
+                        name="ifscCode"
+                        value={profile.bankDetails?.ifscCode || ''}
+                        onChange={handleBankChange}
+                        placeholder="e.g. SBIN0001234"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm uppercase font-mono"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">UPI ID (Optional)</label>
+                      <input
+                        type="text"
+                        name="upiId"
+                        value={profile.bankDetails?.upiId || ''}
+                        onChange={handleBankChange}
+                        placeholder="e.g. yourname@okhdfcbank"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex justify-end pt-6">
                   <button type="submit" disabled={profileLoading}
                     className="px-8 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 flex items-center gap-2 disabled:opacity-70 shadow-lg shadow-blue-200 transition-all">
                     {profileLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSave className="w-5 h-5" />}
-                    Update Profile
+                    Update Profile &amp; Payout Info
                   </button>
                 </div>
               </form>

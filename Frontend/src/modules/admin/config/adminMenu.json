@@ -230,6 +230,30 @@
     "children": []
   },
   {
+    "title": "My Salary",
+    "route": "/admin/my-salary",
+    "allowedRoles": [
+      "admin"
+    ],
+    "children": []
+  },
+  {
+    "title": "Admin Management",
+    "route": "/admin/admin-management",
+    "allowedRoles": [
+      "super_admin"
+    ],
+    "children": []
+  },
+  {
+    "title": "Admin Payroll",
+    "route": "/admin/admin-salaries",
+    "allowedRoles": [
+      "super_admin"
+    ],
+    "children": []
+  },
+  {
     "title": "Settings",
     "route": "/admin/settings",
     "allowedRoles": [
